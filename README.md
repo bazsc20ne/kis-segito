@@ -1,4 +1,4 @@
-# Kis Segítő
+# Kis Segítő / Little Helper
 
 <p align="center"><img src="docs/images/logo_hu.png" alt="Kis Segítő" width="480"></p>
 
@@ -121,7 +121,7 @@ A felhasznált harmadik féltől származó anyagok a saját licencük alatt mar
 
 ### What is this?
 
-Kis Segítő ("little helper") is an open-source device that helps children with their
+Little Helper is an open-source device that helps children with their
 daily routine. It has two parts that work together:
 
 - **Knob** – a rotary knob with a round display, running ESPHome firmware. It is
