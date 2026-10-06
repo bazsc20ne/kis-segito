@@ -2,5 +2,11 @@
   "panel.title": "Kis Segítő",
   "panel.empty": "Nothing here yet.",
   "panel.devices": "Knobs",
-  "panel.version": "Version"
+  "panel.version": "Version",
+  "language.name": "English",
+  "settings.title": "Settings",
+  "settings.language": "Language",
+  "settings.language_auto": "Automatic (Home Assistant language)",
+  "settings.language_hint": "Used on the knobs and in this panel.",
+  "settings.admin_only": "Only administrators can change this."
 }

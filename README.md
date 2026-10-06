@@ -81,8 +81,11 @@ Ezután add hozzá a knobot a Home Assistanthez az **ESPHome** integrációval.
 3. **Beállítások → Eszközök és szolgáltatások → Integráció hozzáadása → Kis Segítő**,
    és válaszd ki a knobot.
 
-Az oldalsávban megjelenik a **Kis Segítő** menüpont. A knob kijelzőjének szövegei a
-Home Assistant nyelvén jelennek meg (jelenleg angol és magyar).
+Az oldalsávban megjelenik a **Kis Segítő** menüpont. A knob kijelzőjének és a panelnek a
+szövegei alapból a Home Assistant nyelvén jelennek meg (jelenleg angol és magyar; ha egy
+nyelvhez nincs fordítás, angolul). A panel **Beállítások** kártyáján más nyelv is
+választható; ez a knobokra és a panelre is érvényes. Új nyelvet fordítási fájlok
+hozzáadásával lehet felvenni.
 
 ## Köszönet és források
 
@@ -185,8 +188,11 @@ Then add the knob to Home Assistant with the **ESPHome** integration.
 2. Install **Kis Segítő** and restart Home Assistant.
 3. **Settings → Devices & services → Add integration → Kis Segítő**, then select the knob.
 
-A **Kis Segítő** entry appears in the sidebar. The texts on the knob display follow the
-Home Assistant language (currently English and Hungarian).
+A **Kis Segítő** entry appears in the sidebar. The texts on the knob display and in the
+panel follow the Home Assistant language by default (currently English and Hungarian;
+English when there is no translation for a language). Another language can be chosen on
+the panel's **Settings** card; it applies to the knobs and the panel. A new language only
+needs new translation files.
 
 ### Credits and sources
 

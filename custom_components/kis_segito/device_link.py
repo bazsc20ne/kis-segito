@@ -4,13 +4,15 @@
 The integration talks to the knob only through the ESPHome native API: the
 firmware exposes API actions, which the ESPHome integration registers as
 ``esphome.<node_name>_<action>`` services. This module resolves those service
-names and pushes the on-screen strings in the Home Assistant language.
+names and pushes the on-screen strings in the chosen language (by default the
+Home Assistant language).
 """
 
 from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -36,6 +38,11 @@ def _load_strings_file(path: Path) -> dict[str, str]:
     with path.open(encoding="utf-8") as file:
         data = json.load(file)
     return {str(key): str(value) for key, value in data.items()}
+
+
+def available_languages() -> list[str]:
+    """Language codes the knob has translations for (from the JSON files)."""
+    return sorted(path.stem for path in DEVICE_TRANSLATIONS_DIR.glob("*.json"))
 
 
 def load_device_strings(language: str | None) -> tuple[str, dict[str, str]]:
@@ -76,9 +83,16 @@ def esphome_service_name(node_name: str, action: str) -> str:
 class DeviceLink:
     """Keeps one knob device supplied with UI strings."""
 
-    def __init__(self, hass: HomeAssistant, device_id: str) -> None:
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        device_id: str,
+        language: Callable[[], str | None] | None = None,
+    ) -> None:
         self.hass = hass
         self.device_id = device_id
+        # Returns the language to send; defaults to the Home Assistant language.
+        self._language = language or (lambda: self.hass.config.language)
         self._unsubs: list[CALLBACK_TYPE] = []
         self._debouncer = Debouncer(
             hass,
@@ -103,7 +117,7 @@ class DeviceLink:
         return service
 
     async def async_push_strings(self) -> None:
-        """Send the on-screen strings in the Home Assistant language."""
+        """Send the on-screen strings in the chosen language."""
         service = self._service(ESPHOME_ACTION_SET_UI_STRINGS)
         if service is None:
             _LOGGER.debug(
@@ -113,7 +127,7 @@ class DeviceLink:
             )
             return
         language, strings = await self.hass.async_add_executor_job(
-            load_device_strings, self.hass.config.language
+            load_device_strings, self._language()
         )
         data: dict[str, Any] = {
             "language": language,
@@ -145,6 +159,11 @@ class DeviceLink:
                 EVENT_CORE_CONFIG_UPDATE, self._async_core_config_updated
             )
         )
+        self.hass.async_create_task(self._debouncer.async_call())
+
+    @callback
+    def async_schedule_push(self) -> None:
+        """Push the strings again soon (e.g. after a language change)."""
         self.hass.async_create_task(self._debouncer.async_call())
 
     @callback

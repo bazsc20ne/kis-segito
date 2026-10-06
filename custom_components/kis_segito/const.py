@@ -26,3 +26,6 @@ ESPHOME_DOMAIN: Final = "esphome"
 ESPHOME_ACTION_SET_UI_STRINGS: Final = "set_ui_strings"
 
 DEFAULT_LANGUAGE: Final = "en"
+
+# Language setting: "auto" follows the Home Assistant language.
+LANGUAGE_AUTO: Final = "auto"

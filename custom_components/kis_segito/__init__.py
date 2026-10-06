@@ -58,7 +58,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: KisSegitoConfigEntry) ->
         data.panel_registered = True
     data.entry_ids.add(entry.entry_id)
 
-    link = DeviceLink(hass, entry.data[CONF_DEVICE_ID])
+    device_id = entry.data[CONF_DEVICE_ID]
+    link = DeviceLink(
+        hass,
+        device_id,
+        lambda: data.store.effective_language(device_id, hass.config.language),
+    )
     entry.runtime_data = link
     link.async_start()
     return True

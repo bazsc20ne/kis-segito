@@ -2,5 +2,11 @@
   "panel.title": "Kis Segítő",
   "panel.empty": "Itt még nincs semmi.",
   "panel.devices": "Knobok",
-  "panel.version": "Verzió"
+  "panel.version": "Verzió",
+  "language.name": "Magyar",
+  "settings.title": "Beállítások",
+  "settings.language": "Nyelv",
+  "settings.language_auto": "Automatikus (Home Assistant nyelve)",
+  "settings.language_hint": "A knobokon és ezen a panelen is ez a nyelv látszik.",
+  "settings.admin_only": "Ezt csak rendszergazda módosíthatja."
 }

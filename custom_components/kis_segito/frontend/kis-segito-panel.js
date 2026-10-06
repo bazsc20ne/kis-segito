@@ -2,9 +2,11 @@
 //
 // Kis Segito sidebar panel. Plain web component, no build step.
 // Texts come from translations/<language>.json next to this file; adding a
-// language only needs a new JSON file.
+// language only needs a new JSON file. The language follows the Home Assistant
+// user language unless one is chosen in the panel settings.
 
 const FALLBACK_LANGUAGE = "en";
+const LANGUAGE_AUTO = "auto";
 
 class KisSegitoPanel extends HTMLElement {
   constructor() {
@@ -13,18 +15,37 @@ class KisSegitoPanel extends HTMLElement {
     this._strings = {};
     this._loadedLanguage = null;
     this._info = null;
+    this._settings = null;
   }
 
   set hass(hass) {
     const first = !this._hass;
     this._hass = hass;
-    if (hass.language !== this._loadedLanguage) {
-      this._loadTranslations(hass.language);
-    }
+    this._updateLanguage();
     if (first) {
       this._loadInfo();
+      this._loadSettings();
+      this._render();
+    } else {
+      // Only the sidebar button needs the new hass object; re-rendering on
+      // every state change would reset open controls.
+      const menuButton = this.shadowRoot.querySelector("ha-menu-button");
+      if (menuButton) {
+        menuButton.hass = hass;
+      }
     }
-    this._render();
+  }
+
+  get _language() {
+    const chosen = this._settings?.language;
+    return chosen && chosen !== LANGUAGE_AUTO ? chosen : this._hass?.language;
+  }
+
+  _updateLanguage() {
+    const language = this._language;
+    if (language && language !== this._loadedLanguage) {
+      this._loadTranslations(language);
+    }
   }
 
   set narrow(narrow) {
@@ -86,6 +107,56 @@ class KisSegitoPanel extends HTMLElement {
     this._render();
   }
 
+  async _loadSettings() {
+    try {
+      this._settings = await this._hass.callWS({ type: "kis_segito/settings" });
+    } catch (err) {
+      console.warn("Kis Segito: settings request failed", err);
+    }
+    this._updateLanguage();
+    this._render();
+  }
+
+  async _setLanguage(language) {
+    try {
+      this._settings = await this._hass.callWS({
+        type: "kis_segito/settings/update",
+        language,
+      });
+    } catch (err) {
+      console.warn("Kis Segito: settings update failed", err);
+    }
+    this._updateLanguage();
+    this._render();
+  }
+
+  _languageCard() {
+    if (!this._settings) {
+      return "";
+    }
+    const isAdmin = this._hass?.user?.is_admin ?? false;
+    const current = this._settings.language;
+    const options = [
+      { code: LANGUAGE_AUTO, name: this._t("settings.language_auto") },
+      ...this._settings.languages,
+    ]
+      .map(
+        (lang) =>
+          `<option value="${this._escape(lang.code)}" ${lang.code === current ? "selected" : ""}>${this._escape(lang.name)}</option>`
+      )
+      .join("");
+    return `
+      <div class="card">
+        <h2>${this._escape(this._t("settings.title"))}</h2>
+        <label for="language">${this._escape(this._t("settings.language"))}</label>
+        <select id="language" ${isAdmin ? "" : "disabled"}>${options}</select>
+        <p class="muted">
+          ${this._escape(this._t(isAdmin ? "settings.language_hint" : "settings.admin_only"))}
+        </p>
+      </div>
+    `;
+  }
+
   _t(key) {
     return this._strings[key] ?? key;
   }
@@ -134,6 +205,28 @@ class KisSegitoPanel extends HTMLElement {
           border: 1px solid var(--divider-color);
           padding: 16px;
         }
+        .card + .card {
+          margin-top: 16px;
+        }
+        .card h2 {
+          margin: 0 0 12px;
+          font-size: 18px;
+          font-weight: 500;
+        }
+        label {
+          display: block;
+          margin-bottom: 4px;
+        }
+        select {
+          font: inherit;
+          padding: 6px 8px;
+          min-width: 240px;
+          max-width: 100%;
+          color: var(--primary-text-color);
+          background: var(--card-background-color);
+          border: 1px solid var(--divider-color);
+          border-radius: 4px;
+        }
         .muted {
           color: var(--secondary-text-color);
         }
@@ -150,8 +243,12 @@ class KisSegitoPanel extends HTMLElement {
             · ${this._escape(this._t("panel.version"))}: ${this._escape(this._version)}
           </p>
         </div>
+        ${this._languageCard()}
       </div>
     `;
+    this.shadowRoot
+      .querySelector("#language")
+      ?.addEventListener("change", (ev) => this._setLanguage(ev.target.value));
     // Sidebar toggle on narrow screens.
     const menuButton = this.shadowRoot.querySelector("ha-menu-button");
     if (menuButton) {

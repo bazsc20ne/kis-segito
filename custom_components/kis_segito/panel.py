@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from homeassistant.components import frontend, panel_custom
@@ -45,3 +46,14 @@ async def async_register_panel(hass: HomeAssistant, version: str) -> None:
 def async_unregister_panel(hass: HomeAssistant) -> None:
     """Remove the sidebar entry."""
     frontend.async_remove_panel(hass, PANEL_URL_PATH)
+
+
+def panel_language_names() -> dict[str, str]:
+    """Native language names from the panel translations ("language.name")."""
+    names: dict[str, str] = {}
+    for path in (FRONTEND_DIR / "translations").glob("*.json"):
+        with path.open(encoding="utf-8") as file:
+            name = json.load(file).get("language.name")
+        if name:
+            names[path.stem] = str(name)
+    return names

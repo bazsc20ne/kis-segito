@@ -24,7 +24,7 @@ def test_language_fallbacks() -> None:
     assert load_device_strings("hu-HU")[0] == "hu"
     assert load_device_strings("xx")[0] == "en"
     assert load_device_strings(None)[0] == "en"
-    language, strings = load_device_strings("hu")
+    _language, strings = load_device_strings("hu")
     assert (
         strings["test_screen.hint"] != load_device_strings("en")[1]["test_screen.hint"]
     )

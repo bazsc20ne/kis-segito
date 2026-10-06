@@ -34,6 +34,10 @@ Assistant data follows in a later version):
   briefly turns into a dented ball on impact (the dent faces the contact point),
   and a highlight that never rotates or deforms. The highlight position is
   adjustable with the `ball_highlight_dx` / `ball_highlight_dy` substitutions.
+- Language setting in the Kis Segítő panel: "Automatic" (the Home Assistant
+  language, English when there is no translation) or any available
+  translation. It applies to the knobs and to the panel; the list comes from the
+  translation files.
 - Icon pipeline: source artwork in `assets/icons/source`, rendered by
   `tools/build_device_assets.py`; the icon list is in `docs/icons.md`. The icons
   are placeholder sketches for now.
@@ -64,6 +68,9 @@ Assistant adatai egy későbbi verzióban jönnek):
   ütközéskor rövid időre horpadt labdára vált (a horpadás az ütközési pont felé
   néz), és egy csillanás, amely sosem forog és nem torzul. A csillanás helye a
   `ball_highlight_dx` / `ball_highlight_dy` helyettesítésekkel állítható.
+- Nyelvválasztó a Kis Segítő panelen: „Automatikus” (a Home Assistant nyelve,
+  fordítás hiányában angol) vagy bármelyik elérhető fordítás. A knobokra és a
+  panelre is érvényes; a lista a fordítási fájlokból jön.
 - Ikon-csővezeték: forrásrajzok az `assets/icons/source` mappában, a méreteket a
   `tools/build_device_assets.py` készíti; az ikonlista a `docs/icons.md`-ben.
   Az ikonok egyelőre helyettesítő vázlatok.
