@@ -6,10 +6,26 @@
 - Display controller: ST7701S, 16-bit RGB (RGB565) + 3-wire SPI for the init sequence
 - Input: rotary encoder (A/B) and push button – no touch
 
-Source: VIEWESMART schematic `MD80E.SCH.20240725_00` and BSP
+Source: VIEWESMART schematic `MD80E.SCH.20240725_00` and the vendor's ESP-IDF
+example for this board, `examples/ESP-IDF/UEDX48480021-MD80E-SDK`
 ([VIEWESMART/UEDX48480021-MD80ESP32_2.1inch-Knob](https://github.com/VIEWESMART/UEDX48480021-MD80ESP32_2.1inch-Knob), MIT).
-ESPHome ships the panel definition as the `UEDX48480021-MD80ET` model of the
-`mipi_rgb` display platform (the touch variant has the same panel and pinout).
+The vendor README names the driver chip GC9503CV, but the example sends an
+ST7701-style init sequence (the GC9503 sequence is commented out); the firmware
+follows the example. ESPHome's built-in `UEDX48480021-MD80ET` model (touch
+variant) uses different timings and gives only stripes on the MD80E, so it is
+not used.
+
+## Display timings / Kijelző-időzítés
+
+From the vendor `esp-bsp.h`; all are substitutions in `esphome/hardware/board.yaml`.
+
+| Setting | Value | Substitution |
+|---|---|---|
+| PCLK | 26 MHz, not inverted | `display_pclk_frequency`, `display_pclk_inverted` |
+| HSYNC pulse / back / front | 8 / 20 / 40 | `display_hsync_pulse_width`, `display_hsync_back_porch`, `display_hsync_front_porch` |
+| VSYNC pulse / back / front | 8 / 20 / 50 | `display_vsync_pulse_width`, `display_vsync_back_porch`, `display_vsync_front_porch` |
+| COLMOD | 18-bit (0x66) on the 16-bit bus | `display_pixel_mode` |
+| Colour order / inversion | RGB / off | `display_color_order`, `display_invert_colors` |
 
 ## Pinout / Lábkiosztás
 
@@ -32,15 +48,27 @@ ESPHome ships the panel definition as the `UEDX48480021-MD80ET` model of the
 
 ## Tuning / Hangolás
 
-If a panel batch shows wrong colours or the encoder counts double, the device
-config can override these substitutions without forking:
+Any value above can be overridden in the device config without forking, e.g.:
 
 ```yaml
 substitutions:
-  display_color_order: BGR       # RGB (default) or BGR
-  display_invert_colors: "true"  # default "false"
-  encoder_resolution: "2"        # 1 (default), 2 or 4
+  display_pclk_frequency: 16MHz
+  display_pclk_inverted: "true"
+  display_color_order: BGR
+  encoder_resolution: "2"        # encoder steps per detent: 1 (default), 2 or 4
 ```
 
-Ha egy panel-sorozat rossz színeket mutat, vagy az enkóder duplán számol, a fenti
-`substitutions` értékekkel fork nélkül hangolható.
+A fenti értékek fork nélkül, az eszközkonfig `substitutions` részében átírhatók.
+
+## Display test / Kijelzőteszt
+
+`esphome/display-test.yaml` uses the same board definition without LVGL and shows
+ESPHome's test card (colour bars, border, text). Flash it over the air to the same
+device, check the picture, then flash the normal firmware back. With the default
+settings the test card should show sharp colour bars in the right order; stripes
+or a rolling image point to PCLK/porch settings, swapped colours to
+`display_color_order`.
+
+Az `esphome/display-test.yaml` ugyanazt a lapdefiníciót használja LVGL nélkül, és
+az ESPHome tesztképét mutatja. OTA-val ugyanarra az eszközre tölthető, a teszt
+után a normál firmware visszatölthető.

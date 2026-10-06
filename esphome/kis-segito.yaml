@@ -10,7 +10,7 @@
 #     name: kis-segito
 #     friendly_name: Kis Segito
 #   packages:
-#     kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.1.1
+#     kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.1.2
 #   api:
 #     encryption:
 #       key: !secret kis_segito_api_key
@@ -27,9 +27,7 @@
 substitutions:
   name: kis-segito
   friendly_name: Kis Segito
-  # Panel tuning knobs, in case a panel batch needs different settings.
-  display_color_order: RGB
-  display_invert_colors: "false"
+  # Display tuning values are in hardware/board.yaml and can be overridden here.
   # Encoder steps per detent (1, 2 or 4).
   encoder_resolution: "1"
 
@@ -40,18 +38,10 @@ esphome:
   name_add_mac_suffix: false
   project:
     name: bazsc20ne.kis-segito
-    version: "0.1.1"
+    version: "0.1.2"
 
-esp32:
-  variant: esp32s3
-  flash_size: 16MB
-  cpu_frequency: 240MHz
-  framework:
-    type: esp-idf
-
-psram:
-  mode: octal
-  speed: 80MHz
+packages:
+  board: !include hardware/board.yaml
 
 logger:
 
@@ -173,47 +163,6 @@ script:
           text: ""
 
 # --- Hardware -------------------------------------------------------------------
-
-# 3-wire SPI used only to send the ST7701S init sequence. SCK/SDA share pins
-# with RGB data lines B6/B5, so a software SPI bus is used.
-spi:
-  id: lcd_spi
-  interface: software
-  clk_pin:
-    number: GPIO13
-    allow_other_uses: true
-  mosi_pin:
-    number: GPIO12
-    allow_other_uses: true
-
-display:
-  - platform: mipi_rgb
-    id: knob_display
-    # Built-in ESPHome model; the panel, pinout and init sequence are the same
-    # on the touch (MD80ET) and non-touch (MD80E) variants.
-    model: UEDX48480021-MD80ET
-    spi_id: lcd_spi
-    color_order: ${display_color_order}
-    invert_colors: ${display_invert_colors}
-    update_interval: never
-    auto_clear_enabled: false
-
-# Backlight: P-channel MOSFET, GPIO7 low = on.
-output:
-  - platform: ledc
-    id: backlight_pwm
-    pin: GPIO7
-    inverted: true
-    frequency: 1000Hz
-
-light:
-  - platform: monochromatic
-    id: backlight
-    name: Backlight
-    icon: mdi:brightness-6
-    output: backlight_pwm
-    restore_mode: ALWAYS_ON
-    default_transition_length: 250ms
 
 sensor:
   - platform: rotary_encoder

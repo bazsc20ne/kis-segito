@@ -6,6 +6,31 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.1.2] - 2026-10-06
+
+### English
+
+- Fix: the MD80E (non-touch) panel showed only stripes. The display now uses
+  the vendor's MD80E ESP-IDF example setup instead of ESPHome's built-in
+  `UEDX48480021-MD80ET` model: 26 MHz non-inverted PCLK, porches 8/20/40 and
+  8/20/50, the vendor init sequence, and the vendor's PSRAM/cache settings.
+  All timing values are substitutions, so they can be tuned from the device
+  config (#1).
+- New `esphome/display-test.yaml`: the same board without LVGL, showing
+  ESPHome's test card, for checking the panel on its own.
+- The board definition moved to `esphome/hardware/board.yaml`.
+
+### Magyar
+
+- Javítás: az MD80E (nem érintős) kijelzőn csak csíkok látszottak. A kijelző
+  most a gyártói MD80E ESP-IDF példa beállításait használja az ESPHome beépített
+  `UEDX48480021-MD80ET` modellje helyett: 26 MHz, nem invertált PCLK, 8/20/40 és
+  8/20/50 porch, a gyártói init szekvencia, valamint a gyártói PSRAM/cache
+  beállítások. Minden időzítés substitution, így az eszközkonfigból hangolható (#1).
+- Új `esphome/display-test.yaml`: ugyanaz a lap LVGL nélkül, az ESPHome
+  tesztképével (test card), a kijelző önálló ellenőrzéséhez.
+- A lapdefiníció az `esphome/hardware/board.yaml` fájlba került.
+
 ## [0.1.1] - 2026-10-06
 
 ### English
@@ -56,5 +81,6 @@ Első, tesztelhető váz.
 - GitHub Actions: hassfest, HACS-validáció, tesztek, ESPHome-fordítás; a tagelt
   release-ekhez csatolva a factory és az OTA firmware.
 
+[0.1.2]: https://github.com/bazsc20ne/kis-segito/releases/tag/v0.1.2
 [0.1.1]: https://github.com/bazsc20ne/kis-segito/releases/tag/v0.1.1
 [0.1.0]: https://github.com/bazsc20ne/kis-segito/releases/tag/v0.1.0

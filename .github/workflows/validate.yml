@@ -64,6 +64,9 @@ jobs:
         with:
           python-version: "3.13"
       - run: pip install "esphome==${{ vars.ESPHOME_VERSION || '2026.9.1' }}"
-      - name: Validate factory config
+      - name: Validate configs
         working-directory: esphome
-        run: esphome config kis-segito-factory.yaml
+        run: |
+          cp secrets.example.yaml secrets.yaml
+          esphome config kis-segito-factory.yaml
+          esphome config display-test.yaml

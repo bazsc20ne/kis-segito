@@ -45,7 +45,7 @@ substitutions:
   friendly_name: Kis Segito
 
 packages:
-  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.1.1
+  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.1.2
 
 api:
   encryption:
@@ -85,7 +85,7 @@ Home Assistant nyelvén jelennek meg (jelenleg angol és magyar).
   [UEDX48480021-MD80ESP32-2.1inch-Touch-Knob-Display](https://github.com/VIEWESMART/UEDX48480021-MD80ESP32-2.1inch-Touch-Knob-Display)
 - **Greg-79** – ESPHome-konfiguráció ehhez a kijelzőhöz (a README szerint MIT licenc; csak referencia):
   [UEDX48480021-MD80ESP32-2.1inch-Knob-Display-no-touch-](https://github.com/Greg-79/UEDX48480021-MD80ESP32-2.1inch-Knob-Display-no-touch-)
-- **ESPHome** – a kijelző-meghajtó és a beépített `UEDX48480021-MD80ET` panel-definíció
+- **ESPHome** – a kijelző-meghajtó (`mipi_rgb`)
 - ESPHome feature request: [esphome/feature-requests#3254](https://github.com/esphome/feature-requests/issues/3254)
 - Spotpear wiki: <https://spotpear.com/wiki/ESP32-S3-2.1-inch-Round-Rotary-LCD-Screen-Knob-Display.html>
 
@@ -144,7 +144,7 @@ substitutions:
   friendly_name: Kis Segito
 
 packages:
-  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.1.1
+  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.1.2
 
 api:
   encryption:
@@ -183,7 +183,7 @@ Home Assistant language (currently English and Hungarian).
   [UEDX48480021-MD80ESP32-2.1inch-Touch-Knob-Display](https://github.com/VIEWESMART/UEDX48480021-MD80ESP32-2.1inch-Touch-Knob-Display)
 - **Greg-79** – ESPHome configuration for this display (MIT according to its README; reference only):
   [UEDX48480021-MD80ESP32-2.1inch-Knob-Display-no-touch-](https://github.com/Greg-79/UEDX48480021-MD80ESP32-2.1inch-Knob-Display-no-touch-)
-- **ESPHome** – the display driver and the built-in `UEDX48480021-MD80ET` panel definition
+- **ESPHome** – the display driver (`mipi_rgb`)
 - ESPHome feature request: [esphome/feature-requests#3254](https://github.com/esphome/feature-requests/issues/3254)
 - Spotpear wiki: <https://spotpear.com/wiki/ESP32-S3-2.1-inch-Round-Rotary-LCD-Screen-Knob-Display.html>
 

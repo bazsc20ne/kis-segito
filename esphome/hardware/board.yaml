@@ -1,0 +1,162 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# Board definition for the VIEWE UEDX48480021-MD80E knob (no touch):
+# ESP32-S3 + 2.1" 480x480 RGB panel, backlight. Included by kis-segito.yaml and
+# display-test.yaml.
+#
+# Panel setup follows the vendor's MD80E ESP-IDF example
+# (VIEWESMART/UEDX48480021-MD80ESP32_2.1inch-Knob,
+# examples/ESP-IDF/UEDX48480021-MD80E-SDK, MIT - see NOTICE): timings from
+# esp-bsp.h and the active LCD_CONFIG_CMD[] init sequence from bsp_lcd.c.
+# Every timing value is a substitution, so a panel batch can be tuned from the
+# device config without changing this file.
+
+substitutions:
+  display_pclk_frequency: 26MHz
+  display_pclk_inverted: "false"
+  display_hsync_pulse_width: "8"
+  display_hsync_back_porch: "20"
+  display_hsync_front_porch: "40"
+  display_vsync_pulse_width: "8"
+  display_vsync_back_porch: "20"
+  display_vsync_front_porch: "50"
+  # The vendor sets COLMOD 0x66 (18-bit) on the 16-bit bus.
+  display_pixel_mode: 18bit
+  display_color_order: RGB
+  display_invert_colors: "false"
+
+esp32:
+  variant: esp32s3
+  flash_size: 16MB
+  cpu_frequency: 240MHz
+  framework:
+    type: esp-idf
+    sdkconfig_options:
+      # As in the vendor example: run code/rodata from PSRAM and use 64-byte
+      # cache lines, so flash access does not starve the RGB panel DMA.
+      CONFIG_ESP32S3_DATA_CACHE_LINE_64B: y
+      CONFIG_SPIRAM_XIP_FROM_PSRAM: y
+
+psram:
+  mode: octal
+  speed: 80MHz
+
+# 3-wire SPI (9-bit) used only to send the init sequence. SCK/SDA share pins with
+# RGB data lines B6/B5, so a software SPI bus is used; the RGB driver takes the
+# pins over afterwards.
+spi:
+  id: lcd_spi
+  interface: software
+  clk_pin:
+    number: GPIO13
+    allow_other_uses: true
+  mosi_pin:
+    number: GPIO12
+    allow_other_uses: true
+
+display:
+  - platform: mipi_rgb
+    id: knob_display
+    model: CUSTOM
+    spi_id: lcd_spi
+    dimensions:
+      width: 480
+      height: 480
+    cs_pin: GPIO18
+    reset_pin: GPIO8
+    de_pin: GPIO17
+    pclk_pin: GPIO9
+    hsync_pin:
+      number: GPIO46
+      ignore_strapping_warning: true
+    vsync_pin:
+      number: GPIO3
+      ignore_strapping_warning: true
+    data_pins:
+      red: [GPIO40, GPIO41, GPIO42, GPIO2, GPIO1]
+      green: [GPIO21, GPIO47, GPIO48, GPIO45, GPIO38, GPIO39]
+      blue:
+        - GPIO10
+        - GPIO11
+        - number: GPIO12
+          allow_other_uses: true
+        - number: GPIO13
+          allow_other_uses: true
+        - GPIO14
+    pclk_frequency: ${display_pclk_frequency}
+    pclk_inverted: ${display_pclk_inverted}
+    hsync_pulse_width: ${display_hsync_pulse_width}
+    hsync_back_porch: ${display_hsync_back_porch}
+    hsync_front_porch: ${display_hsync_front_porch}
+    vsync_pulse_width: ${display_vsync_pulse_width}
+    vsync_back_porch: ${display_vsync_back_porch}
+    vsync_front_porch: ${display_vsync_front_porch}
+    pixel_mode: ${display_pixel_mode}
+    color_order: ${display_color_order}
+    invert_colors: ${display_invert_colors}
+    update_interval: never
+    auto_clear_enabled: false
+    # Vendor LCD_CONFIG_CMD[]. ESPHome appends COLMOD (pixel_mode), MADCTL,
+    # INVON/INVOFF, SLPOUT and DISPON itself.
+    init_sequence:
+      - [0xFF, 0x77, 0x01, 0x00, 0x00, 0x13]
+      - [0xEF, 0x08]
+      - [0xFF, 0x77, 0x01, 0x00, 0x00, 0x10]
+      - [0xC0, 0x3B, 0x00]
+      - [0xC1, 0x0B, 0x02]
+      - [0xC2, 0x07, 0x02]
+      - [0xC7, 0x00]
+      - [0xCC, 0x10]
+      - [0xCD, 0x08]
+      - [0xB0, 0x00, 0x11, 0x16, 0x0E, 0x11, 0x06, 0x05, 0x09, 0x08, 0x21, 0x06, 0x13, 0x10, 0x29, 0x31, 0x18]
+      - [0xB1, 0x00, 0x11, 0x16, 0x0E, 0x11, 0x07, 0x05, 0x09, 0x09, 0x21, 0x05, 0x13, 0x11, 0x2A, 0x31, 0x18]
+      - [0xFF, 0x77, 0x01, 0x00, 0x00, 0x11]
+      - [0xB0, 0x6D]
+      - [0xB1, 0x37]
+      - [0xB2, 0x8B]
+      - [0xB3, 0x80]
+      - [0xB5, 0x43]
+      - [0xB7, 0x85]
+      - [0xB8, 0x20]
+      - [0xC0, 0x09]
+      - [0xC1, 0x78]
+      - [0xC2, 0x78]
+      - [0xD0, 0x88]
+      - [0xE0, 0x00, 0x00, 0x02]
+      - [0xE1, 0x03, 0xA0, 0x00, 0x00, 0x04, 0xA0, 0x00, 0x00, 0x00, 0x20, 0x20]
+      - [0xE2, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+      - [0xE3, 0x00, 0x00, 0x11, 0x00]
+      - [0xE4, 0x22, 0x00]
+      - [0xE5, 0x05, 0xEC, 0xF6, 0xCA, 0x07, 0xEE, 0xF6, 0xCA, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+      - [0xE6, 0x00, 0x00, 0x11, 0x00]
+      - [0xE7, 0x22, 0x00]
+      - [0xE8, 0x06, 0xED, 0xF6, 0xCA, 0x08, 0xEF, 0xF6, 0xCA, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+      - [0xE9, 0x36, 0x00]
+      - [0xEB, 0x00, 0x00, 0x40, 0x40, 0x00, 0x00, 0x00]
+      - [0xED, 0xFF, 0xFF, 0xFF, 0xBA, 0x0A, 0xFF, 0x45, 0xFF, 0xFF, 0x54, 0xFF, 0xA0, 0xAB, 0xFF, 0xFF, 0xFF]
+      - [0xEF, 0x08, 0x08, 0x08, 0x45, 0x3F, 0x54]
+      - [0xFF, 0x77, 0x01, 0x00, 0x00, 0x13]
+      - [0xE8, 0x00, 0x0E]
+      - [0xFF, 0x77, 0x01, 0x00, 0x00, 0x00]
+      - [0x11, 0x00]
+      - [0xFF, 0x77, 0x01, 0x00, 0x00, 0x13]
+      - [0xE8, 0x00, 0x0C]
+      - [0xE8, 0x00, 0x00]
+      - [0xFF, 0x77, 0x01, 0x00, 0x00, 0x00]
+
+# Backlight: P-channel MOSFET, GPIO7 low = on.
+output:
+  - platform: ledc
+    id: backlight_pwm
+    pin: GPIO7
+    inverted: true
+    frequency: 1000Hz
+
+light:
+  - platform: monochromatic
+    id: backlight
+    name: Backlight
+    icon: mdi:brightness-6
+    output: backlight_pwm
+    restore_mode: ALWAYS_ON
+    default_transition_length: 250ms

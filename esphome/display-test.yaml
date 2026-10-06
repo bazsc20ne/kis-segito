@@ -1,0 +1,41 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# Display bring-up firmware: the same board definition as kis-segito.yaml, but
+# no LVGL - the panel shows ESPHome's built-in test card (colour bars, borders,
+# text), so colour order, geometry and timings can be checked on their own.
+#
+# Flash it over the air to the same device (same name), test, then flash the
+# normal firmware back. Tuning values (see hardware/board.yaml) can be set in
+# the substitutions below.
+
+substitutions:
+  name: kis-segito
+  friendly_name: Kis Segito
+  # e.g. display_pclk_frequency: 16MHz
+  #      display_pclk_inverted: "true"
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+  min_version: 2026.9.0
+
+packages:
+  board: !include hardware/board.yaml
+
+logger:
+
+api:
+  encryption:
+    key: !secret kis_segito_api_key
+
+ota:
+  - platform: esphome
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+display:
+  - id: !extend knob_display
+    show_test_card: true
+    update_interval: 5s
