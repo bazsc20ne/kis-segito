@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Full firmware build whenever the ESPHome files change.
+name: ESPHome build
+
+on:
+  push:
+    paths:
+      - "esphome/**"
+      - ".github/workflows/esphome.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Compile firmware
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: esphome/build-action@v7.0.0
+        id: build
+        with:
+          yaml-file: esphome/kis-segito-factory.yaml
+          version: ${{ vars.ESPHOME_VERSION || '2026.9.1' }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: firmware
+          path: ${{ steps.build.outputs.name }}
+          retention-days: 7

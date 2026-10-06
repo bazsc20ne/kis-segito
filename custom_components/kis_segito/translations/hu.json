@@ -1,0 +1,22 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Kis Segítő knob hozzáadása",
+        "description": "Válaszd ki a knobot. Előbb fel kell venni a Home Assistantbe az ESPHome integrációval, és a Kis Segítő firmware-nek kell rajta futnia.",
+        "data": {
+          "device_id": "Knob"
+        },
+        "data_description": {
+          "device_id": "Az az ESPHome-eszköz, amelyen a Kis Segítő firmware fut."
+        }
+      }
+    },
+    "error": {
+      "device_not_found": "A kiválasztott eszköz nem található."
+    },
+    "abort": {
+      "already_configured": "Ez a knob már be van állítva."
+    }
+  }
+}

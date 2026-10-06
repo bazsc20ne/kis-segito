@@ -1,0 +1,23 @@
+{
+  "domain": "kis_segito",
+  "name": "Kis Segítő",
+  "after_dependencies": [
+    "esphome"
+  ],
+  "codeowners": [
+    "@bazsc20ne"
+  ],
+  "config_flow": true,
+  "dependencies": [
+    "frontend",
+    "http",
+    "panel_custom",
+    "websocket_api"
+  ],
+  "documentation": "https://github.com/bazsc20ne/kis-segito",
+  "integration_type": "hub",
+  "iot_class": "local_push",
+  "issue_tracker": "https://github.com/bazsc20ne/kis-segito/issues",
+  "requirements": [],
+  "version": "0.1.0"
+}

@@ -1,0 +1,53 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# On a vX.Y.Z tag: check versions, build the firmware and publish a GitHub Release
+# with the notes of that version from CHANGELOG.md.
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  firmware:
+    name: Build firmware
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 scripts/check_versions.py "${GITHUB_REF_NAME}"
+      - uses: esphome/build-action@v7.0.0
+        id: build
+        with:
+          yaml-file: esphome/kis-segito-factory.yaml
+          version: ${{ vars.ESPHOME_VERSION || '2026.9.1' }}
+      - name: Rename firmware files
+        run: |
+          mkdir dist
+          cp "${{ steps.build.outputs.name }}/${{ steps.build.outputs.name }}.factory.bin" "dist/kis-segito-${GITHUB_REF_NAME}.factory.bin"
+          cp "${{ steps.build.outputs.name }}/${{ steps.build.outputs.name }}.ota.bin" "dist/kis-segito-${GITHUB_REF_NAME}.ota.bin"
+          (cd dist && sha256sum *.bin > SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: firmware
+          path: dist
+
+  release:
+    name: Publish release
+    needs: firmware
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: firmware
+          path: dist
+      - name: Extract release notes
+        run: python3 scripts/release_notes.py "${GITHUB_REF_NAME}" > release-notes.md
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          body_path: release-notes.md
+          files: dist/*

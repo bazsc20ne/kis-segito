@@ -1,0 +1,22 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Add a Kis Segítő knob",
+        "description": "Select the knob. It must already be added to Home Assistant through the ESPHome integration and run the Kis Segítő firmware.",
+        "data": {
+          "device_id": "Knob"
+        },
+        "data_description": {
+          "device_id": "The ESPHome device running the Kis Segítő firmware."
+        }
+      }
+    },
+    "error": {
+      "device_not_found": "The selected device was not found."
+    },
+    "abort": {
+      "already_configured": "This knob is already set up."
+    }
+  }
+}

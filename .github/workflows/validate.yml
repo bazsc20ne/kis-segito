@@ -1,0 +1,67 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+name: Validate
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  hassfest:
+    name: Hassfest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: home-assistant/actions/hassfest@master
+
+  hacs:
+    name: HACS
+    runs-on: ubuntu-latest
+    steps:
+      - uses: hacs/action@main
+        with:
+          category: integration
+          # Remove once the icon is in home-assistant/brands.
+          ignore: brands
+
+  tests:
+    name: Python tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install -r requirements_test.txt
+      - name: Install the matching Home Assistant frontend
+        run: |
+          pip install "$(python - <<'PY'
+          import json, pathlib, homeassistant.components.frontend as f
+          manifest = json.loads((pathlib.Path(f.__file__).parent / "manifest.json").read_text())
+          print(next(r for r in manifest["requirements"] if r.startswith("home-assistant-frontend")))
+          PY
+          )"
+      - run: pytest
+
+  versions:
+    name: Version consistency
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 scripts/check_versions.py
+
+  esphome-config:
+    name: ESPHome config
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install "esphome==${{ vars.ESPHOME_VERSION || '2026.9.1' }}"
+      - name: Validate factory config
+        working-directory: esphome
+        run: esphome config kis-segito-factory.yaml

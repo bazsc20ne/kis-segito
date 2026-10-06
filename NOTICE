@@ -1,0 +1,35 @@
+Kis Segítő
+Copyright (C) 2026 the Kis Segítő authors
+Licensed under the GNU Affero General Public License v3.0 only (see LICENSE).
+
+This project uses hardware information (pinout, schematic, display
+initialisation data) published by VIEWESMART for the UEDX48480021-MD80E board
+in https://github.com/VIEWESMART/UEDX48480021-MD80ESP32_2.1inch-Knob,
+under the following license:
+
+-------------------------------------------------------------------------------
+MIT License
+
+Copyright (c) 2024 VIEWE-CN
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+-------------------------------------------------------------------------------
+
+The display driver and the board's panel definition come from ESPHome
+(https://esphome.io), which is used as a dependency and keeps its own license.
