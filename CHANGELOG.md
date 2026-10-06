@@ -26,6 +26,8 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   off after 120 s without knob input; any input wakes it without acting.
   "Screen dim after" and "Screen off after" are adjustable from Home
   Assistant (0 disables a step).
+- Whenever the backlight is off (switch, screen saver, automation), the screen
+  content is black and drawing pauses; it comes back when the backlight is on.
 
 ### Magyar
 
@@ -45,6 +47,9 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   elhalványul, 120 s után kikapcsol; bármilyen tekerés vagy gombnyomás
   felébreszti, de nem lép vele. A „Screen dim after” és „Screen off after” idő
   a Home Assistantből állítható (a 0 kikapcsolja az adott lépést).
+- Ha a háttérvilágítás bármilyen módon kikapcsol (kapcsoló, képernyővédő,
+  automatizmus), a kijelző tartalma fekete, és a rajzolás szünetel;
+  bekapcsoláskor visszajön.
 
 ## [0.2.1] - 2026-10-07
 

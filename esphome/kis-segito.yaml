@@ -160,6 +160,10 @@ globals:
   - id: screen_state
     type: int
     initial_value: "0"
+  # Black layer over everything while the backlight is off.
+  - id: blank_overlay
+    type: lv_obj_t *
+    initial_value: nullptr
   # Backlight brightness before dimming, restored on wake-up.
   - id: awake_brightness
     type: float
@@ -187,6 +191,32 @@ script:
             lv_timer_delete(id(loading_anim));
             id(loading_anim) = nullptr;
           }
+
+  # While the backlight is off the screen content is black and LVGL pauses.
+  - id: blank_screen
+    mode: restart
+    then:
+      - lambda: |-
+          if (id(blank_overlay) == nullptr) {
+            lv_obj_t *o = lv_obj_create(lv_layer_sys());
+            lv_obj_remove_style_all(o);
+            lv_obj_set_size(o, LV_PCT(100), LV_PCT(100));
+            lv_obj_set_style_bg_color(o, lv_color_black(), 0);
+            lv_obj_set_style_bg_opa(o, LV_OPA_COVER, 0);
+            id(blank_overlay) = o;
+          }
+          lv_obj_remove_flag(id(blank_overlay), LV_OBJ_FLAG_HIDDEN);
+      # Let one black frame render before pausing.
+      - delay: 300ms
+      - lvgl.pause:
+  - id: unblank_screen
+    mode: restart
+    then:
+      - script.stop: blank_screen
+      - lvgl.resume:
+      - lambda: |-
+          if (id(blank_overlay) != nullptr)
+            lv_obj_add_flag(id(blank_overlay), LV_OBJ_FLAG_HIDDEN);
 
   # Screen saver: back to full brightness after dimming or switching off.
   - id: wake_screen
@@ -586,6 +616,15 @@ lvgl:
             text_font: font_text
             text_color: 0xFFFFFF
             text: ""
+
+# However the backlight is switched off (Home Assistant, screen saver,
+# automation), the screen content goes black; it comes back when it is on.
+light:
+  - id: !extend backlight
+    on_turn_off:
+      - script.execute: blank_screen
+    on_turn_on:
+      - script.execute: unblank_screen
 
 # Screen saver: dim, then switch off the backlight when the knob is not used.
 interval:
