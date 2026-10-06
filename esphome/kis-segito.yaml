@@ -86,6 +86,7 @@ api:
                      id(ui_language).c_str());
             // Keep the loading text in flash, so after a power cut the boot screen
             // already speaks the last known Home Assistant language.
+            bool changed = false;
             auto it = strings.find("boot.loading");
             if (it != strings.end()) {
               std::array<char, 96> text{};
@@ -98,12 +99,19 @@ api:
               memcpy(text.data(), it->second.data(), len);
               if (text != id(loading_text)) {
                 id(loading_text) = text;
+                changed = true;
               }
             }
             // The boot screen brand mark is Hungarian for "hu", English otherwise.
             const bool hu = id(ui_language) == "hu";
             if (hu != id(boot_language_hu)) {
               id(boot_language_hu) = hu;
+              changed = true;
+            }
+            // Restored globals are normally written to flash only every minute;
+            // write a language change soon so a quick restart keeps it.
+            if (changed) {
+              id(flush_preferences).execute();
             }
             id(ui).set_language(id(ui_language));
         - script.execute: refresh_texts
@@ -153,6 +161,14 @@ globals:
     restore_value: true
 
 script:
+  # Writes changed restored globals to flash now instead of within a minute.
+  # The delay lets the globals store their new values first.
+  - id: flush_preferences
+    mode: restart
+    then:
+      - delay: 500ms
+      - lambda: global_preferences->sync();
+
   - id: stop_loading_anim
     then:
       - lambda: |-

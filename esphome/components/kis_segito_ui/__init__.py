@@ -35,9 +35,10 @@ CONFIG_SCHEMA = cv.Schema(
 
 def _final_validate(config):
     # ESPHome only compiles the LVGL features its YAML widgets use; this
-    # component draws arcs and uses flex layouts itself, and its images must be
-    # known to LVGL so their colour format is enabled.
-    lv_defines.add_lv_use("arc", "flex")
+    # component draws arcs, uses flex layouts and renders carousel slots into
+    # images (snapshot) itself, and its images must be known to LVGL so their
+    # colour format is enabled.
+    lv_defines.add_lv_use("arc", "flex", "snapshot")
     lv_defines.get_lv_images_used().update(config[CONF_IMAGES].values())
     return config
 

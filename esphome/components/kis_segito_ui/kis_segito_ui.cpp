@@ -21,6 +21,16 @@ static constexpr uint32_t ZONE_OK = 0x6BCB77;
 static constexpr uint32_t ZONE_WARN = 0xFF9F43;
 static constexpr uint32_t ZONE_LATE = 0xFF6B6B;
 static constexpr uint32_t INACTIVITY_MS = 60000;
+// Time track geometry: outer edge radius and width of each arc (an LVGL arc is
+// drawn inwards from its outer edge).
+static constexpr int OUTER_R = 222;  // outer (shared) track
+static constexpr int OUTER_W = 14;
+static constexpr int OUTER_MID = OUTER_R - OUTER_W / 2;
+static constexpr int INNER_R = 203;  // inner (child) track, 5 px inside the outer one
+static constexpr int INNER_W = 6;
+static constexpr int INNER_MID = INNER_R - INNER_W / 2;
+static constexpr int BAND_R = 196;   // the track band is solid from here outwards
+static constexpr int FADE_W = 16;    // soft inner edge of the band
 
 // Deterministic pseudo-random numbers for pile jitter.
 static uint32_t hash32(uint32_t x) {
@@ -43,7 +53,9 @@ static void remove_defaults(lv_obj_t *obj) {
 int Carousel::wrap_(int index) const { return ((index % this->count_) + this->count_) % this->count_; }
 
 void Carousel::create(lv_obj_t *parent, int count, int selected, int slot_w, int slot_h, int y, int spacing,
-                      FillFn fill, uint32_t anim_ms) {
+                      FillFn fill, uint32_t anim_ms, bool snapshot) {
+  this->release();
+  this->snapshot_ = snapshot;
   this->count_ = std::max(count, 1);
   this->selected_ = this->wrap_(selected);
   this->slot_w_ = slot_w;
@@ -69,15 +81,59 @@ lv_obj_t *Carousel::center_slot() const {
   return nullptr;
 }
 
+void Carousel::release() {
+  for (auto &buf : this->snap_) {
+    if (buf != nullptr) {
+      lv_image_cache_drop(buf);
+      lv_draw_buf_destroy(buf);
+      buf = nullptr;
+    }
+  }
+}
+
+void Carousel::fill_slot_(int i) {
+  lv_obj_t *slot = this->slots_[i];
+  lv_obj_clean(slot);  // before freeing the snapshot its image shows
+  if (this->snap_[i] != nullptr) {
+    lv_image_cache_drop(this->snap_[i]);
+    lv_draw_buf_destroy(this->snap_[i]);
+    this->snap_[i] = nullptr;
+  }
+  this->fill_(slot, this->index_[i]);
+  if (!this->snapshot_)
+    return;
+  // Render the slot's content at full opacity into one image.
+  const bool hidden = lv_obj_has_flag(slot, LV_OBJ_FLAG_HIDDEN);
+  const lv_opa_t opa = lv_obj_get_style_opa(slot, LV_PART_MAIN);
+  lv_obj_remove_flag(slot, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_set_style_opa(slot, LV_OPA_COVER, 0);
+  lv_obj_update_layout(slot);
+  lv_draw_buf_t *buf = lv_snapshot_take(slot, LV_COLOR_FORMAT_ARGB8888);
+  lv_obj_set_style_opa(slot, opa, 0);
+  if (hidden)
+    lv_obj_add_flag(slot, LV_OBJ_FLAG_HIDDEN);
+  if (buf == nullptr) {
+    ESP_LOGW(TAG, "Slot snapshot failed (out of memory?); keeping the objects");
+    return;
+  }
+  lv_obj_clean(slot);
+  lv_obj_t *img = lv_image_create(slot);
+  lv_image_set_src(img, buf);
+  lv_obj_set_pos(img, 0, 0);
+  this->snap_[i] = buf;
+}
+
 void Carousel::refill() {
   const int offsets[4] = {-1, 0, 1, 2};
   for (int i = 0; i < 4; i++) {
     lv_anim_delete(this->slots_[i], nullptr);
     this->offset_[i] = offsets[i];
     this->index_[i] = this->wrap_(this->selected_ + offsets[i]);
-    lv_obj_clean(this->slots_[i]);
-    if (this->count_ > 1 || offsets[i] == 0)
-      this->fill_(this->slots_[i], this->index_[i]);
+    if (this->count_ > 1 || offsets[i] == 0) {
+      this->fill_slot_(i);
+    } else {
+      lv_obj_clean(this->slots_[i]);
+    }
     this->place_(i, offsets[i], false);
   }
 }
@@ -140,8 +196,7 @@ void Carousel::rotate(int dir) {
   }
   this->offset_[spare] = 2 * dir;
   this->index_[spare] = this->wrap_(this->selected_ + 2 * dir);
-  lv_obj_clean(this->slots_[spare]);
-  this->fill_(this->slots_[spare], this->index_[spare]);
+  this->fill_slot_(spare);
   this->place_(spare, this->offset_[spare], false);
   lv_obj_remove_flag(this->slots_[spare], LV_OBJ_FLAG_HIDDEN);
 
@@ -157,9 +212,9 @@ void Carousel::rotate(int dir) {
 void KisSegitoUI::setup() {
   // Built-in test data, shown until Home Assistant sends real data.
   this->children_ = {
-      {"test_avatar_1", 0x6CB8FF, 7, 12, true, 5, 7},
-      {"test_avatar_2", 0xFF8FB1, 24, 3, true, 2, 7},
-      {"test_avatar_3", 0x6BCB77, 260, 0, false, 6, 7},
+      {"test_avatar_1", 0x6CB8FF, 7, 12, true, 5, 7, 0.8f},
+      {"test_avatar_2", 0xFF8FB1, 24, 3, true, 2, 7, 0.65f},
+      {"test_avatar_3", 0x6BCB77, 260, 0, false, 6, 7, -1.0f},
   };
   this->rewards_ = {
       {"reward_toy_car", 8}, {"reward_doll", 12}, {"reward_bricks", 20}, {"reward_long_story", 5}, {"reward_treat", 3},
@@ -232,23 +287,31 @@ void KisSegitoUI::start() {
   this->routines_[0].started_s = now_s > 720 ? now_s - 720 : 0;
   this->routines_[1].started_s = now_s > 300 ? now_s - 300 : 0;
 
-  this->screen_obj_ = lv_obj_create(nullptr);
+  this->root_ = lv_obj_create(nullptr);
+  remove_defaults(this->root_);
+  lv_obj_set_style_bg_color(this->root_, lv_color_hex(BASE_BG), 0);
+  lv_obj_set_style_bg_opa(this->root_, LV_OPA_COVER, 0);
+  // Screen content first, the time track above it: content sliding under the
+  // track band fades out, so the arcs stay clearly visible.
+  this->screen_obj_ = lv_obj_create(this->root_);
   remove_defaults(this->screen_obj_);
-  lv_obj_set_style_bg_color(this->screen_obj_, lv_color_hex(BASE_BG), 0);
-  lv_obj_set_style_bg_opa(this->screen_obj_, LV_OPA_COVER, 0);
-  lv_screen_load(this->screen_obj_);
+  lv_obj_set_size(this->screen_obj_, SCREEN, SCREEN);
+  this->track_layer_ = lv_obj_create(this->root_);
+  remove_defaults(this->track_layer_);
+  lv_obj_set_size(this->track_layer_, SCREEN, SCREEN);
+  lv_screen_load(this->root_);
 
+  // Always visible while offline, at the right edge of the top gap.
   this->offline_icon_ = lv_image_create(lv_layer_top());
   lv_image_set_src(this->offline_icon_, this->img_("status_disconnected_28"));
-  lv_obj_align(this->offline_icon_, LV_ALIGN_BOTTOM_MID, 0, -8);
+  lv_obj_set_pos(this->offline_icon_, CENTER + 50, 18);
   lv_obj_add_flag(this->offline_icon_, LV_OBJ_FLAG_HIDDEN);
 
   this->last_input_ms_ = millis();
   this->tick_timer_ = lv_timer_create(
       [](lv_timer_t *t) {
         auto *self = static_cast<KisSegitoUI *>(lv_timer_get_user_data(t));
-        if (self->screen_ == Screen::ROUTINE)
-          self->update_routine_();
+        self->update_track_();
         if (self->screen_ != Screen::CHILDREN && !self->busy_ && millis() - self->last_input_ms_ > INACTIVITY_MS)
           self->show_(Screen::CHILDREN);
       },
@@ -281,6 +344,16 @@ lv_color_t KisSegitoUI::tint_(uint32_t color, uint8_t amount) const {
 
 void KisSegitoUI::set_animation_mode(const std::string &mode) {
   this->anim_mode_ = mode == "off" ? 0 : (mode == "reduced" ? 1 : 2);
+}
+
+void KisSegitoUI::set_language(const std::string &language) {
+  if (language == this->language_)
+    return;
+  this->language_ = language;
+  // Language-specific artwork changes live, without a restart.
+  this->shown_reward_ = -1;
+  if (this->started_)
+    this->update_track_();
 }
 
 void KisSegitoUI::set_connected(bool connected) {
@@ -459,13 +532,15 @@ void KisSegitoUI::show_(Screen screen) {
   // Deleting the screen's objects also deletes their animations.
   this->busy_ = false;
   lv_obj_clean(this->screen_obj_);
-  this->elapsed_arc_ = this->now_dot_ = this->top_gap_ = this->task_big_ = this->timeline_ = nullptr;
+  this->carousel_.release();  // its slots were just deleted
+  this->task_big_ = this->timeline_ = nullptr;
   this->confirm_ring_ = this->confirm_no_ = this->confirm_yes_obj_ = nullptr;
   this->shown_reward_ = -1;
   this->screen_ = screen;
   const Child &child = this->children_[this->child_];
   const lv_color_t bg = screen == Screen::CHILDREN ? lv_color_hex(BASE_BG) : this->tint_(child.color, 46);
-  lv_obj_set_style_bg_color(this->screen_obj_, bg, 0);
+  lv_obj_set_style_bg_color(this->root_, bg, 0);
+  this->build_track_();
   switch (screen) {
     case Screen::CHILDREN:
       this->build_children_();
@@ -503,6 +578,7 @@ void KisSegitoUI::rotate(int dir) {
     case Screen::CHILDREN:
       this->carousel_.rotate(dir);
       this->select_child_(this->carousel_.selected());
+      this->build_inner_track_();  // the inner track belongs to the centred child
       break;
     case Screen::FUNCTIONS:
       this->carousel_.rotate(dir);
@@ -668,16 +744,18 @@ void KisSegitoUI::long_press() {
 
 void KisSegitoUI::build_children_() {
   this->carousel_.create(
-      this->screen_obj_, static_cast<int>(this->children_.size()), this->child_, 300, SCREEN, 0, 250,
+      // Slot from y = 60 to 470: avatar, token pile and number. Each slot is
+      // rendered into one image (snapshot) so the pile slides smoothly (#10).
+      this->screen_obj_, static_cast<int>(this->children_.size()), this->child_, 300, 410, 60, 250,
       [this](lv_obj_t *slot, int index) {
         const Child &c = this->children_[index];
         const int cx = 150;  // slot centre
-        this->disc_(slot, cx, 175, 196, lv_color_hex(c.color));
-        this->image_(slot, c.avatar + "_180", cx, 175);
-        this->pile_(slot, cx, 392, c.wallet, static_cast<uint32_t>(index) + 1, 12, 15, 19, 10);
-        this->number_pill_(slot, cx, 440, c.wallet, true);
+        this->disc_(slot, cx, 105, 190, lv_color_hex(c.color));
+        this->image_(slot, c.avatar + "_180", cx, 105);
+        this->pile_(slot, cx, 300, c.wallet, static_cast<uint32_t>(index) + 1, 12, 15, 19, 10);
+        this->number_pill_(slot, cx, 342, c.wallet, true);
       },
-      this->anim_ms_(260));
+      this->anim_ms_(260), true);
 }
 
 void KisSegitoUI::build_functions_() {
@@ -685,7 +763,7 @@ void KisSegitoUI::build_functions_() {
   const auto fns = this->functions_for_(child);
   this->function_ %= static_cast<int>(fns.size());
   this->carousel_.create(
-      this->screen_obj_, static_cast<int>(fns.size()), this->function_, 240, 240, 140, 230,
+      this->screen_obj_, static_cast<int>(fns.size()), this->function_, 240, 240, 145, 230,
       [this, fns](lv_obj_t *slot, int index) {
         const Child &c = this->children_[this->child_];
         this->disc_(slot, 120, 120, 210, lv_color_mix(lv_color_hex(c.color), lv_color_white(), 90));
@@ -695,15 +773,15 @@ void KisSegitoUI::build_functions_() {
       },
       this->anim_ms_(240));
   // Small child marker at the top centre: context only, not the focus.
-  this->disc_(this->screen_obj_, CENTER, 62, 76, lv_color_hex(child.color));
-  lv_obj_t *avatar = this->image_(this->screen_obj_, child.avatar + "_180", CENTER, 62);
+  this->disc_(this->screen_obj_, CENTER, 96, 76, lv_color_hex(child.color));
+  lv_obj_t *avatar = this->image_(this->screen_obj_, child.avatar + "_180", CENTER, 96);
   lv_image_set_scale(avatar, 92);  // 180 px -> ~65 px
 }
 
 void KisSegitoUI::build_rewards_() {
   const Child &child = this->children_[this->child_];
   this->carousel_.create(
-      this->screen_obj_, static_cast<int>(this->rewards_.size()), this->reward_, 260, 340, 80, 240,
+      this->screen_obj_, static_cast<int>(this->rewards_.size()), this->reward_, 260, 340, 60, 240,
       [this](lv_obj_t *slot, int index) {
         const Reward &r = this->rewards_[index];
         const Child &c = this->children_[this->child_];
@@ -723,18 +801,18 @@ void KisSegitoUI::build_rewards_() {
         this->number_pill_(slot, 130, 320, r.cost, false);
       },
       this->anim_ms_(240));
-  // Current wallet in the top gap.
-  this->number_pill_(this->screen_obj_, CENTER, 44, child.wallet, true);
+  // Current wallet below the carousel.
+  this->number_pill_(this->screen_obj_, CENTER, 420, child.wallet, true);
 }
 
 void KisSegitoUI::build_confirm_() {
   const Reward &r = this->rewards_[this->reward_];
   const Child &child = this->children_[this->child_];
-  this->disc_(this->screen_obj_, CENTER, 175, 190, lv_color_mix(lv_color_hex(child.color), lv_color_white(), 80));
-  this->image_(this->screen_obj_, r.icon + "_160", CENTER, 175);
-  this->number_pill_(this->screen_obj_, CENTER, 300, r.cost, true);
-  this->confirm_no_ = this->image_(this->screen_obj_, "action_x_88", 150, 380);
-  this->confirm_yes_obj_ = this->image_(this->screen_obj_, "action_check_88", 330, 380);
+  this->disc_(this->screen_obj_, CENTER, 160, 180, lv_color_mix(lv_color_hex(child.color), lv_color_white(), 80));
+  this->image_(this->screen_obj_, r.icon + "_160", CENTER, 160);
+  this->number_pill_(this->screen_obj_, CENTER, 272, r.cost, true);
+  this->confirm_no_ = this->image_(this->screen_obj_, "action_x_88", 160, 345);
+  this->confirm_yes_obj_ = this->image_(this->screen_obj_, "action_check_88", 320, 345);
   // The selected choice is circled (not only coloured).
   this->confirm_ring_ = lv_obj_create(this->screen_obj_);
   remove_defaults(this->confirm_ring_);
@@ -743,26 +821,26 @@ void KisSegitoUI::build_confirm_() {
   lv_obj_set_style_border_width(this->confirm_ring_, 6, 0);
   lv_obj_set_style_border_color(this->confirm_ring_, lv_color_white(), 0);
   lv_obj_set_style_border_opa(this->confirm_ring_, LV_OPA_COVER, 0);
-  lv_obj_set_pos(this->confirm_ring_, 150 - 58, 380 - 58);
+  lv_obj_set_pos(this->confirm_ring_, 160 - 58, 345 - 58);
   lv_obj_set_style_image_opa(this->confirm_yes_obj_, 140, 0);
-  this->number_pill_(this->screen_obj_, CENTER, 44, child.wallet, true);
+  this->number_pill_(this->screen_obj_, CENTER, 420, child.wallet, true);
 }
 
 void KisSegitoUI::build_tokens_() {
   const Child &child = this->children_[this->child_];
-  this->pile_(this->screen_obj_, CENTER, 300, child.wallet, 500u + this->child_, 11, 20, 19, 10);
-  this->number_pill_(this->screen_obj_, CENTER, 345, child.wallet, true);
+  this->pile_(this->screen_obj_, CENTER, 290, child.wallet, 500u + this->child_, 11, 18, 19, 10);
+  this->number_pill_(this->screen_obj_, CENTER, 335, child.wallet, true);
   // Streak: flame + one marker per day of the target.
-  this->image_(this->screen_obj_, "streak_flame_64", CENTER, 60);
+  this->image_(this->screen_obj_, "streak_flame_64", CENTER, 100);
   const int n = std::max(child.streak_target, 1);
-  const int step = 34;
+  const int step = 30;
   const int x0 = CENTER - (n - 1) * step / 2;
   for (int i = 0; i < n; i++) {
     const int x = x0 + i * step;
     if (i < child.streak) {
-      this->image_(this->screen_obj_, "action_check_small_24", x, 410);
+      this->image_(this->screen_obj_, "action_check_small_24", x, 392);
     } else {
-      lv_obj_t *dot = this->disc_(this->screen_obj_, x, 410, 22, lv_color_hex(BASE_BG));
+      lv_obj_t *dot = this->disc_(this->screen_obj_, x, 392, 22, lv_color_hex(BASE_BG));
       lv_obj_set_style_border_width(dot, 3, 0);
       lv_obj_set_style_border_color(dot, lv_color_hex(0x8C96A5), 0);
     }
@@ -775,7 +853,7 @@ void KisSegitoUI::build_piggy_() {
   this->pile_(this->screen_obj_, CENTER, 300, child.piggy, 900u + this->child_, 5, 14, 19, 10);
   this->number_pill_(this->screen_obj_, CENTER, 340, child.piggy, true);
   // The wallet is a separate thing: shown small at the bottom.
-  this->number_pill_(this->screen_obj_, CENTER, 420, child.wallet, true);
+  this->number_pill_(this->screen_obj_, CENTER, 410, child.wallet, true);
 }
 
 // ---------------------------------------------------------------- Routine
@@ -796,38 +874,8 @@ int KisSegitoUI::routine_reward_now_() const {
 }
 
 void KisSegitoUI::build_routine_() {
+  // The time track (zones, checkpoints, top gap) is drawn by build_track_().
   Routine &r = this->current_routine_();
-  const Child &child = this->children_[this->child_];
-  const float total = static_cast<float>(r.total_s);
-  // Future colour structure, visible from the start: OK, then warning from
-  // T-15 min, then late from T-5 min.
-  const float warn = std::max(0.0f, 1.0f - 15 * 60 / total);
-  const float late = std::max(0.0f, 1.0f - 5 * 60 / total);
-  const int outer = 222;
-  this->track_arc_(this->screen_obj_, outer, 14, 0.0f, warn, lv_color_hex(ZONE_OK));
-  this->track_arc_(this->screen_obj_, outer, 14, warn, late, lv_color_hex(ZONE_WARN));
-  this->track_arc_(this->screen_obj_, outer, 14, late, 1.0f, lv_color_hex(ZONE_LATE));
-  // Inner, child-specific track, slightly inside the outer one.
-  this->track_arc_(this->screen_obj_, outer - 20, 6, 0.0f, 1.0f, this->tint_(child.color, 140));
-  // Elapsed time is dimmed; it is redrawn every second.
-  this->elapsed_arc_ = this->track_arc_(this->screen_obj_, outer, 16, 0.0f, 0.001f, lv_color_hex(TRACK_DIM));
-  this->now_dot_ = this->disc_(this->screen_obj_, 0, 0, 18, lv_color_white());
-
-  // Checkpoints: global ones on the outer track, a child one on the inner track.
-  int x, y;
-  this->ring_point_(0.5f, outer, &x, &y);
-  this->image_(this->screen_obj_, "task_breakfast_32", x, y);
-  this->ring_point_(1.0f, outer, &x, &y);
-  this->image_(this->screen_obj_, "task_door_ready_32", x, y);
-  this->ring_point_(0.8f, outer - 20, &x, &y);
-  this->image_(this->screen_obj_, "checkpoint_flag_28", x, y);
-
-  // Top gap container (brand mark or the reward available now).
-  this->top_gap_ = lv_obj_create(this->screen_obj_);
-  remove_defaults(this->top_gap_);
-  lv_obj_set_size(this->top_gap_, 160, 56);
-  lv_obj_set_pos(this->top_gap_, CENTER - 80, 4);
-
   // Current task, big, and the bottom semicircle timeline.
   this->timeline_ = lv_obj_create(this->screen_obj_);
   remove_defaults(this->timeline_);
@@ -869,31 +917,123 @@ void KisSegitoUI::build_routine_() {
       lv_obj_set_style_image_opa(icon, 170, 0);
     }
   }
-  this->update_routine_();
 }
 
-void KisSegitoUI::update_routine_() {
-  if (this->elapsed_arc_ == nullptr)
-    return;
-  Routine &r = this->current_routine_();
-  const uint32_t now_s = millis() / 1000;
-  float p = (static_cast<float>(now_s) - static_cast<float>(r.started_s)) / static_cast<float>(r.total_s);
-  p = std::max(0.001f, std::min(p, 1.0f));
-  auto norm = [](float deg) {
-    while (deg < 0)
-      deg += 360;
-    while (deg >= 360)
-      deg -= 360;
-    return deg;
-  };
-  lv_arc_set_bg_angles(this->elapsed_arc_, static_cast<lv_value_precise_t>(norm(240.0f - 300.0f * p)),
-                       static_cast<lv_value_precise_t>(240));
-  int x, y;
-  this->ring_point_(p, 222, &x, &y);
-  lv_obj_set_pos(this->now_dot_, x - 9, y - 9);
+// ---------------------------------------------------------------- Time track
 
-  const int reward = this->routine_reward_now_();
-  if (reward != this->shown_reward_) {
+Routine *KisSegitoUI::track_routine_() {
+  // On a routine screen its own routine; elsewhere the one running now.
+  if (this->screen_ == Screen::ROUTINE)
+    return &this->current_routine_();
+  const uint32_t now_s = millis() / 1000;
+  for (auto &r : this->routines_) {
+    if (now_s >= r.started_s && now_s < r.started_s + r.total_s)
+      return &r;
+  }
+  return nullptr;
+}
+
+void KisSegitoUI::build_track_() {
+  lv_obj_clean(this->track_layer_);
+  this->inner_layer_ = this->elapsed_arc_ = this->now_dot_ = this->top_gap_ = nullptr;
+  this->shown_reward_ = -1;
+  const lv_color_t bg = lv_obj_get_style_bg_color(this->root_, LV_PART_MAIN);
+
+  // Homogeneous band in the background colour behind the arcs, with a soft
+  // inner edge, so carousel content passing under it does not disturb them.
+  for (int i = 0; i < 4; i++) {
+    const int w = FADE_W / 4;
+    lv_obj_t *fade = this->track_arc_(this->track_layer_, BAND_R - FADE_W + (i + 1) * w, w, 0.0f, 1.0f, bg);
+    lv_arc_set_bg_angles(fade, 0, 360);
+    lv_obj_set_style_arc_rounded(fade, false, LV_PART_MAIN);
+    lv_obj_set_style_arc_opa(fade, static_cast<lv_opa_t>(50 + i * 50), LV_PART_MAIN);
+  }
+  lv_obj_t *band = this->track_arc_(this->track_layer_, CENTER, CENTER - BAND_R, 0.0f, 1.0f, bg);
+  lv_arc_set_bg_angles(band, 0, 360);
+  lv_obj_set_style_arc_rounded(band, false, LV_PART_MAIN);
+
+  // Outer, shared track. The future colour structure is visible from the
+  // start: OK, then warning from T-15 min, then late from T-5 min.
+  Routine *r = this->track_routine_();
+  this->shown_routine_ = r;
+  if (r != nullptr) {
+    const float total = static_cast<float>(r->total_s);
+    const float warn = std::max(0.0f, 1.0f - 15 * 60 / total);
+    const float late = std::max(0.0f, 1.0f - 5 * 60 / total);
+    this->track_arc_(this->track_layer_, OUTER_R, OUTER_W, 0.0f, warn, lv_color_hex(ZONE_OK));
+    this->track_arc_(this->track_layer_, OUTER_R, OUTER_W, warn, late, lv_color_hex(ZONE_WARN));
+    this->track_arc_(this->track_layer_, OUTER_R, OUTER_W, late, 1.0f, lv_color_hex(ZONE_LATE));
+    // Elapsed time is dimmed; update_track_() moves it every second.
+    this->elapsed_arc_ = this->track_arc_(this->track_layer_, OUTER_R + 1, OUTER_W + 2, 0.0f, 0.001f,
+                                         lv_color_hex(TRACK_DIM));
+  } else {
+    // No routine running: an empty track.
+    this->track_arc_(this->track_layer_, OUTER_R, OUTER_W, 0.0f, 1.0f, lv_color_hex(TRACK_DIM));
+  }
+
+  // The selected child's inner track, below the outer markers.
+  this->inner_layer_ = lv_obj_create(this->track_layer_);
+  remove_defaults(this->inner_layer_);
+  lv_obj_set_size(this->inner_layer_, SCREEN, SCREEN);
+  this->build_inner_track_();
+
+  if (r != nullptr) {
+    // Global checkpoints on the outer track (test data).
+    int x, y;
+    this->ring_point_(0.5f, OUTER_MID, &x, &y);
+    this->image_(this->track_layer_, "task_breakfast_32", x, y);
+    this->ring_point_(1.0f, OUTER_MID, &x, &y);
+    this->image_(this->track_layer_, "task_door_ready_32", x, y);
+    this->now_dot_ = this->disc_(this->track_layer_, 0, 0, 18, lv_color_white());
+  }
+
+  // Top gap: the brand mark, or the reward available now on a routine screen.
+  this->top_gap_ = lv_obj_create(this->track_layer_);
+  remove_defaults(this->top_gap_);
+  lv_obj_set_size(this->top_gap_, 160, 56);
+  lv_obj_set_pos(this->top_gap_, CENTER - 80, 4);
+  this->update_track_();
+}
+
+void KisSegitoUI::build_inner_track_() {
+  if (this->inner_layer_ == nullptr)
+    return;
+  lv_obj_clean(this->inner_layer_);
+  const Child &child = this->children_[this->child_];
+  this->track_arc_(this->inner_layer_, INNER_R, INNER_W, 0.0f, 1.0f, lv_color_mix(lv_color_hex(child.color),
+                                                                                   lv_color_hex(BASE_BG), 200));
+  if (child.checkpoint >= 0 && this->shown_routine_ != nullptr) {
+    int x, y;
+    this->ring_point_(child.checkpoint, INNER_MID, &x, &y);
+    this->image_(this->inner_layer_, "checkpoint_flag_28", x, y);
+  }
+}
+
+void KisSegitoUI::update_track_() {
+  if (this->track_layer_ == nullptr)
+    return;
+  // The routine running now may have changed (one ended, another started).
+  if (this->screen_ != Screen::ROUTINE && this->track_routine_() != this->shown_routine_ && !this->busy_) {
+    this->build_track_();
+    return;
+  }
+  const Routine *r = this->shown_routine_;
+  if (r != nullptr && this->elapsed_arc_ != nullptr) {
+    const uint32_t now_s = millis() / 1000;
+    float p = (static_cast<float>(now_s) - static_cast<float>(r->started_s)) / static_cast<float>(r->total_s);
+    p = std::max(0.001f, std::min(p, 1.0f));
+    float start = 240.0f - 300.0f * p;
+    if (start < 0)
+      start += 360;
+    lv_arc_set_bg_angles(this->elapsed_arc_, static_cast<lv_value_precise_t>(start),
+                         static_cast<lv_value_precise_t>(240));
+    int x, y;
+    this->ring_point_(p, OUTER_MID, &x, &y);
+    lv_obj_set_pos(this->now_dot_, x - 9, y - 9);
+  }
+
+  const int reward = this->screen_ == Screen::ROUTINE ? this->routine_reward_now_() : 0;
+  if (reward != this->shown_reward_ && this->top_gap_ != nullptr) {
     this->shown_reward_ = reward;
     lv_obj_clean(this->top_gap_);
     if (reward > 0) {

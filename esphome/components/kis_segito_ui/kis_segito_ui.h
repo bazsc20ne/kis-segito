@@ -27,6 +27,7 @@ struct Child {
   bool piggy_unlocked;
   int streak;
   int streak_target;
+  float checkpoint;  // child-specific checkpoint on the inner track (0..1), < 0: none
 };
 
 struct Reward {
@@ -55,14 +56,19 @@ class Carousel {
  public:
   using FillFn = std::function<void(lv_obj_t *slot, int index)>;
 
+  // With snapshot = true each slot is rendered once into a single image, so a
+  // slot with many objects (token piles) still slides smoothly.
   void create(lv_obj_t *parent, int count, int selected, int slot_w, int slot_h, int y, int spacing, FillFn fill,
-              uint32_t anim_ms);
+              uint32_t anim_ms, bool snapshot = false);
   void rotate(int dir);
   int selected() const { return this->selected_; }
   lv_obj_t *center_slot() const;
   void refill();
+  // Frees the slot snapshots; call after the slots were deleted.
+  void release();
 
  protected:
+  void fill_slot_(int slot);
   void place_(int slot, int offset, bool animate);
   int wrap_(int index) const;
 
@@ -75,6 +81,8 @@ class Carousel {
   int y_{0};
   int spacing_{0};
   uint32_t anim_ms_{250};
+  bool snapshot_{false};
+  lv_draw_buf_t *snap_[4]{};
   FillFn fill_;
 };
 
@@ -95,7 +103,7 @@ class KisSegitoUI : public Component {
   void set_connected(bool connected);
   void set_animation_mode(const std::string &mode);
   // Language code from Home Assistant; picks language-specific artwork.
-  void set_language(const std::string &language) { this->language_ = language; }
+  void set_language(const std::string &language);
 
  protected:
   const lv_image_dsc_t *img_(const std::string &key);
@@ -110,6 +118,12 @@ class KisSegitoUI : public Component {
   void build_routine_();
   void build_tokens_();
   void build_piggy_();
+  // Time track shown behind every screen: the shared outer track, the selected
+  // child's inner track and the top gap.
+  void build_track_();
+  void build_inner_track_();
+  void update_track_();
+  Routine *track_routine_();
   void refuse_offline_(lv_obj_t *target);
   void select_child_(int index);
 
@@ -123,7 +137,6 @@ class KisSegitoUI : public Component {
   void ring_point_(float p, int radius, int *x, int *y) const;
 
   // Routine screen.
-  void update_routine_();
   void complete_task_();
   void celebrate_(int tokens);
   int routine_reward_now_() const;
@@ -152,7 +165,10 @@ class KisSegitoUI : public Component {
   std::string language_;
   ESPPreferenceObject child_pref_;
 
-  lv_obj_t *screen_obj_{nullptr};
+  lv_obj_t *root_{nullptr};        // the LVGL screen
+  lv_obj_t *track_layer_{nullptr};  // time track, kept across screens
+  lv_obj_t *inner_layer_{nullptr};  // the selected child's part of the track
+  lv_obj_t *screen_obj_{nullptr};   // content of the current screen
   lv_obj_t *offline_icon_{nullptr};
   Carousel carousel_;
 
@@ -161,10 +177,12 @@ class KisSegitoUI : public Component {
   lv_obj_t *confirm_no_{nullptr};
   lv_obj_t *confirm_yes_obj_{nullptr};
 
-  // Routine screen.
+  // Time track.
   lv_obj_t *elapsed_arc_{nullptr};
   lv_obj_t *now_dot_{nullptr};
   lv_obj_t *top_gap_{nullptr};
+  const Routine *shown_routine_{nullptr};
+  // Routine screen.
   lv_obj_t *task_big_{nullptr};
   lv_obj_t *timeline_{nullptr};
   int shown_reward_{-1};
