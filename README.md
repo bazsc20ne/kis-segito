@@ -26,7 +26,7 @@ fázisban van: a v0.1.0 egy tesztelhető váz (tesztképernyő a knobon, üres p
 - **VIEWE UEDX48480021-MD80E** (érintés **nélküli** változat) – 2.1" kerek, 480×480 IPS
   kijelzős forgatógomb
   - ESP32-S3-R8: 8 MB Octal PSRAM, 16 MB flash
-  - kijelző-meghajtó: ST7701S (RGB)
+  - kijelző-meghajtó: GC9503CV (RGB)
   - kezelés: csak forgatás + nyomás
   - első felíráshoz USB-s debug/adapter panel
 
@@ -45,7 +45,7 @@ substitutions:
   friendly_name: Kis Segito
 
 packages:
-  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.1.2
+  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.1.3
 
 api:
   encryption:
@@ -125,7 +125,7 @@ panel in HA).
 - **VIEWE UEDX48480021-MD80E** (variant **without** touch) – 2.1" round 480×480 IPS
   rotary knob
   - ESP32-S3-R8: 8 MB octal PSRAM, 16 MB flash
-  - display controller: ST7701S (RGB)
+  - display controller: GC9503CV (RGB)
   - input: turn + press only
   - USB debug/adapter board for the first flash
 
@@ -144,7 +144,7 @@ substitutions:
   friendly_name: Kis Segito
 
 packages:
-  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.1.2
+  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.1.3
 
 api:
   encryption:

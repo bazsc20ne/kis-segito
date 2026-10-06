@@ -6,6 +6,26 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.1.3] - 2026-10-06
+
+### English
+
+- Fix: red was missing and the test card was wrong on the MD80E (#2). The panel
+  has a GC9503CV controller; the display now uses the vendor's GC9503 init
+  table (the one the factory demo runs) with the vendor timings (26 MHz,
+  non-inverted PCLK, 8/20/40, 8/20/50). The previous ST7701-style table stays
+  available with `display_controller: st7701`.
+- Init tables moved to `esphome/hardware/panel/`.
+
+### Magyar
+
+- Javítás: az MD80E-n hiányzott a piros szín, és hibás volt a tesztkép (#2). A
+  panel vezérlője GC9503CV; a kijelző most a gyártói GC9503 init táblát
+  használja (ezt futtatja a gyári demó is), a gyártói időzítésekkel (26 MHz,
+  nem invertált PCLK, 8/20/40, 8/20/50). Az előző, ST7701-es tábla
+  `display_controller: st7701` beállítással továbbra is elérhető.
+- Az init táblák az `esphome/hardware/panel/` mappába kerültek.
+
 ## [0.1.2] - 2026-10-06
 
 ### English
@@ -81,6 +101,7 @@ Első, tesztelhető váz.
 - GitHub Actions: hassfest, HACS-validáció, tesztek, ESPHome-fordítás; a tagelt
   release-ekhez csatolva a factory és az OTA firmware.
 
+[0.1.3]: https://github.com/bazsc20ne/kis-segito/releases/tag/v0.1.3
 [0.1.2]: https://github.com/bazsc20ne/kis-segito/releases/tag/v0.1.2
 [0.1.1]: https://github.com/bazsc20ne/kis-segito/releases/tag/v0.1.1
 [0.1.0]: https://github.com/bazsc20ne/kis-segito/releases/tag/v0.1.0

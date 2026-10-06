@@ -3,17 +3,18 @@
 **VIEWE UEDX48480021-MD80E** – 2.1" round 480×480 IPS knob, no touch panel.
 
 - ESP32-S3 (WROOM-1 N16R8): 16 MB flash, 8 MB octal PSRAM
-- Display controller: ST7701S, 16-bit RGB (RGB565) + 3-wire SPI for the init sequence
+- Display controller: GC9503CV, RGB interface (16 data lines used) + 3-wire SPI for the init sequence
 - Input: rotary encoder (A/B) and push button – no touch
 
 Source: VIEWESMART schematic `MD80E.SCH.20240725_00` and the vendor's ESP-IDF
 example for this board, `examples/ESP-IDF/UEDX48480021-MD80E-SDK`
 ([VIEWESMART/UEDX48480021-MD80ESP32_2.1inch-Knob](https://github.com/VIEWESMART/UEDX48480021-MD80ESP32_2.1inch-Knob), MIT).
-The vendor README names the driver chip GC9503CV, but the example sends an
-ST7701-style init sequence (the GC9503 sequence is commented out); the firmware
-follows the example. ESPHome's built-in `UEDX48480021-MD80ET` model (touch
-variant) uses different timings and gives only stripes on the MD80E, so it is
-not used.
+The panel (UE021WV-RB40-L002B) uses a **GC9503CV** controller per its datasheet.
+The vendor example contains two init tables: an active ST7701-style one and a
+commented-out GC9503 one. The factory demo firmware runs the **GC9503** table at
+26 MHz, so that is the default (`esphome/hardware/panel/gc9503.yaml`). The
+ST7701-style table (`panel/st7701.yaml`) leaves the red channel dark on this
+panel, and ESPHome's built-in `UEDX48480021-MD80ET` model gives only stripes.
 
 ## Display timings / Kijelző-időzítés
 
@@ -21,10 +22,11 @@ From the vendor `esp-bsp.h`; all are substitutions in `esphome/hardware/board.ya
 
 | Setting | Value | Substitution |
 |---|---|---|
+| Init sequence | GC9503 table | `display_controller` (`gc9503` or `st7701`) |
 | PCLK | 26 MHz, not inverted | `display_pclk_frequency`, `display_pclk_inverted` |
 | HSYNC pulse / back / front | 8 / 20 / 40 | `display_hsync_pulse_width`, `display_hsync_back_porch`, `display_hsync_front_porch` |
 | VSYNC pulse / back / front | 8 / 20 / 50 | `display_vsync_pulse_width`, `display_vsync_back_porch`, `display_vsync_front_porch` |
-| COLMOD | 18-bit (0x66) on the 16-bit bus | `display_pixel_mode` |
+| COLMOD (sent after the table) | 18-bit (0x66) | `display_pixel_mode` (`18bit` or `16bit`) |
 | Colour order / inversion | RGB / off | `display_color_order`, `display_invert_colors` |
 
 ## Pinout / Lábkiosztás
@@ -52,7 +54,8 @@ Any value above can be overridden in the device config without forking, e.g.:
 
 ```yaml
 substitutions:
-  display_pclk_frequency: 16MHz
+  display_controller: st7701
+  display_pixel_mode: 16bit
   display_pclk_inverted: "true"
   display_color_order: BGR
   encoder_resolution: "2"        # encoder steps per detent: 1 (default), 2 or 4

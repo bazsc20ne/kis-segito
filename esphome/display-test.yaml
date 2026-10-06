@@ -11,7 +11,8 @@
 substitutions:
   name: kis-segito
   friendly_name: Kis Segito
-  # e.g. display_pclk_frequency: 16MHz
+  # e.g. display_controller: st7701
+  #      display_pixel_mode: 16bit
   #      display_pclk_inverted: "true"
 
 esphome:

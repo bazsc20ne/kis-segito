@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 #
 # Kis Segito - ESPHome package for the VIEWE UEDX48480021-MD80E knob
-# (2.1" round 480x480 ST7701S RGB panel, ESP32-S3-R8, rotary encoder + push button,
+# (2.1" round 480x480 GC9503CV RGB panel, ESP32-S3-R8, rotary encoder + push button,
 # no touch panel).
 #
 # Include it from a small device config, e.g.:
@@ -10,7 +10,7 @@
 #     name: kis-segito
 #     friendly_name: Kis Segito
 #   packages:
-#     kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.1.2
+#     kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.1.3
 #   api:
 #     encryption:
 #       key: !secret kis_segito_api_key
@@ -38,7 +38,7 @@ esphome:
   name_add_mac_suffix: false
   project:
     name: bazsc20ne.kis-segito
-    version: "0.1.2"
+    version: "0.1.3"
 
 packages:
   board: !include hardware/board.yaml

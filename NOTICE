@@ -5,10 +5,11 @@ Licensed under the GNU Affero General Public License v3.0 only (see LICENSE).
 This project uses hardware information (pinout, schematic, display
 initialisation data) published by VIEWESMART for the UEDX48480021-MD80E board
 in https://github.com/VIEWESMART/UEDX48480021-MD80ESP32_2.1inch-Knob,
-under the following license. In particular, the panel init sequence and the RGB
-timings in esphome/hardware/board.yaml are taken from the vendor's example
-examples/ESP-IDF/UEDX48480021-MD80E-SDK (components/bsp/sub_board/bsp_lcd.c,
-LCD_CONFIG_CMD[], and components/bsp/include/bsp/esp-bsp.h).
+under the following license. In particular, the panel init sequences in esphome/hardware/panel/ and
+the RGB timings in esphome/hardware/board.yaml are taken from the vendor's
+example examples/ESP-IDF/UEDX48480021-MD80E-SDK
+(components/bsp/sub_board/bsp_lcd.c, LCD_CONFIG_CMD[] - both its GC9503
+and its ST7701-style table - and components/bsp/include/bsp/esp-bsp.h).
 
 -------------------------------------------------------------------------------
 MIT License
