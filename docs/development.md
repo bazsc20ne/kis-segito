@@ -38,7 +38,9 @@ cd esphome && cp secrets.example.yaml secrets.yaml && esphome config kis-segito-
 1. Bump the version in `custom_components/kis_segito/manifest.json`,
    `esphome/kis-segito.yaml` (`project.version`), `esphome/example.yaml`
    (package ref) and add a `CHANGELOG.md` section (English + Hungarian).
-2. Commit, then tag `vX.Y.Z` and push the tag.
+2. Commit and push to `main`, then either push a `vX.Y.Z` tag or run the
+   `Release` workflow manually (Actions → Release → Run workflow, version
+   `X.Y.Z`); the manual run creates the tag on the commit it runs on.
 3. The `Release` workflow checks the versions, builds the firmware and publishes
    the GitHub Release with the changelog section and the `.factory.bin` /
    `.ota.bin` files.
