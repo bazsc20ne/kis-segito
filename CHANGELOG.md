@@ -12,11 +12,10 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
 
 - Boot screen: the Kis Segítő brand mark in the middle, the loading text below
   it, the balls bouncing behind them. The brand mark is Hungarian when the
-  language is Hungarian and English otherwise (the English artwork follows; until
-  then the Hungarian one is shown). The language is kept in flash for the next
-  boot.
+  language is Hungarian and English ("Little Helper") otherwise. The language
+  is kept in flash for the next boot.
 - The routine screen's top gap uses the same language-specific brand mark.
-- Logo at the top of the README.
+- Logo at the top of the README (Hungarian and English section).
 - `tools/build_device_assets.py`: `_fallbacks` in `assets/device_assets.json`
   render an icon from another source while its own artwork is missing.
 
@@ -24,11 +23,10 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
 
 - Indítóképernyő: középen a Kis Segítő márkajel, alatta a betöltés felirat,
   mögöttük pattognak a labdák. Magyar nyelv esetén a magyar, minden más
-  nyelven az angol márkajel látszik (az angol rajz később érkezik, addig a
-  magyar látszik helyette). A nyelvet a knob a következő indításhoz flash-ben
-  tárolja.
+  nyelven az angol („Little Helper”) márkajel látszik. A nyelvet a knob a
+  következő indításhoz flash-ben tárolja.
 - Az időív felső résében is ez a nyelvfüggő márkajel látszik.
-- Logó a README tetején.
+- Logó a README tetején (a magyar és az angol részben is).
 - `tools/build_device_assets.py`: az `assets/device_assets.json` `_fallbacks`
   részében megadott ikonok saját rajz hiányában egy másik forrásból készülnek.
 

@@ -115,6 +115,8 @@ A felhasznált harmadik féltől származó anyagok a saját licencük alatt mar
 
 ## English
 
+<p align="center"><img src="docs/images/logo_en.png" alt="Little Helper" width="480"></p>
+
 🇭🇺 [Magyar változat](#magyar)
 
 ### What is this?
