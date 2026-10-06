@@ -6,6 +6,23 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.1.1] - 2026-10-06
+
+### English
+
+- Knob: loading screen from boot until Home Assistant sends the content
+  (spinner; place for a future logo). Its text ("Loading...") is kept in flash
+  in the last language received from Home Assistant, so it is shown in that
+  language after a power cut too. Empty before the first connection.
+
+### Magyar
+
+- Knob: betöltőképernyő a bekapcsolástól addig, amíg a Home Assistant el nem
+  küldi a tartalmat (forgó jel; később ide kerül a logó). A felirata
+  („Betöltés...”) a Home Assistanttől utoljára kapott nyelven a flash-ben
+  marad, így áramszünet után is ezen a nyelven jelenik meg. Az első
+  csatlakozás előtt üres.
+
 ## [0.1.0] - 2026-10-06
 
 ### English
@@ -39,4 +56,5 @@ Első, tesztelhető váz.
 - GitHub Actions: hassfest, HACS-validáció, tesztek, ESPHome-fordítás; a tagelt
   release-ekhez csatolva a factory és az OTA firmware.
 
+[0.1.1]: https://github.com/bazsc20ne/kis-segito/releases/tag/v0.1.1
 [0.1.0]: https://github.com/bazsc20ne/kis-segito/releases/tag/v0.1.0
