@@ -11,8 +11,8 @@
 substitutions:
   name: kis-segito
   friendly_name: Kis Segito
-  # e.g. display_controller: st7701
-  #      display_pixel_mode: 18bit
+  # e.g. display_colmod: "0x55"   # 0 = none (default), 0x55, 0x66, 0x77
+  #      display_controller: st7701
   #      display_pclk_inverted: "true"
 
 esphome:

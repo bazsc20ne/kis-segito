@@ -6,6 +6,30 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.1.6] - 2026-10-06
+
+### English
+
+- Fix attempt for wrong mid-tone colours on the MD80E (#4). The panel init now
+  follows the factory demo exactly: init table, 120 ms, DISPON, with **no
+  COLMOD**, so the panel stays in its 24-bit power-on mode, which matches the
+  board wiring. ESPHome's own COLMOD/MADCTL/INVOFF are no longer sent (the
+  sequence is replaced at boot, before the display starts).
+- New substitution `display_colmod` (`"0"` = none, default; `"0x55"` restores
+  the v0.1.5 behaviour). It replaces `display_pixel_mode`; the no-longer-used
+  `display_color_order` and `display_invert_colors` are removed.
+
+### Magyar
+
+- Javítási kísérlet a rossz középtónusokra az MD80E-n (#4). A panel initje most
+  pontosan a gyári demót követi: init tábla, 120 ms, DISPON, **COLMOD nélkül**,
+  így a panel a bekapcsolási 24 bites módjában marad, ami egyezik a lap
+  bekötésével. Az ESPHome saját COLMOD/MADCTL/INVOFF parancsai már nem mennek
+  ki (a szekvencia bootkor, a kijelző indulása előtt cserélődik).
+- Új substitution: `display_colmod` (`"0"` = nincs, alapértelmezett; `"0x55"`
+  a v0.1.5 viselkedését adja vissza). Ez váltja a `display_pixel_mode`-ot; a
+  használaton kívüli `display_color_order` és `display_invert_colors` kikerült.
+
 ## [0.1.5] - 2026-10-06
 
 ### English
@@ -150,6 +174,7 @@ Első, tesztelhető váz.
 - GitHub Actions: hassfest, HACS-validáció, tesztek, ESPHome-fordítás; a tagelt
   release-ekhez csatolva a factory és az OTA firmware.
 
+[0.1.6]: https://github.com/bazsc20ne/kis-segito/releases/tag/v0.1.6
 [0.1.5]: https://github.com/bazsc20ne/kis-segito/releases/tag/v0.1.5
 [0.1.4]: https://github.com/bazsc20ne/kis-segito/releases/tag/v0.1.4
 [0.1.3]: https://github.com/bazsc20ne/kis-segito/releases/tag/v0.1.3

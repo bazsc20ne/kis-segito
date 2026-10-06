@@ -8,7 +8,7 @@
 # (VIEWESMART/UEDX48480021-MD80ESP32_2.1inch-Knob,
 # examples/ESP-IDF/UEDX48480021-MD80E-SDK, MIT - see NOTICE): timings from
 # esp-bsp.h and the GC9503CV init sequence from bsp_lcd.c (panel/gc9503.yaml),
-# which is what the factory demo firmware runs.
+# sent in the same order as the factory demo firmware.
 # Every timing value is a substitution, so a panel batch can be tuned from the
 # device config without changing this file.
 
@@ -24,11 +24,34 @@ substitutions:
   display_vsync_pulse_width: "8"
   display_vsync_back_porch: "20"
   display_vsync_front_porch: "50"
-  # COLMOD sent after the init sequence: 16bit (0x55) or 18bit (0x66). The
-  # GC9503 panel shows wrong colours with 18bit on this 16-line bus.
-  display_pixel_mode: 16bit
-  display_color_order: RGB
-  display_invert_colors: "false"
+  # COLMOD sent after the init table: 0 = none (as the factory demo; the panel
+  # keeps its 24-bit power-on mode, matching the board wiring), or 0x55 (16-bit),
+  # 0x66 (18-bit), 0x77 (24-bit).
+  display_colmod: "0"
+
+packages:
+  panel: !include panel/${display_controller}.yaml
+
+esphome:
+  on_boot:
+    # Build the panel init sequence the way the factory demo sends it: the init
+    # table, optional COLMOD, 120 ms, DISPON, 20 ms. ESPHome's own sequence
+    # would always add COLMOD/MADCTL/INVOFF, and the panel needs no COLMOD.
+    # Priority 700 runs this before the display is set up (600).
+    - priority: 700
+      then:
+        - lambda: |-
+            static constexpr uint8_t DELAY = 0xFF;  // mipi_rgb delay marker
+            const auto &table = id(panel_init_table);
+            std::vector<uint8_t> seq(table.begin(), table.end());
+            const int colmod = ${display_colmod};
+            if (colmod != 0) {
+              seq.insert(seq.end(), {0x3A, 1, static_cast<uint8_t>(colmod)});
+            }
+            seq.insert(seq.end(), {120, DELAY, 0x29, 0, 20, DELAY});
+            id(knob_display)->set_init_sequence(seq);
+            ESP_LOGI("kis_segito", "Panel init: ${display_controller}, COLMOD %s",
+                     colmod != 0 ? str_snprintf("0x%02X", 8, colmod).c_str() : "none");
 
 esp32:
   variant: esp32s3
@@ -96,14 +119,12 @@ display:
     vsync_pulse_width: ${display_vsync_pulse_width}
     vsync_back_porch: ${display_vsync_back_porch}
     vsync_front_porch: ${display_vsync_front_porch}
-    pixel_mode: ${display_pixel_mode}
-    color_order: ${display_color_order}
-    invert_colors: ${display_invert_colors}
     update_interval: never
     auto_clear_enabled: false
-    # Panel init sequence, chosen by display_controller (see panel/).
-    # ESPHome appends COLMOD (pixel_mode), MADCTL, INVOFF, SLPOUT and DISPON.
-    init_sequence: !include panel/${display_controller}.yaml
+    # Placeholder only (NOP): the real sequence is set by the on_boot step
+    # above from panel/${display_controller}.yaml.
+    init_sequence:
+      - [0x00]
 
 # Backlight: P-channel MOSFET, GPIO7 low = on.
 output:

@@ -16,6 +16,14 @@ commented-out GC9503 one. The factory demo firmware runs the **GC9503** table at
 ST7701-style table (`panel/st7701.yaml`) leaves the red channel dark on this
 panel, and ESPHome's built-in `UEDX48480021-MD80ET` model gives only stripes.
 
+The board wires the 16 RGB lines to the **upper** bits of the panel's 24-bit bus
+(R3–R7, G2–G7, B3–B7). The factory demo sends no COLMOD, so the panel stays in
+its 24-bit power-on mode, which matches this wiring. ESPHome's `mipi_rgb`
+always appends its own COLMOD/MADCTL/INVOFF, so `esphome/hardware/board.yaml`
+replaces the display's init sequence at boot with the demo's order: init table,
+120 ms, DISPON. With COLMOD 0x55 (16-bit) saturated colours are right but
+mid-tones are wrong; with 0x66 (18-bit) red is missing.
+
 ## Display timings / Kijelző-időzítés
 
 From the vendor `esp-bsp.h`; all are substitutions in `esphome/hardware/board.yaml`.
@@ -26,8 +34,7 @@ From the vendor `esp-bsp.h`; all are substitutions in `esphome/hardware/board.ya
 | PCLK | 26 MHz, not inverted | `display_pclk_frequency`, `display_pclk_inverted` |
 | HSYNC pulse / back / front | 8 / 20 / 40 | `display_hsync_pulse_width`, `display_hsync_back_porch`, `display_hsync_front_porch` |
 | VSYNC pulse / back / front | 8 / 20 / 50 | `display_vsync_pulse_width`, `display_vsync_back_porch`, `display_vsync_front_porch` |
-| COLMOD (sent after the table) | 16-bit (0x55); 18-bit gives wrong colours | `display_pixel_mode` (`16bit` or `18bit`) |
-| Colour order / inversion | RGB / off | `display_color_order`, `display_invert_colors` |
+| COLMOD after the table | none (as the factory demo) | `display_colmod` (`"0"`, `"0x55"`, `"0x66"`, `"0x77"`) |
 
 ## Pinout / Lábkiosztás
 
@@ -54,10 +61,8 @@ Any value above can be overridden in the device config without forking, e.g.:
 
 ```yaml
 substitutions:
-  display_controller: st7701
-  display_pixel_mode: 18bit
+  display_colmod: "0x55"
   display_pclk_inverted: "true"
-  display_color_order: BGR
   encoder_resolution: "2"        # encoder steps per detent: 1 (default), 2 or 4
 ```
 
@@ -69,8 +74,8 @@ A fenti értékek fork nélkül, az eszközkonfig `substitutions` részében át
 ESPHome's test card (colour bars, border, text). Flash it over the air to the same
 device, check the picture, then flash the normal firmware back. With the default
 settings the test card should show sharp colour bars in the right order; stripes
-or a rolling image point to PCLK/porch settings, swapped colours to
-`display_color_order`.
+or a rolling image point to PCLK/porch settings; wrong mid-tones (the gradient
+columns) to `display_colmod`.
 
 Az `esphome/display-test.yaml` ugyanazt a lapdefiníciót használja LVGL nélkül, és
 az ESPHome tesztképét mutatja. OTA-val ugyanarra az eszközre tölthető, a teszt
