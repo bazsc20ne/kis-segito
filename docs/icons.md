@@ -122,8 +122,9 @@ A betöltőképernyő pattogó labdái két rétegből állnak. A színt a knob 
 
 | id | Név | Leírás | Knob (px) | HA | Fájlok |
 |---|---|---|---|---|---|
-| `ball_base` | Labda – alapréteg | Fehér–világosszürke labda, szimmetrikus, középről kifelé sötétedő (radiális) árnyalással, irányfüggő fény nélkül. A knob ezt színezi és ütközéskor összenyomja. Ne legyen rajta csillanás vagy egyoldalú fény: a forgatás nem látszódhat rajta. | 48 | — | `ball_base.png` |
-| `ball_highlight` | Labda – csillanás | Átlátszó réteg, rajta csak egy fehér csillanás jobb felül, ugyanakkora vásznon, mint az alapréteg. Ez nem forog és nem nyomódik össze, csak együtt mozog a labdával. | 48 | — | `ball_highlight.png` |
+| `ball_base` | Labda – alapréteg | Fehér–világosszürke labda, szimmetrikus, középről kifelé sötétedő (radiális) árnyalással, irányfüggő fény nélkül. A knob ezt színezi. Ne legyen rajta csillanás vagy egyoldalú fény. | 48 | — | `ball_base.png` |
+| `ball_dent` | Labda – horpadt | Ugyanaz a labda, ugyanazzal az árnyalással, de alul (lefelé néző oldalán) behorpadva. Ütközéskor rövid ideig ez látszik, elforgatva úgy, hogy a horpadás az ütközési pont felé nézzen. A horpadás mindig alul legyen; a knob forgatja a helyére. Ne legyen rajta csillanás. | 48 | — | `ball_dent.png` |
+| `ball_highlight` | Labda – csillanás | Átlátszó réteg, rajta csak egy fehér csillanás jobb felül, ugyanakkora vásznon, mint az alapréteg. Ez nem forog és nem torzul, csak együtt mozog a labdával; a helye a firmware-ben eltolással állítható. | 48 | — | `ball_highlight.png` |
 
 ## A HA-panel navigációja
 

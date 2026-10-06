@@ -85,6 +85,8 @@ image:
         file: ${kis_segito_assets}/streak_flame_64.png
       - id: ks_img_ball_base_48
         file: ${kis_segito_assets}/ball_base_48.png
+      - id: ks_img_ball_dent_48
+        file: ${kis_segito_assets}/ball_dent_48.png
       - id: ks_img_ball_highlight_48
         file: ${kis_segito_assets}/ball_highlight_48.png
 
@@ -130,4 +132,5 @@ kis_segito_ui:
     status_disconnected_28: ks_img_status_disconnected_28
     streak_flame_64: ks_img_streak_flame_64
     ball_base_48: ks_img_ball_base_48
+    ball_dent_48: ks_img_ball_dent_48
     ball_highlight_48: ks_img_ball_highlight_48

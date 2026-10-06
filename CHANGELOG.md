@@ -30,8 +30,10 @@ Assistant data follows in a later version):
   the knob returns to the child carousel. Without a Home Assistant connection an
   offline marker is shown and token transactions are refused.
 - Animation level (full / reduced / off) as a setting in Home Assistant.
-- Loading screen balls are now layered images: a recoloured base squashed along
-  the collision normal, and a highlight that never rotates or squashes.
+- Loading screen balls are now layered images: a recoloured round ball that
+  briefly turns into a dented ball on impact (the dent faces the contact point),
+  and a highlight that never rotates or deforms. The highlight position is
+  adjustable with the `ball_highlight_dx` / `ball_highlight_dy` substitutions.
 - Icon pipeline: source artwork in `assets/icons/source`, rendered by
   `tools/build_device_assets.py`; the icon list is in `docs/icons.md`. The icons
   are placeholder sketches for now.
@@ -58,9 +60,10 @@ Assistant adatai egy későbbi verzióban jönnek):
   után vissza a gyerek-körhintára. Home Assistant-kapcsolat nélkül offline jelzés
   látszik, és a zseton-tranzakciók le vannak tiltva.
 - Animációs szint (teljes / csökkentett / ki) beállításként a Home Assistantben.
-- A betöltőképernyő labdái rétegzett képek: színezett alapréteg, amely az
-  ütközés irányában nyomódik össze, és egy csillanás, amely sosem forog és nem
-  nyomódik össze.
+- A betöltőképernyő labdái rétegzett képek: színezett kerek labda, amely
+  ütközéskor rövid időre horpadt labdára vált (a horpadás az ütközési pont felé
+  néz), és egy csillanás, amely sosem forog és nem torzul. A csillanás helye a
+  `ball_highlight_dx` / `ball_highlight_dy` helyettesítésekkel állítható.
 - Ikon-csővezeték: forrásrajzok az `assets/icons/source` mappában, a méreteket a
   `tools/build_device_assets.py` készíti; az ikonlista a `docs/icons.md`-ben.
   Az ikonok egyelőre helyettesítő vázlatok.

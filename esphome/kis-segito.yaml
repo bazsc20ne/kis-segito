@@ -41,6 +41,11 @@ substitutions:
   # How many clicks make one UI step is set at runtime from Home Assistant
   # ("Encoder clicks per step").
   encoder_counts_per_click: "2"
+  # Loading animation: highlight layer offset from the ball centre, in pixels
+  # of the 48 px source image (negative = left / up). 0 keeps it where the
+  # highlight image draws it.
+  ball_highlight_dx: "0"
+  ball_highlight_dy: "0"
 
 esphome:
   name: ${name}
@@ -281,27 +286,31 @@ lvgl:
   default_font: montserrat_24
   on_boot:
     - script.execute: refresh_texts
-    # Loading animation: layered balls (recoloured base + fixed highlight)
-    # bounce off the round edge and off each other. On impact the base is
-    # squashed along the collision normal (rotation + X/Y scale); the
-    # highlight never rotates or squashes. A 30 ms LVGL timer moves them.
+    # Loading animation: layered balls (recoloured base + highlight layer)
+    # bounce off the round edge and off each other. On impact the base image is
+    # briefly swapped for the dented ball, rotated so the dent faces the contact
+    # point, then back to the round ball. The highlight never rotates or
+    # deforms; its position is set by ball_highlight_dx/dy. A 30 ms LVGL timer
+    # moves the balls.
     - lambda: |-
         struct Ball {
           lv_obj_t *base;
           lv_obj_t *highlight;
           float x, y, vx, vy;  // centre and speed in px per tick
           int r;
-          int squash;      // ticks of squash left after a bounce
-          float nx, ny;    // last collision normal
+          int dent;        // ticks left showing the dented image
+          float nx, ny;    // direction of the last contact point
         };
         static Ball balls[] = {
-            {id(ball_1), id(ball_1_hl), 240, 170, 4.6f, 2.1f, 22, 0, 1, 0},
-            {id(ball_2), id(ball_2_hl), 190, 280, -3.2f, 3.9f, 18, 0, 1, 0},
-            {id(ball_3), id(ball_3_hl), 300, 260, 2.4f, -4.4f, 15, 0, 1, 0},
-            {id(ball_4), id(ball_4_hl), 250, 320, -4.1f, -2.7f, 20, 0, 1, 0},
-            {id(ball_5), id(ball_5_hl), 160, 200, 3.7f, 3.3f, 17, 0, 1, 0},
+            {id(ball_1), id(ball_1_hl), 240, 170, 4.6f, 2.1f, 22, 0, 0, 1},
+            {id(ball_2), id(ball_2_hl), 190, 280, -3.2f, 3.9f, 18, 0, 0, 1},
+            {id(ball_3), id(ball_3_hl), 300, 260, 2.4f, -4.4f, 15, 0, 0, 1},
+            {id(ball_4), id(ball_4_hl), 250, 320, -4.1f, -2.7f, 20, 0, 0, 1},
+            {id(ball_5), id(ball_5_hl), 160, 200, 3.7f, 3.3f, 17, 0, 0, 1},
         };
-        constexpr int IMG = 48;  // source image size of both layers
+        static const lv_image_dsc_t *round_img = id(ks_img_ball_base_48)->get_lv_image_dsc();
+        static const lv_image_dsc_t *dent_img = id(ks_img_ball_dent_48)->get_lv_image_dsc();
+        constexpr int IMG = 48;  // source image size of all layers
         for (auto &b : balls) {
           const int scale = 2 * b.r * 256 / IMG;
           lv_image_set_scale(b.base, scale);
@@ -311,7 +320,15 @@ lvgl:
             [](lv_timer_t *) {
               constexpr float CX = 240, CY = 240, EDGE = 234;
               constexpr int IMG = 48;
+              constexpr int DENT_TICKS = 4;
+              // Highlight offset from the ball centre, in source image pixels.
+              constexpr float HL_DX = ${ball_highlight_dx}, HL_DY = ${ball_highlight_dy};
               constexpr size_t N = sizeof(balls) / sizeof(balls[0]);
+              auto hit = [](Ball &b, float nx, float ny) {
+                b.dent = DENT_TICKS;
+                b.nx = nx;
+                b.ny = ny;
+              };
               // Ball-to-ball bounces (elastic, mass ~ area).
               for (size_t i = 0; i < N; i++) {
                 for (size_t j = i + 1; j < N; j++) {
@@ -330,9 +347,8 @@ lvgl:
                     a.vy -= imp * mc * ny;
                     c.vx += imp * ma * nx;
                     c.vy += imp * ma * ny;
-                    a.squash = c.squash = 3;
-                    a.nx = c.nx = nx;
-                    a.ny = c.ny = ny;
+                    hit(a, nx, ny);    // a touches c in direction n
+                    hit(c, -nx, -ny);  // c touches a in direction -n
                   }
                   const float push = (min_dist - dist) / 2;  // separate them
                   a.x -= nx * push;
@@ -353,30 +369,27 @@ lvgl:
                   if (vn > 0) {  // moving outwards: reflect off the circle
                     b.vx -= 2 * vn * nx;
                     b.vy -= 2 * vn * ny;
-                    b.squash = 4;
-                    b.nx = nx;
-                    b.ny = ny;
+                    hit(b, nx, ny);  // the wall is outwards
                   }
                   b.x = CX + nx * max_dist;
                   b.y = CY + ny * max_dist;
                 }
-                const int scale = 2 * b.r * 256 / IMG;
-                if (b.squash > 0) {
-                  // Squash along the collision normal: rotate the image's X axis
-                  // onto the normal, then shrink X and stretch Y.
-                  const float k = b.squash / 4.0f;
-                  const int angle = (int) (atan2f(b.ny, b.nx) * 1800.0f / (float) M_PI);
-                  lv_image_set_rotation(b.base, angle);
-                  lv_image_set_scale_x(b.base, (uint32_t) (scale * (1.0f - 0.22f * k)));
-                  lv_image_set_scale_y(b.base, (uint32_t) (scale * (1.0f + 0.12f * k)));
-                  b.squash--;
-                } else {
+                if (b.dent == DENT_TICKS) {
+                  // The dent is drawn at the bottom (+90 degrees): turn it
+                  // towards the contact point. LVGL rotation is in 0.1 degrees.
+                  const float deg = atan2f(b.ny, b.nx) * 180.0f / (float) M_PI - 90.0f;
+                  lv_image_set_src(b.base, dent_img);
+                  lv_image_set_rotation(b.base, (int32_t) (deg * 10.0f));
+                } else if (b.dent == 0 && lv_image_get_src(b.base) != round_img) {
+                  lv_image_set_src(b.base, round_img);
                   lv_image_set_rotation(b.base, 0);
-                  lv_image_set_scale(b.base, scale);
                 }
+                if (b.dent > 0)
+                  b.dent--;
                 const int px = (int) b.x - IMG / 2, py = (int) b.y - IMG / 2;
+                const float k = 2.0f * b.r / IMG;
                 lv_obj_set_pos(b.base, px, py);
-                lv_obj_set_pos(b.highlight, px, py);
+                lv_obj_set_pos(b.highlight, px + (int) (HL_DX * k), py + (int) (HL_DY * k));
               }
             },
             30, nullptr);
