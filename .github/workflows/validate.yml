@@ -24,8 +24,10 @@ jobs:
       - uses: hacs/action@main
         with:
           category: integration
-          # Remove once the icon is in home-assistant/brands.
-          ignore: brands
+          # brands: until the icon is in home-assistant/brands.
+          # topics: repository topics are set by the owner when the repo goes
+          # to the HACS default list.
+          ignore: "brands topics"
 
   tests:
     name: Python tests
