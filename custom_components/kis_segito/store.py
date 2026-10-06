@@ -1,19 +1,15 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Persistent storage for Kis Segito data.
 
-All user data of the integration (later: routines, tasks, ...) lives in a single
-JSON document under ``.storage/kis_segito``. The schema is versioned so later
-releases can migrate it.
+Two documents under ``.storage``:
 
-Layout so far::
+- ``kis_segito``: configuration and daily progress (settings, children,
+  routines, rewards, per-day completions, streaks);
+- ``kis_segito_ledger``: the append-only token ledger and the processed
+  device action ids. Kept separate so configuration changes and migrations
+  can never touch token history.
 
-    {
-      "settings": {"language": "auto" | "<code>"},
-      "devices": {"<device_id>": {"language": "auto" | "<code>"}}
-    }
-
-A per-device language overrides the global one; "auto" (or a missing value)
-defers to the next level, ending at the Home Assistant language.
+Both carry a schema version; ``_migrate_config`` upgrades older layouts.
 """
 
 from __future__ import annotations
@@ -25,37 +21,96 @@ from homeassistant.helpers.storage import Store
 
 from .const import LANGUAGE_AUTO, STORAGE_KEY, STORAGE_VERSION
 
+LEDGER_KEY = f"{STORAGE_KEY}_ledger"
+SCHEMA = 2
 
-def _empty_data() -> dict[str, Any]:
-    return {}
+DEFAULT_SETTINGS: dict[str, Any] = {
+    "language": LANGUAGE_AUTO,
+    "animation_mode": "full",
+    "inactivity_s": 60,
+    "streak_target": 7,
+    "streak_reward": 5,
+    "piggy_interest_percent": 10,
+    "piggy_interest_weekday": 6,  # Sunday
+    "piggy_interest_time": "18:00",
+    "piggy_interest_min": None,
+    "piggy_interest_max": None,
+}
+
+
+def _empty_config() -> dict[str, Any]:
+    return {
+        "schema": SCHEMA,
+        "settings": dict(DEFAULT_SETTINGS),
+        "children": [],
+        "routines": [],
+        "rewards": [],
+        "devices": {},
+        "days": {},
+        "streaks": {},
+    }
+
+
+def _migrate_config(data: dict[str, Any]) -> dict[str, Any]:
+    """Bring a stored document to the current schema without losing data."""
+    result = _empty_config()
+    # Schema 1 (v0.2.x) only had {"settings": {"language": ...}, "devices": {...}}.
+    for key, value in data.items():
+        if key == "settings" and isinstance(value, dict):
+            result["settings"].update(value)
+        elif key in result and key != "schema":
+            result[key] = value
+    result["schema"] = SCHEMA
+    return result
 
 
 class KisSegitoStore:
-    """Thin wrapper around the Home Assistant Store helper."""
+    """Configuration document and ledger document."""
 
     def __init__(self, hass: HomeAssistant) -> None:
         self._store: Store[dict[str, Any]] = Store(
             hass, STORAGE_VERSION, STORAGE_KEY, private=True, atomic_writes=True
         )
-        self.data: dict[str, Any] = _empty_data()
+        self._ledger_store: Store[dict[str, Any]] = Store(
+            hass, STORAGE_VERSION, LEDGER_KEY, private=True, atomic_writes=True
+        )
+        self.data: dict[str, Any] = _empty_config()
+        self.ledger: dict[str, Any] = {"transactions": [], "actions": {}}
 
     async def async_load(self) -> None:
-        """Load data from disk, starting empty when nothing is stored yet."""
+        """Load both documents, starting empty when nothing is stored yet."""
         stored = await self._store.async_load()
-        self.data = stored if isinstance(stored, dict) else _empty_data()
+        self.data = _migrate_config(stored if isinstance(stored, dict) else {})
+        ledger = await self._ledger_store.async_load()
+        if isinstance(ledger, dict):
+            self.ledger = {
+                "transactions": list(ledger.get("transactions", [])),
+                "actions": dict(ledger.get("actions", {})),
+            }
 
     async def async_save(self) -> None:
-        """Write the current data to disk."""
+        """Write the configuration document."""
         await self._store.async_save(self.data)
+
+    async def async_save_ledger(self) -> None:
+        """Write the ledger document (right away: token history matters)."""
+        await self._ledger_store.async_save(self.ledger)
+
+    # Settings ------------------------------------------------------------
+
+    @property
+    def settings(self) -> dict[str, Any]:
+        """Global settings."""
+        return self.data["settings"]
 
     @property
     def language(self) -> str:
         """Global language setting ("auto" or a language code)."""
-        return str(self.data.get("settings", {}).get("language", LANGUAGE_AUTO))
+        return str(self.settings.get("language", LANGUAGE_AUTO))
 
     def set_language(self, language: str) -> None:
         """Change the global language setting (call async_save afterwards)."""
-        self.data.setdefault("settings", {})["language"] = language
+        self.settings["language"] = language
 
     def device_language(self, device_id: str) -> str:
         """Per-device language override ("auto" when none)."""
