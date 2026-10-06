@@ -11,8 +11,8 @@
 substitutions:
   name: kis-segito
   friendly_name: Kis Segito
-  # e.g. display_controller: st7701
-  #      display_pixel_mode: 16bit
+  # e.g. display_init_test_invert: "true"   # inverted colours = init reaches the panel
+  #      display_controller: st7701
   #      display_pclk_inverted: "true"
 
 esphome:

@@ -6,6 +6,33 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.1.4] - 2026-10-06
+
+### English
+
+- Fix attempt for the MD80E display (#3): the panel init is now sent exactly the
+  way the vendor code does it (bit-banged 9-bit 3-wire SPI with idle-high lines
+  at about 50 kHz, no reset pulse, 120 ms, DISPON, then GPIO12/13 released) from
+  an `on_boot` step before the display starts. The `mipi_rgb` display uses
+  ESPHome's generic `RPI` model and sends no init of its own.
+- New diagnostic substitution `display_init_test_invert`: sends INVON after the
+  init table, so a colour inversion proves the init reaches the panel.
+- Removed the substitutions that no longer have an effect
+  (`display_pixel_mode`, `display_color_order`, `display_invert_colors`).
+
+### Magyar
+
+- Javítási kísérlet az MD80E kijelzőhöz (#3): a panel initje most pontosan úgy
+  megy ki, mint a gyártói kódban (bit-bang 9 bites 3-vezetékes SPI, magas
+  nyugalmi szint, kb. 50 kHz, reset-impulzus nélkül, 120 ms, DISPON, utána a
+  GPIO12/13 felszabadítása), egy `on_boot` lépésből a kijelző indulása előtt. A
+  `mipi_rgb` kijelző az ESPHome általános `RPI` modelljét használja, saját init
+  nélkül.
+- Új diagnosztikai substitution: `display_init_test_invert`. Az init tábla után
+  INVON-t küld, így ha a színek megfordulnak, az init eljut a panelhez.
+- Kikerültek a már hatástalan substitutionök (`display_pixel_mode`,
+  `display_color_order`, `display_invert_colors`).
+
 ## [0.1.3] - 2026-10-06
 
 ### English
@@ -101,6 +128,7 @@ Első, tesztelhető váz.
 - GitHub Actions: hassfest, HACS-validáció, tesztek, ESPHome-fordítás; a tagelt
   release-ekhez csatolva a factory és az OTA firmware.
 
+[0.1.4]: https://github.com/bazsc20ne/kis-segito/releases/tag/v0.1.4
 [0.1.3]: https://github.com/bazsc20ne/kis-segito/releases/tag/v0.1.3
 [0.1.2]: https://github.com/bazsc20ne/kis-segito/releases/tag/v0.1.2
 [0.1.1]: https://github.com/bazsc20ne/kis-segito/releases/tag/v0.1.1
