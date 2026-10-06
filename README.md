@@ -32,10 +32,18 @@ WiFi-jelszó, API-kulcs, token **soha** nem kerül a repóba – mindig `!secret
 - **VIEWESMART** – gyári mintakód, kapcsolási rajz, lábkiosztás és kijelző-inicializálás (MIT licenc): [UEDX48480021-MD80ESP32_2.1inch-Knob](https://github.com/VIEWESMART/UEDX48480021-MD80ESP32_2.1inch-Knob)
 - **Greg-79** – ESPHome-konfiguráció ehhez a kijelzőhöz (a README szerint MIT licenc): [UEDX48480021-MD80ESP32-2.1inch-Knob-Display-no-touch-](https://github.com/Greg-79/UEDX48480021-MD80ESP32-2.1inch-Knob-Display-no-touch-)
 
-## Licenc
+## Licenc / License
 
-[PolyForm Noncommercial 1.0.0](LICENSE.md) – szabadon használható, forkolható és módosítható **nem kereskedelmi** célra (magáncélú használat, oktatás, nonprofit szervezetek). **Kereskedelmi felhasználáshoz – beleértve az eladást vagy eladott termékbe építést – a szerző előzetes írásos engedélye kell.** Engedélyért nyiss issue-t vagy keresd a szerzőt a GitHubon.
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
 
-*English:* Free to use, fork and modify for noncommercial purposes. Any commercial use, including selling it or shipping it in a product, requires prior written permission from the author.
+**GNU Affero General Public License v3.0** – szabadon használható, forkolható és módosítható. Aki módosított változatot terjeszt vagy hálózati szolgáltatásként futtat, köteles a teljes forráskódot ugyanezen licenc alatt közzétenni.
 
-A felhasznált harmadik féltől származó anyagok a saját licencük alatt maradnak (pl. VIEWESMART – MIT).
+*English:* Free to use, fork and modify. Anyone who distributes a modified version, or runs it as a network service, must publish the complete source code under the same license.
+
+A felhasznált harmadik féltől származó anyagok a saját licencük alatt maradnak (pl. VIEWESMART – MIT, ESPHome – GPLv3/MIT).
+
+## Hozzájárulás / Contributing
+
+Ez egy személyes projekt: **pull requestet nem fogadok el**. Hibajelentést és ötletet issue-ként szívesen látok, és bárki szabadon forkolhatja a licenc szerint.
+
+*English:* This is a personal project: **pull requests are not accepted**. Bug reports and ideas are welcome as issues, and you are free to fork it under the license terms.
