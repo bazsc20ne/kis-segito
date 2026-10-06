@@ -21,11 +21,15 @@ from .const import (
 FRONTEND_DIR = Path(__file__).parent / "frontend"
 
 
-async def async_register_panel(hass: HomeAssistant, version: str) -> None:
-    """Serve the frontend files and add the sidebar entry."""
+async def async_register_static_files(hass: HomeAssistant) -> None:
+    """Serve the frontend files (can only be done once per HA run)."""
     await hass.http.async_register_static_paths(
         [StaticPathConfig(STATIC_URL, str(FRONTEND_DIR), cache_headers=False)]
     )
+
+
+async def async_register_panel(hass: HomeAssistant, version: str) -> None:
+    """Add the sidebar entry."""
     await panel_custom.async_register_panel(
         hass,
         webcomponent_name=PANEL_ELEMENT,

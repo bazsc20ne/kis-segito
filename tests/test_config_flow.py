@@ -80,3 +80,8 @@ async def test_setup_registers_panel_and_pushes_strings(hass: HomeAssistant) -> 
     assert await hass.config_entries.async_unload(entry.entry_id)
     await hass.async_block_till_done()
     assert PANEL_URL_PATH not in hass.data["frontend_panels"]
+
+    # Setting it up again must not register the static path twice.
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    assert PANEL_URL_PATH in hass.data["frontend_panels"]

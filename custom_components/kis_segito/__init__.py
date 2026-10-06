@@ -13,7 +13,11 @@ from homeassistant.loader import async_get_integration
 
 from .const import CONF_DEVICE_ID, DOMAIN
 from .device_link import DeviceLink
-from .panel import async_register_panel, async_unregister_panel
+from .panel import (
+    async_register_panel,
+    async_register_static_files,
+    async_unregister_panel,
+)
 from .store import KisSegitoStore
 from .websocket_api import async_register_commands
 
@@ -28,6 +32,7 @@ class KisSegitoData:
 
     version: str
     store: KisSegitoStore
+    static_registered: bool = False
     panel_registered: bool = False
     entry_ids: set[str] = field(default_factory=set)
 
@@ -45,6 +50,9 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 async def async_setup_entry(hass: HomeAssistant, entry: KisSegitoConfigEntry) -> bool:
     """Set up one knob."""
     data: KisSegitoData = hass.data[DOMAIN]
+    if not data.static_registered:
+        await async_register_static_files(hass)
+        data.static_registered = True
     if not data.panel_registered:
         await async_register_panel(hass, data.version)
         data.panel_registered = True
