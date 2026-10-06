@@ -6,6 +6,38 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.2.2] - 2026-10-07
+
+### English
+
+- The time track is shown on every screen, above the content, on a band in
+  the background colour with a soft inner edge, so sliding carousel items do
+  not disturb it: the shared outer track (colour zones, elapsed time, now
+  marker, global checkpoints) and the selected child's inner track (also on
+  the child carousel, following the centred child).
+- The top gap shows the brand mark on every screen; on a routine it shows
+  the reward available now instead. Screen content moved inside the track.
+- The child carousel slides smoothly: each slot (avatar, token pile, number)
+  is rendered into one image (#10).
+- Language changes apply live (texts, brand mark, boot screen) without a
+  restart, and are written to flash right away.
+- The offline marker moved to the right of the top gap.
+
+### Magyar
+
+- Az időív minden képernyőn látszik, a tartalom fölött, egy háttérszínű,
+  átmenetes peremű sávon, így a csúszó körhinta-elemek nem zavarják: a közös
+  külső ív (színzónák, eltelt idő, „most” jelölő, közös checkpointok) és a
+  kiválasztott gyerek belső íve (a gyerek-körhintán is, a középső gyerekhez
+  igazodva).
+- A felső résben minden képernyőn a márkajel látszik; rutin közben helyette
+  az éppen elérhető jutalom. A képernyők tartalma az íven belülre került.
+- A gyerek-körhinta egyenletesen csúszik: minden hely (avatar, zsetonkupac,
+  szám) egyetlen képpé renderelődik (#10).
+- A nyelvváltás élőben érvényesül (feliratok, márkajel, indítóképernyő)
+  újraindítás nélkül, és azonnal flash-be íródik.
+- A kapcsolat-hiány jelzése a felső rés jobb oldalára került.
+
 ## [0.2.1] - 2026-10-07
 
 ### English

@@ -48,7 +48,7 @@ substitutions:
   friendly_name: Kis Segito
 
 packages:
-  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.2.1
+  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.2.2
 
 api:
   encryption:
@@ -158,7 +158,7 @@ substitutions:
   friendly_name: Kis Segito
 
 packages:
-  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.2.1
+  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.2.2
 
 api:
   encryption:
