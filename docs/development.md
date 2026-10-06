@@ -28,6 +28,16 @@ Add one file per part, named by the Home Assistant language code (e.g. `de.json`
 Missing keys fall back to English. The knob fonts cover Latin, Greek and Cyrillic
 scripts; other scripts need extra glyphs in `esphome/kis-segito.yaml`.
 
+### Logo and brand mark / Logó és márkajel
+
+There are exactly two variants: Hungarian ("Kis Segítő") for the `hu` language and
+English ("Little Helper") for every other language. A new language never needs a new
+logo. Files: `assets/icons/source/brand_mark.png` / `brand_logo.png` (Hungarian) and
+`brand_mark_en.png` / `brand_logo_en.png` (English); README images in `docs/images/`.
+
+Pontosan két változat van: magyar („Kis Segítő”) a `hu` nyelvhez, angol („Little
+Helper”) minden más nyelvhez. Új nyelvhez soha nem kell új logó.
+
 ## Local checks
 
 ```sh
