@@ -316,22 +316,6 @@ number:
     optimistic: true
     restore_value: true
 
-switch:
-  # Screen saver on/off (dimming and switching off after the times above).
-  - platform: template
-    id: screen_saver
-    name: Screen saver
-    icon: mdi:sleep
-    entity_category: config
-    optimistic: true
-    restore_mode: RESTORE_DEFAULT_ON
-    on_turn_off:
-      - lambda: |-
-          if (id(screen_state) != 0) {
-            id(screen_state) = 0;
-            id(wake_screen).execute();
-          }
-
 select:
   # Animation level of the child UI, adjustable from Home Assistant.
   - platform: template
@@ -608,8 +592,6 @@ interval:
   - interval: 1s
     then:
       - lambda: |-
-          if (!id(screen_saver).state)
-            return;
           const uint32_t idle_s = (millis() - id(last_input_ms)) / 1000;
           const float dim_after = id(screen_dim_after).state;
           const float off_after = id(screen_off_after).state;
