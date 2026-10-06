@@ -84,7 +84,6 @@ lv_obj_t *Carousel::center_slot() const {
 void Carousel::release() {
   for (auto &buf : this->snap_) {
     if (buf != nullptr) {
-      lv_image_cache_drop(buf);
       lv_draw_buf_destroy(buf);
       buf = nullptr;
     }
@@ -95,7 +94,6 @@ void Carousel::fill_slot_(int i) {
   lv_obj_t *slot = this->slots_[i];
   lv_obj_clean(slot);  // before freeing the snapshot its image shows
   if (this->snap_[i] != nullptr) {
-    lv_image_cache_drop(this->snap_[i]);
     lv_draw_buf_destroy(this->snap_[i]);
     this->snap_[i] = nullptr;
   }
