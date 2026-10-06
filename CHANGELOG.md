@@ -22,6 +22,10 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
 - Language changes apply live (texts, brand mark, boot screen) without a
   restart, and are written to flash right away.
 - The offline marker moved to the right of the top gap.
+- Screen saver against burn-in: the backlight dims after 60 s and switches
+  off after 120 s without knob input; any input wakes it without acting.
+  "Screen dim after", "Screen off after" and a "Screen saver" switch are
+  adjustable from Home Assistant.
 
 ### Magyar
 
@@ -37,6 +41,10 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
 - A nyelvváltás élőben érvényesül (feliratok, márkajel, indítóképernyő)
   újraindítás nélkül, és azonnal flash-be íródik.
 - A kapcsolat-hiány jelzése a felső rés jobb oldalára került.
+- Képernyővédő a beégés ellen: 60 s tétlenség után a háttérvilágítás
+  elhalványul, 120 s után kikapcsol; bármilyen tekerés vagy gombnyomás
+  felébreszti, de nem lép vele. A „Screen dim after”, „Screen off after” idő és
+  a „Screen saver” kapcsoló a Home Assistantből állítható.
 
 ## [0.2.1] - 2026-10-07
 

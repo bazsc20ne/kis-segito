@@ -153,6 +153,17 @@ globals:
   - id: loading_text
     type: std::array<char, 96>
     restore_value: true
+  # Screen saver: time of the last knob input, and 0 = on, 1 = dimmed, 2 = off.
+  - id: last_input_ms
+    type: uint32_t
+    initial_value: "0"
+  - id: screen_state
+    type: int
+    initial_value: "0"
+  # Backlight brightness before dimming, restored on wake-up.
+  - id: awake_brightness
+    type: float
+    initial_value: "1.0"
   # Whether the last language received from Home Assistant was Hungarian; picks
   # the brand mark variant on the boot screen.
   - id: boot_language_hu
@@ -176,6 +187,15 @@ script:
             lv_timer_delete(id(loading_anim));
             id(loading_anim) = nullptr;
           }
+
+  # Screen saver: back to full brightness after dimming or switching off.
+  - id: wake_screen
+    mode: restart
+    then:
+      - light.turn_on:
+          id: backlight
+          brightness: !lambda return id(awake_brightness);
+          transition_length: 200ms
 
   # One UI step clockwise / anticlockwise.
   - id: knob_step_up
@@ -214,6 +234,14 @@ sensor:
     internal: true
     on_clockwise:
       - lambda: |-
+          // Input while the screen is dimmed or off only wakes it.
+          id(last_input_ms) = millis();
+          if (id(screen_state) != 0) {
+            id(screen_state) = 0;
+            id(wake_screen).execute();
+            id(encoder_accum) = 0;
+            return;
+          }
           if (id(encoder_accum) < 0) id(encoder_accum) = 0;
           id(encoder_accum) += 1;
           const int need = ${encoder_counts_per_click} * (int) id(encoder_clicks_per_step).state;
@@ -223,6 +251,14 @@ sensor:
           }
     on_anticlockwise:
       - lambda: |-
+          // Input while the screen is dimmed or off only wakes it.
+          id(last_input_ms) = millis();
+          if (id(screen_state) != 0) {
+            id(screen_state) = 0;
+            id(wake_screen).execute();
+            id(encoder_accum) = 0;
+            return;
+          }
           if (id(encoder_accum) > 0) id(encoder_accum) = 0;
           id(encoder_accum) -= 1;
           const int need = ${encoder_counts_per_click} * (int) id(encoder_clicks_per_step).state;
@@ -249,6 +285,52 @@ number:
     initial_value: 1
     optimistic: true
     restore_value: true
+
+  # Screen saver: dim, then switch the backlight off after this long without
+  # knob input (0 = never). Any input wakes the screen; that input is not
+  # passed to the UI.
+  - platform: template
+    id: screen_dim_after
+    name: Screen dim after
+    icon: mdi:brightness-4
+    entity_category: config
+    unit_of_measurement: s
+    mode: box
+    min_value: 0
+    max_value: 3600
+    step: 10
+    initial_value: 60
+    optimistic: true
+    restore_value: true
+  - platform: template
+    id: screen_off_after
+    name: Screen off after
+    icon: mdi:monitor-off
+    entity_category: config
+    unit_of_measurement: s
+    mode: box
+    min_value: 0
+    max_value: 86400
+    step: 10
+    initial_value: 120
+    optimistic: true
+    restore_value: true
+
+switch:
+  # Screen saver on/off (dimming and switching off after the times above).
+  - platform: template
+    id: screen_saver
+    name: Screen saver
+    icon: mdi:sleep
+    entity_category: config
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    on_turn_off:
+      - lambda: |-
+          if (id(screen_state) != 0) {
+            id(screen_state) = 0;
+            id(wake_screen).execute();
+          }
 
 select:
   # Animation level of the child UI, adjustable from Home Assistant.
@@ -282,12 +364,28 @@ binary_sensor:
       - min_length: 10ms
         max_length: 650ms
         then:
-          - lambda: id(ui).click();
+          - lambda: |-
+              // Input while the screen is dimmed or off only wakes it.
+              id(last_input_ms) = millis();
+              if (id(screen_state) != 0) {
+                id(screen_state) = 0;
+                id(wake_screen).execute();
+                return;
+              }
+              id(ui).click();
     on_multi_click:
       - timing:
           - ON for at least 700ms
         then:
-          - lambda: id(ui).long_press();
+          - lambda: |-
+              // Input while the screen is dimmed or off only wakes it.
+              id(last_input_ms) = millis();
+              if (id(screen_state) != 0) {
+                id(screen_state) = 0;
+                id(wake_screen).execute();
+                return;
+              }
+              id(ui).long_press();
 
 text_sensor:
   - platform: version
@@ -504,3 +602,31 @@ lvgl:
             text_font: font_text
             text_color: 0xFFFFFF
             text: ""
+
+# Screen saver: dim, then switch off the backlight when the knob is not used.
+interval:
+  - interval: 1s
+    then:
+      - lambda: |-
+          if (!id(screen_saver).state)
+            return;
+          const uint32_t idle_s = (millis() - id(last_input_ms)) / 1000;
+          const float dim_after = id(screen_dim_after).state;
+          const float off_after = id(screen_off_after).state;
+          if (id(screen_state) < 2 && off_after > 0 && idle_s >= off_after) {
+            if (id(screen_state) == 0 && id(backlight).current_values.is_on())
+              id(awake_brightness) = id(backlight).current_values.get_brightness();
+            id(screen_state) = 2;
+            auto call = id(backlight).turn_off();
+            call.set_transition_length(1000);
+            call.perform();
+          } else if (id(screen_state) == 0 && dim_after > 0 && idle_s >= dim_after) {
+            if (!id(backlight).current_values.is_on())
+              return;  // switched off from Home Assistant: leave it alone
+            id(awake_brightness) = id(backlight).current_values.get_brightness();
+            id(screen_state) = 1;
+            auto call = id(backlight).turn_on();
+            call.set_brightness(std::min(id(awake_brightness), 0.15f));
+            call.set_transition_length(1000);
+            call.perform();
+          }

@@ -67,6 +67,11 @@ step** beállítása (1–5, alapból 1 = egy kattanás egy lépés), és újrai
 megmarad. Más enkóderhez a `substitutions` részben az `encoder_counts_per_click`
 állítható (alapból `"2"`). A kijelző beállításai: [docs/hardware.md](docs/hardware.md).
 
+Képernyővédő: a kijelző a **Screen dim after** idő (alapból 60 s) után elhalványul, a
+**Screen off after** idő (alapból 120 s) után kikapcsol; bármelyik tekerés vagy
+gombnyomás felébreszti (ez a mozdulat még nem lép a menüben). A **Screen saver**
+kapcsolóval kikapcsolható; a 0 érték az adott lépést tiltja.
+
 **B) Kész firmware.** Minden [release](https://github.com/bazsc20ne/kis-segito/releases)
 mellett ott van a lefordított firmware: a `*.factory.bin` USB-s első felíráshoz
 (pl. [ESPHome Web](https://web.esphome.io/)), az `*.ota.bin` frissítéshez. A WiFi
@@ -176,6 +181,10 @@ The encoder sensitivity is set from Home Assistant: the device's **Encoder click
 step** setting (1–5, default 1 = one step per click), kept across reboots. For a
 different encoder, set `encoder_counts_per_click` in `substitutions` (default `"2"`).
 Display settings: [docs/hardware.md](docs/hardware.md).
+
+Screen saver: the display dims after **Screen dim after** (default 60 s) and switches
+off after **Screen off after** (default 120 s); any turn or press wakes it (that input
+is not passed to the menu). The **Screen saver** switch turns it off; 0 disables a step.
 
 **B) Prebuilt firmware.** Every [release](https://github.com/bazsc20ne/kis-segito/releases)
 includes the compiled firmware: `*.factory.bin` for the first USB flash (e.g. with
