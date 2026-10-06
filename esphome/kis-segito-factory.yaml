@@ -4,6 +4,11 @@
 # It has no Wi-Fi credentials: set them through the knob's own access point
 # (captive portal), then adopt the device in the Home Assistant ESPHome Builder.
 
+substitutions:
+  # Build the UI component and images from this checkout, not from a release.
+  kis_segito_components: components
+  kis_segito_assets: ../assets/device
+
 packages:
   kis_segito: !include kis-segito.yaml
 

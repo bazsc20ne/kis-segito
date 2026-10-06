@@ -6,6 +6,7 @@ on:
   push:
     paths:
       - "esphome/**"
+      - "assets/**"
       - ".github/workflows/esphome.yml"
   workflow_dispatch:
 

@@ -1,0 +1,108 @@
+{
+  "_comment": "Icon id -> pixel sizes the knob firmware uses. tools/build_device_assets.py renders assets/device/<id>_<size>.png from assets/icons/source/<id>.png (and <id>_small.png for sizes up to 44 px, when present).",
+  "test_avatar_1": [
+    180
+  ],
+  "test_avatar_2": [
+    180
+  ],
+  "test_avatar_3": [
+    180
+  ],
+  "brand_mark": [
+    48
+  ],
+  "routine_morning": [
+    160
+  ],
+  "routine_evening": [
+    160
+  ],
+  "fn_rewards": [
+    160
+  ],
+  "fn_piggy": [
+    160
+  ],
+  "fn_tokens": [
+    160
+  ],
+  "task_clothes": [
+    150,
+    40
+  ],
+  "task_breakfast": [
+    150,
+    40,
+    32
+  ],
+  "task_toothbrush": [
+    150,
+    40
+  ],
+  "task_shoes": [
+    150,
+    40
+  ],
+  "task_bag": [
+    150,
+    40
+  ],
+  "task_door_ready": [
+    32
+  ],
+  "checkpoint_flag": [
+    28
+  ],
+  "reward_toy_car": [
+    160
+  ],
+  "reward_doll": [
+    160
+  ],
+  "reward_bricks": [
+    160
+  ],
+  "reward_long_story": [
+    160
+  ],
+  "reward_treat": [
+    160
+  ],
+  "token_coin_front": [
+    28
+  ],
+  "token_coin_tilt_left": [
+    28
+  ],
+  "token_coin_tilt_right": [
+    28
+  ],
+  "piggy_large": [
+    180
+  ],
+  "action_check": [
+    88
+  ],
+  "action_x": [
+    88
+  ],
+  "action_check_small": [
+    24
+  ],
+  "status_lock": [
+    64
+  ],
+  "status_disconnected": [
+    28
+  ],
+  "streak_flame": [
+    64
+  ],
+  "ball_base": [
+    48
+  ],
+  "ball_highlight": [
+    48
+  ]
+}

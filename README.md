@@ -19,7 +19,8 @@ Két, egymással együttműködő részből áll:
   „Kis Segítő” oldalsáv-menüponttal. A knobot az ESPHome natív API-n keresztül kezeli.
 
 Mindkét rész független a Home Assistant többi beállításától. A projekt korai
-fázisban van: a v0.1.0 egy tesztelhető váz (tesztképernyő a knobon, üres panel a HA-ban).
+fázisban van: a knobon már működik a gyerekfelület (gyerekválasztó, rutin, jutalombolt,
+zsetonok), egyelőre beépített tesztadatokkal; a HA-oldali adatkezelés a következő lépés.
 
 ## Hardver
 
@@ -45,7 +46,7 @@ substitutions:
   friendly_name: Kis Segito
 
 packages:
-  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.1.11
+  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.2.0
 
 api:
   encryption:
@@ -122,8 +123,9 @@ daily routine. It has two parts that work together:
   own "Kis Segítő" sidebar entry. It controls the knob through the ESPHome native API.
 
 Both parts are independent of the rest of your Home Assistant setup. The project is at
-an early stage: v0.1.0 is a testable skeleton (a test screen on the knob, an empty
-panel in HA).
+an early stage: the child UI already runs on the knob (child selector, routine, reward
+store, tokens), with built-in test data for now; data management in Home Assistant is
+the next step.
 
 ### Hardware
 
@@ -149,7 +151,7 @@ substitutions:
   friendly_name: Kis Segito
 
 packages:
-  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.1.11
+  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.2.0
 
 api:
   encryption:

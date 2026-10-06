@@ -25,6 +25,13 @@ def main() -> int:
     match = re.search(r'^\s+version:\s*"([^"]+)"', esphome, re.MULTILINE)
     versions["esphome project"] = match.group(1) if match else "<missing>"
 
+    for label, pattern in (
+        ("esphome components ref", r"kis_segito_components: github://bazsc20ne/kis-segito@v([\d.]+)"),
+        ("esphome assets ref", r"kis_segito_assets: https://raw\.githubusercontent\.com/bazsc20ne/kis-segito/v([\d.]+)/"),
+    ):
+        match = re.search(pattern, esphome)
+        versions[label] = match.group(1) if match else "<missing>"
+
     changelog = (ROOT / "CHANGELOG.md").read_text("utf-8")
     match = re.search(r"^## \[(\d+\.\d+\.\d+)\]", changelog, re.MULTILINE)
     versions["CHANGELOG.md (latest)"] = match.group(1) if match else "<missing>"

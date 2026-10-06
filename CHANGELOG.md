@@ -6,6 +6,65 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.2.0] - 2026-10-06
+
+### English
+
+First version of the child UI on the knob, with built-in test data (Home
+Assistant data follows in a later version):
+
+- Child carousel (infinite) with avatar and a real token pile of exactly the
+  wallet balance; large balances spread sideways and "flow" off the screen.
+  The last selected child is remembered across reboots.
+- Function carousel per child: morning and evening routine, rewards, piggy bank
+  (when unlocked), tokens and streak.
+- Routine screen: open time track from 11 to 1 o'clock with the future colour
+  zones visible from the start, elapsed time dimmed, checkpoint markers on the
+  outer and inner track, the reward available now in the top gap, the current
+  task large and the others on a curved timeline (done on the left, grey).
+  Completing a task bounces and checks it; finishing the routine celebrates.
+- Reward store carousel with prices shown as token piles, locked rewards
+  greyed out, and an X/✓ confirmation with a ring around the selected choice;
+  the exact number of spent tokens fly away.
+- Short press selects, long press goes back one level; after 60 s without input
+  the knob returns to the child carousel. Without a Home Assistant connection an
+  offline marker is shown and token transactions are refused.
+- Animation level (full / reduced / off) as a setting in Home Assistant.
+- Loading screen balls are now layered images: a recoloured base squashed along
+  the collision normal, and a highlight that never rotates or squashes.
+- Icon pipeline: source artwork in `assets/icons/source`, rendered by
+  `tools/build_device_assets.py`; the icon list is in `docs/icons.md`. The icons
+  are placeholder sketches for now.
+
+### Magyar
+
+A knob gyerekfelületének első változata, beépített tesztadatokkal (a Home
+Assistant adatai egy későbbi verzióban jönnek):
+
+- Gyerek-körhinta (végtelen) avatarral és valódi zsetonkupaccal, pontosan a tárca
+  egyenlegével; nagy egyenlegnél a kupac szétterül, majd „lefolyik” a
+  kijelzőről. Az utoljára kiválasztott gyerek újraindítás után is megmarad.
+- Gyerekenkénti funkció-körhinta: reggeli és esti rutin, jutalmak, persely (ha
+  feloldották), zsetonok és sorozat.
+- Rutinképernyő: nyitott időív 11 órától 1 óráig, a jövőbeli színzónák az
+  elejétől látszanak, az eltelt idő elhalványul, checkpoint-jelölők a külső és a
+  belső íven, a most járó jutalom a felső résben, az aktuális feladat nagyban, a
+  többi egy íves idővonalon (a kész feladatok balra, szürkén). Feladat
+  teljesítésekor pattanás és pipa, a rutin végén ünneplés.
+- Jutalombolt-körhinta, az árak zsetonkupacként, a nem megfizethető jutalmak
+  szürkén, X/✓ megerősítés gyűrűvel a kiválasztott elem körül; a pontos számú
+  elköltött zseton elrepül.
+- Rövid nyomás: kiválasztás, hosszú nyomás: egy szinttel vissza; 60 s tétlenség
+  után vissza a gyerek-körhintára. Home Assistant-kapcsolat nélkül offline jelzés
+  látszik, és a zseton-tranzakciók le vannak tiltva.
+- Animációs szint (teljes / csökkentett / ki) beállításként a Home Assistantben.
+- A betöltőképernyő labdái rétegzett képek: színezett alapréteg, amely az
+  ütközés irányában nyomódik össze, és egy csillanás, amely sosem forog és nem
+  nyomódik össze.
+- Ikon-csővezeték: forrásrajzok az `assets/icons/source` mappában, a méreteket a
+  `tools/build_device_assets.py` készíti; az ikonlista a `docs/icons.md`-ben.
+  Az ikonok egyelőre helyettesítő vázlatok.
+
 ## [0.1.11] - 2026-10-06
 
 ### English
@@ -282,6 +341,7 @@ Első, tesztelhető váz.
 - GitHub Actions: hassfest, HACS-validáció, tesztek, ESPHome-fordítás; a tagelt
   release-ekhez csatolva a factory és az OTA firmware.
 
+[0.2.0]: https://github.com/bazsc20ne/kis-segito/releases/tag/v0.2.0
 [0.1.11]: https://github.com/bazsc20ne/kis-segito/releases/tag/v0.1.11
 [0.1.10]: https://github.com/bazsc20ne/kis-segito/releases/tag/v0.1.10
 [0.1.9]: https://github.com/bazsc20ne/kis-segito/releases/tag/v0.1.9

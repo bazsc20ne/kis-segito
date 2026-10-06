@@ -10,7 +10,7 @@
 #     name: kis-segito
 #     friendly_name: Kis Segito
 #   packages:
-#     kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.1.11
+#     kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.2.0
 #   api:
 #     encryption:
 #       key: !secret kis_segito_api_key
@@ -20,13 +20,21 @@
 #
 # See esphome/example.yaml. Secrets never belong in this repository.
 #
-# On-screen texts are not hard-coded: Home Assistant (the kis_segito integration)
-# pushes the strings in the user's language through the `set_ui_strings` API action.
-# Until it does, the screen only shows language-neutral symbols and numbers.
+# The child UI is drawn by the kis_segito_ui external component (esphome/components)
+# with the icons from assets/device. On-screen texts are not hard-coded: Home
+# Assistant (the kis_segito integration) pushes them in the user's language through
+# the `set_ui_strings` API action; the UI starts once they arrive.
+#
+# Note: the knob button is on GPIO0, a strapping pin. Holding it down while the
+# knob powers up or restarts puts the ESP32-S3 into download (flashing) mode.
 
 substitutions:
   name: kis-segito
   friendly_name: Kis Segito
+  # Where the UI component and its images come from. They must match the
+  # version of this package; CI and local builds point them at the repository.
+  kis_segito_components: github://bazsc20ne/kis-segito@v0.2.0
+  kis_segito_assets: https://raw.githubusercontent.com/bazsc20ne/kis-segito/v0.2.0/assets/device
   # Display tuning values are in hardware/board.yaml and can be overridden here.
   # Encoder counts per mechanical click at the finest resolution (4 counts per
   # quadrature cycle). The MD80E encoder makes half a cycle per click = 2.
@@ -41,10 +49,15 @@ esphome:
   name_add_mac_suffix: false
   project:
     name: bazsc20ne.kis-segito
-    version: "0.1.11"
+    version: "0.2.0"
+
+external_components:
+  - source: ${kis_segito_components}
+    components: [kis_segito_ui]
 
 packages:
   board: !include hardware/board.yaml
+  ui_images: !include ui-images.yaml
 
 logger:
 
@@ -84,15 +97,14 @@ api:
             }
         - script.execute: refresh_texts
         - script.execute: stop_loading_anim
-        - lvgl.page.show: test_page
+        - lambda: |-
+            const auto mode = id(animation_mode).current_option();
+            id(ui).set_animation_mode(std::string(mode.c_str(), mode.size()));
+            id(ui).start();
   on_client_connected:
-    - lvgl.label.update:
-        id: lbl_api
-        text_color: 0x4CAF50
+    - lambda: id(ui).set_connected(true);
   on_client_disconnected:
-    - lvgl.label.update:
-        id: lbl_api
-        text_color: 0x616161
+    - lambda: id(ui).set_connected(false);
 
 ota:
   - platform: esphome
@@ -113,9 +125,6 @@ globals:
   - id: ui_language
     type: std::string
     initial_value: '""'
-  - id: test_counter
-    type: int
-    initial_value: "0"
   # LVGL timer of the loading-screen animation; deleted when content arrives.
   - id: loading_anim
     type: lv_timer_t *
@@ -138,57 +147,17 @@ script:
   # One UI step clockwise / anticlockwise.
   - id: knob_step_up
     then:
-      - lambda: id(test_counter) += 1;
-      - script.execute: show_counter
+      - lambda: id(ui).rotate(1);
   - id: knob_step_down
     then:
-      - lambda: id(test_counter) -= 1;
-      - script.execute: show_counter
+      - lambda: id(ui).rotate(-1);
 
-  - id: show_counter
-    then:
-      - lvgl.label.update:
-          id: lbl_counter
-          text: !lambda return std::to_string(id(test_counter));
-
-  # Re-applies all translatable labels from ui_strings.
+  # Re-applies the translatable labels from ui_strings.
   - id: refresh_texts
     then:
       - lvgl.label.update:
           id: lbl_loading
           text: !lambda return std::string(id(loading_text).data());
-      - lvgl.label.update:
-          id: lbl_title
-          text: !lambda |-
-            auto it = id(ui_strings).find("test_screen.title");
-            return it != id(ui_strings).end() ? it->second : std::string();
-      - lvgl.label.update:
-          id: lbl_hint
-          text: !lambda |-
-            auto it = id(ui_strings).find("test_screen.hint");
-            return it != id(ui_strings).end() ? it->second : std::string();
-
-  # Short visual feedback for a button press.
-  - id: press_feedback
-    mode: restart
-    then:
-      - lvgl.widget.update:
-          id: ring
-          border_color: 0x4CAF50
-          border_width: 24
-      - lvgl.label.update:
-          id: lbl_feedback
-          text: !lambda |-
-            auto it = id(ui_strings).find("test_screen.pressed");
-            return it != id(ui_strings).end() ? it->second : std::string();
-      - delay: 600ms
-      - lvgl.widget.update:
-          id: ring
-          border_color: 0x2196F3
-          border_width: 8
-      - lvgl.label.update:
-          id: lbl_feedback
-          text: ""
 
 # --- Hardware -------------------------------------------------------------------
 
@@ -243,12 +212,26 @@ number:
     optimistic: true
     restore_value: true
 
+select:
+  # Animation level of the child UI, adjustable from Home Assistant.
+  - platform: template
+    id: animation_mode
+    name: Animations
+    icon: mdi:animation-play
+    entity_category: config
+    options: [full, reduced, "off"]
+    initial_option: full
+    optimistic: true
+    restore_value: true
+    on_value:
+      - lambda: id(ui).set_animation_mode(std::string(x.c_str(), x.size()));
+
 binary_sensor:
   - platform: gpio
     id: knob_button
     name: Button
     icon: mdi:gesture-tap-button
-    # GPIO0 is a strapping pin; the board has an external pull-up.
+    # GPIO0 is a strapping pin (see the note at the top); external pull-up.
     pin:
       number: GPIO0
       inverted: true
@@ -256,8 +239,17 @@ binary_sensor:
     filters:
       - delayed_on: 10ms
       - delayed_off: 10ms
-    on_press:
-      - script.execute: press_feedback
+    # Short press = select / confirm; long press = back one level.
+    on_click:
+      - min_length: 10ms
+        max_length: 650ms
+        then:
+          - lambda: id(ui).click();
+    on_multi_click:
+      - timing:
+          - ON for at least 700ms
+        then:
+          - lambda: id(ui).long_press();
 
 text_sensor:
   - platform: version
@@ -266,20 +258,20 @@ text_sensor:
 
 # --- UI -------------------------------------------------------------------------
 
-# Text fonts with Latin, Greek and Cyrillic glyphs, so translations pushed from
-# Home Assistant render without a firmware change. Symbols use the built-in
-# LVGL Montserrat fonts.
 font:
+  # Text font with Latin, Greek and Cyrillic glyphs, so translations pushed from
+  # Home Assistant render without a firmware change.
   - file: "gfonts://Nunito@700"
     id: font_text
     size: 26
     bpp: 4
     glyphsets: [GF_Latin_Core, GF_Greek_Core, GF_Cyrillic_Core]
-  - file: "gfonts://Nunito@600"
-    id: font_small
-    size: 22
+  # Numbers (token counts, prices).
+  - file: "gfonts://Baloo 2@800"
+    id: font_number
+    size: 34
     bpp: 4
-    glyphsets: [GF_Latin_Core, GF_Greek_Core, GF_Cyrillic_Core]
+    glyphs: "0123456789+-/"
 
 lvgl:
   displays:
@@ -289,26 +281,36 @@ lvgl:
   default_font: montserrat_24
   on_boot:
     - script.execute: refresh_texts
-    # Loading animation: balls bounce off the round edge of the screen and off
-    # each other. A 30 ms LVGL timer moves them; only the small ball areas are
-    # redrawn.
+    # Loading animation: layered balls (recoloured base + fixed highlight)
+    # bounce off the round edge and off each other. On impact the base is
+    # squashed along the collision normal (rotation + X/Y scale); the
+    # highlight never rotates or squashes. A 30 ms LVGL timer moves them.
     - lambda: |-
         struct Ball {
-          lv_obj_t *obj;
+          lv_obj_t *base;
+          lv_obj_t *highlight;
           float x, y, vx, vy;  // centre and speed in px per tick
           int r;
-          int squash;  // ticks of squash left after a bounce
+          int squash;      // ticks of squash left after a bounce
+          float nx, ny;    // last collision normal
         };
         static Ball balls[] = {
-            {id(ball_1), 240, 170, 4.6f, 2.1f, 22, 0},
-            {id(ball_2), 190, 280, -3.2f, 3.9f, 18, 0},
-            {id(ball_3), 300, 260, 2.4f, -4.4f, 15, 0},
-            {id(ball_4), 250, 320, -4.1f, -2.7f, 20, 0},
-            {id(ball_5), 160, 200, 3.7f, 3.3f, 17, 0},
+            {id(ball_1), id(ball_1_hl), 240, 170, 4.6f, 2.1f, 22, 0, 1, 0},
+            {id(ball_2), id(ball_2_hl), 190, 280, -3.2f, 3.9f, 18, 0, 1, 0},
+            {id(ball_3), id(ball_3_hl), 300, 260, 2.4f, -4.4f, 15, 0, 1, 0},
+            {id(ball_4), id(ball_4_hl), 250, 320, -4.1f, -2.7f, 20, 0, 1, 0},
+            {id(ball_5), id(ball_5_hl), 160, 200, 3.7f, 3.3f, 17, 0, 1, 0},
         };
+        constexpr int IMG = 48;  // source image size of both layers
+        for (auto &b : balls) {
+          const int scale = 2 * b.r * 256 / IMG;
+          lv_image_set_scale(b.base, scale);
+          lv_image_set_scale(b.highlight, scale);
+        }
         id(loading_anim) = lv_timer_create(
             [](lv_timer_t *) {
               constexpr float CX = 240, CY = 240, EDGE = 234;
+              constexpr int IMG = 48;
               constexpr size_t N = sizeof(balls) / sizeof(balls[0]);
               // Ball-to-ball bounces (elastic, mass ~ area).
               for (size_t i = 0; i < N; i++) {
@@ -329,6 +331,8 @@ lvgl:
                     c.vx += imp * ma * nx;
                     c.vy += imp * ma * ny;
                     a.squash = c.squash = 3;
+                    a.nx = c.nx = nx;
+                    a.ny = c.ny = ny;
                   }
                   const float push = (min_dist - dist) / 2;  // separate them
                   a.x -= nx * push;
@@ -350,19 +354,29 @@ lvgl:
                     b.vx -= 2 * vn * nx;
                     b.vy -= 2 * vn * ny;
                     b.squash = 4;
+                    b.nx = nx;
+                    b.ny = ny;
                   }
                   b.x = CX + nx * max_dist;
                   b.y = CY + ny * max_dist;
                 }
-                int w = 2 * b.r, h = 2 * b.r;
+                const int scale = 2 * b.r * 256 / IMG;
                 if (b.squash > 0) {
-                  const int s = b.squash;  // short, fading squash
-                  w += s;
-                  h -= s;
+                  // Squash along the collision normal: rotate the image's X axis
+                  // onto the normal, then shrink X and stretch Y.
+                  const float k = b.squash / 4.0f;
+                  const int angle = (int) (atan2f(b.ny, b.nx) * 1800.0f / (float) M_PI);
+                  lv_image_set_rotation(b.base, angle);
+                  lv_image_set_scale_x(b.base, (uint32_t) (scale * (1.0f - 0.22f * k)));
+                  lv_image_set_scale_y(b.base, (uint32_t) (scale * (1.0f + 0.12f * k)));
                   b.squash--;
+                } else {
+                  lv_image_set_rotation(b.base, 0);
+                  lv_image_set_scale(b.base, scale);
                 }
-                lv_obj_set_size(b.obj, w, h);
-                lv_obj_set_pos(b.obj, (int) (b.x - w / 2), (int) (b.y - h / 2));
+                const int px = (int) b.x - IMG / 2, py = (int) b.y - IMG / 2;
+                lv_obj_set_pos(b.base, px, py);
+                lv_obj_set_pos(b.highlight, px, py);
               }
             },
             30, nullptr);
@@ -372,62 +386,66 @@ lvgl:
     - id: loading_page
       bg_color: 0x000000
       widgets:
-        # Bouncing balls, moved by the loading_anim timer (see lvgl on_boot).
-        - obj:
+        - image:
             id: ball_1
-            x: 220
-            y: 220
-            width: 44
-            height: 44
-            radius: 22
-            bg_color: 0xFFC94A
-            bg_opa: COVER
-            border_width: 0
-            scrollable: false
-        - obj:
+            src: ks_img_ball_base_48
+            x: 216
+            y: 216
+            image_recolor: 0xFFC94A
+            image_recolor_opa: 70%
+        - image:
+            id: ball_1_hl
+            src: ks_img_ball_highlight_48
+            x: 216
+            y: 216
+        - image:
             id: ball_2
-            x: 220
-            y: 220
-            width: 36
-            height: 36
-            radius: 18
-            bg_color: 0xFF8FB1
-            bg_opa: COVER
-            border_width: 0
-            scrollable: false
-        - obj:
+            src: ks_img_ball_base_48
+            x: 216
+            y: 216
+            image_recolor: 0xFF8FB1
+            image_recolor_opa: 70%
+        - image:
+            id: ball_2_hl
+            src: ks_img_ball_highlight_48
+            x: 216
+            y: 216
+        - image:
             id: ball_3
-            x: 220
-            y: 220
-            width: 30
-            height: 30
-            radius: 15
-            bg_color: 0x6CB8FF
-            bg_opa: COVER
-            border_width: 0
-            scrollable: false
-        - obj:
+            src: ks_img_ball_base_48
+            x: 216
+            y: 216
+            image_recolor: 0x6CB8FF
+            image_recolor_opa: 70%
+        - image:
+            id: ball_3_hl
+            src: ks_img_ball_highlight_48
+            x: 216
+            y: 216
+        - image:
             id: ball_4
-            x: 220
-            y: 220
-            width: 40
-            height: 40
-            radius: 20
-            bg_color: 0x6BCB77
-            bg_opa: COVER
-            border_width: 0
-            scrollable: false
-        - obj:
+            src: ks_img_ball_base_48
+            x: 216
+            y: 216
+            image_recolor: 0x6BCB77
+            image_recolor_opa: 70%
+        - image:
+            id: ball_4_hl
+            src: ks_img_ball_highlight_48
+            x: 216
+            y: 216
+        - image:
             id: ball_5
-            x: 220
-            y: 220
-            width: 34
-            height: 34
-            radius: 17
-            bg_color: 0xFF9F43
-            bg_opa: COVER
-            border_width: 0
-            scrollable: false
+            src: ks_img_ball_base_48
+            x: 216
+            y: 216
+            image_recolor: 0xFF9F43
+            image_recolor_opa: 70%
+        - image:
+            id: ball_5_hl
+            src: ks_img_ball_highlight_48
+            x: 216
+            y: 216
         - label:
             id: lbl_loading
             align: CENTER
@@ -435,48 +453,3 @@ lvgl:
             text_font: font_text
             text_color: 0xFFFFFF
             text: ""
-    - id: test_page
-      bg_color: 0x000000
-      widgets:
-        - obj:
-            id: ring
-            align: CENTER
-            width: 460
-            height: 460
-            radius: 230
-            bg_opa: TRANSP
-            border_color: 0x2196F3
-            border_width: 8
-        - label:
-            id: lbl_title
-            align: TOP_MID
-            y: 70
-            text_font: font_text
-            text_color: 0xFFFFFF
-            text: ""
-        - label:
-            id: lbl_counter
-            align: CENTER
-            text_font: montserrat_48
-            text_color: 0xFFFFFF
-            text: "0"
-        - label:
-            id: lbl_feedback
-            align: CENTER
-            y: 70
-            text_font: font_text
-            text_color: 0x4CAF50
-            text: ""
-        - label:
-            id: lbl_hint
-            align: BOTTOM_MID
-            y: -70
-            text_color: 0x9E9E9E
-            text_font: font_small
-            text: ""
-        - label:
-            id: lbl_api
-            align: BOTTOM_MID
-            y: -30
-            text_color: 0x616161
-            text: !lambda return std::string(LV_SYMBOL_HOME);
