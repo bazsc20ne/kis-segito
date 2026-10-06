@@ -45,7 +45,7 @@ substitutions:
   friendly_name: Kis Segito
 
 packages:
-  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.1.9
+  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.1.10
 
 api:
   encryption:
@@ -67,8 +67,8 @@ megmarad. Más enkóderhez a `substitutions` részben az `encoder_counts_per_cli
 **B) Kész firmware.** Minden [release](https://github.com/bazsc20ne/kis-segito/releases)
 mellett ott van a lefordított firmware: a `*.factory.bin` USB-s első felíráshoz
 (pl. [ESPHome Web](https://web.esphome.io/)), az `*.ota.bin` frissítéshez. A WiFi
-ilyenkor USB-n (Improv) vagy a knob saját hozzáférési pontján állítható be, utána az
-eszköz átvehető az ESPHome Builderbe. Böngészős telepítő később jön.
+ilyenkor a knob saját hozzáférési pontján állítható be (a telefonnal rá kell
+csatlakozni, és megnyílik a beállítóoldal), utána az eszköz átvehető az ESPHome Builderbe. Böngészős telepítő később jön.
 
 Ezután add hozzá a knobot a Home Assistanthez az **ESPHome** integrációval.
 
@@ -149,7 +149,7 @@ substitutions:
   friendly_name: Kis Segito
 
 packages:
-  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.1.9
+  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.1.10
 
 api:
   encryption:
@@ -171,8 +171,8 @@ Display settings: [docs/hardware.md](docs/hardware.md).
 **B) Prebuilt firmware.** Every [release](https://github.com/bazsc20ne/kis-segito/releases)
 includes the compiled firmware: `*.factory.bin` for the first USB flash (e.g. with
 [ESPHome Web](https://web.esphome.io/)) and `*.ota.bin` for updates. Wi-Fi is then set up
-over USB (Improv) or through the knob's own access point, and the device can be adopted
-in the ESPHome Builder. A browser installer will follow later.
+through the knob's own access point (connect with a phone and the setup page opens),
+and the device can be adopted in the ESPHome Builder. A browser installer will follow later.
 
 Then add the knob to Home Assistant with the **ESPHome** integration.
 

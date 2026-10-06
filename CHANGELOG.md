@@ -6,6 +6,32 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.1.10] - 2026-10-06
+
+### English
+
+- Fix: the display stayed blank on USB chargers and only worked with a PC (#8).
+  The cause was ESP-IDF's secondary console on the native USB port. It is now
+  off, and the serial log moved to UART0 (GPIO43/44); `logger_baud_rate: "0"`
+  turns it off and frees UART0 for other hardware. Logs remain available over
+  the network.
+- Improv over USB is removed (it needs the native USB port); Wi-Fi is set up
+  through the knob's own access point (captive portal).
+- The `no-usb-console.yaml` diagnostic package is removed, as this is now the
+  default.
+
+### Magyar
+
+- Javítás: töltőről a kijelző üres maradt, csak számítógépről működött (#8). Az
+  ok az ESP-IDF másodlagos konzolja volt a natív USB-porton. Ez most ki van
+  kapcsolva, a soros napló az UART0-ra (GPIO43/44) került; a
+  `logger_baud_rate: "0"` kikapcsolja, és felszabadítja az UART0-t más
+  hardvernek. A napló hálózaton továbbra is elérhető.
+- Az USB-s Improv kikerült (a natív USB-portot használná); a WiFi a knob saját
+  hozzáférési pontján (captive portal) állítható be.
+- A `no-usb-console.yaml` diagnosztikai package kikerült, mert ez lett az
+  alapállapot.
+
 ## [0.1.9] - 2026-10-06
 
 ### English
@@ -238,6 +264,7 @@ Első, tesztelhető váz.
 - GitHub Actions: hassfest, HACS-validáció, tesztek, ESPHome-fordítás; a tagelt
   release-ekhez csatolva a factory és az OTA firmware.
 
+[0.1.10]: https://github.com/bazsc20ne/kis-segito/releases/tag/v0.1.10
 [0.1.9]: https://github.com/bazsc20ne/kis-segito/releases/tag/v0.1.9
 [0.1.8]: https://github.com/bazsc20ne/kis-segito/releases/tag/v0.1.8
 [0.1.7]: https://github.com/bazsc20ne/kis-segito/releases/tag/v0.1.7

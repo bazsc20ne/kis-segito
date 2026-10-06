@@ -5,6 +5,5 @@
 
 packages:
   firmware: !include ../kis-segito-factory.yaml
-  diag_console: !include ../diagnostics/no-usb-console.yaml
   diag_jtag: !include ../diagnostics/jtag-pins.yaml
   diag_log: !include ../diagnostics/verbose-display-log.yaml

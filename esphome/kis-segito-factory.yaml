@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 #
 # Firmware built by CI for GitHub Releases and the web installer.
-# It has no Wi-Fi credentials: set them over USB (Improv) or the fallback
-# access point, then adopt the device in the Home Assistant ESPHome Builder.
+# It has no Wi-Fi credentials: set them through the knob's own access point
+# (captive portal), then adopt the device in the Home Assistant ESPHome Builder.
 
 packages:
   kis_segito: !include kis-segito.yaml

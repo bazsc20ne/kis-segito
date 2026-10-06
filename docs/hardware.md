@@ -35,7 +35,20 @@ From the vendor `esp-bsp.h`; all are substitutions in `esphome/hardware/board.ya
 | HSYNC pulse / back / front | 8 / 20 / 40 | `display_hsync_pulse_width`, `display_hsync_back_porch`, `display_hsync_front_porch` |
 | VSYNC pulse / back / front | 8 / 20 / 50 | `display_vsync_pulse_width`, `display_vsync_back_porch`, `display_vsync_front_porch` |
 | COLMOD after the table | none (as the factory demo) | `display_colmod` (`"0"`, `"0x55"`, `"0x66"`, `"0x77"`) |
+| Serial log on UART0 (GPIO43/44) | 115200 baud | `logger_baud_rate` (`"0"` = off, frees UART0) |
 | RGB bus drive strength | ESP-IDF default | `display_drive_strength` (`"-1"` = default, `"0"`…`"3"` ≈ 5/10/20/40 mA) |
+
+## Native USB port / Natív USB-port
+
+The firmware leaves the ESP32-S3's native USB port (USB-Serial-JTAG) unused at
+runtime: ESP-IDF's secondary console is off and the serial log is on UART0. With
+the console on that port, the display stayed blank whenever no PC was connected
+(for example on a USB charger). USB is still used for the first flash; logs are
+available over the network (Home Assistant / ESPHome Builder).
+
+A firmware futás közben nem használja az ESP32-S3 natív USB-portját: ha azon
+futott az ESP-IDF konzol, töltőről (PC nélkül) a kijelző üres maradt. Az első
+felíráshoz a USB továbbra is kell; a napló hálózaton látható.
 
 ## Pinout / Lábkiosztás
 
@@ -54,7 +67,7 @@ From the vendor `esp-bsp.h`; all are substitutions in `esphome/hardware/board.ya
 | Backlight | 7 | P-MOSFET, **low = on** (PWM, inverted) |
 | Encoder A / B | 6 / 5 (vendor naming) | external 4.7 kΩ pull-ups; the firmware uses A=5, B=6 so clockwise counts up; 2 counts per click at full resolution |
 | Push button | 0 | active low, external 4.7 kΩ pull-up; strapping pin |
-| Free on J1/J2 | 4 (ADC) | also UART TX/RX, USB D+/D− |
+| Free on J1/J2 | 4 (ADC) | also UART0 TX/RX (GPIO43/44, serial log by default), USB D+/D− |
 
 ## Tuning / Hangolás
 
@@ -93,12 +106,11 @@ version tag:
 ```yaml
 packages:
   kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@vX.Y.Z
-  diag_console: github://bazsc20ne/kis-segito/esphome/diagnostics/no-usb-console.yaml@vX.Y.Z
+  diag_jtag: github://bazsc20ne/kis-segito/esphome/diagnostics/jtag-pins.yaml@vX.Y.Z
 ```
 
 | Package | What it does |
 |---|---|
-| `no-usb-console.yaml` | Leaves the native USB port (USB-Serial-JTAG) unused: ESP-IDF's secondary console is off, ESPHome's logger and Improv move to UART0. Logs are then only available over the network. |
 | `jtag-pins.yaml` | Resets GPIO39–42 (also the pad-JTAG pins, used here as RGB data lines) to plain GPIO right before the RGB panel is created. |
 | `verbose-display-log.yaml` | Very verbose logging for the display driver and LVGL (each area written to the panel buffer is logged); noisy components stay at DEBUG. |
 
