@@ -18,8 +18,10 @@ A logó és a márkajel. A logóban lehet felirat, minden más ikonban ne legyen
 
 | id | Név | Leírás | Knob (px) | HA | Fájlok |
 |---|---|---|---|---|---|
-| `brand_logo` | Teljes logó | Napocska karakter + „Kis Segítő” felirat, a teljes márkajel. | 280×280 | SVG / 512 | `brand_logo.png` |
-| `brand_mark` | Kis márkajel | A logó napocskája felirat nélkül, nagyon egyszerűsítve. Kis méreten is olvasható legyen: vastag körvonal, kevés részlet. | 52×52 | — | `brand_mark.png` |
+| `brand_logo` | Logó – magyar | Napocska karakter + „Kis Segítő” felirat, fekvő elrendezés. Magyar nyelvű változat. | — | SVG / 512 | `brand_logo.png` |
+| `brand_logo_en` | Logó – angol | Ugyanaz a logó angol felirattal. Minden nem magyar nyelvhez ez kell. | — | SVG / 512 | `brand_logo_en.png` |
+| `brand_mark` | Márkajel – magyar | Napocska + „Kis Segítő” felirat, álló, négyzetes elrendezés. Magyar nyelvű változat. | 240×240, 48×48 | — | `brand_mark.png` |
+| `brand_mark_en` | Márkajel – angol | Ugyanaz a márkajel angol felirattal. Amíg nincs feltöltve, a knob a magyar változatot mutatja helyette. | 240×240, 48×48 | — | `brand_mark_en.png` |
 | `brand_app_icon` | Integráció ikon | Négyzetes alkalmazásikon a HA integrációlistához és a HACS-hoz. Ez a jelenlegi ideiglenes ikon helyére kerül. | — | 256 és 512 PNG | `brand_app_icon.png` |
 
 ## Funkciókörhinta és rutinok

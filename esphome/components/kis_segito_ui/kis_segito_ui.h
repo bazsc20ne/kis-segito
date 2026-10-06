@@ -94,6 +94,8 @@ class KisSegitoUI : public Component {
   void long_press();
   void set_connected(bool connected);
   void set_animation_mode(const std::string &mode);
+  // Language code from Home Assistant; picks language-specific artwork.
+  void set_language(const std::string &language) { this->language_ = language; }
 
  protected:
   const lv_image_dsc_t *img_(const std::string &key);
@@ -147,6 +149,7 @@ class KisSegitoUI : public Component {
   uint32_t last_input_ms_{0};
   bool busy_{false};  // an action animation is running
   bool connected_{true};
+  std::string language_;
   ESPPreferenceObject child_pref_;
 
   lv_obj_t *screen_obj_{nullptr};

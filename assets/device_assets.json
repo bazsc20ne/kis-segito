@@ -1,5 +1,8 @@
 {
-  "_comment": "Icon id -> pixel sizes the knob firmware uses. tools/build_device_assets.py renders assets/device/<id>_<size>.png from assets/icons/source/<id>.png (and <id>_small.png for sizes up to 44 px, when present).",
+  "_comment": "Icon id -> pixel sizes the knob firmware uses. tools/build_device_assets.py renders assets/device/<id>_<size>.png from assets/icons/source/<id>.png (and <id>_small.png for sizes up to 44 px, when present). Ids in \"_fallbacks\" are rendered from another source while their own artwork is missing (e.g. an English variant).",
+  "_fallbacks": {
+    "brand_mark_en": "brand_mark"
+  },
   "test_avatar_1": [
     180
   ],
@@ -10,7 +13,12 @@
     180
   ],
   "brand_mark": [
-    48
+    48,
+    240
+  ],
+  "brand_mark_en": [
+    48,
+    240
   ],
   "routine_morning": [
     160

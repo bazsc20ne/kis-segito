@@ -5,6 +5,8 @@
 Reads assets/device_assets.json (icon id -> pixel sizes) and writes
 assets/device/<id>_<size>.png from assets/icons/source/<id>.png. For sizes up
 to SMALL_MAX px, assets/icons/source/<id>_small.png is used when it exists.
+An id listed under "_fallbacks" (id -> other id) is rendered from the other
+id's source while its own source file is missing.
 
 Resizing is done in linear light with premultiplied alpha (no dark fringes),
 using a Lanczos filter, with light sharpening on small sizes.
@@ -68,12 +70,17 @@ def resize(img: Image.Image, size: int) -> Image.Image:
 def main() -> int:
     manifest = json.loads(MANIFEST.read_text("utf-8"))
     OUT.mkdir(parents=True, exist_ok=True)
+    fallbacks = manifest.get("_fallbacks", {})
     count = 0
     for icon, sizes in manifest.items():
         if icon.startswith("_"):
             continue
-        source = SOURCE / f"{icon}.png"
-        small_source = SOURCE / f"{icon}_small.png"
+        name = icon
+        if not (SOURCE / f"{icon}.png").exists() and icon in fallbacks:
+            name = fallbacks[icon]
+            print(f"{icon}: no own artwork yet, using {name}")
+        source = SOURCE / f"{name}.png"
+        small_source = SOURCE / f"{name}_small.png"
         if not source.exists():
             print(f"missing source: {source.relative_to(ROOT)}")
             return 1

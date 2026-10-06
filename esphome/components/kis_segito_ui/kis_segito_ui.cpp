@@ -903,7 +903,7 @@ void KisSegitoUI::update_routine_() {
       for (int i = 0; i < reward; i++)
         this->image_(this->top_gap_, "token_coin_front_28", x0 + i * step, 30);
     } else {
-      this->image_(this->top_gap_, "brand_mark_48", 80, 28);
+      this->image_(this->top_gap_, this->language_ == "hu" ? "brand_mark_48" : "brand_mark_en_48", 80, 28);
     }
   }
 }

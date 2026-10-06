@@ -17,6 +17,12 @@ image:
         file: ${kis_segito_assets}/test_avatar_3_180.png
       - id: ks_img_brand_mark_48
         file: ${kis_segito_assets}/brand_mark_48.png
+      - id: ks_img_brand_mark_240
+        file: ${kis_segito_assets}/brand_mark_240.png
+      - id: ks_img_brand_mark_en_48
+        file: ${kis_segito_assets}/brand_mark_en_48.png
+      - id: ks_img_brand_mark_en_240
+        file: ${kis_segito_assets}/brand_mark_en_240.png
       - id: ks_img_routine_morning_160
         file: ${kis_segito_assets}/routine_morning_160.png
       - id: ks_img_routine_evening_160
@@ -98,6 +104,9 @@ kis_segito_ui:
     test_avatar_2_180: ks_img_test_avatar_2_180
     test_avatar_3_180: ks_img_test_avatar_3_180
     brand_mark_48: ks_img_brand_mark_48
+    brand_mark_240: ks_img_brand_mark_240
+    brand_mark_en_48: ks_img_brand_mark_en_48
+    brand_mark_en_240: ks_img_brand_mark_en_240
     routine_morning_160: ks_img_routine_morning_160
     routine_evening_160: ks_img_routine_evening_160
     fn_rewards_160: ks_img_fn_rewards_160

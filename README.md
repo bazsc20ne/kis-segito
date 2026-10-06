@@ -1,5 +1,7 @@
 # Kis Segítő
 
+<p align="center"><img src="docs/images/logo_hu.png" alt="Kis Segítő" width="480"></p>
+
 🇬🇧 English version below → [English](#english)
 
 <a id="magyar"></a>
@@ -46,7 +48,7 @@ substitutions:
   friendly_name: Kis Segito
 
 packages:
-  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.2.0
+  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.2.1
 
 api:
   encryption:
@@ -154,7 +156,7 @@ substitutions:
   friendly_name: Kis Segito
 
 packages:
-  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.2.0
+  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.2.1
 
 api:
   encryption:
