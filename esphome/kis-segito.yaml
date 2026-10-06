@@ -10,7 +10,7 @@
 #     name: kis-segito
 #     friendly_name: Kis Segito
 #   packages:
-#     kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.1.8
+#     kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.1.9
 #   api:
 #     encryption:
 #       key: !secret kis_segito_api_key
@@ -41,7 +41,7 @@ esphome:
   name_add_mac_suffix: false
   project:
     name: bazsc20ne.kis-segito
-    version: "0.1.8"
+    version: "0.1.9"
 
 packages:
   board: !include hardware/board.yaml

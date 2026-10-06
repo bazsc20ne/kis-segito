@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# Diagnostic package (#8): GPIO39-42 are also the ESP32-S3 pad JTAG pins
+# (MTCK/MTDO/MTDI/MTMS) and carry G7/R3/R4/R5 of the RGB bus. This resets them
+# to plain GPIO before the display creates the RGB panel (priority 650, after
+# the panel init sequence is set at 700 and before the display at 600).
+#
+# Add next to the main package in a device config:
+#   packages:
+#     diag_jtag: github://bazsc20ne/kis-segito/esphome/diagnostics/jtag-pins.yaml@vX.Y.Z
+
+esphome:
+  on_boot:
+    - priority: 650
+      then:
+        - lambda: |-
+            for (gpio_num_t pin : {GPIO_NUM_39, GPIO_NUM_40, GPIO_NUM_41, GPIO_NUM_42})
+              gpio_reset_pin(pin);
+            ESP_LOGI("kis_segito.diag", "GPIO39-42 reset to plain GPIO before the RGB panel");

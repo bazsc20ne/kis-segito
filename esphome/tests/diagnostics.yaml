@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# CI only: the factory firmware with every diagnostic package, to prove they
+# build. Not meant to be flashed.
+
+packages:
+  firmware: !include ../kis-segito-factory.yaml
+  diag_console: !include ../diagnostics/no-usb-console.yaml
+  diag_jtag: !include ../diagnostics/jtag-pins.yaml
+  diag_log: !include ../diagnostics/verbose-display-log.yaml

@@ -10,6 +10,8 @@
 | `esphome/kis-segito.yaml` | ESPHome package (the firmware) |
 | `esphome/hardware/board.yaml` | Board definition: ESP32-S3, PSRAM, display, backlight |
 | `esphome/display-test.yaml` | Display bring-up firmware (test card, no LVGL) |
+| `esphome/diagnostics/` | Optional diagnostic packages (see docs/hardware.md) |
+| `esphome/tests/` | Configs CI builds to prove packages compile |
 | `esphome/kis-segito-factory.yaml` | Config built by CI for releases / web installer |
 | `esphome/example.yaml` | Example device config for users |
 | `tests/` | pytest tests for the integration |

@@ -70,3 +70,4 @@ jobs:
           cp secrets.example.yaml secrets.yaml
           esphome config kis-segito-factory.yaml
           esphome config display-test.yaml
+          esphome config tests/diagnostics.yaml

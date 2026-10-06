@@ -40,3 +40,13 @@ jobs:
         with:
           yaml-file: esphome/display-test.yaml
           version: ${{ vars.ESPHOME_VERSION || '2026.9.1' }}
+
+  build-diagnostics:
+    name: Compile diagnostic packages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: esphome/build-action@v7.0.0
+        with:
+          yaml-file: esphome/tests/diagnostics.yaml
+          version: ${{ vars.ESPHOME_VERSION || '2026.9.1' }}

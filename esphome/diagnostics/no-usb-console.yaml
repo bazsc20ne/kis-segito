@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# Diagnostic package (#8): keep the USB-Serial-JTAG port completely unused.
+# ESP-IDF's secondary console is switched off and ESPHome's logger (and with it
+# Improv) moves to UART0. Logs are then only visible over the network (API).
+#
+# Add next to the main package in a device config:
+#   packages:
+#     kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@vX.Y.Z
+#     diag_console: github://bazsc20ne/kis-segito/esphome/diagnostics/no-usb-console.yaml@vX.Y.Z
+
+esp32:
+  framework:
+    sdkconfig_options:
+      CONFIG_ESP_CONSOLE_SECONDARY_NONE: y
+
+logger:
+  hardware_uart: UART0

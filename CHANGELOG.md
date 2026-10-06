@@ -6,6 +6,26 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.1.9] - 2026-10-06
+
+### English
+
+- Diagnostic packages for the display staying blank on USB chargers (#8, still
+  open), in `esphome/diagnostics/`: `no-usb-console.yaml` (native USB port
+  unused, logs over the network only), `jtag-pins.yaml` (GPIO39–42 reset to
+  plain GPIO before the RGB panel starts) and `verbose-display-log.yaml`
+  (verbose display/LVGL logs). See `docs/hardware.md`. The normal firmware is
+  unchanged.
+
+### Magyar
+
+- Diagnosztikai package-ek ahhoz a hibához, hogy töltőről a kijelző nem
+  működik (#8, még nyitott), az `esphome/diagnostics/` mappában:
+  `no-usb-console.yaml` (a natív USB-port nincs használatban, napló csak
+  hálózaton), `jtag-pins.yaml` (a GPIO39–42 sima GPIO-ra állítása az RGB-panel
+  indulása előtt) és `verbose-display-log.yaml` (részletes kijelző/LVGL-napló).
+  Lásd: `docs/hardware.md`. A normál firmware nem változott.
+
 ## [0.1.8] - 2026-10-06
 
 ### English
@@ -218,6 +238,7 @@ Első, tesztelhető váz.
 - GitHub Actions: hassfest, HACS-validáció, tesztek, ESPHome-fordítás; a tagelt
   release-ekhez csatolva a factory és az OTA firmware.
 
+[0.1.9]: https://github.com/bazsc20ne/kis-segito/releases/tag/v0.1.9
 [0.1.8]: https://github.com/bazsc20ne/kis-segito/releases/tag/v0.1.8
 [0.1.7]: https://github.com/bazsc20ne/kis-segito/releases/tag/v0.1.7
 [0.1.6]: https://github.com/bazsc20ne/kis-segito/releases/tag/v0.1.6

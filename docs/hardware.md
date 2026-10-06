@@ -83,3 +83,25 @@ columns) to `display_colmod`.
 Az `esphome/display-test.yaml` ugyanazt a lapdefiníciót használja LVGL nélkül, és
 az ESPHome tesztképét mutatja. OTA-val ugyanarra az eszközre tölthető, a teszt
 után a normál firmware visszatölthető.
+
+## Diagnostic packages / Diagnosztikai package-ek
+
+Optional packages in `esphome/diagnostics/` for tracking down display problems.
+Add one or more next to the main package in the device config, with the same
+version tag:
+
+```yaml
+packages:
+  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@vX.Y.Z
+  diag_console: github://bazsc20ne/kis-segito/esphome/diagnostics/no-usb-console.yaml@vX.Y.Z
+```
+
+| Package | What it does |
+|---|---|
+| `no-usb-console.yaml` | Leaves the native USB port (USB-Serial-JTAG) unused: ESP-IDF's secondary console is off, ESPHome's logger and Improv move to UART0. Logs are then only available over the network. |
+| `jtag-pins.yaml` | Resets GPIO39–42 (also the pad-JTAG pins, used here as RGB data lines) to plain GPIO right before the RGB panel is created. |
+| `verbose-display-log.yaml` | Very verbose logging for the display driver and LVGL (each area written to the panel buffer is logged); noisy components stay at DEBUG. |
+
+Opcionális package-ek a kijelzőhibák kereséséhez (`esphome/diagnostics/`). Az
+eszközkonfigban a fő package mellé kell felvenni őket, ugyanazzal a verziótaggel.
+

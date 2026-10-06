@@ -1,0 +1,24 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# Diagnostic package (#8): verbose logs for the display driver and LVGL, so a
+# log taken over the network shows whether LVGL flushes into the panel buffer
+# (mipi_rgb logs each written area at VERBOSE). Noisy components stay at DEBUG.
+#
+# Add next to the main package in a device config:
+#   packages:
+#     diag_log: github://bazsc20ne/kis-segito/esphome/diagnostics/verbose-display-log.yaml@vX.Y.Z
+
+logger:
+  level: VERY_VERBOSE
+  logs:
+    api: DEBUG
+    api.connection: DEBUG
+    api.service: DEBUG
+    app: DEBUG
+    component: DEBUG
+    json: DEBUG
+    mdns: DEBUG
+    scheduler: DEBUG
+    sensor: DEBUG
+    wifi: DEBUG
+    esp32.preferences: DEBUG
