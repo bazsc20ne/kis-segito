@@ -52,7 +52,7 @@ From the vendor `esp-bsp.h`; all are substitutions in `esphome/hardware/board.ya
 | LCD SPI SCK / SDA | 13 / 12 | shared with RGB data, software SPI |
 | LCD reset | 8 | the panel RST is also tied to chip EN |
 | Backlight | 7 | P-MOSFET, **low = on** (PWM, inverted) |
-| Encoder A / B | 6 / 5 (vendor naming) | external 4.7 kΩ pull-ups; the firmware uses A=5, B=6 so clockwise counts up |
+| Encoder A / B | 6 / 5 (vendor naming) | external 4.7 kΩ pull-ups; the firmware uses A=5, B=6 so clockwise counts up; 2 counts per click at full resolution |
 | Push button | 0 | active low, external 4.7 kΩ pull-up; strapping pin |
 | Free on J1/J2 | 4 (ADC) | also UART TX/RX, USB D+/D− |
 
@@ -64,7 +64,7 @@ Any value above can be overridden in the device config without forking, e.g.:
 substitutions:
   display_colmod: "0x55"
   display_pclk_inverted: "true"
-  encoder_resolution: "4"        # steps per quadrature cycle: 1, 2 (default) or 4
+  encoder_counts_per_click: "4"  # encoder counts per click (default 2)
 ```
 
 A fenti értékek fork nélkül, az eszközkonfig `substitutions` részében átírhatók.

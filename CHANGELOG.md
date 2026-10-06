@@ -6,6 +6,26 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.1.8] - 2026-10-06
+
+### English
+
+- The encoder sensitivity is adjustable from Home Assistant (#7): a new
+  **Encoder clicks per step** setting (1–5, default 1) on the device, kept
+  across reboots. The encoder now counts at full resolution and the firmware
+  turns clicks into steps. The `encoder_resolution` substitution is replaced by
+  `encoder_counts_per_click` (default `"2"`) for other encoders. The raw
+  encoder counter is no longer exposed to Home Assistant.
+
+### Magyar
+
+- Az enkóder érzékenysége a Home Assistantből állítható (#7): új **Encoder
+  clicks per step** beállítás (1–5, alapból 1) az eszközön, újraindítás után is
+  megmarad. Az enkóder most teljes felbontással számol, a kattanásokat a
+  firmware alakítja lépésekké. Az `encoder_resolution` substitution helyett
+  más enkóderhez az `encoder_counts_per_click` állítható (alapból `"2"`). A nyers
+  enkóderszámláló már nem jelenik meg a Home Assistantben.
+
 ## [0.1.7] - 2026-10-06
 
 ### English
@@ -198,6 +218,7 @@ Első, tesztelhető váz.
 - GitHub Actions: hassfest, HACS-validáció, tesztek, ESPHome-fordítás; a tagelt
   release-ekhez csatolva a factory és az OTA firmware.
 
+[0.1.8]: https://github.com/bazsc20ne/kis-segito/releases/tag/v0.1.8
 [0.1.7]: https://github.com/bazsc20ne/kis-segito/releases/tag/v0.1.7
 [0.1.6]: https://github.com/bazsc20ne/kis-segito/releases/tag/v0.1.6
 [0.1.5]: https://github.com/bazsc20ne/kis-segito/releases/tag/v0.1.5

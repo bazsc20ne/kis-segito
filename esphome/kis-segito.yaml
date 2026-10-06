@@ -10,7 +10,7 @@
 #     name: kis-segito
 #     friendly_name: Kis Segito
 #   packages:
-#     kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.1.7
+#     kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.1.8
 #   api:
 #     encryption:
 #       key: !secret kis_segito_api_key
@@ -28,9 +28,11 @@ substitutions:
   name: kis-segito
   friendly_name: Kis Segito
   # Display tuning values are in hardware/board.yaml and can be overridden here.
-  # Encoder steps per quadrature cycle (1, 2 or 4). The MD80E encoder makes half
-  # a cycle per detent, so 2 gives one step per click.
-  encoder_resolution: "2"
+  # Encoder counts per mechanical click at the finest resolution (4 counts per
+  # quadrature cycle). The MD80E encoder makes half a cycle per click = 2.
+  # How many clicks make one UI step is set at runtime from Home Assistant
+  # ("Encoder clicks per step").
+  encoder_counts_per_click: "2"
 
 esphome:
   name: ${name}
@@ -39,7 +41,7 @@ esphome:
   name_add_mac_suffix: false
   project:
     name: bazsc20ne.kis-segito
-    version: "0.1.7"
+    version: "0.1.8"
 
 packages:
   board: !include hardware/board.yaml
@@ -102,6 +104,10 @@ captive_portal:
 improv_serial:
 
 globals:
+  # Encoder counts since the last UI step (negative = anticlockwise).
+  - id: encoder_accum
+    type: int
+    initial_value: "0"
   # Translated UI strings, filled by Home Assistant (key -> text).
   - id: ui_strings
     type: std::map<std::string, std::string>
@@ -118,6 +124,16 @@ globals:
     restore_value: true
 
 script:
+  # One UI step clockwise / anticlockwise.
+  - id: knob_step_up
+    then:
+      - lambda: id(test_counter) += 1;
+      - script.execute: show_counter
+  - id: knob_step_down
+    then:
+      - lambda: id(test_counter) -= 1;
+      - script.execute: show_counter
+
   - id: show_counter
     then:
       - lvgl.label.update:
@@ -174,17 +190,47 @@ sensor:
     # vendor's BSP_ENCODER_A/B so that clockwise counts up.
     pin_a: GPIO5
     pin_b: GPIO6
-    resolution: ${encoder_resolution}
+    # Finest resolution; clicks are counted in software (see knob_step_*).
+    resolution: 4
+    # Raw counts are only useful for debugging; UI steps go to the scripts.
+    internal: true
     on_clockwise:
-      - lambda: id(test_counter) += 1;
-      - script.execute: show_counter
+      - lambda: |-
+          if (id(encoder_accum) < 0) id(encoder_accum) = 0;
+          id(encoder_accum) += 1;
+          const int need = ${encoder_counts_per_click} * (int) id(encoder_clicks_per_step).state;
+          if (id(encoder_accum) >= need) {
+            id(encoder_accum) = 0;
+            id(knob_step_up).execute();
+          }
     on_anticlockwise:
-      - lambda: id(test_counter) -= 1;
-      - script.execute: show_counter
+      - lambda: |-
+          if (id(encoder_accum) > 0) id(encoder_accum) = 0;
+          id(encoder_accum) -= 1;
+          const int need = ${encoder_counts_per_click} * (int) id(encoder_clicks_per_step).state;
+          if (-id(encoder_accum) >= need) {
+            id(encoder_accum) = 0;
+            id(knob_step_down).execute();
+          }
   - platform: wifi_signal
     name: WiFi signal
     update_interval: 60s
     entity_category: diagnostic
+
+number:
+  # Encoder sensitivity, adjustable from Home Assistant and kept across reboots.
+  - platform: template
+    id: encoder_clicks_per_step
+    name: Encoder clicks per step
+    icon: mdi:knob
+    entity_category: config
+    mode: box
+    min_value: 1
+    max_value: 5
+    step: 1
+    initial_value: 1
+    optimistic: true
+    restore_value: true
 
 binary_sensor:
   - platform: gpio
