@@ -6,6 +6,28 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.1.5] - 2026-10-06
+
+### English
+
+- Fix: correct colours on the MD80E display (#3). The cause was the COLMOD the
+  display driver sends after the init table: 18-bit (0x66) breaks the colours
+  on this panel, 16-bit (0x55) gives a correct picture. `display_pixel_mode` now
+  defaults to `16bit`.
+- The v0.1.4 change (sending the init with custom bit-banged SPI) is reverted:
+  the init already reached the panel. The board definition is the tested v0.1.3
+  one again (GC9503 table, 26 MHz, non-inverted PCLK, 8/20/40, 8/20/50).
+
+### Magyar
+
+- Javítás: helyes színek az MD80E kijelzőn (#3). Az ok a kijelző-meghajtó által
+  az init tábla után küldött COLMOD volt: a 18 bit (0x66) elrontja a színeket
+  ezen a panelen, a 16 bit (0x55) helyes képet ad. A `display_pixel_mode`
+  alapértéke most `16bit`.
+- A v0.1.4 változtatása (az init saját, bit-bang SPI-vel) visszavonva: az init
+  eddig is eljutott a panelhez. A lapdefiníció újra a tesztelt v0.1.3-as (GC9503
+  tábla, 26 MHz, nem invertált PCLK, 8/20/40, 8/20/50).
+
 ## [0.1.4] - 2026-10-06
 
 ### English
@@ -128,6 +150,7 @@ Első, tesztelhető váz.
 - GitHub Actions: hassfest, HACS-validáció, tesztek, ESPHome-fordítás; a tagelt
   release-ekhez csatolva a factory és az OTA firmware.
 
+[0.1.5]: https://github.com/bazsc20ne/kis-segito/releases/tag/v0.1.5
 [0.1.4]: https://github.com/bazsc20ne/kis-segito/releases/tag/v0.1.4
 [0.1.3]: https://github.com/bazsc20ne/kis-segito/releases/tag/v0.1.3
 [0.1.2]: https://github.com/bazsc20ne/kis-segito/releases/tag/v0.1.2

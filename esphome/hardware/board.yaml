@@ -7,18 +7,15 @@
 # Panel setup follows the vendor's MD80E ESP-IDF example
 # (VIEWESMART/UEDX48480021-MD80ESP32_2.1inch-Knob,
 # examples/ESP-IDF/UEDX48480021-MD80E-SDK, MIT - see NOTICE): timings from
-# esp-bsp.h, the GC9503CV init table from bsp_lcd.c (panel/gc9503.yaml) and
-# the vendor's way of sending it, which is what the factory demo firmware runs.
+# esp-bsp.h and the GC9503CV init sequence from bsp_lcd.c (panel/gc9503.yaml),
+# which is what the factory demo firmware runs.
 # Every timing value is a substitution, so a panel batch can be tuned from the
 # device config without changing this file.
 
 substitutions:
-  # Panel controller init table: gc9503 (MD80E panel per its datasheet and the
-  # factory demo) or st7701 (the vendor example's active table). See panel/.
+  # Panel controller init sequence: gc9503 (MD80E panel per its datasheet and
+  # the factory demo) or st7701 (the vendor example's active table).
   display_controller: gc9503
-  # Diagnostic: "true" sends INVON (0x21) after the init table. If the colours
-  # on screen invert, the init reaches the panel.
-  display_init_test_invert: "false"
   display_pclk_frequency: 26MHz
   display_pclk_inverted: "false"
   display_hsync_pulse_width: "8"
@@ -27,73 +24,11 @@ substitutions:
   display_vsync_pulse_width: "8"
   display_vsync_back_porch: "20"
   display_vsync_front_porch: "50"
-
-packages:
-  panel: !include panel/${display_controller}.yaml
-
-esphome:
-  on_boot:
-    # Panel init, done like the vendor's bsp_lcd.c: bit-banged 9-bit 3-wire SPI
-    # (CS/SCK/SDA idle high, data changes while SCK is low, ~50 kHz), no reset
-    # pulse, then SCK/SDA (shared with RGB data B6/B5) are released before the
-    # RGB driver starts. Priority 700 runs this before the display (600).
-    - priority: 700
-      then:
-        - lambda: |-
-            const gpio_num_t cs = GPIO_NUM_18, sck = GPIO_NUM_13, sda = GPIO_NUM_12, rst = GPIO_NUM_8;
-            gpio_config_t io{};
-            io.mode = GPIO_MODE_OUTPUT;
-            io.pin_bit_mask = (1ULL << cs) | (1ULL << sck) | (1ULL << sda) | (1ULL << rst);
-            gpio_config(&io);
-            gpio_set_level(rst, 1);
-            gpio_set_level(cs, 1);
-            gpio_set_level(sck, 1);
-            gpio_set_level(sda, 1);
-
-            auto write9 = [&](uint16_t word) {
-              gpio_set_level(cs, 0);
-              delayMicroseconds(10);
-              for (int bit = 8; bit >= 0; bit--) {
-                gpio_set_level(sda, (word >> bit) & 1);
-                gpio_set_level(sck, 0);
-                delayMicroseconds(10);
-                gpio_set_level(sck, 1);
-                delayMicroseconds(10);
-              }
-              delayMicroseconds(10);
-              gpio_set_level(cs, 1);
-              gpio_set_level(sck, 1);
-              gpio_set_level(sda, 1);
-              delayMicroseconds(10);
-            };
-            auto command = [&](uint8_t cmd) { write9(cmd); };
-            auto data = [&](uint8_t value) { write9(0x100 | value); };
-
-            const auto &table = id(panel_init_table);
-            size_t i = 0, count = 0;
-            while (i + 1 < table.size()) {
-              uint8_t cmd = table[i], len = table[i + 1];
-              i += 2;
-              if (i + len > table.size()) {
-                ESP_LOGE("kis_segito", "Malformed panel init table");
-                break;
-              }
-              command(cmd);
-              for (uint8_t n = 0; n < len; n++)
-                data(table[i + n]);
-              i += len;
-              count++;
-            }
-            if (${display_init_test_invert}) {
-              command(0x21);  // INVON, diagnostic only
-            }
-            delay(120);
-            command(0x29);  // DISPON
-            delay(20);
-            gpio_reset_pin(sck);
-            gpio_reset_pin(sda);
-            ESP_LOGI("kis_segito", "Panel init (${display_controller}): %u commands sent",
-                     (unsigned) count);
+  # COLMOD sent after the init sequence: 16bit (0x55) or 18bit (0x66). The
+  # GC9503 panel shows wrong colours with 18bit on this 16-line bus.
+  display_pixel_mode: 16bit
+  display_color_order: RGB
+  display_invert_colors: "false"
 
 esp32:
   variant: esp32s3
@@ -111,16 +46,29 @@ psram:
   mode: octal
   speed: 80MHz
 
+# 3-wire SPI (9-bit) used only to send the init sequence. SCK/SDA share pins with
+# RGB data lines B6/B5, so a software SPI bus is used; the RGB driver takes the
+# pins over afterwards.
+spi:
+  id: lcd_spi
+  interface: software
+  clk_pin:
+    number: GPIO13
+    allow_other_uses: true
+  mosi_pin:
+    number: GPIO12
+    allow_other_uses: true
+
 display:
   - platform: mipi_rgb
     id: knob_display
-    # "RPI" is ESPHome's generic RGB model without an init sequence and without
-    # SPI: the panel is already initialised by the on_boot code above, so the
-    # driver only sets up the RGB bus.
-    model: RPI
+    model: CUSTOM
+    spi_id: lcd_spi
     dimensions:
       width: 480
       height: 480
+    cs_pin: GPIO18
+    reset_pin: GPIO8
     de_pin: GPIO17
     pclk_pin: GPIO9
     hsync_pin:
@@ -132,7 +80,14 @@ display:
     data_pins:
       red: [GPIO40, GPIO41, GPIO42, GPIO2, GPIO1]
       green: [GPIO21, GPIO47, GPIO48, GPIO45, GPIO38, GPIO39]
-      blue: [GPIO10, GPIO11, GPIO12, GPIO13, GPIO14]
+      blue:
+        - GPIO10
+        - GPIO11
+        - number: GPIO12
+          allow_other_uses: true
+        - number: GPIO13
+          allow_other_uses: true
+        - GPIO14
     pclk_frequency: ${display_pclk_frequency}
     pclk_inverted: ${display_pclk_inverted}
     hsync_pulse_width: ${display_hsync_pulse_width}
@@ -141,8 +96,14 @@ display:
     vsync_pulse_width: ${display_vsync_pulse_width}
     vsync_back_porch: ${display_vsync_back_porch}
     vsync_front_porch: ${display_vsync_front_porch}
+    pixel_mode: ${display_pixel_mode}
+    color_order: ${display_color_order}
+    invert_colors: ${display_invert_colors}
     update_interval: never
     auto_clear_enabled: false
+    # Panel init sequence, chosen by display_controller (see panel/).
+    # ESPHome appends COLMOD (pixel_mode), MADCTL, INVOFF, SLPOUT and DISPON.
+    init_sequence: !include panel/${display_controller}.yaml
 
 # Backlight: P-channel MOSFET, GPIO7 low = on.
 output:

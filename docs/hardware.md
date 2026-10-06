@@ -16,12 +16,6 @@ commented-out GC9503 one. The factory demo firmware runs the **GC9503** table at
 ST7701-style table (`panel/st7701.yaml`) leaves the red channel dark on this
 panel, and ESPHome's built-in `UEDX48480021-MD80ET` model gives only stripes.
 
-The init table is sent the way the vendor code does it, from an `on_boot` step
-in `esphome/hardware/board.yaml` that runs before the display: bit-banged 9-bit
-3-wire SPI (CS/SCK/SDA idle high, about 50 kHz), no reset pulse, 120 ms, DISPON,
-then GPIO12/13 are released to the RGB driver. ESPHome's `mipi_rgb` display runs
-with its generic `RPI` model, which sends no init and uses no SPI.
-
 ## Display timings / Kijelző-időzítés
 
 From the vendor `esp-bsp.h`; all are substitutions in `esphome/hardware/board.yaml`.
@@ -32,7 +26,8 @@ From the vendor `esp-bsp.h`; all are substitutions in `esphome/hardware/board.ya
 | PCLK | 26 MHz, not inverted | `display_pclk_frequency`, `display_pclk_inverted` |
 | HSYNC pulse / back / front | 8 / 20 / 40 | `display_hsync_pulse_width`, `display_hsync_back_porch`, `display_hsync_front_porch` |
 | VSYNC pulse / back / front | 8 / 20 / 50 | `display_vsync_pulse_width`, `display_vsync_back_porch`, `display_vsync_front_porch` |
-| Init diagnostic: send INVON after the table | off | `display_init_test_invert` (`"true"` inverts the colours if the init reaches the panel) |
+| COLMOD (sent after the table) | 16-bit (0x55); 18-bit gives wrong colours | `display_pixel_mode` (`16bit` or `18bit`) |
+| Colour order / inversion | RGB / off | `display_color_order`, `display_invert_colors` |
 
 ## Pinout / Lábkiosztás
 
@@ -46,8 +41,8 @@ From the vendor `esp-bsp.h`; all are substitutions in `esphome/hardware/board.ya
 | LCD HSYNC | 46 | strapping pin |
 | LCD VSYNC | 3 | strapping pin |
 | LCD SPI CS | 18 | 3-wire SPI, init only |
-| LCD SPI SCK / SDA | 13 / 12 | shared with RGB data; bit-banged init, then released |
-| LCD reset | 8 | driven high only (as the vendor code); the panel RST is tied to chip EN |
+| LCD SPI SCK / SDA | 13 / 12 | shared with RGB data, software SPI |
+| LCD reset | 8 | the panel RST is also tied to chip EN |
 | Backlight | 7 | P-MOSFET, **low = on** (PWM, inverted) |
 | Encoder A / B | 6 / 5 | external 4.7 kΩ pull-ups |
 | Push button | 0 | active low, external 4.7 kΩ pull-up; strapping pin |
@@ -60,8 +55,9 @@ Any value above can be overridden in the device config without forking, e.g.:
 ```yaml
 substitutions:
   display_controller: st7701
+  display_pixel_mode: 18bit
   display_pclk_inverted: "true"
-  display_init_test_invert: "true"
+  display_color_order: BGR
   encoder_resolution: "2"        # encoder steps per detent: 1 (default), 2 or 4
 ```
 
@@ -73,9 +69,8 @@ A fenti értékek fork nélkül, az eszközkonfig `substitutions` részében át
 ESPHome's test card (colour bars, border, text). Flash it over the air to the same
 device, check the picture, then flash the normal firmware back. With the default
 settings the test card should show sharp colour bars in the right order; stripes
-or a rolling image point to PCLK/porch settings. With
-`display_init_test_invert: "true"` the colours must invert; if they do not, the
-init does not reach the panel.
+or a rolling image point to PCLK/porch settings, swapped colours to
+`display_color_order`.
 
 Az `esphome/display-test.yaml` ugyanazt a lapdefiníciót használja LVGL nélkül, és
 az ESPHome tesztképét mutatja. OTA-val ugyanarra az eszközre tölthető, a teszt
