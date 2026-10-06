@@ -10,7 +10,7 @@
 #     name: kis-segito
 #     friendly_name: Kis Segito
 #   packages:
-#     kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.1.10
+#     kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.1.11
 #   api:
 #     encryption:
 #       key: !secret kis_segito_api_key
@@ -41,7 +41,7 @@ esphome:
   name_add_mac_suffix: false
   project:
     name: bazsc20ne.kis-segito
-    version: "0.1.10"
+    version: "0.1.11"
 
 packages:
   board: !include hardware/board.yaml
@@ -289,8 +289,9 @@ lvgl:
   default_font: montserrat_24
   on_boot:
     - script.execute: refresh_texts
-    # Loading animation: balls bounce off the round edge of the screen. A
-    # 30 ms LVGL timer moves them; only the small ball areas are redrawn.
+    # Loading animation: balls bounce off the round edge of the screen and off
+    # each other. A 30 ms LVGL timer moves them; only the small ball areas are
+    # redrawn.
     - lambda: |-
         struct Ball {
           lv_obj_t *obj;
@@ -303,10 +304,39 @@ lvgl:
             {id(ball_2), 190, 280, -3.2f, 3.9f, 18, 0},
             {id(ball_3), 300, 260, 2.4f, -4.4f, 15, 0},
             {id(ball_4), 250, 320, -4.1f, -2.7f, 20, 0},
+            {id(ball_5), 160, 200, 3.7f, 3.3f, 17, 0},
         };
         id(loading_anim) = lv_timer_create(
             [](lv_timer_t *) {
               constexpr float CX = 240, CY = 240, EDGE = 234;
+              constexpr size_t N = sizeof(balls) / sizeof(balls[0]);
+              // Ball-to-ball bounces (elastic, mass ~ area).
+              for (size_t i = 0; i < N; i++) {
+                for (size_t j = i + 1; j < N; j++) {
+                  Ball &a = balls[i], &c = balls[j];
+                  const float dx = c.x - a.x, dy = c.y - a.y;
+                  const float dist = sqrtf(dx * dx + dy * dy);
+                  const float min_dist = a.r + c.r;
+                  if (dist >= min_dist || dist <= 0)
+                    continue;
+                  const float nx = dx / dist, ny = dy / dist;
+                  const float rel = (a.vx - c.vx) * nx + (a.vy - c.vy) * ny;
+                  if (rel > 0) {  // approaching each other
+                    const float ma = a.r * a.r, mc = c.r * c.r;
+                    const float imp = 2 * rel / (ma + mc);
+                    a.vx -= imp * mc * nx;
+                    a.vy -= imp * mc * ny;
+                    c.vx += imp * ma * nx;
+                    c.vy += imp * ma * ny;
+                    a.squash = c.squash = 3;
+                  }
+                  const float push = (min_dist - dist) / 2;  // separate them
+                  a.x -= nx * push;
+                  a.y -= ny * push;
+                  c.x += nx * push;
+                  c.y += ny * push;
+                }
+              }
               for (auto &b : balls) {
                 b.x += b.vx;
                 b.y += b.vy;
@@ -384,6 +414,17 @@ lvgl:
             height: 40
             radius: 20
             bg_color: 0x6BCB77
+            bg_opa: COVER
+            border_width: 0
+            scrollable: false
+        - obj:
+            id: ball_5
+            x: 220
+            y: 220
+            width: 34
+            height: 34
+            radius: 17
+            bg_color: 0xFF9F43
             bg_opa: COVER
             border_width: 0
             scrollable: false

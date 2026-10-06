@@ -6,6 +6,18 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.1.11] - 2026-10-06
+
+### English
+
+- Loading screen: five bouncing balls (one more), and they now also bounce off
+  each other, not only off the round edge.
+
+### Magyar
+
+- Betöltőképernyő: öt pattogó labda (eggyel több), és most már egymásról is
+  visszapattannak, nem csak a kerek szélről.
+
 ## [0.1.10] - 2026-10-06
 
 ### English
@@ -270,6 +282,7 @@ Első, tesztelhető váz.
 - GitHub Actions: hassfest, HACS-validáció, tesztek, ESPHome-fordítás; a tagelt
   release-ekhez csatolva a factory és az OTA firmware.
 
+[0.1.11]: https://github.com/bazsc20ne/kis-segito/releases/tag/v0.1.11
 [0.1.10]: https://github.com/bazsc20ne/kis-segito/releases/tag/v0.1.10
 [0.1.9]: https://github.com/bazsc20ne/kis-segito/releases/tag/v0.1.9
 [0.1.8]: https://github.com/bazsc20ne/kis-segito/releases/tag/v0.1.8
