@@ -19,6 +19,9 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   through the knob's own access point (captive portal).
 - The `no-usb-console.yaml` diagnostic package is removed, as this is now the
   default.
+- The loading screen shows colourful bouncing balls instead of the spinner
+  (#9). They bounce off the round edge with a small squash; the animation stops
+  and its timer is freed once the content arrives.
 
 ### Magyar
 
@@ -31,6 +34,9 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   hozzáférési pontján (captive portal) állítható be.
 - A `no-usb-console.yaml` diagnosztikai package kikerült, mert ez lett az
   alapállapot.
+- A betöltőképernyőn a forgó jel helyett színes pattogó labdák vannak (#9). A
+  kerek kijelző szélén pattannak vissza, kicsit összenyomódva; a tartalom
+  megérkezésekor az animáció leáll, és az időzítője felszabadul.
 
 ## [0.1.9] - 2026-10-06
 

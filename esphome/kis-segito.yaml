@@ -83,6 +83,7 @@ api:
               }
             }
         - script.execute: refresh_texts
+        - script.execute: stop_loading_anim
         - lvgl.page.show: test_page
   on_client_connected:
     - lvgl.label.update:
@@ -115,6 +116,10 @@ globals:
   - id: test_counter
     type: int
     initial_value: "0"
+  # LVGL timer of the loading-screen animation; deleted when content arrives.
+  - id: loading_anim
+    type: lv_timer_t *
+    initial_value: nullptr
   # Boot screen text in the last language received from Home Assistant
   # (NUL-terminated UTF-8). Empty until the first connection.
   - id: loading_text
@@ -122,6 +127,14 @@ globals:
     restore_value: true
 
 script:
+  - id: stop_loading_anim
+    then:
+      - lambda: |-
+          if (id(loading_anim) != nullptr) {
+            lv_timer_delete(id(loading_anim));
+            id(loading_anim) = nullptr;
+          }
+
   # One UI step clockwise / anticlockwise.
   - id: knob_step_up
     then:
@@ -276,30 +289,108 @@ lvgl:
   default_font: montserrat_24
   on_boot:
     - script.execute: refresh_texts
+    # Loading animation: balls bounce off the round edge of the screen. A
+    # 30 ms LVGL timer moves them; only the small ball areas are redrawn.
+    - lambda: |-
+        struct Ball {
+          lv_obj_t *obj;
+          float x, y, vx, vy;  // centre and speed in px per tick
+          int r;
+          int squash;  // ticks of squash left after a bounce
+        };
+        static Ball balls[] = {
+            {id(ball_1), 240, 170, 4.6f, 2.1f, 22, 0},
+            {id(ball_2), 190, 280, -3.2f, 3.9f, 18, 0},
+            {id(ball_3), 300, 260, 2.4f, -4.4f, 15, 0},
+            {id(ball_4), 250, 320, -4.1f, -2.7f, 20, 0},
+        };
+        id(loading_anim) = lv_timer_create(
+            [](lv_timer_t *) {
+              constexpr float CX = 240, CY = 240, EDGE = 234;
+              for (auto &b : balls) {
+                b.x += b.vx;
+                b.y += b.vy;
+                const float dx = b.x - CX, dy = b.y - CY;
+                const float dist = sqrtf(dx * dx + dy * dy);
+                const float max_dist = EDGE - b.r;
+                if (dist > max_dist && dist > 0) {
+                  const float nx = dx / dist, ny = dy / dist;
+                  const float vn = b.vx * nx + b.vy * ny;
+                  if (vn > 0) {  // moving outwards: reflect off the circle
+                    b.vx -= 2 * vn * nx;
+                    b.vy -= 2 * vn * ny;
+                    b.squash = 4;
+                  }
+                  b.x = CX + nx * max_dist;
+                  b.y = CY + ny * max_dist;
+                }
+                int w = 2 * b.r, h = 2 * b.r;
+                if (b.squash > 0) {
+                  const int s = b.squash;  // short, fading squash
+                  w += s;
+                  h -= s;
+                  b.squash--;
+                }
+                lv_obj_set_size(b.obj, w, h);
+                lv_obj_set_pos(b.obj, (int) (b.x - w / 2), (int) (b.y - h / 2));
+              }
+            },
+            30, nullptr);
   pages:
     # Shown from boot until Home Assistant sends the content.
-    # TODO: replace the spinner with the project logo once it exists.
+    # The project logo can go in the middle later, with the balls around it.
     - id: loading_page
       bg_color: 0x000000
       widgets:
-        - spinner:
-            id: loading_spinner
-            align: CENTER
-            y: -30
-            width: 160
-            height: 160
-            spin_time: 1500ms
-            arc_length: 60deg
-            arc_width: 12
-            arc_color: 0x263238
-            arc_rounded: true
-            indicator:
-              arc_width: 12
-              arc_color: 0x2196F3
+        # Bouncing balls, moved by the loading_anim timer (see lvgl on_boot).
+        - obj:
+            id: ball_1
+            x: 220
+            y: 220
+            width: 44
+            height: 44
+            radius: 22
+            bg_color: 0xFFC94A
+            bg_opa: COVER
+            border_width: 0
+            scrollable: false
+        - obj:
+            id: ball_2
+            x: 220
+            y: 220
+            width: 36
+            height: 36
+            radius: 18
+            bg_color: 0xFF8FB1
+            bg_opa: COVER
+            border_width: 0
+            scrollable: false
+        - obj:
+            id: ball_3
+            x: 220
+            y: 220
+            width: 30
+            height: 30
+            radius: 15
+            bg_color: 0x6CB8FF
+            bg_opa: COVER
+            border_width: 0
+            scrollable: false
+        - obj:
+            id: ball_4
+            x: 220
+            y: 220
+            width: 40
+            height: 40
+            radius: 20
+            bg_color: 0x6BCB77
+            bg_opa: COVER
+            border_width: 0
+            scrollable: false
         - label:
             id: lbl_loading
             align: CENTER
-            y: 90
+            y: 0
             text_font: font_text
             text_color: 0xFFFFFF
             text: ""
