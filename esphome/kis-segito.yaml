@@ -10,7 +10,7 @@
 #     name: kis-segito
 #     friendly_name: Kis Segito
 #   packages:
-#     kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.1.6
+#     kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.1.7
 #   api:
 #     encryption:
 #       key: !secret kis_segito_api_key
@@ -28,8 +28,9 @@ substitutions:
   name: kis-segito
   friendly_name: Kis Segito
   # Display tuning values are in hardware/board.yaml and can be overridden here.
-  # Encoder steps per detent (1, 2 or 4).
-  encoder_resolution: "1"
+  # Encoder steps per quadrature cycle (1, 2 or 4). The MD80E encoder makes half
+  # a cycle per detent, so 2 gives one step per click.
+  encoder_resolution: "2"
 
 esphome:
   name: ${name}
@@ -38,7 +39,7 @@ esphome:
   name_add_mac_suffix: false
   project:
     name: bazsc20ne.kis-segito
-    version: "0.1.6"
+    version: "0.1.7"
 
 packages:
   board: !include hardware/board.yaml

@@ -28,3 +28,15 @@ jobs:
           name: firmware
           path: ${{ steps.build.outputs.name }}
           retention-days: 7
+
+  build-display-test:
+    name: Compile display test firmware
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use placeholder secrets
+        run: cp esphome/secrets.example.yaml esphome/secrets.yaml
+      - uses: esphome/build-action@v7.0.0
+        with:
+          yaml-file: esphome/display-test.yaml
+          version: ${{ vars.ESPHOME_VERSION || '2026.9.1' }}

@@ -45,7 +45,7 @@ substitutions:
   friendly_name: Kis Segito
 
 packages:
-  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.1.6
+  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.1.7
 
 api:
   encryption:
@@ -58,6 +58,10 @@ wifi:
 
 Az első felírás USB-n történik (debug/adapter panel), utána OTA-val frissíthető.
 Szükséges ESPHome-verzió: 2026.9.0 vagy újabb.
+
+Hangolás fork nélkül, a `substitutions` részben: `encoder_resolution` (`"1"`, `"2"` vagy
+`"4"`; az alap `"2"` = egy kattanás egy lépés), valamint a kijelző beállításai
+(lásd [docs/hardware.md](docs/hardware.md)).
 
 **B) Kész firmware.** Minden [release](https://github.com/bazsc20ne/kis-segito/releases)
 mellett ott van a lefordított firmware: a `*.factory.bin` USB-s első felíráshoz
@@ -144,7 +148,7 @@ substitutions:
   friendly_name: Kis Segito
 
 packages:
-  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.1.6
+  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.1.7
 
 api:
   encryption:
@@ -157,6 +161,10 @@ wifi:
 
 The first flash is done over USB (debug/adapter board); after that it updates over the
 air. Requires ESPHome 2026.9.0 or newer.
+
+Tuning without a fork, in `substitutions`: `encoder_resolution` (`"1"`, `"2"` or `"4"`;
+the default `"2"` gives one step per click) and the display settings (see
+[docs/hardware.md](docs/hardware.md)).
 
 **B) Prebuilt firmware.** Every [release](https://github.com/bazsc20ne/kis-segito/releases)
 includes the compiled firmware: `*.factory.bin` for the first USB flash (e.g. with

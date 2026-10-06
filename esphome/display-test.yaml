@@ -11,7 +11,11 @@
 substitutions:
   name: kis-segito
   friendly_name: Kis Segito
-  # e.g. display_colmod: "0x55"   # 0 = none (default), 0x55, 0x66, 0x77
+  # What to show: card (ESPHome test card), black, white, grey, dark (very dark
+  # grey), ramp (black-to-white horizontal ramp).
+  display_test_pattern: card
+  # e.g. display_colmod: "0x77"   # 0 = none (default), 0x55, 0x66, 0x77
+  #      display_drive_strength: "1"   # -1 = default, 0..3
   #      display_controller: st7701
   #      display_pclk_inverted: "true"
 
@@ -38,5 +42,23 @@ wifi:
 
 display:
   - id: !extend knob_display
-    show_test_card: true
     update_interval: 5s
+    lambda: |-
+      const std::string pattern = "${display_test_pattern}";
+      if (pattern == "black") {
+        it.fill(Color(0, 0, 0));
+      } else if (pattern == "white") {
+        it.fill(Color(255, 255, 255));
+      } else if (pattern == "grey") {
+        it.fill(Color(128, 128, 128));
+      } else if (pattern == "dark") {
+        it.fill(Color(24, 24, 24));
+      } else if (pattern == "ramp") {
+        const int w = it.get_width(), h = it.get_height();
+        for (int x = 0; x < w; x++) {
+          const uint8_t v = x * 255 / (w - 1);
+          it.vertical_line(x, 0, h, Color(v, v, v));
+        }
+      } else {
+        it.test_card();
+      }

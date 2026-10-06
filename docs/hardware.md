@@ -35,6 +35,7 @@ From the vendor `esp-bsp.h`; all are substitutions in `esphome/hardware/board.ya
 | HSYNC pulse / back / front | 8 / 20 / 40 | `display_hsync_pulse_width`, `display_hsync_back_porch`, `display_hsync_front_porch` |
 | VSYNC pulse / back / front | 8 / 20 / 50 | `display_vsync_pulse_width`, `display_vsync_back_porch`, `display_vsync_front_porch` |
 | COLMOD after the table | none (as the factory demo) | `display_colmod` (`"0"`, `"0x55"`, `"0x66"`, `"0x77"`) |
+| RGB bus drive strength | ESP-IDF default | `display_drive_strength` (`"-1"` = default, `"0"`…`"3"` ≈ 5/10/20/40 mA) |
 
 ## Pinout / Lábkiosztás
 
@@ -63,15 +64,17 @@ Any value above can be overridden in the device config without forking, e.g.:
 substitutions:
   display_colmod: "0x55"
   display_pclk_inverted: "true"
-  encoder_resolution: "2"        # encoder steps per detent: 1 (default), 2 or 4
+  encoder_resolution: "4"        # steps per quadrature cycle: 1, 2 (default) or 4
 ```
 
 A fenti értékek fork nélkül, az eszközkonfig `substitutions` részében átírhatók.
 
 ## Display test / Kijelzőteszt
 
-`esphome/display-test.yaml` uses the same board definition without LVGL and shows
-ESPHome's test card (colour bars, border, text). Flash it over the air to the same
+`esphome/display-test.yaml` uses the same board definition without LVGL. The
+`display_test_pattern` substitution selects what it shows: `card` (ESPHome's test
+card: colour bars, border, text), `black`, `white`, `grey`, `dark` (very dark
+grey) or `ramp` (black-to-white horizontal ramp). Flash it over the air to the same
 device, check the picture, then flash the normal firmware back. With the default
 settings the test card should show sharp colour bars in the right order; stripes
 or a rolling image point to PCLK/porch settings; wrong mid-tones (the gradient

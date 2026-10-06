@@ -6,6 +6,28 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.1.7] - 2026-10-06
+
+### English
+
+- Fix: one encoder click is now one step; `encoder_resolution` defaults to `"2"`
+  (#7). The README explains how to tune it for other encoders.
+- Display diagnostics for the faint stripes on black (#6, still open):
+  `display-test.yaml` can show solid black, white, grey, very dark grey or a
+  grey ramp (`display_test_pattern`), and the new `display_drive_strength`
+  substitution sets the drive strength of the RGB bus pins. COLMOD 0x77 can be
+  tested with `display_colmod: "0x77"`.
+
+### Magyar
+
+- Javítás: egy kattanás most egy lépés; az `encoder_resolution` alapértéke `"2"`
+  (#7). A README leírja, hogyan hangolható más enkóderhez.
+- Kijelző-diagnosztika a fekete háttér halvány csíkjaihoz (#6, még nyitott): a
+  `display-test.yaml` teli fekete, fehér, szürke, nagyon sötét szürke képet vagy
+  szürke átmenetet tud mutatni (`display_test_pattern`), és az új
+  `display_drive_strength` substitution az RGB-busz lábainak meghajtóerejét
+  állítja. A COLMOD 0x77 a `display_colmod: "0x77"` beállítással próbálható.
+
 ## [0.1.6] - 2026-10-06
 
 ### English
@@ -176,6 +198,7 @@ Első, tesztelhető váz.
 - GitHub Actions: hassfest, HACS-validáció, tesztek, ESPHome-fordítás; a tagelt
   release-ekhez csatolva a factory és az OTA firmware.
 
+[0.1.7]: https://github.com/bazsc20ne/kis-segito/releases/tag/v0.1.7
 [0.1.6]: https://github.com/bazsc20ne/kis-segito/releases/tag/v0.1.6
 [0.1.5]: https://github.com/bazsc20ne/kis-segito/releases/tag/v0.1.5
 [0.1.4]: https://github.com/bazsc20ne/kis-segito/releases/tag/v0.1.4

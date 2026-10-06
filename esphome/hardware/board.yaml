@@ -28,6 +28,9 @@ substitutions:
   # keeps its 24-bit power-on mode, matching the board wiring), or 0x55 (16-bit),
   # 0x66 (18-bit), 0x77 (24-bit).
   display_colmod: "0"
+  # Drive strength of the RGB bus pins (data, PCLK, HSYNC, VSYNC, DE): -1 keeps
+  # the ESP-IDF default, 0..3 = ~5/10/20/40 mA. Lower values reduce crosstalk.
+  display_drive_strength: "-1"
 
 packages:
   panel: !include panel/${display_controller}.yaml
@@ -52,6 +55,21 @@ esphome:
             id(knob_display)->set_init_sequence(seq);
             ESP_LOGI("kis_segito", "Panel init: ${display_controller}, COLMOD %s",
                      colmod != 0 ? str_snprintf("0x%02X", 8, colmod).c_str() : "none");
+    # Optional RGB bus drive strength, applied right after the display has
+    # created the RGB panel (priority 590 runs after the display's 600).
+    - priority: 590
+      then:
+        - lambda: |-
+            const int drive = ${display_drive_strength};
+            if (drive < 0 || drive > 3)
+              return;
+            static const gpio_num_t pins[] = {
+                GPIO_NUM_40, GPIO_NUM_41, GPIO_NUM_42, GPIO_NUM_2,  GPIO_NUM_1,  GPIO_NUM_21, GPIO_NUM_47,
+                GPIO_NUM_48, GPIO_NUM_45, GPIO_NUM_38, GPIO_NUM_39, GPIO_NUM_10, GPIO_NUM_11, GPIO_NUM_12,
+                GPIO_NUM_13, GPIO_NUM_14, GPIO_NUM_9,  GPIO_NUM_46, GPIO_NUM_3,  GPIO_NUM_17};
+            for (auto pin : pins)
+              gpio_set_drive_capability(pin, static_cast<gpio_drive_cap_t>(drive));
+            ESP_LOGI("kis_segito", "RGB bus drive strength set to level %d", drive);
 
 esp32:
   variant: esp32s3
