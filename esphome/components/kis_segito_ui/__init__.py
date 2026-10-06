@@ -10,6 +10,7 @@ test data.
 
 import esphome.codegen as cg
 from esphome.components import font, image
+from esphome.components.lvgl import defines as lv_defines
 import esphome.config_validation as cv
 from esphome.const import CONF_ID
 
@@ -30,6 +31,18 @@ CONFIG_SCHEMA = cv.Schema(
         cv.Required(CONF_NUMBER_FONT): cv.use_id(font.Font),
     }
 ).extend(cv.COMPONENT_SCHEMA)
+
+
+def _final_validate(config):
+    # ESPHome only compiles the LVGL features its YAML widgets use; this
+    # component draws arcs and uses flex layouts itself, and its images must be
+    # known to LVGL so their colour format is enabled.
+    lv_defines.add_lv_use("arc", "flex")
+    lv_defines.get_lv_images_used().update(config[CONF_IMAGES].values())
+    return config
+
+
+FINAL_VALIDATE_SCHEMA = _final_validate
 
 
 async def to_code(config):
