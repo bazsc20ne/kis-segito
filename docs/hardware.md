@@ -51,7 +51,7 @@ From the vendor `esp-bsp.h`; all are substitutions in `esphome/hardware/board.ya
 | LCD SPI SCK / SDA | 13 / 12 | shared with RGB data, software SPI |
 | LCD reset | 8 | the panel RST is also tied to chip EN |
 | Backlight | 7 | P-MOSFET, **low = on** (PWM, inverted) |
-| Encoder A / B | 6 / 5 | external 4.7 kΩ pull-ups |
+| Encoder A / B | 6 / 5 (vendor naming) | external 4.7 kΩ pull-ups; the firmware uses A=5, B=6 so clockwise counts up |
 | Push button | 0 | active low, external 4.7 kΩ pull-up; strapping pin |
 | Free on J1/J2 | 4 (ADC) | also UART TX/RX, USB D+/D− |
 

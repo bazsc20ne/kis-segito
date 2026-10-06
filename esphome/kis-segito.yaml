@@ -169,9 +169,10 @@ sensor:
     id: knob_encoder
     name: Encoder
     icon: mdi:knob
-    # External 4.7k pull-ups are on the board.
-    pin_a: GPIO6
-    pin_b: GPIO5
+    # External 4.7k pull-ups are on the board. A/B are swapped against the
+    # vendor's BSP_ENCODER_A/B so that clockwise counts up.
+    pin_a: GPIO5
+    pin_b: GPIO6
     resolution: ${encoder_resolution}
     on_clockwise:
       - lambda: id(test_counter) += 1;

@@ -18,6 +18,7 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
 - New substitution `display_colmod` (`"0"` = none, default; `"0x55"` restores
   the v0.1.5 behaviour). It replaces `display_pixel_mode`; the no-longer-used
   `display_color_order` and `display_invert_colors` are removed.
+- Fix: the encoder counted down when turned clockwise; A/B pins swapped (#5).
 
 ### Magyar
 
@@ -29,6 +30,7 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
 - Új substitution: `display_colmod` (`"0"` = nincs, alapértelmezett; `"0x55"`
   a v0.1.5 viselkedését adja vissza). Ez váltja a `display_pixel_mode`-ot; a
   használaton kívüli `display_color_order` és `display_invert_colors` kikerült.
+- Javítás: az enkóder jobbra forgatásra csökkent; az A/B láb felcserélve (#5).
 
 ## [0.1.5] - 2026-10-06
 
