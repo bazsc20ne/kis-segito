@@ -21,7 +21,8 @@ static constexpr uint32_t TRACK_DIM = 0x3A4066;
 static constexpr uint32_t ZONE_OK = 0x6BCB77;
 static constexpr uint32_t ZONE_WARN = 0xFF9F43;
 static constexpr uint32_t ZONE_LATE = 0xFF6B6B;
-static constexpr uint32_t INACTIVITY_MS = 60000;
+static constexpr uint32_t ZONE_DEPOSIT = 0x6BCB77;   // tokens into the piggy bank
+static constexpr uint32_t ZONE_WITHDRAW = 0xFF9F43;  // tokens out of it
 // Time track geometry: outer edge radius and width of each arc (an LVGL arc is
 // drawn inwards from its outer edge).
 static constexpr int OUTER_R = 222;  // outer (shared) track
@@ -356,6 +357,7 @@ void KisSegitoUI::set_state(const std::string &json) {
   this->rewards_ = rewards;
   this->routines_ = routines;
   this->have_state_ = true;
+  this->inactivity_ms_ = static_cast<uint32_t>(std::max(10, root["idle"] | 60)) * 1000;
   if (root["anim"].is<const char *>())
     this->set_animation_mode(root["anim"].as<const char *>());
 
@@ -510,7 +512,7 @@ void KisSegitoUI::start() {
           return;
         }
         self->update_track_();
-        if (self->screen_ != Screen::CHILDREN && !self->busy_ && millis() - self->last_input_ms_ > INACTIVITY_MS)
+        if (self->screen_ != Screen::CHILDREN && !self->busy_ && millis() - self->last_input_ms_ > self->inactivity_ms_)
           self->show_(Screen::CHILDREN);
       },
       1000, this);
@@ -750,7 +752,7 @@ void KisSegitoUI::show_(Screen screen) {
   this->busy_ = false;
   lv_obj_clean(this->screen_obj_);
   this->carousel_.release();  // its slots were just deleted
-  this->task_big_ = this->timeline_ = nullptr;
+  this->task_big_ = this->timeline_ = this->piggy_label_ = nullptr;
   this->confirm_ring_ = this->confirm_no_ = this->confirm_yes_obj_ = nullptr;
   this->shown_reward_ = -1;
   this->pending_rebuild_ = false;
@@ -818,6 +820,14 @@ void KisSegitoUI::rotate(int dir) {
       this->carousel_.rotate(dir);
       this->reward_ = this->shop_()[this->carousel_.selected()];
       break;
+    case Screen::PIGGY: {
+      // Turning chooses how many tokens move: clockwise into the piggy bank
+      // (up to the wallet), anticlockwise out of it (up to the piggy bank).
+      const Child &c = this->children_[this->child_];
+      this->piggy_amount_ = std::max(-c.piggy, std::min(c.wallet, this->piggy_amount_ + dir));
+      this->update_piggy_amount_();
+      break;
+    }
     case Screen::CONFIRM: {
       this->confirm_yes_ = !this->confirm_yes_;
       lv_obj_t *target = this->confirm_yes_ ? this->confirm_yes_obj_ : this->confirm_no_;
@@ -950,6 +960,50 @@ void KisSegitoUI::click() {
       }
       this->complete_task_();
       break;
+    case Screen::PIGGY: {
+      const int amount = this->piggy_amount_;
+      if (amount == 0)
+        return;
+      if (!this->connected_) {
+        this->refuse_offline_(this->piggy_label_);
+        return;
+      }
+      // Shown at once; Home Assistant books it and sends the real balances.
+      child.wallet -= amount;
+      child.piggy += amount;
+      this->piggy_amount_ = 0;
+      this->send_action_("piggy", ",\"n\":" + std::to_string(amount));
+      // Exactly that many tokens fly between the wallet and the piggy bank.
+      this->busy_ = true;
+      const int flying = std::min(std::abs(amount), 40);
+      for (int i = 0; i < flying; i++) {
+        const int from = amount > 0 ? 410 : 185;
+        const int to = amount > 0 ? 185 : 410;
+        lv_obj_t *coin = this->image_(this->screen_obj_, "token_coin_front_28", CENTER, from);
+        lv_anim_t a;
+        lv_anim_init(&a);
+        lv_anim_set_var(&a, coin);
+        lv_anim_set_values(&a, from - 14, to - 14 + static_cast<int>(hash32(i) % 20) - 10);
+        lv_anim_set_delay(&a, i * 45);
+        lv_anim_set_duration(&a, this->anim_ms_(450));
+        lv_anim_set_exec_cb(&a, [](void *var, int32_t v) { lv_obj_set_y(static_cast<lv_obj_t *>(var), v); });
+        lv_anim_set_path_cb(&a, lv_anim_path_ease_in_out);
+        lv_anim_set_completed_cb(&a, [](lv_anim_t *anim) {
+          lv_obj_add_flag(static_cast<lv_obj_t *>(anim->var), LV_OBJ_FLAG_HIDDEN);
+        });
+        lv_anim_start(&a);
+      }
+      lv_timer_t *done = lv_timer_create(
+          [](lv_timer_t *t) {
+            auto *self = static_cast<KisSegitoUI *>(lv_timer_get_user_data(t));
+            lv_timer_delete(t);
+            self->busy_ = false;
+            self->show_(Screen::PIGGY);
+          },
+          this->anim_ms_(450) + flying * 45 + 300, this);
+      lv_timer_set_repeat_count(done, 1);
+      break;
+    }
     default:
       break;
   }
@@ -1116,11 +1170,32 @@ void KisSegitoUI::build_tokens_() {
 
 void KisSegitoUI::build_piggy_() {
   const Child &child = this->children_[this->child_];
-  this->image_(this->screen_obj_, "piggy_large_180", CENTER, 185);
-  this->pile_(this->screen_obj_, CENTER, 300, child.piggy, 900u + this->child_, 5, 14, 19, 10);
-  this->number_pill_(this->screen_obj_, CENTER, 340, child.piggy, true);
-  // The wallet is a separate thing: shown small at the bottom.
+  this->piggy_amount_ = 0;
+  this->image_(this->screen_obj_, "piggy_large_180", CENTER, 175);
+  this->number_pill_(this->screen_obj_, CENTER, 268, child.piggy, true);
+  // The amount to move, chosen by turning; pressing moves it.
+  this->piggy_label_ = lv_label_create(this->screen_obj_);
+  if (this->number_font_ != nullptr)
+    lv_obj_set_style_text_font(this->piggy_label_, this->number_font_, 0);
+  this->update_piggy_amount_();
+  // The wallet is a separate thing: shown at the bottom.
   this->number_pill_(this->screen_obj_, CENTER, 410, child.wallet, true);
+}
+
+void KisSegitoUI::update_piggy_amount_() {
+  if (this->piggy_label_ == nullptr)
+    return;
+  const int n = this->piggy_amount_;
+  if (n == 0) {
+    lv_label_set_text(this->piggy_label_, "+/-");  // number font: digits, + - / only
+    lv_obj_set_style_text_color(this->piggy_label_, lv_color_hex(0x8C96A5), 0);
+  } else {
+    lv_label_set_text_fmt(this->piggy_label_, "%+d", n);
+    lv_obj_set_style_text_color(this->piggy_label_, lv_color_hex(n > 0 ? ZONE_DEPOSIT : ZONE_WITHDRAW), 0);
+  }
+  lv_obj_update_layout(this->piggy_label_);
+  lv_obj_set_pos(this->piggy_label_, CENTER - lv_obj_get_width(this->piggy_label_) / 2,
+                 340 - lv_obj_get_height(this->piggy_label_) / 2);
 }
 
 // ---------------------------------------------------------------- Routine
