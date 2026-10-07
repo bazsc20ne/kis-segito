@@ -47,6 +47,7 @@ def async_register_commands(hass: HomeAssistant) -> None:
         ws_day_template,
         ws_notify_targets,
         ws_notify_test,
+        ws_day_routine,
     ):
         websocket_api.async_register_command(hass, command)
 
@@ -542,6 +543,11 @@ def ws_week(
                 "template_name": template.get("name", "") if template else None,
                 "routines": [
                     {
+                        "routine": r,
+                        "one_day": bool(r.get("one_day")),
+                        "edited": bool(
+                            (manager.override(day, r["id"]) or {}).get("routine")
+                        ),
                         "id": r["id"],
                         "name": r.get("name", ""),
                         "icon": r.get("icon", "routine_generic"),
@@ -744,3 +750,31 @@ async def ws_notify_test(
         connection.send_error(msg["id"], "notify_failed", str(err))
         return
     connection.send_result(msg["id"], {"ok": True})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/day_routine",
+        vol.Required("date"): str,
+        vol.Optional("routine_id"): vol.Any(None, str),
+        vol.Required("routine"): vol.Any(None, dict),
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_day_routine(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Edit a routine for one day, add a one-day routine, or restore."""
+    await _run(
+        connection,
+        msg["id"],
+        _manager(hass).async_set_day_routine(
+            date.fromisoformat(msg["date"]),
+            msg.get("routine_id"),
+            msg["routine"],
+            who=_who(connection),
+        ),
+    )

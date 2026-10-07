@@ -293,3 +293,52 @@ async def test_script_notification_rule(
     notifier = Notifier(hass, lambda: [], lambda: "en")
     await notifier.async_test(rule)
     assert calls[0].data["text"].startswith("Test message")
+
+
+async def test_day_routine_edits(manager: KisSegitoManager) -> None:
+    from datetime import timedelta
+
+    kid = await _child(manager)
+    routine = await manager.async_save_item(
+        "routines",
+        {
+            "name": "Evening",
+            "start": "19:00",
+            "end": "20:00",
+            "checkpoints": [{"name": "Bed", "time": "20:00"}],
+            "tasks": [{"icon": "task_bath"}],
+        },
+    )
+    day = manager.today()
+    edited = dict(routine) | {"start": "18:30", "tasks": [{"icon": "task_story"}]}
+    await manager.async_set_day_routine(day, routine["id"], edited)
+    today = manager.routine_for_day(routine["id"], day)
+    assert today["start"] == "18:30"
+    assert today["tasks"][0]["icon"] == "task_story"
+    assert manager.routine(routine["id"])["start"] == "19:00"  # source unchanged
+    # A quick shift keeps the day's copy.
+    await manager.async_set_override(day, routine["id"], shift_min=10)
+    assert manager.routine_for_day(routine["id"], day)["start"] == "18:40"
+    # Tasks of the day's copy can be completed.
+    task_id = manager.routine_for_day(routine["id"], day)["tasks"][0]["id"]
+    await manager.async_complete_task(kid, routine["id"], task_id)
+    # Restore: back to the routine (the shift stays until removed).
+    await manager.async_set_day_routine(day, routine["id"], None)
+    assert manager.routine_for_day(routine["id"], day)["start"] == "19:10"
+
+    one_day = await manager.async_set_day_routine(
+        day + timedelta(days=1),
+        None,
+        {"name": "Party", "start": "16:00", "end": "18:00"},
+    )
+    tomorrow = manager.routines_on_day(day + timedelta(days=1))
+    assert any(r["id"] == one_day and r["one_day"] for r in tomorrow)
+    await manager.async_set_day_routine(day + timedelta(days=1), one_day, None)
+    assert not any(
+        r["id"] == one_day for r in manager.routines_on_day(day + timedelta(days=1))
+    )
+    with pytest.raises(KisSegitoError) as err:
+        await manager.async_set_day_routine(
+            day - timedelta(days=1), routine["id"], edited
+        )
+    assert err.value.code == "past_day"

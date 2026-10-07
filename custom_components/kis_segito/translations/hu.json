@@ -201,6 +201,9 @@
     },
     "unknown_template": {
       "message": "Ismeretlen napsablon."
+    },
+    "past_day": {
+      "message": "Múltbeli nap nem módosítható."
     }
   }
 }

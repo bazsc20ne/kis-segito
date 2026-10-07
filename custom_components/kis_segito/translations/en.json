@@ -201,6 +201,9 @@
     },
     "unknown_template": {
       "message": "Unknown day template."
+    },
+    "past_day": {
+      "message": "Past days cannot be changed."
     }
   }
 }

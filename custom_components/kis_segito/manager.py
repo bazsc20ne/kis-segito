@@ -147,7 +147,11 @@ class KisSegitoManager:
                 return None
         elif not routine_runs_on(routine, day):
             return None
-        return routine_with_override(routine, self.override(day, routine["id"]))
+        override = self.override(day, routine["id"])
+        if override and override.get("routine"):
+            # Edited for this day only: the day's copy replaces the routine.
+            routine = override["routine"] | {"id": routine["id"]}
+        return routine_with_override(routine, override)
 
     def template_for_day(self, day: date) -> dict[str, Any] | None:
         """The day template of ``day``: chosen for the date, else the weekday's."""
@@ -196,7 +200,19 @@ class KisSegitoManager:
             for r in (self.routine_on_day(r, day) for r in self.data["routines"])
             if r is not None
         ]
+        # Routines added for this day only.
+        for routine_id, override in (
+            self.data["overrides"].get(day.isoformat(), {}).items()
+        ):
+            if override.get("one_day") and not override.get("skip"):
+                result.append(override["routine"] | {"id": routine_id, "one_day": True})
         return sorted(result, key=lambda r: r.get("start", ""))
+
+    def routine_for_day(self, routine_id: str, day: date) -> dict[str, Any] | None:
+        """A routine (also a one-day one) as it runs on ``day``."""
+        return next(
+            (r for r in self.routines_on_day(day) if r["id"] == routine_id), None
+        )
 
     def reward(self, reward_id: str) -> dict[str, Any] | None:
         """One reward by id."""
@@ -291,23 +307,77 @@ class KisSegitoManager:
         who: str = "parent",
     ) -> None:
         """Change a routine for one day only (skip it or shift its times)."""
-        if self.routine(routine_id) is None:
+        if self.routine(routine_id) is None and not self.override(day, routine_id):
             raise KisSegitoError("unknown_routine")
         day_overrides = self.data["overrides"].setdefault(day.isoformat(), {})
         old = day_overrides.get(routine_id)
-        if not skip and not shift_min:
+        new = dict(old or {}) | {
+            "skip": bool(skip),
+            "shift_min": int(shift_min),
+            "by": who,
+            "at": _iso(dt_util.now()),
+        }
+        if not skip and not shift_min and not new.get("routine"):
             day_overrides.pop(routine_id, None)
             new = None
         else:
-            new = {
-                "skip": bool(skip),
-                "shift_min": int(shift_min),
-                "by": who,
-                "at": _iso(dt_util.now()),
-            }
             day_overrides[routine_id] = new
         self._audit(who, f"override.{day.isoformat()}.{routine_id}", old, new)
         await self._changed()
+
+    async def async_set_day_routine(
+        self,
+        day: date,
+        routine_id: str | None,
+        routine: dict[str, Any] | None,
+        *,
+        who: str = "parent",
+    ) -> str | None:
+        """Edit a routine for one day only, add a one-day routine, or restore.
+
+        ``routine_id`` None with a routine adds a one-day routine; a routine of
+        None restores the original (or removes a one-day routine). The source
+        routine is never changed. Past days are read-only.
+        """
+        if day < self.today():
+            raise KisSegitoError("past_day")
+        day_overrides = self.data["overrides"].setdefault(day.isoformat(), {})
+        if routine is not None:
+            routine = {
+                k: v
+                for k, v in routine.items()
+                if k not in ("id", "weekdays", "active", "one_day")
+            }
+            self._normalise_routine(routine)
+        if routine_id is None:
+            if routine is None:
+                raise KisSegitoError("unknown_routine")
+            routine_id = "d" + lg.new_id()
+            new: dict[str, Any] | None = {"one_day": True, "routine": routine}
+            old = None
+        else:
+            old = day_overrides.get(routine_id)
+            one_day = bool(old and old.get("one_day"))
+            if not one_day and self.routine(routine_id) is None:
+                raise KisSegitoError("unknown_routine")
+            if routine is None:
+                new = (
+                    None
+                    if one_day
+                    else {k: v for k, v in (old or {}).items() if k != "routine"}
+                )
+                if new is not None and not (new.get("skip") or new.get("shift_min")):
+                    new = None
+            else:
+                new = dict(old or {}) | {"routine": routine}
+        if new is None:
+            day_overrides.pop(routine_id, None)
+        else:
+            new |= {"by": who, "at": _iso(dt_util.now())}
+            day_overrides[routine_id] = new
+        self._audit(who, f"day_routine.{day.isoformat()}.{routine_id}", old, new)
+        await self._changed()
+        return routine_id if new is not None else None
 
     async def async_save_notifications(
         self, rules: list[dict[str, Any]], *, who: str = "parent"
@@ -771,10 +841,11 @@ class KisSegitoManager:
     ) -> None:
         """Mark a task done; finishing a checkpoint's tasks completes it."""
         self._require_child(child_id)
-        routine = self.routine(routine_id)
+        routine = self.routine_for_day(routine_id, self.today()) or self.routine(
+            routine_id
+        )
         if routine is None:
             raise KisSegitoError("unknown_routine")
-        routine = self.routine_on_day(routine, self.today()) or routine
         task = next((t for t in routine.get("tasks", []) if t["id"] == task_id), None)
         if task is None:
             raise KisSegitoError("unknown_task")
@@ -810,10 +881,11 @@ class KisSegitoManager:
     ) -> None:
         """Complete a checkpoint directly (e.g. from an automation)."""
         self._require_child(child_id)
-        routine = self.routine(routine_id)
+        routine = self.routine_for_day(routine_id, self.today()) or self.routine(
+            routine_id
+        )
         if routine is None:
             raise KisSegitoError("unknown_routine")
-        routine = self.routine_on_day(routine, self.today()) or routine
         checkpoint = next(
             (c for c in routine.get("checkpoints", []) if c["id"] == checkpoint_id),
             None,
