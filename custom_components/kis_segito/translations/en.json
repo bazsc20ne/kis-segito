@@ -18,5 +18,176 @@
     "abort": {
       "already_configured": "This knob is already set up."
     }
+  },
+  "services": {
+    "complete_task": {
+      "name": "Complete task",
+      "description": "Marks a routine task done for a child today; finishing all tasks of a checkpoint completes it and pays its reward.",
+      "fields": {
+        "child_id": {
+          "name": "Child ID",
+          "description": "Shown in the Kis Segítő panel."
+        },
+        "routine_id": {
+          "name": "Routine ID"
+        },
+        "task_id": {
+          "name": "Task ID"
+        }
+      }
+    },
+    "complete_checkpoint": {
+      "name": "Complete checkpoint",
+      "description": "Completes a checkpoint for a child today and pays its time-based reward.",
+      "fields": {
+        "child_id": {
+          "name": "Child ID",
+          "description": "Shown in the Kis Segítő panel."
+        },
+        "routine_id": {
+          "name": "Routine ID"
+        },
+        "checkpoint_id": {
+          "name": "Checkpoint ID"
+        }
+      }
+    },
+    "adjust_tokens": {
+      "name": "Adjust tokens",
+      "description": "Adds (positive) or removes (negative) tokens; recorded in the history.",
+      "fields": {
+        "child_id": {
+          "name": "Child ID",
+          "description": "Shown in the Kis Segítő panel."
+        },
+        "amount": {
+          "name": "Amount",
+          "description": "Whole tokens."
+        },
+        "account": {
+          "name": "Account",
+          "description": "Wallet or piggy bank."
+        },
+        "note": {
+          "name": "Note",
+          "description": "Shown in the history."
+        }
+      }
+    },
+    "redeem_reward": {
+      "name": "Redeem reward",
+      "description": "Buys a reward from the wallet, like on the knob.",
+      "fields": {
+        "child_id": {
+          "name": "Child ID",
+          "description": "Shown in the Kis Segítő panel."
+        },
+        "reward_id": {
+          "name": "Reward ID"
+        }
+      }
+    },
+    "piggy_deposit": {
+      "name": "Piggy bank deposit",
+      "description": "Moves tokens from the wallet into the piggy bank.",
+      "fields": {
+        "child_id": {
+          "name": "Child ID",
+          "description": "Shown in the Kis Segítő panel."
+        },
+        "amount": {
+          "name": "Amount",
+          "description": "Whole tokens."
+        }
+      }
+    },
+    "piggy_withdraw": {
+      "name": "Piggy bank withdrawal",
+      "description": "Moves tokens from the piggy bank to the wallet.",
+      "fields": {
+        "child_id": {
+          "name": "Child ID",
+          "description": "Shown in the Kis Segítő panel."
+        },
+        "amount": {
+          "name": "Amount",
+          "description": "Whole tokens."
+        }
+      }
+    },
+    "reverse_transaction": {
+      "name": "Reverse transaction",
+      "description": "Cancels a transaction with a compensating one; nothing is deleted.",
+      "fields": {
+        "transaction_id": {
+          "name": "Transaction ID",
+          "description": "From the history in the panel."
+        }
+      }
+    }
+  },
+  "selector": {
+    "account": {
+      "options": {
+        "wallet": "Wallet",
+        "piggy": "Piggy bank"
+      }
+    }
+  },
+  "exceptions": {
+    "unknown_child": {
+      "message": "Unknown child."
+    },
+    "unknown_routine": {
+      "message": "Unknown routine."
+    },
+    "unknown_task": {
+      "message": "Unknown task."
+    },
+    "unknown_checkpoint": {
+      "message": "Unknown checkpoint."
+    },
+    "unknown_reward": {
+      "message": "Unknown or inactive reward."
+    },
+    "unknown_transaction": {
+      "message": "Unknown transaction."
+    },
+    "insufficient_balance": {
+      "message": "Not enough tokens."
+    },
+    "already_unlocked": {
+      "message": "The piggy bank is already unlocked."
+    },
+    "piggy_locked": {
+      "message": "The piggy bank is not unlocked yet."
+    },
+    "zero_amount": {
+      "message": "The amount must not be zero."
+    },
+    "already_reversed": {
+      "message": "This transaction is already reversed."
+    },
+    "cannot_reverse_reversal": {
+      "message": "A reversal cannot be reversed."
+    },
+    "reversed": {
+      "message": "A reversed transaction cannot be changed."
+    },
+    "not_whole_tokens": {
+      "message": "Only whole tokens are allowed."
+    },
+    "invalid_account": {
+      "message": "Unknown account."
+    },
+    "unknown_action": {
+      "message": "Unknown action."
+    },
+    "unknown_item": {
+      "message": "Not found."
+    },
+    "unknown_collection": {
+      "message": "Unknown data type."
+    }
   }
 }

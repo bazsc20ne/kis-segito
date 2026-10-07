@@ -24,8 +24,14 @@ ESPHOME_DOMAIN: Final = "esphome"
 
 # ESPHome API action exposed by the knob firmware (see esphome/kis-segito.yaml).
 ESPHOME_ACTION_SET_UI_STRINGS: Final = "set_ui_strings"
+ESPHOME_ACTION_SET_STATE: Final = "set_state"
+# Name of the knob's text sensor that reports child actions (JSON).
+ACTION_SENSOR_NAME: Final = "Action"
 
 DEFAULT_LANGUAGE: Final = "en"
 
 # Language setting: "auto" follows the Home Assistant language.
 LANGUAGE_AUTO: Final = "auto"
+
+# Generic Home Assistant event for automations (see docs/events.md).
+EVENT_KIS_SEGITO: Final = "kis_segito_event"

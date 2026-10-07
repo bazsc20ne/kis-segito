@@ -37,7 +37,8 @@
   ],
   "task_clothes": [
     150,
-    40
+    40,
+    32
   ],
   "task_breakfast": [
     150,
@@ -46,21 +47,27 @@
   ],
   "task_toothbrush": [
     150,
-    40
+    40,
+    32
   ],
   "task_shoes": [
     150,
-    40
+    40,
+    32
   ],
   "task_bag": [
     150,
-    40
+    40,
+    32
   ],
   "task_door_ready": [
+    150,
+    40,
     32
   ],
   "checkpoint_flag": [
-    28
+    28,
+    32
   ],
   "reward_toy_car": [
     160
@@ -115,5 +122,93 @@
   ],
   "ball_highlight": [
     48
+  ],
+  "reward_choose_game": [
+    160
+  ],
+  "reward_extra_story": [
+    160
+  ],
+  "reward_family_activity": [
+    160
+  ],
+  "reward_gift": [
+    160
+  ],
+  "routine_generic": [
+    160
+  ],
+  "task_bath": [
+    150,
+    40,
+    32
+  ],
+  "task_bed": [
+    150,
+    40,
+    32
+  ],
+  "task_coat": [
+    150,
+    40,
+    32
+  ],
+  "task_dinner": [
+    150,
+    40,
+    32
+  ],
+  "task_hair": [
+    150,
+    40,
+    32
+  ],
+  "task_pajamas": [
+    150,
+    40,
+    32
+  ],
+  "task_pants": [
+    150,
+    40,
+    32
+  ],
+  "task_play": [
+    150,
+    40,
+    32
+  ],
+  "task_socks": [
+    150,
+    40,
+    32
+  ],
+  "task_story": [
+    150,
+    40,
+    32
+  ],
+  "task_tidy_up": [
+    150,
+    40,
+    32
+  ],
+  "task_toilet": [
+    150,
+    40,
+    32
+  ],
+  "task_wake_up": [
+    150,
+    40,
+    32
+  ],
+  "task_wash_hands": [
+    150,
+    40,
+    32
+  ],
+  "placeholder_avatar": [
+    180
   ]
 }

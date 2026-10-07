@@ -11,6 +11,9 @@ id's source while its own source file is missing.
 Resizing is done in linear light with premultiplied alpha (no dark fringes),
 using a Lanczos filter, with light sharpening on small sizes.
 
+It also writes the Home Assistant panel's copies (WEB_SIZE px) of every icon
+to custom_components/kis_segito/frontend/icons/<id>.png.
+
 Usage: build_device_assets.py   (requires Pillow and numpy)
 """
 
@@ -27,6 +30,10 @@ SOURCE = ROOT / "assets" / "icons" / "source"
 OUT = ROOT / "assets" / "device"
 MANIFEST = ROOT / "assets" / "device_assets.json"
 SMALL_MAX = 44
+WEB_OUT = ROOT / "custom_components" / "kis_segito" / "frontend" / "icons"
+WEB_SIZE = 96
+# Sources that are not icons for the panel.
+WEB_SKIP = ("ball_", "brand_logo", "brand_app_icon", "token_pile_shadow")
 
 
 def _srgb_to_linear(v: np.ndarray) -> np.ndarray:
@@ -91,6 +98,16 @@ def main() -> int:
             img.save(OUT / f"{icon}_{size}.png", optimize=True)
             count += 1
     print(f"wrote {count} images to {OUT.relative_to(ROOT)}")
+
+    WEB_OUT.mkdir(parents=True, exist_ok=True)
+    web = 0
+    for source in sorted(SOURCE.glob("*.png")):
+        name = source.stem
+        if name.endswith("_small") or name.startswith(WEB_SKIP):
+            continue
+        resize(Image.open(source), WEB_SIZE).save(WEB_OUT / f"{name}.png", optimize=True)
+        web += 1
+    print(f"wrote {web} panel icons to {WEB_OUT.relative_to(ROOT)}")
     return 0
 
 

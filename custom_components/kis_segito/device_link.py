@@ -5,7 +5,9 @@ The integration talks to the knob only through the ESPHome native API: the
 firmware exposes API actions, which the ESPHome integration registers as
 ``esphome.<node_name>_<action>`` services. This module resolves those service
 names and pushes the on-screen strings in the chosen language (by default the
-Home Assistant language).
+Home Assistant language) and the data snapshot (``set_state``). The knob reports
+the child's actions through its "Action" text sensor (JSON); see
+docs/protocol.md.
 """
 
 from __future__ import annotations
@@ -14,9 +16,13 @@ import json
 import logging
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from homeassistant.const import EVENT_CORE_CONFIG_UPDATE, STATE_UNAVAILABLE
+from homeassistant.const import (
+    EVENT_CORE_CONFIG_UPDATE,
+    STATE_UNAVAILABLE,
+    STATE_UNKNOWN,
+)
 from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
@@ -27,7 +33,16 @@ from homeassistant.helpers.event import (
 )
 from homeassistant.util import slugify
 
-from .const import DEFAULT_LANGUAGE, ESPHOME_ACTION_SET_UI_STRINGS, ESPHOME_DOMAIN
+from .const import (
+    ACTION_SENSOR_NAME,
+    DEFAULT_LANGUAGE,
+    ESPHOME_ACTION_SET_STATE,
+    ESPHOME_ACTION_SET_UI_STRINGS,
+    ESPHOME_DOMAIN,
+)
+
+if TYPE_CHECKING:
+    from .manager import KisSegitoManager
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -81,25 +96,35 @@ def esphome_service_name(node_name: str, action: str) -> str:
 
 
 class DeviceLink:
-    """Keeps one knob device supplied with UI strings."""
+    """Keeps one knob supplied with UI strings and data, and runs its actions."""
 
     def __init__(
         self,
         hass: HomeAssistant,
         device_id: str,
         language: Callable[[], str | None] | None = None,
+        manager: KisSegitoManager | None = None,
     ) -> None:
         self.hass = hass
         self.device_id = device_id
+        self.manager = manager
         # Returns the language to send; defaults to the Home Assistant language.
         self._language = language or (lambda: self.hass.config.language)
         self._unsubs: list[CALLBACK_TYPE] = []
+        self._action_entity: str | None = None
         self._debouncer = Debouncer(
             hass,
             _LOGGER,
             cooldown=2.0,
             immediate=False,
             function=self.async_push_strings,
+        )
+        self._state_debouncer = Debouncer(
+            hass,
+            _LOGGER,
+            cooldown=0.5,
+            immediate=False,
+            function=self.async_push_state,
         )
 
     def _service(self, action: str) -> str | None:
@@ -139,15 +164,68 @@ class DeviceLink:
         )
         _LOGGER.debug("Sent %d UI strings (%s) to %s", len(strings), language, service)
 
+    async def async_push_state(self) -> None:
+        """Send the data snapshot (children, rewards, today's routines)."""
+        if self.manager is None:
+            return
+        service = self._service(ESPHOME_ACTION_SET_STATE)
+        if service is None:
+            _LOGGER.debug(
+                "Knob %s has no %s action (yet)",
+                self.device_id,
+                ESPHOME_ACTION_SET_STATE,
+            )
+            return
+        language, _strings = await self.hass.async_add_executor_job(
+            load_device_strings, self._language()
+        )
+        snapshot = self.manager.snapshot(self.device_id, language)
+        payload = json.dumps(snapshot, separators=(",", ":"), ensure_ascii=False)
+        await self.hass.services.async_call(
+            ESPHOME_DOMAIN, service, {"json": payload}, blocking=True
+        )
+        _LOGGER.debug("Sent state (%d bytes) to %s", len(payload), service)
+
+    @callback
+    def async_schedule_state(self) -> None:
+        """Push the data snapshot soon (after a data change)."""
+        self.hass.async_create_task(self._state_debouncer.async_call())
+
+    async def _async_run_action(self, raw: str) -> None:
+        if self.manager is None:
+            return
+        try:
+            action = json.loads(raw)
+        except ValueError:
+            _LOGGER.warning("Knob %s sent an unreadable action", self.device_id)
+            return
+        if not isinstance(action, dict):
+            return
+        await self.manager.async_device_action(action)
+        # Refused actions change nothing: resend so the knob drops its guess.
+        self.async_schedule_state()
+
     @callback
     def async_start(self) -> None:
         """Push now, and again on reconnect or language change."""
-        entity_ids = [
-            entry.entity_id
-            for entry in er.async_entries_for_device(
-                er.async_get(self.hass), self.device_id
+        entries = er.async_entries_for_device(er.async_get(self.hass), self.device_id)
+        entity_ids = [entry.entity_id for entry in entries]
+        self._action_entity = next(
+            (
+                entry.entity_id
+                for entry in entries
+                if entry.domain == "sensor"
+                and (
+                    entry.original_name == ACTION_SENSOR_NAME
+                    or entry.entity_id.endswith("_action")
+                )
+            ),
+            None,
+        )
+        if self.manager is not None:
+            self._unsubs.append(
+                self.manager.async_add_listener(self.async_schedule_state)
             )
-        ]
         if entity_ids:
             self._unsubs.append(
                 async_track_state_change_event(
@@ -160,6 +238,7 @@ class DeviceLink:
             )
         )
         self.hass.async_create_task(self._debouncer.async_call())
+        self.async_schedule_state()
 
     @callback
     def async_schedule_push(self) -> None:
@@ -172,15 +251,24 @@ class DeviceLink:
         while self._unsubs:
             self._unsubs.pop()()
         self._debouncer.async_cancel()
+        self._state_debouncer.async_cancel()
 
     @callback
     def _async_state_changed(self, event: Event[EventStateChangedData]) -> None:
         old_state = event.data["old_state"]
         new_state = event.data["new_state"]
-        if new_state is None or new_state.state == STATE_UNAVAILABLE:
+        if new_state is None or new_state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
             return
         if old_state is None or old_state.state == STATE_UNAVAILABLE:
+            # The knob (re)connected: it needs strings and data again.
             self.hass.async_create_task(self._debouncer.async_call())
+            self.async_schedule_state()
+            return
+        if (
+            event.data["entity_id"] == self._action_entity
+            and new_state.state != old_state.state
+        ):
+            self.hass.async_create_task(self._async_run_action(new_state.state))
 
     @callback
     def _async_core_config_updated(self, event: Event) -> None:

@@ -4,20 +4,26 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.event import async_track_time_change
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.loader import async_get_integration
+from homeassistant.util import dt as dt_util
 
 from .const import CONF_DEVICE_ID, DOMAIN
 from .device_link import DeviceLink
+from .logic import parse_hhmm
+from .manager import KisSegitoManager
 from .panel import (
     async_register_panel,
     async_register_static_files,
     async_unregister_panel,
 )
+from .services import async_register_services
 from .store import KisSegitoStore
 from .websocket_api import async_register_commands
 
@@ -32,6 +38,7 @@ class KisSegitoData:
 
     version: str
     store: KisSegitoStore
+    manager: KisSegitoManager
     static_registered: bool = False
     panel_registered: bool = False
     entry_ids: set[str] = field(default_factory=set)
@@ -42,9 +49,41 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     integration = await async_get_integration(hass, DOMAIN)
     store = KisSegitoStore(hass)
     await store.async_load()
-    hass.data[DOMAIN] = KisSegitoData(version=str(integration.version), store=store)
+    manager = KisSegitoManager(hass, store)
+    hass.data[DOMAIN] = KisSegitoData(
+        version=str(integration.version), store=store, manager=manager
+    )
     async_register_commands(hass)
+    async_register_services(hass, manager)
+    _async_schedule_jobs(hass, manager)
     return True
+
+
+@callback
+def _async_schedule_jobs(hass: HomeAssistant, manager: KisSegitoManager) -> None:
+    """Daily streak evaluation and the weekly piggy-bank interest."""
+
+    async def _after_midnight(now: datetime) -> None:
+        await manager.async_evaluate_day(now.date() - timedelta(days=1))
+
+    async def _every_minute(now: datetime) -> None:
+        settings = manager.settings
+        try:
+            due = parse_hhmm(str(settings.get("piggy_interest_time", "18:00")))
+        except ValueError:
+            return
+        if now.weekday() == int(settings.get("piggy_interest_weekday", 6)) and (
+            now.hour,
+            now.minute,
+        ) == (due.hour, due.minute):
+            await manager.async_pay_interest()
+
+    async_track_time_change(hass, _after_midnight, hour=0, minute=0, second=30)
+    async_track_time_change(hass, _every_minute, second=5)
+    # Catch up a missed evaluation (Home Assistant was off at midnight).
+    hass.async_create_task(
+        manager.async_evaluate_day(dt_util.now().date() - timedelta(days=1))
+    )
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: KisSegitoConfigEntry) -> bool:
@@ -63,6 +102,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: KisSegitoConfigEntry) ->
         hass,
         device_id,
         lambda: data.store.effective_language(device_id, hass.config.language),
+        data.manager,
     )
     entry.runtime_data = link
     link.async_start()

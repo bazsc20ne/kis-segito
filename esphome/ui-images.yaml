@@ -37,6 +37,8 @@ image:
         file: ${kis_segito_assets}/task_clothes_150.png
       - id: ks_img_task_clothes_40
         file: ${kis_segito_assets}/task_clothes_40.png
+      - id: ks_img_task_clothes_32
+        file: ${kis_segito_assets}/task_clothes_32.png
       - id: ks_img_task_breakfast_150
         file: ${kis_segito_assets}/task_breakfast_150.png
       - id: ks_img_task_breakfast_40
@@ -47,18 +49,30 @@ image:
         file: ${kis_segito_assets}/task_toothbrush_150.png
       - id: ks_img_task_toothbrush_40
         file: ${kis_segito_assets}/task_toothbrush_40.png
+      - id: ks_img_task_toothbrush_32
+        file: ${kis_segito_assets}/task_toothbrush_32.png
       - id: ks_img_task_shoes_150
         file: ${kis_segito_assets}/task_shoes_150.png
       - id: ks_img_task_shoes_40
         file: ${kis_segito_assets}/task_shoes_40.png
+      - id: ks_img_task_shoes_32
+        file: ${kis_segito_assets}/task_shoes_32.png
       - id: ks_img_task_bag_150
         file: ${kis_segito_assets}/task_bag_150.png
       - id: ks_img_task_bag_40
         file: ${kis_segito_assets}/task_bag_40.png
+      - id: ks_img_task_bag_32
+        file: ${kis_segito_assets}/task_bag_32.png
+      - id: ks_img_task_door_ready_150
+        file: ${kis_segito_assets}/task_door_ready_150.png
+      - id: ks_img_task_door_ready_40
+        file: ${kis_segito_assets}/task_door_ready_40.png
       - id: ks_img_task_door_ready_32
         file: ${kis_segito_assets}/task_door_ready_32.png
       - id: ks_img_checkpoint_flag_28
         file: ${kis_segito_assets}/checkpoint_flag_28.png
+      - id: ks_img_checkpoint_flag_32
+        file: ${kis_segito_assets}/checkpoint_flag_32.png
       - id: ks_img_reward_toy_car_160
         file: ${kis_segito_assets}/reward_toy_car_160.png
       - id: ks_img_reward_doll_160
@@ -95,6 +109,102 @@ image:
         file: ${kis_segito_assets}/ball_dent_48.png
       - id: ks_img_ball_highlight_48
         file: ${kis_segito_assets}/ball_highlight_48.png
+      - id: ks_img_reward_choose_game_160
+        file: ${kis_segito_assets}/reward_choose_game_160.png
+      - id: ks_img_reward_extra_story_160
+        file: ${kis_segito_assets}/reward_extra_story_160.png
+      - id: ks_img_reward_family_activity_160
+        file: ${kis_segito_assets}/reward_family_activity_160.png
+      - id: ks_img_reward_gift_160
+        file: ${kis_segito_assets}/reward_gift_160.png
+      - id: ks_img_routine_generic_160
+        file: ${kis_segito_assets}/routine_generic_160.png
+      - id: ks_img_task_bath_150
+        file: ${kis_segito_assets}/task_bath_150.png
+      - id: ks_img_task_bath_40
+        file: ${kis_segito_assets}/task_bath_40.png
+      - id: ks_img_task_bath_32
+        file: ${kis_segito_assets}/task_bath_32.png
+      - id: ks_img_task_bed_150
+        file: ${kis_segito_assets}/task_bed_150.png
+      - id: ks_img_task_bed_40
+        file: ${kis_segito_assets}/task_bed_40.png
+      - id: ks_img_task_bed_32
+        file: ${kis_segito_assets}/task_bed_32.png
+      - id: ks_img_task_coat_150
+        file: ${kis_segito_assets}/task_coat_150.png
+      - id: ks_img_task_coat_40
+        file: ${kis_segito_assets}/task_coat_40.png
+      - id: ks_img_task_coat_32
+        file: ${kis_segito_assets}/task_coat_32.png
+      - id: ks_img_task_dinner_150
+        file: ${kis_segito_assets}/task_dinner_150.png
+      - id: ks_img_task_dinner_40
+        file: ${kis_segito_assets}/task_dinner_40.png
+      - id: ks_img_task_dinner_32
+        file: ${kis_segito_assets}/task_dinner_32.png
+      - id: ks_img_task_hair_150
+        file: ${kis_segito_assets}/task_hair_150.png
+      - id: ks_img_task_hair_40
+        file: ${kis_segito_assets}/task_hair_40.png
+      - id: ks_img_task_hair_32
+        file: ${kis_segito_assets}/task_hair_32.png
+      - id: ks_img_task_pajamas_150
+        file: ${kis_segito_assets}/task_pajamas_150.png
+      - id: ks_img_task_pajamas_40
+        file: ${kis_segito_assets}/task_pajamas_40.png
+      - id: ks_img_task_pajamas_32
+        file: ${kis_segito_assets}/task_pajamas_32.png
+      - id: ks_img_task_pants_150
+        file: ${kis_segito_assets}/task_pants_150.png
+      - id: ks_img_task_pants_40
+        file: ${kis_segito_assets}/task_pants_40.png
+      - id: ks_img_task_pants_32
+        file: ${kis_segito_assets}/task_pants_32.png
+      - id: ks_img_task_play_150
+        file: ${kis_segito_assets}/task_play_150.png
+      - id: ks_img_task_play_40
+        file: ${kis_segito_assets}/task_play_40.png
+      - id: ks_img_task_play_32
+        file: ${kis_segito_assets}/task_play_32.png
+      - id: ks_img_task_socks_150
+        file: ${kis_segito_assets}/task_socks_150.png
+      - id: ks_img_task_socks_40
+        file: ${kis_segito_assets}/task_socks_40.png
+      - id: ks_img_task_socks_32
+        file: ${kis_segito_assets}/task_socks_32.png
+      - id: ks_img_task_story_150
+        file: ${kis_segito_assets}/task_story_150.png
+      - id: ks_img_task_story_40
+        file: ${kis_segito_assets}/task_story_40.png
+      - id: ks_img_task_story_32
+        file: ${kis_segito_assets}/task_story_32.png
+      - id: ks_img_task_tidy_up_150
+        file: ${kis_segito_assets}/task_tidy_up_150.png
+      - id: ks_img_task_tidy_up_40
+        file: ${kis_segito_assets}/task_tidy_up_40.png
+      - id: ks_img_task_tidy_up_32
+        file: ${kis_segito_assets}/task_tidy_up_32.png
+      - id: ks_img_task_toilet_150
+        file: ${kis_segito_assets}/task_toilet_150.png
+      - id: ks_img_task_toilet_40
+        file: ${kis_segito_assets}/task_toilet_40.png
+      - id: ks_img_task_toilet_32
+        file: ${kis_segito_assets}/task_toilet_32.png
+      - id: ks_img_task_wake_up_150
+        file: ${kis_segito_assets}/task_wake_up_150.png
+      - id: ks_img_task_wake_up_40
+        file: ${kis_segito_assets}/task_wake_up_40.png
+      - id: ks_img_task_wake_up_32
+        file: ${kis_segito_assets}/task_wake_up_32.png
+      - id: ks_img_task_wash_hands_150
+        file: ${kis_segito_assets}/task_wash_hands_150.png
+      - id: ks_img_task_wash_hands_40
+        file: ${kis_segito_assets}/task_wash_hands_40.png
+      - id: ks_img_task_wash_hands_32
+        file: ${kis_segito_assets}/task_wash_hands_32.png
+      - id: ks_img_placeholder_avatar_180
+        file: ${kis_segito_assets}/placeholder_avatar_180.png
 
 kis_segito_ui:
   id: ui
@@ -114,17 +224,24 @@ kis_segito_ui:
     fn_tokens_160: ks_img_fn_tokens_160
     task_clothes_150: ks_img_task_clothes_150
     task_clothes_40: ks_img_task_clothes_40
+    task_clothes_32: ks_img_task_clothes_32
     task_breakfast_150: ks_img_task_breakfast_150
     task_breakfast_40: ks_img_task_breakfast_40
     task_breakfast_32: ks_img_task_breakfast_32
     task_toothbrush_150: ks_img_task_toothbrush_150
     task_toothbrush_40: ks_img_task_toothbrush_40
+    task_toothbrush_32: ks_img_task_toothbrush_32
     task_shoes_150: ks_img_task_shoes_150
     task_shoes_40: ks_img_task_shoes_40
+    task_shoes_32: ks_img_task_shoes_32
     task_bag_150: ks_img_task_bag_150
     task_bag_40: ks_img_task_bag_40
+    task_bag_32: ks_img_task_bag_32
+    task_door_ready_150: ks_img_task_door_ready_150
+    task_door_ready_40: ks_img_task_door_ready_40
     task_door_ready_32: ks_img_task_door_ready_32
     checkpoint_flag_28: ks_img_checkpoint_flag_28
+    checkpoint_flag_32: ks_img_checkpoint_flag_32
     reward_toy_car_160: ks_img_reward_toy_car_160
     reward_doll_160: ks_img_reward_doll_160
     reward_bricks_160: ks_img_reward_bricks_160
@@ -143,3 +260,51 @@ kis_segito_ui:
     ball_base_48: ks_img_ball_base_48
     ball_dent_48: ks_img_ball_dent_48
     ball_highlight_48: ks_img_ball_highlight_48
+    reward_choose_game_160: ks_img_reward_choose_game_160
+    reward_extra_story_160: ks_img_reward_extra_story_160
+    reward_family_activity_160: ks_img_reward_family_activity_160
+    reward_gift_160: ks_img_reward_gift_160
+    routine_generic_160: ks_img_routine_generic_160
+    task_bath_150: ks_img_task_bath_150
+    task_bath_40: ks_img_task_bath_40
+    task_bath_32: ks_img_task_bath_32
+    task_bed_150: ks_img_task_bed_150
+    task_bed_40: ks_img_task_bed_40
+    task_bed_32: ks_img_task_bed_32
+    task_coat_150: ks_img_task_coat_150
+    task_coat_40: ks_img_task_coat_40
+    task_coat_32: ks_img_task_coat_32
+    task_dinner_150: ks_img_task_dinner_150
+    task_dinner_40: ks_img_task_dinner_40
+    task_dinner_32: ks_img_task_dinner_32
+    task_hair_150: ks_img_task_hair_150
+    task_hair_40: ks_img_task_hair_40
+    task_hair_32: ks_img_task_hair_32
+    task_pajamas_150: ks_img_task_pajamas_150
+    task_pajamas_40: ks_img_task_pajamas_40
+    task_pajamas_32: ks_img_task_pajamas_32
+    task_pants_150: ks_img_task_pants_150
+    task_pants_40: ks_img_task_pants_40
+    task_pants_32: ks_img_task_pants_32
+    task_play_150: ks_img_task_play_150
+    task_play_40: ks_img_task_play_40
+    task_play_32: ks_img_task_play_32
+    task_socks_150: ks_img_task_socks_150
+    task_socks_40: ks_img_task_socks_40
+    task_socks_32: ks_img_task_socks_32
+    task_story_150: ks_img_task_story_150
+    task_story_40: ks_img_task_story_40
+    task_story_32: ks_img_task_story_32
+    task_tidy_up_150: ks_img_task_tidy_up_150
+    task_tidy_up_40: ks_img_task_tidy_up_40
+    task_tidy_up_32: ks_img_task_tidy_up_32
+    task_toilet_150: ks_img_task_toilet_150
+    task_toilet_40: ks_img_task_toilet_40
+    task_toilet_32: ks_img_task_toilet_32
+    task_wake_up_150: ks_img_task_wake_up_150
+    task_wake_up_40: ks_img_task_wake_up_40
+    task_wake_up_32: ks_img_task_wake_up_32
+    task_wash_hands_150: ks_img_task_wash_hands_150
+    task_wash_hands_40: ks_img_task_wash_hands_40
+    task_wash_hands_32: ks_img_task_wash_hands_32
+    placeholder_avatar_180: ks_img_placeholder_avatar_180

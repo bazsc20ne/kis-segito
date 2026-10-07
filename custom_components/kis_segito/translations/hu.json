@@ -18,5 +18,176 @@
     "abort": {
       "already_configured": "Ez a knob már be van állítva."
     }
+  },
+  "services": {
+    "complete_task": {
+      "name": "Feladat kész",
+      "description": "Egy gyerek mai rutinfeladatát késznek jelöli; ha egy checkpoint minden feladata kész, a checkpoint teljesül, és jár a jutalma.",
+      "fields": {
+        "child_id": {
+          "name": "Gyerek azonosító",
+          "description": "A Kis Segítő panelen látható."
+        },
+        "routine_id": {
+          "name": "Rutin azonosító"
+        },
+        "task_id": {
+          "name": "Feladat azonosító"
+        }
+      }
+    },
+    "complete_checkpoint": {
+      "name": "Checkpoint teljesítése",
+      "description": "Egy gyerek mai checkpointját teljesíti, és kifizeti az időalapú jutalmat.",
+      "fields": {
+        "child_id": {
+          "name": "Gyerek azonosító",
+          "description": "A Kis Segítő panelen látható."
+        },
+        "routine_id": {
+          "name": "Rutin azonosító"
+        },
+        "checkpoint_id": {
+          "name": "Checkpoint azonosító"
+        }
+      }
+    },
+    "adjust_tokens": {
+      "name": "Zseton jóváírás / levonás",
+      "description": "Zsetont ad (pozitív) vagy von le (negatív); az előzményekben megjelenik.",
+      "fields": {
+        "child_id": {
+          "name": "Gyerek azonosító",
+          "description": "A Kis Segítő panelen látható."
+        },
+        "amount": {
+          "name": "Mennyiség",
+          "description": "Egész zseton."
+        },
+        "account": {
+          "name": "Számla",
+          "description": "Pénztárca vagy persely."
+        },
+        "note": {
+          "name": "Megjegyzés",
+          "description": "Az előzményekben látszik."
+        }
+      }
+    },
+    "redeem_reward": {
+      "name": "Jutalom beváltása",
+      "description": "Jutalmat vált be a pénztárcából, mint a gombon.",
+      "fields": {
+        "child_id": {
+          "name": "Gyerek azonosító",
+          "description": "A Kis Segítő panelen látható."
+        },
+        "reward_id": {
+          "name": "Jutalom azonosító"
+        }
+      }
+    },
+    "piggy_deposit": {
+      "name": "Betét a perselybe",
+      "description": "Zsetont tesz a pénztárcából a perselybe.",
+      "fields": {
+        "child_id": {
+          "name": "Gyerek azonosító",
+          "description": "A Kis Segítő panelen látható."
+        },
+        "amount": {
+          "name": "Mennyiség",
+          "description": "Egész zseton."
+        }
+      }
+    },
+    "piggy_withdraw": {
+      "name": "Kivét a perselyből",
+      "description": "Zsetont vesz ki a perselyből a pénztárcába.",
+      "fields": {
+        "child_id": {
+          "name": "Gyerek azonosító",
+          "description": "A Kis Segítő panelen látható."
+        },
+        "amount": {
+          "name": "Mennyiség",
+          "description": "Egész zseton."
+        }
+      }
+    },
+    "reverse_transaction": {
+      "name": "Tranzakció visszavonása",
+      "description": "Egy ellentétes tranzakcióval visszavonja; semmi nem törlődik.",
+      "fields": {
+        "transaction_id": {
+          "name": "Tranzakció azonosító",
+          "description": "A panel előzmények oldaláról."
+        }
+      }
+    }
+  },
+  "selector": {
+    "account": {
+      "options": {
+        "wallet": "Pénztárca",
+        "piggy": "Persely"
+      }
+    }
+  },
+  "exceptions": {
+    "unknown_child": {
+      "message": "Ismeretlen gyerek."
+    },
+    "unknown_routine": {
+      "message": "Ismeretlen rutin."
+    },
+    "unknown_task": {
+      "message": "Ismeretlen feladat."
+    },
+    "unknown_checkpoint": {
+      "message": "Ismeretlen checkpoint."
+    },
+    "unknown_reward": {
+      "message": "Ismeretlen vagy inaktív jutalom."
+    },
+    "unknown_transaction": {
+      "message": "Ismeretlen tranzakció."
+    },
+    "insufficient_balance": {
+      "message": "Nincs elég zseton."
+    },
+    "already_unlocked": {
+      "message": "A persely már fel van oldva."
+    },
+    "piggy_locked": {
+      "message": "A persely még nincs feloldva."
+    },
+    "zero_amount": {
+      "message": "A mennyiség nem lehet nulla."
+    },
+    "already_reversed": {
+      "message": "Ez a tranzakció már vissza van vonva."
+    },
+    "cannot_reverse_reversal": {
+      "message": "Visszavonást nem lehet visszavonni."
+    },
+    "reversed": {
+      "message": "Visszavont tranzakció nem módosítható."
+    },
+    "not_whole_tokens": {
+      "message": "Csak egész zseton lehet."
+    },
+    "invalid_account": {
+      "message": "Ismeretlen számla."
+    },
+    "unknown_action": {
+      "message": "Ismeretlen művelet."
+    },
+    "unknown_item": {
+      "message": "Nem található."
+    },
+    "unknown_collection": {
+      "message": "Ismeretlen adattípus."
+    }
   }
 }

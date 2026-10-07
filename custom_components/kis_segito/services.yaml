@@ -1,0 +1,97 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Ids (child, routine, task, checkpoint, reward, transaction) are shown in the
+# Kis Segito panel.
+complete_task:
+  fields:
+    child_id:
+      required: true
+      selector:
+        text:
+    routine_id:
+      required: true
+      selector:
+        text:
+    task_id:
+      required: true
+      selector:
+        text:
+complete_checkpoint:
+  fields:
+    child_id:
+      required: true
+      selector:
+        text:
+    routine_id:
+      required: true
+      selector:
+        text:
+    checkpoint_id:
+      required: true
+      selector:
+        text:
+adjust_tokens:
+  fields:
+    child_id:
+      required: true
+      selector:
+        text:
+    amount:
+      required: true
+      selector:
+        number:
+          min: -10000
+          max: 10000
+          mode: box
+    account:
+      default: wallet
+      selector:
+        select:
+          options:
+            - wallet
+            - piggy
+          translation_key: account
+    note:
+      selector:
+        text:
+redeem_reward:
+  fields:
+    child_id:
+      required: true
+      selector:
+        text:
+    reward_id:
+      required: true
+      selector:
+        text:
+piggy_deposit:
+  fields:
+    child_id:
+      required: true
+      selector:
+        text:
+    amount:
+      required: true
+      selector:
+        number:
+          min: 1
+          max: 10000
+          mode: box
+piggy_withdraw:
+  fields:
+    child_id:
+      required: true
+      selector:
+        text:
+    amount:
+      required: true
+      selector:
+        number:
+          min: 1
+          max: 10000
+          mode: box
+reverse_transaction:
+  fields:
+    transaction_id:
+      required: true
+      selector:
+        text:
