@@ -37,6 +37,9 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "piggy_interest_max": None,
 }
 
+# Configuration audit entries kept (token history is in the ledger).
+AUDIT_KEPT = 1000
+
 
 def _empty_config() -> dict[str, Any]:
     return {
@@ -48,6 +51,9 @@ def _empty_config() -> dict[str, Any]:
         "devices": {},
         "days": {},
         "streaks": {},
+        "overrides": {},
+        "notifications": [],
+        "audit": [],
     }
 
 

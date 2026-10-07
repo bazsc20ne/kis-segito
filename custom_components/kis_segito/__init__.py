@@ -18,6 +18,7 @@ from .const import CONF_DEVICE_ID, DOMAIN
 from .device_link import DeviceLink
 from .logic import parse_hhmm
 from .manager import KisSegitoManager
+from .notify import Notifier
 from .panel import (
     async_register_panel,
     async_register_static_files,
@@ -50,6 +51,11 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     store = KisSegitoStore(hass)
     await store.async_load()
     manager = KisSegitoManager(hass, store)
+    manager.notifier = Notifier(
+        hass,
+        lambda: store.data["notifications"],
+        lambda: store.effective_language(None, hass.config.language),
+    )
     hass.data[DOMAIN] = KisSegitoData(
         version=str(integration.version), store=store, manager=manager
     )

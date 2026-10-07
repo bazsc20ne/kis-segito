@@ -26,9 +26,10 @@ from .logic import (
     reward_for,
     routine_runs_on,
     routine_window,
+    routine_with_override,
     selectable_children,
 )
-from .store import KisSegitoStore
+from .store import AUDIT_KEPT, KisSegitoStore
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -59,6 +60,8 @@ class KisSegitoManager:
         self.hass = hass
         self.store = store
         self._listeners: list[Callable[[], None]] = []
+        # Sends notifications for an event (set up by the integration).
+        self.notifier: Callable[[dict[str, Any]], None] | None = None
 
     # ------------------------------------------------------------ listeners
 
@@ -95,6 +98,8 @@ class KisSegitoManager:
         payload |= data
         payload["timestamp"] = _iso(dt_util.now())
         self.hass.bus.async_fire(EVENT_KIS_SEGITO, payload)
+        if self.notifier is not None:
+            self.notifier(payload)
 
     # ------------------------------------------------------------ data access
 
@@ -120,6 +125,27 @@ class KisSegitoManager:
     def routine(self, routine_id: str) -> dict[str, Any] | None:
         """One routine by id."""
         return next((r for r in self.data["routines"] if r["id"] == routine_id), None)
+
+    def override(self, day: date, routine_id: str) -> dict[str, Any] | None:
+        """The one-day change of a routine ("Modify today"), if any."""
+        return self.data["overrides"].get(day.isoformat(), {}).get(routine_id)
+
+    def routine_on_day(
+        self, routine: dict[str, Any], day: date
+    ) -> dict[str, Any] | None:
+        """The routine as it runs on ``day`` (None: not scheduled or skipped)."""
+        if not routine_runs_on(routine, day):
+            return None
+        return routine_with_override(routine, self.override(day, routine["id"]))
+
+    def routines_on_day(self, day: date) -> list[dict[str, Any]]:
+        """Routines running on ``day`` with that day's changes, by start time."""
+        result = [
+            r
+            for r in (self.routine_on_day(r, day) for r in self.data["routines"])
+            if r is not None
+        ]
+        return sorted(result, key=lambda r: r.get("start", ""))
 
     def reward(self, reward_id: str) -> dict[str, Any] | None:
         """One reward by id."""
@@ -186,10 +212,63 @@ class KisSegitoManager:
                 item["sort_order"] = order[item["id"]]
         await self._changed()
 
-    async def async_update_settings(self, changes: dict[str, Any]) -> None:
+    def _audit(self, who: str, what: str, old: Any, new: Any) -> None:
+        """Record a configuration change: who, when, old and new value."""
+        audit = self.data["audit"]
+        audit.append(
+            {"at": _iso(dt_util.now()), "by": who, "what": what, "old": old, "new": new}
+        )
+        del audit[:-AUDIT_KEPT]
+
+    async def async_update_settings(
+        self, changes: dict[str, Any], *, who: str = "parent"
+    ) -> None:
         """Change global settings."""
+        for key, value in changes.items():
+            if self.settings.get(key) != value:
+                self._audit(who, f"settings.{key}", self.settings.get(key), value)
         self.settings.update(changes)
         await self._changed()
+
+    async def async_set_override(
+        self,
+        day: date,
+        routine_id: str,
+        *,
+        skip: bool = False,
+        shift_min: int = 0,
+        who: str = "parent",
+    ) -> None:
+        """Change a routine for one day only (skip it or shift its times)."""
+        if self.routine(routine_id) is None:
+            raise KisSegitoError("unknown_routine")
+        day_overrides = self.data["overrides"].setdefault(day.isoformat(), {})
+        old = day_overrides.get(routine_id)
+        if not skip and not shift_min:
+            day_overrides.pop(routine_id, None)
+            new = None
+        else:
+            new = {
+                "skip": bool(skip),
+                "shift_min": int(shift_min),
+                "by": who,
+                "at": _iso(dt_util.now()),
+            }
+            day_overrides[routine_id] = new
+        self._audit(who, f"override.{day.isoformat()}.{routine_id}", old, new)
+        await self._changed()
+
+    async def async_save_notifications(
+        self, rules: list[dict[str, Any]], *, who: str = "parent"
+    ) -> list[dict[str, Any]]:
+        """Replace the notification rules."""
+        for rule in rules:
+            if not rule.get("id"):
+                rule["id"] = lg.new_id()
+        self._audit(who, "notifications", len(self.data["notifications"]), len(rules))
+        self.data["notifications"] = rules
+        await self._changed()
+        return rules
 
     async def async_assign_device(self, child_id: str, device_id: str | None) -> None:
         """Assign a child to a knob (a child has at most one knob)."""
@@ -445,7 +524,15 @@ class KisSegitoManager:
         return tx
 
     def history(
-        self, child_id: str | None = None, limit: int = 200
+        self,
+        child_id: str | None = None,
+        limit: int = 200,
+        *,
+        reasons: list[str] | None = None,
+        account: str | None = None,
+        date_from: str | None = None,
+        date_to: str | None = None,
+        search: str | None = None,
     ) -> list[dict[str, Any]]:
         """Newest transactions first, each with its sequence number.
 
@@ -460,9 +547,31 @@ class KisSegitoManager:
             if target:
                 revisions.setdefault(target, []).append(seq[tx["id"]])
         result = []
+        needle = (search or "").strip().casefold()
         for tx in reversed(self.transactions):
             if child_id and tx["child_id"] != child_id:
                 continue
+            if reasons and tx["reason"] not in reasons:
+                continue
+            if account and not any(line["account"] == account for line in tx["lines"]):
+                continue
+            day = tx["timestamp"][:10]
+            if (date_from and day < date_from) or (date_to and day > date_to):
+                continue
+            if needle:
+                child = self.child(tx["child_id"]) or {}
+                text = " ".join(
+                    str(v)
+                    for v in (
+                        tx.get("note"),
+                        tx.get("creator"),
+                        child.get("name"),
+                        *(tx.get("refs") or {}).values(),
+                    )
+                    if v
+                ).casefold()
+                if needle not in text and needle.lstrip("#") != str(seq[tx["id"]]):
+                    continue
             item = dict(tx)
             item["seq"] = seq[tx["id"]]
             target = tx.get("corrects") or tx.get("reverses")
@@ -587,6 +696,7 @@ class KisSegitoManager:
         routine = self.routine(routine_id)
         if routine is None:
             raise KisSegitoError("unknown_routine")
+        routine = self.routine_on_day(routine, self.today()) or routine
         task = next((t for t in routine.get("tasks", []) if t["id"] == task_id), None)
         if task is None:
             raise KisSegitoError("unknown_task")
@@ -625,6 +735,7 @@ class KisSegitoManager:
         routine = self.routine(routine_id)
         if routine is None:
             raise KisSegitoError("unknown_routine")
+        routine = self.routine_on_day(routine, self.today()) or routine
         checkpoint = next(
             (c for c in routine.get("checkpoints", []) if c["id"] == checkpoint_id),
             None,
@@ -688,6 +799,8 @@ class KisSegitoManager:
         keep = (self.today() - timedelta(days=DAYS_KEPT)).isoformat()
         for key in [k for k in self.data["days"] if k < keep]:
             del self.data["days"][key]
+        for key in [k for k in self.data["overrides"] if k < keep]:
+            del self.data["overrides"][key]
 
     # ------------------------------------------------------------ streaks & interest
 
@@ -697,8 +810,8 @@ class KisSegitoManager:
         None when nothing was required that day (the streak is unchanged).
         """
         required = 0
-        for routine in self.data["routines"]:
-            if not routine_runs_on(routine, day) or not applies_to(routine, child_id):
+        for routine in self.routines_on_day(day):
+            if not applies_to(routine, child_id):
                 continue
             done = self.progress(day, routine["id"], child_id)["checkpoints"]
             for checkpoint in routine.get("checkpoints", []):
@@ -826,8 +939,8 @@ class KisSegitoManager:
             if r.get("active", True)
         ]
         routines = []
-        for routine in sorted(self.data["routines"], key=lambda r: r.get("start", "")):
-            if not routine_runs_on(routine, day) or not routine.get("on_device", True):
+        for routine in self.routines_on_day(day):
+            if not routine.get("on_device", True):
                 continue
             start, end = routine_window(routine, day, tz)
             checkpoints = []

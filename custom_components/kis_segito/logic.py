@@ -93,3 +93,33 @@ def selectable_children(
     if not chosen or chosen == everyone:
         return everyone
     return chosen
+
+
+def shift_hhmm(value: str, minutes: int) -> str:
+    """Move "HH:MM" by ``minutes`` within the same day (clamped to 00:00-23:59)."""
+    t = parse_hhmm(value)
+    total = min(max(t.hour * 60 + t.minute + int(minutes), 0), 23 * 60 + 59)
+    return f"{total // 60:02d}:{total % 60:02d}"
+
+
+def routine_with_override(
+    routine: Mapping[str, Any], override: Mapping[str, Any] | None
+) -> dict[str, Any] | None:
+    """A routine as it runs on one day: None when skipped, times shifted.
+
+    ``override`` is the one-day change from "Modify today":
+    ``{"skip": bool, "shift_min": minutes}``; the routine itself is unchanged.
+    """
+    if override and override.get("skip"):
+        return None
+    result = dict(routine)
+    shift = int((override or {}).get("shift_min", 0) or 0)
+    if shift:
+        for key in ("start", "end"):
+            if result.get(key):
+                result[key] = shift_hhmm(result[key], shift)
+        result["checkpoints"] = [
+            cp | ({"time": shift_hhmm(cp["time"], shift)} if cp.get("time") else {})
+            for cp in routine.get("checkpoints", [])
+        ]
+    return result

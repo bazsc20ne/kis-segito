@@ -7,7 +7,7 @@ from datetime import timedelta
 
 import pytest
 from freezegun.api import FrozenDateTimeFactory
-from homeassistant.core import Event, HomeAssistant, callback
+from homeassistant.core import Event, HomeAssistant, ServiceCall, callback
 from homeassistant.util import dt as dt_util
 
 from custom_components.kis_segito.const import EVENT_KIS_SEGITO
@@ -158,3 +158,70 @@ def test_migrate_schema_1() -> None:
     assert data["settings"]["streak_target"] == 7
     assert data["devices"] == {"d": {}}
     assert data["children"] == []
+
+
+async def test_override_and_history_filters(
+    hass: HomeAssistant, manager: KisSegitoManager
+) -> None:
+    kid = await _child(manager, "Anna")
+    routine = await manager.async_save_item(
+        "routines",
+        {
+            "name": "Evening",
+            "start": "19:00",
+            "end": "20:00",
+            "checkpoints": [{"name": "Bed", "time": "20:00"}],
+        },
+    )
+    day = manager.today()
+    await manager.async_set_override(day, routine["id"], shift_min=30, who="Mum")
+    shifted = manager.routines_on_day(day)[0]
+    assert (shifted["start"], shifted["end"]) == ("19:30", "20:30")
+    assert shifted["checkpoints"][0]["time"] == "20:30"
+    assert manager.routine(routine["id"])["start"] == "19:00"  # template unchanged
+    await manager.async_set_override(day, routine["id"], skip=True)
+    assert manager.routines_on_day(day) == []
+    assert manager.data["audit"][-1]["what"].startswith("override.")
+
+    await manager.async_adjust(kid, 4, note="garden")
+    await manager.async_adjust(kid, 2, account="piggy")
+    assert len(manager.history(account="piggy")) == 1
+    assert len(manager.history(search="garden")) == 1
+    assert len(manager.history(search="anna")) == 2
+    assert len(manager.history(search="#1")) == 1
+    assert len(manager.history(reasons=["reward_redemption"])) == 0
+    assert len(manager.history(date_from="2999-01-01")) == 0
+
+
+async def test_notification_rules(
+    hass: HomeAssistant, manager: KisSegitoManager
+) -> None:
+    from custom_components.kis_segito.notify import Notifier
+
+    sent: list[ServiceCall] = []
+
+    async def _notify(call: ServiceCall) -> None:
+        sent.append(call)
+
+    hass.services.async_register("notify", "parent_phone", _notify)
+    manager.notifier = Notifier(
+        hass, lambda: manager.data["notifications"], lambda: "hu"
+    )
+    kid = await _child(manager, "Anna")
+    other = await _child(manager, "Bence")
+    await manager.async_save_notifications(
+        [
+            {
+                "name": "Phone",
+                "service": "notify.parent_phone",
+                "events": ["manual_adjustment"],
+                "children": [kid],
+                "enabled": True,
+            }
+        ]
+    )
+    await manager.async_adjust(kid, 3)
+    await manager.async_adjust(other, 3)  # other child: no notification
+    await hass.async_block_till_done()
+    assert len(sent) == 1
+    assert sent[0].data["message"].startswith("Anna: +3")

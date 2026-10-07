@@ -1,0 +1,13 @@
+{
+  "title": "Kis Segítő",
+  "reward_redeemed": "{child} beváltotta: {reward} (−{amount_abs}). Pénztárca: {wallet}.",
+  "checkpoint_completed": "{child} elérte a checkpointot: +{amount}. Pénztárca: {wallet}.",
+  "task_completed": "{child} elvégzett egy feladatot.",
+  "piggy_deposit": "{child} betett {amount} zsetont a perselybe. Persely: {piggy}.",
+  "piggy_withdrawal": "{child} kivett {amount} zsetont a perselyből. Persely: {piggy}.",
+  "piggy_interest": "{child} {amount} zseton kamatot kapott. Persely: {piggy}.",
+  "streak_completed": "{child} teljesítette a sorozatot: +{amount}!",
+  "manual_adjustment": "{child}: {amount_signed} zseton (szülő). Pénztárca: {wallet}.",
+  "transaction_reversed": "{child}: egy tranzakciót visszavontak. Pénztárca: {wallet}.",
+  "transaction_revised": "{child}: egy összeget módosítottak ({amount_signed}). Pénztárca: {wallet}."
+}

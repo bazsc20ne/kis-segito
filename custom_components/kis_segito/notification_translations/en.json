@@ -1,0 +1,13 @@
+{
+  "title": "Kis Segítő",
+  "reward_redeemed": "{child} bought: {reward} (−{amount_abs}). Wallet: {wallet}.",
+  "checkpoint_completed": "{child} reached a checkpoint: +{amount}. Wallet: {wallet}.",
+  "task_completed": "{child} finished a task.",
+  "piggy_deposit": "{child} put {amount} into the piggy bank. Piggy bank: {piggy}.",
+  "piggy_withdrawal": "{child} took {amount} out of the piggy bank. Piggy bank: {piggy}.",
+  "piggy_interest": "{child} got {amount} interest. Piggy bank: {piggy}.",
+  "streak_completed": "{child} completed the streak: +{amount}!",
+  "manual_adjustment": "{child}: {amount_signed} tokens (parent). Wallet: {wallet}.",
+  "transaction_reversed": "{child}: a transaction was reversed. Wallet: {wallet}.",
+  "transaction_revised": "{child}: an amount was changed ({amount_signed}). Wallet: {wallet}."
+}

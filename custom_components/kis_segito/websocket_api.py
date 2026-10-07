@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from datetime import date, timedelta
 from typing import Any
 
 import voluptuous as vol
@@ -14,6 +15,7 @@ from .const import CONF_DEVICE_ID, DOMAIN, LANGUAGE_AUTO
 from .device_link import available_languages
 from .ledger import PIGGY, WALLET
 from .manager import COLLECTIONS, KisSegitoError, KisSegitoManager
+from .notify import EVENT_TYPES
 from .panel import FRONTEND_DIR, panel_language_names
 
 
@@ -35,6 +37,10 @@ def async_register_commands(hass: HomeAssistant) -> None:
         ws_reverse,
         ws_correct,
         ws_today,
+        ws_override,
+        ws_week,
+        ws_notifications,
+        ws_export,
     ):
         websocket_api.async_register_command(hass, command)
 
@@ -134,7 +140,7 @@ async def ws_settings_update(
     }
     if language is not None:
         changes["language"] = language
-    await data.manager.async_update_settings(changes)
+    await data.manager.async_update_settings(changes, who=_who(connection))
     if language is not None:
         for entry in hass.config_entries.async_loaded_entries(DOMAIN):
             entry.runtime_data.async_schedule_push()
@@ -326,6 +332,11 @@ async def ws_assign(
         vol.Required("type"): f"{DOMAIN}/history",
         vol.Optional("child_id"): vol.Any(None, str),
         vol.Optional("limit", default=200): vol.All(int, vol.Range(min=1, max=2000)),
+        vol.Optional("reasons"): vol.Any(None, [str]),
+        vol.Optional("account"): vol.Any(None, vol.In([WALLET, PIGGY])),
+        vol.Optional("date_from"): vol.Any(None, str),
+        vol.Optional("date_to"): vol.Any(None, str),
+        vol.Optional("search"): vol.Any(None, str),
     }
 )
 @callback
@@ -336,7 +347,16 @@ def ws_history(
 ) -> None:
     """Token history, newest first, with effective amounts."""
     connection.send_result(
-        msg["id"], _manager(hass).history(msg.get("child_id"), msg["limit"])
+        msg["id"],
+        _manager(hass).history(
+            msg.get("child_id"),
+            msg["limit"],
+            reasons=msg.get("reasons"),
+            account=msg.get("account"),
+            date_from=msg.get("date_from") or None,
+            date_to=msg.get("date_to") or None,
+            search=msg.get("search"),
+        ),
     )
 
 
@@ -439,5 +459,156 @@ def ws_today(
         {
             "date": day.isoformat(),
             "progress": manager.data["days"].get(day.isoformat(), {}),
+        },
+    )
+
+
+def _who(connection: websocket_api.ActiveConnection) -> str:
+    return (connection.user.name if connection.user else None) or "parent"
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/override",
+        vol.Required("routine_id"): str,
+        vol.Optional("date"): str,
+        vol.Optional("skip", default=False): bool,
+        vol.Optional("shift_min", default=0): vol.All(
+            int, vol.Range(min=-720, max=720)
+        ),
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_override(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Change a routine for one day only ("Modify today")."""
+    manager = _manager(hass)
+    day = date.fromisoformat(msg["date"]) if msg.get("date") else manager.today()
+    await _run(
+        connection,
+        msg["id"],
+        manager.async_set_override(
+            day,
+            msg["routine_id"],
+            skip=msg["skip"],
+            shift_min=msg["shift_min"],
+            who=_who(connection),
+        ),
+    )
+
+
+@websocket_api.websocket_command(
+    {vol.Required("type"): f"{DOMAIN}/week", vol.Optional("start"): str}
+)
+@callback
+def ws_week(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Seven days of routines as they run (one-day changes applied)."""
+    manager = _manager(hass)
+    today = manager.today()
+    start = (
+        date.fromisoformat(msg["start"])
+        if msg.get("start")
+        else today - timedelta(days=today.weekday())
+    )
+    days = []
+    for offset in range(7):
+        day = start + timedelta(days=offset)
+        days.append(
+            {
+                "date": day.isoformat(),
+                "today": day == today,
+                "routines": [
+                    {
+                        "id": r["id"],
+                        "name": r.get("name", ""),
+                        "icon": r.get("icon", "routine_generic"),
+                        "start": r.get("start"),
+                        "end": r.get("end"),
+                        "children": r.get("children", []),
+                        "checkpoints": [
+                            {
+                                "name": c.get("name", ""),
+                                "icon": c.get("icon"),
+                                "time": c.get("time"),
+                            }
+                            for c in r.get("checkpoints", [])
+                        ],
+                        "override": manager.override(day, r["id"]),
+                    }
+                    for r in manager.routines_on_day(day)
+                ],
+                "skipped": [
+                    rid
+                    for rid, o in manager.data["overrides"]
+                    .get(day.isoformat(), {})
+                    .items()
+                    if o.get("skip")
+                ],
+            }
+        )
+    connection.send_result(msg["id"], {"start": start.isoformat(), "days": days})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/notifications",
+        vol.Optional("rules"): [
+            vol.Schema(
+                {
+                    vol.Optional("id"): str,
+                    vol.Optional("name", default=""): str,
+                    vol.Required("service"): str,
+                    vol.Optional("events", default=list): [vol.In(EVENT_TYPES)],
+                    vol.Optional("children", default=list): [str],
+                    vol.Optional("enabled", default=True): bool,
+                }
+            )
+        ],
+    }
+)
+@websocket_api.async_response
+async def ws_notifications(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Read the notification rules, or replace them (admins only)."""
+    manager = _manager(hass)
+    if "rules" in msg:
+        if not connection.user or not connection.user.is_admin:
+            connection.send_error(msg["id"], "unauthorized", "Admins only")
+            return
+        await manager.async_save_notifications(msg["rules"], who=_who(connection))
+    connection.send_result(
+        msg["id"],
+        {"rules": manager.data["notifications"], "event_types": list(EVENT_TYPES)},
+    )
+
+
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/export"})
+@websocket_api.require_admin
+@callback
+def ws_export(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Everything as one JSON document (configuration and token history)."""
+    data = hass.data[DOMAIN]
+    connection.send_result(
+        msg["id"],
+        {
+            "kis_segito_export": 1,
+            "version": data.version,
+            "config": data.store.data,
+            "ledger": data.store.ledger["transactions"],
         },
     )
