@@ -34,6 +34,7 @@ struct Child {
   int streak{0};
   int streak_target{7};
   bool selectable{true};  // false: shown locked on this knob
+  int pending_interest{0};  // interest not shown to the child yet
 };
 
 struct Reward {
@@ -162,6 +163,10 @@ class KisSegitoUI : public Component {
   void build_tokens_();
   void build_piggy_();
   void update_piggy_amount_();
+  // Idle micro-animation on the child carousel: a token rolls off the pile
+  // and a hand puts it back (full animation mode only).
+  void idle_pile_anim_();
+  void cancel_idle_anim_();
   // Time track shown behind every screen: the shared outer track, the selected
   // child's inner track and the top gap.
   void build_track_();
@@ -223,6 +228,9 @@ class KisSegitoUI : public Component {
   uint32_t inactivity_ms_{60000};  // back to the child carousel after this
   int piggy_amount_{0};            // tokens to move: + into, - out of the piggy bank
   lv_obj_t *piggy_label_{nullptr};
+  lv_obj_t *idle_coin_{nullptr};
+  lv_obj_t *idle_hand_{nullptr};
+  uint32_t next_idle_anim_ms_{0};
   std::string language_;
   ESPPreferenceObject child_pref_;  // hash of the last selected child id
 

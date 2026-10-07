@@ -205,6 +205,10 @@ image:
         file: ${kis_segito_assets}/task_wash_hands_32.png
       - id: ks_img_placeholder_avatar_180
         file: ${kis_segito_assets}/placeholder_avatar_180.png
+      - id: ks_img_hand_cartoon_64
+        file: ${kis_segito_assets}/hand_cartoon_64.png
+      - id: ks_img_badge_piggy_plus_48
+        file: ${kis_segito_assets}/badge_piggy_plus_48.png
 
 kis_segito_ui:
   id: ui
@@ -309,3 +313,5 @@ kis_segito_ui:
     task_wash_hands_40: ks_img_task_wash_hands_40
     task_wash_hands_32: ks_img_task_wash_hands_32
     placeholder_avatar_180: ks_img_placeholder_avatar_180
+    hand_cartoon_64: ks_img_hand_cartoon_64
+    badge_piggy_plus_48: ks_img_badge_piggy_plus_48

@@ -26,7 +26,7 @@ epoch seconds, colours `#RRGGBB`):
   "idle": 60,
   "children": [
     {"id": "…", "a": "test_avatar_1", "c": "#6CB8FF", "w": 17, "p": 23,
-     "pu": true, "s": 5, "st": 7, "sel": true}
+     "pu": true, "pi": 0, "s": 5, "st": 7, "sel": true}
   ],
   "rewards": [
     {"id": "…", "i": "reward_long_story", "c": 8, "k": "normal"}
@@ -43,6 +43,8 @@ epoch seconds, colours `#RRGGBB`):
 }
 ```
 
+- `children[].pi`: piggy-bank interest paid but not shown to the child yet; the
+  knob shows a badge and plays it when the piggy bank is opened.
 - `children[].sel`: whether the child can be selected on this knob (device
   assignment); others are shown locked.
 - `children[].a`, `rewards[].i`, `routines[].i`, `cp[].i`, `t[].i`: icon ids of
@@ -68,6 +70,7 @@ keeps processed ids for 7 days, so retries never book tokens twice.
 | `task` | `c` child, `r` routine, `t` task | A task of today's routine is done. |
 | `redeem` | `c` child, `r` reward | The child bought a reward. |
 | `piggy` | `c` child, `n` amount (+ deposit, − withdrawal) | Piggy-bank transfer. |
+| `seen` | `c` child | The child opened the piggy bank; pending interest was shown. |
 
 The knob shows the result at once; Home Assistant validates and books it and
 sends a new snapshot, which corrects the knob if the action was refused (for

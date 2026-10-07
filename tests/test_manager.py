@@ -95,6 +95,9 @@ async def test_piggy(manager: KisSegitoManager) -> None:
         await manager.async_piggy_transfer(kid, -16)
     await manager.async_pay_interest()
     assert manager.balances(kid)["piggy"] == 16  # 10 % of 15, rounded down
+    assert manager.snapshot("knob", "en")["children"][0]["pi"] == 1
+    await manager.async_device_action({"a": "seen", "id": "s1", "c": kid})
+    assert manager.snapshot("knob", "en")["children"][0]["pi"] == 0
 
 
 async def test_routine_checkpoint_reward_and_device_action(

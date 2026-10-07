@@ -688,6 +688,11 @@ class KisSegitoManager:
                 )
             elif kind == "piggy":
                 await self.async_piggy_transfer(child_id, int(action.get("n", 0)))
+            elif kind == "seen":
+                # The child opened the piggy bank: the interest was shown.
+                child = self._require_child(child_id)
+                if child.pop("pending_interest", None):
+                    await self._changed()
             else:
                 raise KisSegitoError("unknown_action")
             result: dict[str, Any] = {"ok": True}
@@ -962,6 +967,8 @@ class KisSegitoManager:
                 )
             )
             paid = True
+            # Shown on the knob until the child opens the piggy bank.
+            child["pending_interest"] = int(child.get("pending_interest", 0)) + amount
             self._fire(
                 "piggy_interest", child["id"], transaction_id=tx["id"], amount=amount
             )
@@ -997,6 +1004,7 @@ class KisSegitoManager:
                     "w": bal[lg.WALLET],
                     "p": bal[lg.PIGGY],
                     "pu": bool(child.get("piggy_unlocked")),
+                    "pi": int(child.get("pending_interest", 0)),
                     "s": self.streak(child["id"]),
                     "st": int(self.settings.get("streak_target", 7)),
                     "sel": child["id"] in selectable,

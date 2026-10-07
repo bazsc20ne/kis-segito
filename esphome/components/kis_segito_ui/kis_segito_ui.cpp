@@ -309,6 +309,7 @@ void KisSegitoUI::set_state(const std::string &json) {
     child.streak = c["s"] | 0;
     child.streak_target = c["st"] | 7;
     child.selectable = c["sel"] | true;
+    child.pending_interest = c["pi"] | 0;
     if (this->images_.count(child.avatar + "_180") == 0)
       child.avatar = "placeholder_avatar";
     children.push_back(child);
@@ -512,6 +513,17 @@ void KisSegitoUI::start() {
           return;
         }
         self->update_track_();
+        // Now and then, while nobody touches the knob, the pile comes alive.
+        const uint32_t now = millis();
+        if (self->screen_ == Screen::CHILDREN && self->anim_mode_ == 2 && !self->busy_ &&
+            !self->children_.empty() && now - self->last_input_ms_ > 15000) {
+          if (self->next_idle_anim_ms_ == 0)
+            self->next_idle_anim_ms_ = now + 30000 + random_uint32() % 60000;
+          if (static_cast<int32_t>(now - self->next_idle_anim_ms_) >= 0) {
+            self->next_idle_anim_ms_ = 0;
+            self->idle_pile_anim_();
+          }
+        }
         if (self->screen_ != Screen::CHILDREN && !self->busy_ && millis() - self->last_input_ms_ > self->inactivity_ms_)
           self->show_(Screen::CHILDREN);
       },
@@ -750,6 +762,7 @@ void KisSegitoUI::show_(Screen screen) {
     return;
   // Deleting the screen's objects also deletes their animations.
   this->busy_ = false;
+  this->cancel_idle_anim_();
   lv_obj_clean(this->screen_obj_);
   this->carousel_.release();  // its slots were just deleted
   this->task_big_ = this->timeline_ = this->piggy_label_ = nullptr;
@@ -804,6 +817,7 @@ void KisSegitoUI::rotate(int dir) {
   if (!this->started_)
     return;
   this->last_input_ms_ = millis();
+  this->cancel_idle_anim_();
   if (this->busy_ || this->children_.empty())
     return;
   switch (this->screen_) {
@@ -864,6 +878,7 @@ void KisSegitoUI::click() {
   if (!this->started_)
     return;
   this->last_input_ms_ = millis();
+  this->cancel_idle_anim_();
   if (this->busy_ || this->children_.empty())
     return;
   Child &child = this->children_[this->child_];
@@ -1047,6 +1062,8 @@ void KisSegitoUI::build_children_() {
         lv_obj_t *avatar = this->image_(slot, c.avatar + "_180", cx, 105);
         this->pile_(slot, cx, 300, c.wallet, fnv1_hash(c.id), 12, 15, 19, 10);
         this->number_pill_(slot, cx, 342, c.wallet, true);
+        if (c.pending_interest > 0 && c.piggy_unlocked)
+          this->image_(slot, "badge_piggy_plus_48", cx - 72, 40);  // interest waiting
         if (!c.selectable) {
           lv_obj_set_style_image_recolor(avatar, lv_color_hex(0x8C96A5), 0);
           lv_obj_set_style_image_recolor_opa(avatar, 150, 0);
@@ -1169,8 +1186,32 @@ void KisSegitoUI::build_tokens_() {
 }
 
 void KisSegitoUI::build_piggy_() {
-  const Child &child = this->children_[this->child_];
+  Child &child = this->children_[this->child_];
   this->piggy_amount_ = 0;
+  if (child.pending_interest > 0) {
+    // Interest paid while the child was away: drop exactly that many tokens
+    // into the piggy bank once, then tell Home Assistant it was shown.
+    const int coins = std::min(child.pending_interest, 40);
+    child.pending_interest = 0;
+    this->send_action_("seen", "");
+    if (this->anim_ms_(500) > 0) {
+      for (int i = 0; i < coins; i++) {
+        lv_obj_t *coin = this->image_(this->screen_obj_, "token_coin_front_28", CENTER - 40 + static_cast<int>(hash32(i) % 80), 60);
+        lv_anim_t a;
+        lv_anim_init(&a);
+        lv_anim_set_var(&a, coin);
+        lv_anim_set_values(&a, 46, 160);
+        lv_anim_set_delay(&a, 200 + i * 80);
+        lv_anim_set_duration(&a, this->anim_ms_(500));
+        lv_anim_set_exec_cb(&a, [](void *var, int32_t v) { lv_obj_set_y(static_cast<lv_obj_t *>(var), v); });
+        lv_anim_set_path_cb(&a, lv_anim_path_ease_in);
+        lv_anim_set_completed_cb(&a, [](lv_anim_t *anim) {
+          lv_obj_add_flag(static_cast<lv_obj_t *>(anim->var), LV_OBJ_FLAG_HIDDEN);
+        });
+        lv_anim_start(&a);
+      }
+    }
+  }
   this->image_(this->screen_obj_, "piggy_large_180", CENTER, 175);
   this->number_pill_(this->screen_obj_, CENTER, 268, child.piggy, true);
   // The amount to move, chosen by turning; pressing moves it.
@@ -1180,6 +1221,92 @@ void KisSegitoUI::build_piggy_() {
   this->update_piggy_amount_();
   // The wallet is a separate thing: shown at the bottom.
   this->number_pill_(this->screen_obj_, CENTER, 410, child.wallet, true);
+}
+
+void KisSegitoUI::cancel_idle_anim_() {
+  for (lv_obj_t **obj : {&this->idle_coin_, &this->idle_hand_}) {
+    if (*obj != nullptr) {
+      lv_anim_delete(*obj, nullptr);
+      lv_obj_delete(*obj);
+      *obj = nullptr;
+    }
+  }
+}
+
+// Keyframes of the idle animation (ms): the token rolls off, rests, is
+// carried back; the hand comes in, carries it and leaves.
+static constexpr int IDLE_ROLL_END = 700, IDLE_HAND_IN = 900, IDLE_CARRY = 1600, IDLE_BACK = 2200,
+                     IDLE_HAND_OUT = 2300, IDLE_END = 2800;
+static int idle_top_y = 260;  // top of the pile while the animation runs
+
+static int lerp(int a, int b, int t, int t0, int t1) {
+  if (t <= t0)
+    return a;
+  if (t >= t1)
+    return b;
+  const float k = static_cast<float>(t - t0) / static_cast<float>(t1 - t0);
+  const float e = k * k * (3 - 2 * k);  // smoothstep
+  return a + static_cast<int>((b - a) * e);
+}
+
+static void idle_coin_cb(void *var, int32_t t) {
+  auto *coin = static_cast<lv_obj_t *>(var);
+  const int x0 = CENTER - 14, x1 = CENTER + 56, rest_y = 346 - 14, top = idle_top_y - 14;
+  int x, y;
+  if (t < IDLE_CARRY) {
+    x = lerp(x0, x1, t, 0, IDLE_ROLL_END);
+    // Falling with a small bounce at the end.
+    const int fall = lerp(top, rest_y, t, 0, IDLE_ROLL_END - 150);
+    const int bounce = (t > IDLE_ROLL_END - 150 && t < IDLE_ROLL_END) ? -8 : 0;
+    y = fall + bounce;
+    lv_image_set_rotation(coin, lerp(0, 7200, t, 0, IDLE_ROLL_END));
+  } else {
+    x = lerp(x1, x0, t, IDLE_CARRY, IDLE_BACK);
+    y = lerp(rest_y, top, t, IDLE_CARRY, IDLE_BACK);
+  }
+  lv_obj_set_pos(coin, x, y);
+}
+
+static void idle_hand_cb(void *var, int32_t t) {
+  auto *hand = static_cast<lv_obj_t *>(var);
+  const int out = SCREEN + 8, x1 = CENTER + 56, x0 = CENTER - 14;
+  int x;
+  if (t < IDLE_CARRY)
+    x = lerp(out, x1 + 4, t, IDLE_HAND_IN, IDLE_HAND_IN + 500);
+  else if (t < IDLE_HAND_OUT)
+    x = lerp(x1 + 4, x0 + 4, t, IDLE_CARRY, IDLE_BACK);
+  else
+    x = lerp(x0 + 4, out, t, IDLE_HAND_OUT, IDLE_END);
+  lv_obj_set_x(hand, x);
+}
+
+void KisSegitoUI::idle_pile_anim_() {
+  // A token slips off the top of the centred child's pile and rolls aside;
+  // a cartoon hand comes in and puts it back. Any input cancels it.
+  const Child &c = this->children_[this->child_];
+  if (c.wallet <= 0 || this->idle_coin_ != nullptr)
+    return;
+  idle_top_y = 300 - std::min(c.wallet, 12) * 4;
+  this->idle_coin_ = this->image_(this->screen_obj_, "token_coin_front_28", CENTER, idle_top_y);
+  lv_image_set_pivot(this->idle_coin_, 14, 14);
+  this->idle_hand_ = this->image_(this->screen_obj_, "hand_cartoon_64", SCREEN + 40, 346);
+  for (lv_obj_t *obj : {this->idle_coin_, this->idle_hand_}) {
+    lv_anim_t a;
+    lv_anim_init(&a);
+    lv_anim_set_var(&a, obj);
+    lv_anim_set_values(&a, 0, IDLE_END);
+    lv_anim_set_duration(&a, IDLE_END);
+    lv_anim_set_exec_cb(&a, obj == this->idle_coin_ ? idle_coin_cb : idle_hand_cb);
+    lv_anim_start(&a);
+  }
+  lv_timer_t *t = lv_timer_create(
+      [](lv_timer_t *timer) {
+        auto *self = static_cast<KisSegitoUI *>(lv_timer_get_user_data(timer));
+        lv_timer_delete(timer);
+        self->cancel_idle_anim_();
+      },
+      IDLE_END + 100, this);
+  lv_timer_set_repeat_count(t, 1);
 }
 
 void KisSegitoUI::update_piggy_amount_() {
