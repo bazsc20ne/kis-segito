@@ -48,6 +48,20 @@ function uid() {
   ).join("");
 }
 
+function shiftTime(hhmm, minutes) {
+  const [h, m] = String(hhmm || "0:0").split(":").map(Number);
+  const total = Math.min(Math.max(h * 60 + m + minutes, 0), 23 * 60 + 59);
+  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+}
+
+function toMinutes(hhmm) {
+  const [h, m] = String(hhmm || "0:0").split(":").map(Number);
+  return h * 60 + m;
+}
+
+// Calendar colours offered for routines (#18).
+const ROUTINE_COLORS = ["#6BCB77", "#6CB8FF", "#A78BFA", "#FF8FB1", "#FFC94A", "#4DD4C6", "#FF9F43", "#8C96A5"];
+
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
@@ -94,6 +108,10 @@ class KisSegitoPanel extends HTMLElement {
         menuButton.hass = hass;
       }
     }
+  }
+
+  get _isNarrow() {
+    return Boolean(this._narrow) || window.innerWidth < 600;
   }
 
   set narrow(narrow) {
@@ -239,6 +257,198 @@ class KisSegitoPanel extends HTMLElement {
     this._week = await this._hass.callWS(msg);
   }
 
+  get _viewKey() {
+    return `kis_segito_calendar_view_${this._hass?.user?.id || ""}`;
+  }
+
+  // Day, 3 days or week (#19): the user's last choice, else by screen width.
+  get _calModeNow() {
+    if (!this._calMode) {
+      try {
+        this._calMode = localStorage.getItem(this._viewKey) || "";
+      } catch (_err) {
+        this._calMode = "";
+      }
+    }
+    return this._calMode || (this._isNarrow ? "day" : "week");
+  }
+
+  async _syncCalendarRange() {
+    // Week view starts on Monday; day and 3-day views start on the chosen day.
+    if (this._calModeNow === "week") {
+      const d = new Date(`${this._calDayDate()}T12:00:00`);
+      d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+      this._weekStart = this._calDay ? d.toISOString().slice(0, 10) : null;
+    } else {
+      this._weekStart = this._calDay || null;
+      if (!this._calDay) {
+        this._weekStart = new Date().toISOString().slice(0, 10);
+      }
+    }
+    await this._loadWeek();
+  }
+
+  _calDayDate() {
+    return this._calDay || this._week?.days?.find((d) => d.today)?.date || new Date().toISOString().slice(0, 10);
+  }
+
+  async _ensureWeekFor(dateStr) {
+    if (this._week?.days?.some((d) => d.date === dateStr)) {
+      return;
+    }
+    const d = new Date(`${dateStr}T12:00:00`);
+    d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+    this._weekStart = d.toISOString().slice(0, 10);
+    await this._loadWeek();
+  }
+
+  _todayStr() {
+    return this._week?.days?.find((d) => d.today)?.date || new Date().toISOString().slice(0, 10);
+  }
+
+  // Opens the routine editor for one date ("only this day", #17).
+  _openDayEditor(dateStr, routineId, time) {
+    const day = this._week?.days?.find((d) => d.date === dateStr);
+    const running = day?.routines?.find((r) => r.id === routineId);
+    const source = this._data.routines.find((r) => r.id === routineId) || null;
+    let item;
+    if (running) {
+      item = clone(running.routine);
+    } else if (source) {
+      item = clone(source);
+    } else {
+      const start = time || "16:00";
+      item = { ...this._newItem("routines"), start, end: shiftTime(start, 60) };
+    }
+    delete item.one_day;
+    item.zones = item.zones || [];
+    item.checkpoints = item.checkpoints || [];
+    item.tasks = item.tasks || [];
+    item.children = item.children || [];
+    this._edit = {
+      collection: "day_routine",
+      date: dateStr,
+      routine_id: routineId,
+      item,
+      base: running?.one_day ? null : source ? clone(source) : null,
+      edited: Boolean(running?.edited),
+      one_day: Boolean(running?.one_day),
+      readonly: dateStr < this._todayStr() || !this._isAdmin,
+    };
+  }
+
+  // A click on a calendar block asks, like Outlook: this occurrence only, or
+  // the whole series (the routine itself). One-day routines and past days
+  // open directly.
+  _openFromCalendar(dateStr, routineId) {
+    const day = this._week?.days?.find((d) => d.date === dateStr);
+    const running = day?.routines?.find((r) => r.id === routineId);
+    const isSeries = this._data.routines.some((r) => r.id === routineId);
+    if (!running?.one_day && isSeries && this._isAdmin && dateStr >= this._todayStr()) {
+      this._askScope = { date: dateStr, routineId };
+    } else {
+      this._openDayEditor(dateStr, routineId);
+    }
+    this._render();
+  }
+
+  // Calendar drag (#17): move a block, or drag its top/bottom edge; 5-minute
+  // grid, live time label; the drop becomes a change for that day only.
+  _startDrag(ev, block) {
+    const date = block.dataset.date;
+    if (!this._isAdmin || date < this._todayStr()) {
+      // Read-only: a click still opens the (read-only) editor.
+      this._drag = { block, date, routineId: block.dataset.routine, readonly: true, moved: false };
+      return;
+    }
+    const rect = block.getBoundingClientRect();
+    const offset = ev.clientY - rect.top;
+    const mode = offset < 8 ? "start" : rect.height - offset < 8 ? "end" : "move";
+    this._drag = {
+      block,
+      date,
+      routineId: block.dataset.routine,
+      mode,
+      y0: ev.clientY,
+      top0: block.offsetTop,
+      height0: block.offsetHeight,
+      minutes: 0,
+      moved: false,
+      pointerId: ev.pointerId,
+    };
+    block.setPointerCapture?.(ev.pointerId);
+  }
+
+  _moveDrag(ev) {
+    const d = this._drag;
+    if (!d || d.readonly) {
+      return;
+    }
+    const PX = 0.7;
+    const minutes = Math.round((ev.clientY - d.y0) / PX / 5) * 5;
+    if (!d.moved && Math.abs(ev.clientY - d.y0) < 4) {
+      return;
+    }
+    d.moved = true;
+    d.minutes = minutes;
+    const day = this._week.days.find((x) => x.date === d.date);
+    const r = day.routines.find((x) => x.id === d.routineId);
+    let start = r.start;
+    let end = r.end;
+    if (d.mode === "move") {
+      start = shiftTime(r.start, minutes);
+      end = shiftTime(r.end, minutes);
+      d.block.style.top = `${d.top0 + minutes * PX}px`;
+    } else if (d.mode === "start") {
+      start = shiftTime(r.start, Math.min(minutes, toMinutes(r.end) - toMinutes(r.start) - 5));
+      d.block.style.top = `${d.top0 + (toMinutes(start) - toMinutes(r.start)) * PX}px`;
+      d.block.style.height = `${(toMinutes(end) - toMinutes(start)) * PX}px`;
+    } else {
+      end = shiftTime(r.end, Math.max(minutes, toMinutes(r.start) - toMinutes(r.end) + 5));
+      d.block.style.height = `${(toMinutes(end) - toMinutes(start)) * PX}px`;
+    }
+    d.start = start;
+    d.end = end;
+    const label = d.block.querySelector(".block-sub");
+    if (label) {
+      label.textContent = `${start}–${end}`;
+    }
+    d.block.classList.add("dragging");
+  }
+
+  async _endDrag() {
+    const d = this._drag;
+    this._drag = null;
+    if (!d) {
+      return;
+    }
+    if (!d.moved) {
+      this._openFromCalendar(d.date, d.routineId);
+      return;
+    }
+    const day = this._week.days.find((x) => x.date === d.date);
+    const r = day.routines.find((x) => x.id === d.routineId);
+    const routine = clone(r.routine);
+    delete routine.one_day;
+    if (d.mode === "move") {
+      // The whole routine moves: checkpoints with it (tasks have no times).
+      routine.start = d.start;
+      routine.end = d.end;
+      routine.checkpoints = (routine.checkpoints || []).map((c) => (c.time ? { ...c, time: shiftTime(c.time, d.minutes) } : c));
+    } else {
+      routine.start = d.start;
+      routine.end = d.end;
+    }
+    // Undo puts back exactly the previous state of that day.
+    this._undo = {
+      date: d.date,
+      routine_id: d.routineId,
+      routine: r.edited || r.one_day ? (() => { const p = clone(r.routine); delete p.one_day; return p; })() : null,
+    };
+    await this._ws({ type: "kis_segito/day_routine", date: d.date, routine_id: d.routineId, routine });
+    await this._load();
+  }
+
   async _loadRules() {
     const [rules, targets] = await Promise.all([
       this._hass.callWS({ type: "kis_segito/notifications" }),
@@ -355,7 +565,9 @@ class KisSegitoPanel extends HTMLElement {
         if (arg === "history" || arg === "tokens") {
           await this._loadHistory();
         }
-        if (arg === "today" || arg === "calendar") {
+        if (arg === "calendar") {
+          await this._syncCalendarRange();
+        } else if (arg === "today") {
           await this._loadWeek();
         }
         if (arg === "notifications") {
@@ -377,6 +589,18 @@ class KisSegitoPanel extends HTMLElement {
         this._picker = null;
         break;
       case "save":
+        if (this._edit.collection === "day_routine") {
+          await this._ws({
+            type: "kis_segito/day_routine",
+            date: this._edit.date,
+            routine_id: this._edit.routine_id,
+            routine: this._edit.item,
+          });
+          this._edit = null;
+          this._picker = null;
+          await this._load();
+          return;
+        }
         await this._ws({
           type: "kis_segito/save",
           collection: this._edit.collection,
@@ -386,7 +610,20 @@ class KisSegitoPanel extends HTMLElement {
         this._picker = null;
         await this._load();
         return;
+      case "day-restore":
       case "delete":
+        if (this._edit?.collection === "day_routine") {
+          // Restore the routine for that day (or remove a one-day routine).
+          await this._ws({
+            type: "kis_segito/day_routine",
+            date: this._edit.date,
+            routine_id: this._edit.routine_id,
+            routine: null,
+          });
+          this._edit = null;
+          await this._load();
+          return;
+        }
         if (!confirm(this._t("common.confirm_delete"))) {
           return;
         }
@@ -438,6 +675,50 @@ class KisSegitoPanel extends HTMLElement {
         else this._expanded.add(arg);
         if (ev.preventDefault) ev.preventDefault();
         break;
+      case "day-edit":
+        this._openDayEditor(el.dataset.date, arg || null);
+        break;
+      case "day-new":
+        this._openDayEditor(el.dataset.date, null, el.dataset.time);
+        break;
+      case "cal-mode":
+        this._calMode = arg;
+        try {
+          localStorage.setItem(this._viewKey, arg);
+        } catch (_err) {
+          // Private mode: not remembered.
+        }
+        await this._syncCalendarRange();
+        break;
+      case "scope": {
+        const ask = this._askScope;
+        this._askScope = null;
+        if (arg === "series") {
+          const item = this._data.routines.find((r) => r.id === ask.routineId);
+          this._tab = "routines";
+          this._edit = { collection: "routines", item: clone(item) };
+        } else if (arg === "once") {
+          this._openDayEditor(ask.date, ask.routineId);
+        }
+        break;
+      }
+      case "cal-day": {
+        const step = this._calModeNow === "3day" ? 3 : 1;
+        const d = new Date(`${this._calDayDate()}T12:00:00`);
+        d.setDate(d.getDate() + (arg === "next" ? step : arg === "prev" ? -step : 0));
+        this._calDay = arg === "today" ? null : d.toISOString().slice(0, 10);
+        await this._syncCalendarRange();
+        break;
+      }
+      case "undo": {
+        const undo = this._undo;
+        this._undo = null;
+        if (undo) {
+          await this._ws({ type: "kis_segito/day_routine", date: undo.date, routine_id: undo.routine_id, routine: undo.routine });
+          await this._load();
+        }
+        return;
+      }
       case "clear-picture":
         this._edit.item[arg] = "";
         break;
@@ -780,6 +1061,9 @@ class KisSegitoPanel extends HTMLElement {
           ],
           checkpoints: [],
           tasks: [],
+          color:
+            ROUTINE_COLORS.find((c) => !this._data.routines.some((r) => r.color === c)) ||
+            ROUTINE_COLORS[this._data.routines.length % ROUTINE_COLORS.length],
         };
     }
   }
@@ -905,6 +1189,9 @@ class KisSegitoPanel extends HTMLElement {
         </div>`;
       })
       .join("");
+    if (this._edit?.collection === "day_routine") {
+      return this._editRoutine();
+    }
     return `<div class="grid">${cards}</div>${this._viewModifyToday()}`;
   }
 
@@ -921,9 +1208,6 @@ class KisSegitoPanel extends HTMLElement {
         r.active !== false &&
         (template ? template.routines.includes(r.id) : !r.weekdays?.length || r.weekdays.includes(weekday))
     );
-    if (!scheduled.length) {
-      return "";
-    }
     const rows = scheduled
       .map((r) => {
         const running = day.routines.find((x) => x.id === r.id);
@@ -941,7 +1225,8 @@ class KisSegitoPanel extends HTMLElement {
             : `<label class="inline"><input type="number" step="5" class="short" data-shift="${r.id}" value="${shift}"> ${this._e(this._t("modify.minutes"))}</label>
                <button class="small" data-action="override" data-arg="${r.id}">${this._e(this._t("modify.shift"))}</button>
                <button class="small" data-action="override" data-skip="1" data-arg="${r.id}">${this._e(this._t("modify.skip"))}</button>
-               ${shift ? `<button class="small" data-action="override" data-reset="1" data-arg="${r.id}">${this._e(this._t("modify.restore"))}</button>` : ""}`
+               ${shift ? `<button class="small" data-action="override" data-reset="1" data-arg="${r.id}">${this._e(this._t("modify.restore"))}</button>` : ""}
+               <button class="small" data-action="day-edit" data-date="${day.date}" data-arg="${r.id}">${this._e(this._t("modify.edit"))}</button>`
           : "";
         return `<div class="row wrap ${skipped ? "dim" : ""}">${this._icon(r.icon, 32)}
           <span class="grow">${this._e(r.name || this._t("routines.unnamed"))} <span class="muted">${this._e(times)}</span> ${state}</span>
@@ -957,63 +1242,108 @@ class KisSegitoPanel extends HTMLElement {
           ${templates.map((t) => `<option value="${t.id}" ${t.id === chosen ? "selected" : ""}>${this._e(t.name)}</option>`).join("")}
         </select></label>`
       : "";
+    const oneDay = day.routines
+      .filter((r) => r.one_day)
+      .map((r) => `<div class="row wrap">${this._icon(r.icon, 32)}<span class="grow">${this._e(r.name || this._t("routines.unnamed"))} <span class="muted">${this._e(r.start)}–${this._e(r.end)}</span> <span class="badge">1</span></span>
+        ${this._isAdmin ? `<button class="small" data-action="day-edit" data-date="${day.date}" data-arg="${r.id}">${this._e(this._t("common.edit"))}</button>` : ""}</div>`)
+      .join("");
     return `<div class="card form"><h2>${this._e(this._t("modify.title"))}</h2>
-      <div class="muted">${this._e(this._t("modify.hint"))}</div>${templateSelect}${rows}</div>`;
+      <div class="muted">${this._e(this._t("modify.hint"))}</div>${templateSelect}${rows}${oneDay}
+      ${this._isAdmin ? `<div class="row"><button class="small" data-action="day-new" data-date="${day.date}">+ ${this._e(this._t("modify.add_one_day"))}</button></div>` : ""}</div>`;
   }
 
   _viewCalendar() {
+    if (this._edit?.collection === "day_routine") {
+      return this._editRoutine();
+    }
     if (!this._week) {
       return `<div class="card empty">${this._e(this._t("common.loading"))}</div>`;
     }
     const FROM = 5 * 60;
     const TO = 23 * 60;
     const PX = 0.7; // pixels per minute
-    const toMin = (hhmm) => {
-      const [h, m] = String(hhmm || "0:0").split(":").map(Number);
-      return h * 60 + m;
-    };
     const filter = this._calendarChild;
+    // Phones start with the day view (#19).
+    const mode = this._calModeNow;
+    const today = this._todayStr();
+    const first = this._week.days.findIndex((d) => d.date === this._calDayDate());
+    const days =
+      mode === "week"
+        ? this._week.days
+        : this._week.days.slice(Math.max(first, 0), Math.max(first, 0) + (mode === "3day" ? 3 : 1));
     const hours = [];
     for (let h = FROM / 60; h <= TO / 60; h += 2) {
       hours.push(`<div class="hour" style="top:${(h * 60 - FROM) * PX}px">${String(h).padStart(2, "0")}:00</div>`);
     }
-    const columns = this._week.days
+    const columns = days
       .map((day) => {
         const date = new Date(`${day.date}T12:00:00`);
-        const head = date.toLocaleDateString(this._language, { weekday: "short", day: "numeric", month: "numeric" });
+        // Google Calendar style head: short weekday above a big day number.
+        const head = `<span class="wd">${this._e(date.toLocaleDateString(this._language, { weekday: "short" }))}</span><span class="dn">${date.getDate()}</span>`;
+        const past = day.date < today;
         const blocks = day.routines
           .filter((r) => !filter || !r.children.length || r.children.includes(filter))
           .map((r) => {
-            const top = Math.max(0, (toMin(r.start) - FROM) * PX);
-            const height = Math.max(18, (toMin(r.end) - toMin(r.start)) * PX);
+            const top = Math.max(0, (toMinutes(r.start) - FROM) * PX);
+            const height = Math.max(18, (toMinutes(r.end) - toMinutes(r.start)) * PX);
             const who = r.children.length
               ? r.children.map((id) => this._child(id)?.name).filter(Boolean).join(", ")
               : this._t("routines.everyone");
             const cps = r.checkpoints
               .filter((c) => c.time)
-              .map((c) => `<span class="cp" style="top:${(toMin(c.time) - toMin(r.start)) * PX - 7}px" title="${this._e(c.name)} ${this._e(c.time)}">${this._icon(c.icon || "checkpoint_flag", 14)}</span>`)
+              .map((c) => `<span class="cp" style="top:${(toMinutes(c.time) - toMinutes(r.start)) * PX - 7}px" title="${this._e(c.name)} ${this._e(c.time)}">${this._icon(c.icon || "checkpoint_flag", 14)}</span>`)
               .join("");
-            return `<div class="block ${r.override ? "changed" : ""}" style="top:${top}px;height:${height}px">
-              <div class="block-title">${this._icon(r.icon, 16)} ${this._e(r.name || this._t("routines.unnamed"))}</div>
+            const color = r.routine?.color || "#6BCB77";
+            // Changed for this day: dashed border and a badge, not only colour (#18).
+            const changed = r.edited || r.override?.shift_min || r.override?.skip;
+            const badge = r.one_day
+              ? `<span class="badge" title="${this._e(this._t("calendar.one_day"))}">1</span>`
+              : changed
+                ? `<span class="badge" title="${this._e(this._t("calendar.changed"))}">✎</span>`
+                : "";
+            return `<div class="block ${changed ? "changed" : ""} ${r.one_day ? "one-day" : ""} ${past ? "past" : ""}" style="top:${top}px;height:${height}px;--rc:${this._e(color)}"
+              data-block data-date="${day.date}" data-routine="${this._e(r.id)}">
+              <div class="block-title">${badge}${this._icon(r.icon, 16)} ${this._e(r.name || this._t("routines.unnamed"))}</div>
               <div class="block-sub">${this._e(r.start)}–${this._e(r.end)} · ${this._e(who)}</div>${cps}</div>`;
           })
           .join("");
         const tpl = day.template_name ? `<div class="tpl">${this._e(day.template_name)}</div>` : "";
-        return `<div class="day ${day.today ? "is-today" : ""}"><div class="day-head">${this._e(head)}${tpl}</div>
-          <div class="day-body" style="height:${(TO - FROM) * PX}px">${blocks}</div></div>`;
+        return `<div class="day ${day.today ? "is-today" : ""} ${past ? "past" : ""}"><div class="day-head">${head}${tpl}</div>
+          <div class="day-body" data-day-body data-date="${day.date}" style="height:${(TO - FROM) * PX}px">${blocks}</div></div>`;
       })
       .join("");
     const options = [`<option value="">${this._e(this._t("history.all_children"))}</option>`]
       .concat(this._data.children.map((c) => `<option value="${c.id}" ${c.id === filter ? "selected" : ""}>${this._e(c.name)}</option>`))
       .join("");
-    return `<div class="row wrap">
-        <button data-action="week" data-arg="prev">‹</button>
-        <button data-action="week" data-arg="now">${this._e(this._t("calendar.this_week"))}</button>
-        <button data-action="week" data-arg="next">›</button>
+    const nav = mode !== "week"
+      ? `<button data-action="cal-day" data-arg="prev">‹</button>
+         <button data-action="cal-day" data-arg="today">${this._e(this._t("calendar.today"))}</button>
+         <button data-action="cal-day" data-arg="next">›</button>`
+      : `<button data-action="week" data-arg="prev">‹</button>
+         <button data-action="week" data-arg="now">${this._e(this._t("calendar.this_week"))}</button>
+         <button data-action="week" data-arg="next">›</button>`;
+    const month = new Date(`${days[0]?.date || today}T12:00:00`).toLocaleDateString(this._language, { year: "numeric", month: "long" });
+    const ask = this._askScope
+      ? `<div class="overlay"><div class="card dialog">
+          <h2>${this._e(this._t("scope.title"))}</h2>
+          <div class="muted">${this._e(this._t("scope.hint"))}</div>
+          <div class="row wrap buttons">
+            <button class="primary" data-action="scope" data-arg="once">${this._e(this._t("scope.once"))}</button>
+            <button data-action="scope" data-arg="series">${this._e(this._t("scope.series"))}</button>
+            <button data-action="scope" data-arg="cancel">${this._e(this._t("common.cancel"))}</button>
+          </div></div></div>`
+      : "";
+    const undo = this._undo
+      ? `<div class="card row update"><span class="grow">${this._e(this._t("calendar.moved"))}</span><button data-action="undo">${this._e(this._t("calendar.undo"))}</button></div>`
+      : "";
+    return `<div class="row wrap">${nav}
+        <span class="month">${this._e(month)}</span>
         <span class="grow"></span>
+        <span class="seg">${["day", "3day", "week"].map((m) => `<button class="${mode === m ? "sel" : ""}" data-action="cal-mode" data-arg="${m}">${this._e(this._t(`calendar.${m}`))}</button>`).join("")}</span>
         <select data-calendar-child>${options}</select></div>
-      <div class="card calendar"><div class="hours" style="height:${(TO - FROM) * PX}px">${hours.join("")}</div>${columns}</div>
-      <div class="muted">${this._e(this._t("calendar.hint"))}</div>
+      ${undo}
+      <div class="card calendar ${mode}"><div class="hours" style="height:${(TO - FROM) * PX}px">${hours.join("")}</div>${columns}</div>${ask}
+      <div class="muted">${this._e(this._t(this._isAdmin ? "calendar.hint_edit" : "calendar.hint"))}</div>
       ${this._viewTemplates()}`;
   }
 
@@ -1231,8 +1561,22 @@ class KisSegitoPanel extends HTMLElement {
 
   _editRoutine() {
     const r = this._edit.item;
+    const dayMode = this._edit.collection === "day_routine";
+    const base = this._edit.base;
+    // In "only this day" mode, sections that differ from the routine are marked.
+    const diff = (key) =>
+      dayMode && base && JSON.stringify(r[key] ?? null) !== JSON.stringify(base[key] ?? null)
+        ? ` <span class="badge" title="${this._e(this._t("calendar.changed"))}">✎</span>`
+        : "";
+    const others = this._data.routines.filter((x) => x.id !== r.id && x.color);
+    const similar = r.color && others.some((x) => colorDistance(x.color, r.color) < 50);
+    const colorField = `<div class="field"><span>${this._e(this._t("routines.color"))}${diff("color")}</span>
+      <div class="row wrap">${ROUTINE_COLORS.map((col) => `<button class="swatch ${col === r.color ? "sel" : ""}" style="background:${col}" data-action="color" data-path="color" data-arg="${col}"></button>`).join("")}
+        <input type="color" data-path="color" data-rerender value="${this._e(r.color || "#6BCB77")}"></div>
+      ${similar ? `<div class="warn">${this._e(this._t("routines.color_similar"))}</div>` : ""}
+      <div class="muted">${this._e(this._t("routines.color_hint"))}</div></div>`;
     const weekdays = WEEKDAYS.map(
-      (d) => `<button class="chip ${r.weekdays.includes(d) ? "sel" : ""}" data-action="weekday" data-arg="${d}">${this._e(this._t(`weekday.${d}`))}</button>`
+      (d) => `<button class="chip ${(r.weekdays || []).includes(d) ? "sel" : ""}" data-action="weekday" data-arg="${d}">${this._e(this._t(`weekday.${d}`))}</button>`
     ).join("");
     const zones = r.zones
       .map(
@@ -1282,30 +1626,56 @@ class KisSegitoPanel extends HTMLElement {
           <button class="icon-btn" data-action="remove" data-path="tasks" data-arg="${i}">✕</button></div>`
       )
       .join("");
-    return `<div class="card form">
-      <h2>${this._e(this._t(r.id ? "routines.edit" : "routines.add"))}</h2>
+    const dateLabel = dayMode
+      ? new Date(`${this._edit.date}T12:00:00`).toLocaleDateString(this._language, { weekday: "long", year: "numeric", month: "long", day: "numeric" })
+      : "";
+    const title = dayMode
+      ? `${this._t(this._edit.one_day || !this._edit.routine_id ? "day.one_day_title" : "day.title")}: ${dateLabel}`
+      : this._t(r.id ? "routines.edit" : "routines.add");
+    const dayNote = dayMode
+      ? `<div class="card sub">${this._e(this._t(this._edit.readonly ? "day.readonly" : "day.hint"))}</div>`
+      : "";
+    return `<div class="card form sheet ${dayMode ? "day-mode" : ""}">
+      <h2>${this._e(title)}</h2>${dayNote}
+      <fieldset ${this._edit.readonly ? "disabled" : ""}>
       <div class="row"><button class="pick" data-action="pick" data-path="icon" data-arg="routine">${this._icon(r.icon, 56)}</button>
-        <label class="grow">${this._e(this._t("common.name"))}<input data-path="name" value="${this._e(r.name)}"></label></div>
-      <div class="row"><label>${this._e(this._t("routines.start"))}<input type="time" data-path="start" value="${this._e(r.start)}"></label>
-        <label>${this._e(this._t("routines.end"))}<input type="time" data-path="end" value="${this._e(r.end)}"></label></div>
-      <div class="field"><span>${this._e(this._t("routines.days"))}</span><div class="row wrap">${weekdays}</div></div>
-      <div class="field"><span>${this._e(this._t("routines.children"))}</span>${this._childChips("children")}</div>
+        <label class="grow">${this._e(this._t("common.name"))}${diff("name")}<input data-path="name" value="${this._e(r.name)}"></label></div>
+      <div class="row wrap"><label>${this._e(this._t("routines.start"))}${diff("start")}<input type="time" data-path="start" value="${this._e(r.start)}"></label>
+        <label>${this._e(this._t("routines.end"))}${diff("end")}<input type="time" data-path="end" value="${this._e(r.end)}"></label></div>
+      ${dayMode ? "" : `<div class="field"><span>${this._e(this._t("routines.days"))}</span><div class="row wrap">${weekdays}</div></div>`}
+      <div class="field"><span>${this._e(this._t("routines.children"))}${diff("children")}</span>${this._childChips("children")}</div>
+      ${colorField}
       <label class="check"><input type="checkbox" data-path="on_device" ${r.on_device !== false ? "checked" : ""}>${this._e(this._t("routines.on_device"))}</label>
-      <label class="check"><input type="checkbox" data-path="active" ${r.active !== false ? "checked" : ""}>${this._e(this._t("common.active"))}</label>
-      <h3>${this._e(this._t("routines.zones"))}</h3>
+      ${dayMode ? "" : `<label class="check"><input type="checkbox" data-path="active" ${r.active !== false ? "checked" : ""}>${this._e(this._t("common.active"))}</label>`}
+      <h3>${this._e(this._t("routines.zones"))}${diff("zones")}</h3>
       <div class="muted">${this._e(this._t("routines.zones_hint"))}</div>
-      <div class="row"><span>${this._e(this._t("routines.base_color"))}</span><input type="color" data-path="base_color" value="${this._e(r.base_color || "#6BCB77")}"></div>
+      <div class="row"><span>${this._e(this._t("routines.base_color"))}${diff("base_color")}</span><input type="color" data-path="base_color" value="${this._e(r.base_color || "#6BCB77")}"></div>
       ${zones}
       <button data-action="add" data-path="zones" data-arg="zone">+ ${this._e(this._t("routines.add_zone"))}</button>
-      <h3>${this._e(this._t("routines.checkpoints"))}</h3>
+      <h3>${this._e(this._t("routines.checkpoints"))}${diff("checkpoints")}</h3>
       <div class="muted">${this._e(this._t("routines.checkpoints_hint"))}</div>
       ${checkpoints}
       <button data-action="add" data-path="checkpoints" data-arg="checkpoint" data-rerender>+ ${this._e(this._t("routines.add_checkpoint"))}</button>
-      <h3>${this._e(this._t("routines.tasks"))}</h3>
+      <h3>${this._e(this._t("routines.tasks"))}${diff("tasks")}</h3>
       ${tasks}
       <button data-action="add" data-path="tasks" data-arg="task">+ ${this._e(this._t("routines.add_task"))}</button>
-      ${r.id ? `<div class="muted small">ID: ${this._e(r.id)}</div>` : ""}
-      ${this._formButtons(Boolean(r.id))}
+      ${r.id && !dayMode ? `<div class="muted small">ID: ${this._e(r.id)}</div>` : ""}
+      </fieldset>
+      ${dayMode ? this._dayButtons() : this._formButtons(Boolean(r.id))}
+    </div>`;
+  }
+
+  _dayButtons() {
+    const e = this._edit;
+    if (e.readonly) {
+      return `<div class="row buttons"><button data-action="cancel">${this._e(this._t("common.close"))}</button></div>`;
+    }
+    return `<div class="row buttons">
+      <button class="primary" data-action="save">${this._e(this._t("day.save"))}</button>
+      <button data-action="cancel">${this._e(this._t("common.cancel"))}</button>
+      <span class="grow"></span>
+      ${e.routine_id && e.edited && !e.one_day ? `<button data-action="day-restore">${this._e(this._t("day.restore"))}</button>` : ""}
+      ${e.one_day ? `<button class="danger" data-action="delete">${this._e(this._t("day.remove"))}</button>` : ""}
     </div>`;
   }
 
@@ -1554,7 +1924,13 @@ class KisSegitoPanel extends HTMLElement {
         calendar: () => this._viewCalendar(),
         notifications: () => this._viewNotifications(),
       }[this._tab];
-      body = view();
+      try {
+        body = view();
+      } catch (err) {
+        // Never leave the old screen silently: show what went wrong.
+        console.error("Kis Segito: render failed", err);
+        body = `<div class="card error">${this._e(String(err))}</div>`;
+      }
     }
     const tabs = TABS.map(
       (tab) => `<button class="tab ${tab === this._tab ? "sel" : ""}" data-action="tab" data-arg="${tab}">${this._icon(TAB_ICONS[tab], 28)}<span>${this._e(this._t(`tab.${tab}`))}</span></button>`
@@ -1597,6 +1973,66 @@ class KisSegitoPanel extends HTMLElement {
         this._onClick(ev).catch(() => {});
       });
       this.shadowRoot.addEventListener("change", (ev) => this._onChange(ev).catch(() => {}));
+      // Calendar: drag blocks (mouse at once, touch after a long press).
+      this.shadowRoot.addEventListener("pointerdown", (ev) => {
+        const block = ev.target.closest?.("[data-block]");
+        if (block) {
+          // No native image dragging or text selection inside blocks.
+          if (ev.pointerType !== "touch") {
+            ev.preventDefault();
+          }
+          if (ev.pointerType === "touch") {
+            this._pressTimer = setTimeout(() => this._startDrag(ev, block), 400);
+            this._pressBlock = block;
+          } else {
+            this._startDrag(ev, block);
+          }
+          return;
+        }
+      });
+      this.shadowRoot.addEventListener("click", (ev) => {
+        // Empty calendar space: a routine for that day only, at that time.
+        if (ev.target.closest?.("[data-block]")) {
+          return;
+        }
+        const body = ev.target.closest?.("[data-day-body]");
+        if (body && this._isAdmin && body.dataset.date >= this._todayStr()) {
+          const y = ev.clientY - body.getBoundingClientRect().top;
+          const minutes = Math.min(Math.round((5 * 60 + y / 0.7) / 15) * 15, 22 * 60);
+          this._openDayEditor(body.dataset.date, null, `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`);
+          this._render();
+        }
+      });
+      this.shadowRoot.addEventListener("pointermove", (ev) => {
+        if (this._pressTimer && !this._drag) {
+          return;
+        }
+        if (this._drag) {
+          ev.preventDefault();
+          this._moveDrag(ev);
+        }
+      });
+      const end = () => {
+        if (this._pressTimer && !this._drag) {
+          // A short tap on a block opens it.
+          clearTimeout(this._pressTimer);
+          this._pressTimer = null;
+          const block = this._pressBlock;
+          this._pressBlock = null;
+          if (block) {
+            this._openFromCalendar(block.dataset.date, block.dataset.routine);
+          }
+          return;
+        }
+        this._pressTimer = null;
+        this._endDrag().catch(() => {});
+      };
+      this.shadowRoot.addEventListener("pointerup", end);
+      this.shadowRoot.addEventListener("pointercancel", () => {
+        clearTimeout(this._pressTimer);
+        this._pressTimer = null;
+        this._drag = null;
+      });
     }
   }
 }
@@ -1735,14 +2171,43 @@ const STYLE = `
   .amount.pos { color: var(--success-color, #2e7d32); font-weight: 500; }
   .amount.neg { color: var(--error-color, #db4437); font-weight: 500; }
   .calendar { display: flex; overflow-x: auto; padding: 8px; gap: 4px; }
-  .hours { position: relative; width: 44px; flex: none; margin-top: 28px; }
+  .hours { position: relative; width: 44px; flex: none; margin-top: 66px; }
   .hour { position: absolute; font-size: 11px; color: var(--secondary-text-color, #727272); transform: translateY(-50%); }
   .day { flex: 1; min-width: 96px; }
   .day-head { height: 24px; text-align: center; font-size: 13px; color: var(--secondary-text-color, #727272); }
   .day.is-today .day-head { color: var(--primary-color, #03a9f4); font-weight: 500; }
   .day-body { position: relative; border-left: 1px solid var(--divider-color, #e0e0e0); background: repeating-linear-gradient(to bottom, transparent 0, transparent 83px, var(--divider-color, #e0e0e0) 83px, var(--divider-color, #e0e0e0) 84px); }
-  .block { position: absolute; left: 3px; right: 3px; border-radius: 8px; padding: 3px 6px; overflow: hidden; background: rgba(107, 203, 119, 0.25); border: 1px solid #6BCB77; font-size: 11px; box-sizing: border-box; }
-  .block.changed { background: rgba(255, 159, 67, 0.25); border-color: #FF9F43; }
+  /* Google Calendar-like: solid colour blocks with white text. */
+  .block { position: absolute; left: 2px; right: 4px; border-radius: 6px; padding: 2px 6px; overflow: hidden;
+    background: var(--rc, #6BCB77); color: #fff; border: 2px solid var(--rc, #6BCB77);
+    font-size: 12px; box-sizing: border-box; cursor: grab; touch-action: pan-y; user-select: none;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2); }
+  .block .block-sub { color: rgba(255, 255, 255, 0.9); }
+  .block.changed { border-color: #fff; outline: 2px dashed var(--rc, #6BCB77); outline-offset: -1px; }
+  .block .badge { background: #fff; color: #222; }
+  .day-head { display: flex; flex-direction: column; align-items: center; gap: 2px; height: 66px; min-height: 0; box-sizing: border-box; overflow: hidden; }
+  .day-head .wd { font-size: 11px; text-transform: uppercase; color: var(--secondary-text-color, #727272); }
+  .day-head .dn { font-size: 20px; width: 34px; height: 34px; line-height: 34px; text-align: center; border-radius: 50%; }
+  .day.is-today .day-head .dn { background: var(--primary-color, #03a9f4); color: var(--text-primary-color, #fff); }
+  .month { font-size: 18px; font-weight: 500; }
+  .dialog { max-width: 420px; margin: 16px; }
+  .block img { pointer-events: none; -webkit-user-drag: none; }
+  .block::before, .block::after { content: ""; position: absolute; left: 0; right: 0; height: 6px; cursor: ns-resize; }
+  .block::before { top: 0; }
+  .block::after { bottom: 0; }
+
+  .block.one-day { border-style: dotted; background-image: repeating-linear-gradient(45deg, transparent 0 6px, rgba(255, 255, 255, 0.25) 6px 12px); }
+  .block.past, .day.past .day-head { opacity: 0.55; cursor: default; }
+  .block.dragging { opacity: 0.85; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25); z-index: 2; }
+  .badge { display: inline-block; min-width: 16px; padding: 0 4px; margin-right: 3px; border-radius: 8px; font-size: 10px; text-align: center;
+    background: var(--primary-text-color, #212121); color: var(--card-background-color, #fff); }
+  .seg { display: inline-flex; }
+  .seg button { border-radius: 0; }
+  .seg button:first-child { border-radius: 18px 0 0 18px; }
+  .seg button:last-child { border-radius: 0 18px 18px 0; }
+  .seg button.sel { background: var(--primary-color, #03a9f4); color: var(--text-primary-color, #fff); }
+  fieldset { border: none; margin: 0; padding: 0; min-width: 0; }
+  .calendar.day .day { min-width: 0; }
   .block-title { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .block-sub { color: var(--secondary-text-color, #727272); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .cp { position: absolute; right: 2px; line-height: 0; }
@@ -1759,6 +2224,25 @@ const STYLE = `
   a.ref:hover { text-decoration: underline; }
   .flash { animation: flash 1.6s ease-out; }
   @keyframes flash { 0% { background: rgba(255, 201, 74, 0.6); } 100% { background: var(--card-background-color, #fff); } }
+  /* Phones and narrow windows (#19): one column, no sideways scrolling,
+     44 px touch targets, editors as full-screen sheets. */
+  @media (max-width: 600px) {
+    .content { padding: 8px; }
+    .grid { grid-template-columns: 1fr; }
+    .card { padding: 10px 12px; }
+    button, select, input:not([type="checkbox"]):not([type="color"]) { min-height: 44px; }
+    button.icon-btn, button.pick { min-width: 44px; }
+    .form label, .form input:not([type="checkbox"]):not([type="color"]), .form select { width: 100%; }
+    label.inline { flex-wrap: wrap; }
+    .row { flex-wrap: wrap; }
+    .tab { min-width: 64px; }
+    .sheet { position: fixed; inset: 0; z-index: 5; margin: 0; border-radius: 0; overflow-y: auto; }
+    .filters select, .filters input { max-width: none; width: 100%; }
+    .calendar { padding: 4px; }
+    .calendar.week .day { min-width: 84px; }
+    .pile { max-width: 80px; }
+    button.swatch { width: 44px; height: 44px; min-height: 44px; }
+  }
   .overlay {
     position: fixed;
     inset: 0;
