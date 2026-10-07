@@ -59,19 +59,30 @@ async def test_correction_and_history(manager: KisSegitoManager) -> None:
     tx = await manager.async_adjust(kid, 2)
     await manager.async_correct(tx["id"], "wallet", 5)
     assert manager.balances(kid)["wallet"] == 5
+    await manager.async_correct(tx["id"], "wallet", 6, note="typo")
     history = manager.history(kid)
-    assert len(history) == 1  # the correction is folded into the original
-    assert history[0]["effective_lines"] == [{"account": "wallet", "amount": 5}]
+    # Corrections are numbered entries of their own, pointing to the original.
+    assert [h["seq"] for h in history] == [3, 2, 1]
+    assert history[0]["target_seq"] == 1
+    assert (history[0]["old_amount"], history[0]["new_amount"]) == (5, 6)
+    assert history[0]["note"] == "typo"
+    assert history[2]["correction_seqs"] == [2, 3]
+    assert history[2]["effective_lines"] == [{"account": "wallet", "amount": 6}]
     # Reversing a corrected transaction cancels the effective amount.
     await manager.async_reverse(tx["id"])
     assert manager.balances(kid)["wallet"] == 0
+    history = manager.history(kid)
+    assert history[0]["target_seq"] == 1
+    assert history[-1]["reversal_seq"] == 4
 
 
 async def test_piggy(manager: KisSegitoManager) -> None:
-    kid = await _child(manager)
     unlock = await manager.async_save_item(
         "rewards", {"name": "Piggy", "cost": 0, "kind": "piggy_unlock"}
     )
+    # With an unlock reward a new child's piggy bank starts locked (#11).
+    kid = await _child(manager)
+    assert manager.child(kid)["piggy_unlocked"] is False
     await manager.async_adjust(kid, 20)
     with pytest.raises(KisSegitoError):
         await manager.async_piggy_transfer(kid, 5)

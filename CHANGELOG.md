@@ -6,6 +6,32 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.3.1] - 2026-10-07
+
+### English
+
+- Piggy-bank unlock reward (#11): once the piggy bank is unlocked, the knob
+  shows the reward with a check ("owned") instead of a lock and a price; the
+  lock now only means "not enough tokens". A new child's piggy bank starts
+  locked when a reward can unlock it (open when no such reward exists).
+- History (#12): every entry has a sequence number. Corrections and reversals
+  are entries of their own that point to the original ("Correction of #1:
+  +3 → +5", "Reversal of #2") with who, when and an optional note; the
+  original lists its corrections and its reversal and shows the effective
+  amount.
+
+### Magyar
+
+- Perselyfeloldó jutalom (#11): ha a persely már fel van oldva, a gombon a
+  jutalom pipával („megvan”) látszik lakat és ár helyett; a lakat már csak azt
+  jelenti, hogy nincs elég zseton. Új gyereknél a persely alapból zárva van, ha
+  van feloldó jutalom (ha nincs, nyitva).
+- Előzmények (#12): minden bejegyzés sorszámot kap. A módosítás és a sztornó
+  önálló bejegyzés, amely az eredetire hivatkozik („#1 korrekciója: +3 → +5”,
+  „#2 sztornója”), azzal, hogy ki, mikor és opcionális megjegyzéssel; az eredeti
+  bejegyzés felsorolja a módosításait és a sztornóját, és az érvényes összeget
+  mutatja.
+
 ## [0.3.0] - 2026-10-07
 
 ### English

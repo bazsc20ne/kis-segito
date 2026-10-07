@@ -125,6 +125,13 @@ class KisSegitoManager:
         """One reward by id."""
         return next((r for r in self.data["rewards"] if r["id"] == reward_id), None)
 
+    def has_piggy_unlock_reward(self) -> bool:
+        """Whether an active reward unlocks the piggy bank."""
+        return any(
+            r.get("kind") == "piggy_unlock" and r.get("active", True)
+            for r in self.data["rewards"]
+        )
+
     def _require_child(self, child_id: str) -> dict[str, Any]:
         child = self.child(child_id)
         if child is None:
@@ -144,6 +151,9 @@ class KisSegitoManager:
         if not item.get("id"):
             item["id"] = lg.new_id()
             item.setdefault("sort_order", len(items))
+            if collection == "children" and "piggy_unlocked" not in item:
+                # Locked when it can be bought; open when nothing unlocks it.
+                item["piggy_unlocked"] = not self.has_piggy_unlock_reward()
             items.append(item)
         else:
             for index, existing in enumerate(items):
@@ -389,7 +399,13 @@ class KisSegitoManager:
         return reversal
 
     async def async_correct(
-        self, tx_id: str, account: str, new_amount: int, *, creator: str = "parent"
+        self,
+        tx_id: str,
+        account: str,
+        new_amount: int,
+        *,
+        creator: str = "parent",
+        note: str = "",
     ) -> dict[str, Any]:
         """Change the effective amount of a transaction with a correction."""
         original = self.transaction(tx_id)
@@ -411,8 +427,11 @@ class KisSegitoManager:
             source="panel",
             creator=creator,
             refs=original.get("refs"),
+            note=note,
         )
         tx["corrects"] = tx_id
+        tx["old_amount"] = current.get(account, 0)
+        tx["new_amount"] = int(new_amount)
         original.setdefault("corrections", []).append(tx["id"])
         self._append(tx)
         await self._changed(ledger=True)
@@ -428,16 +447,33 @@ class KisSegitoManager:
     def history(
         self, child_id: str | None = None, limit: int = 200
     ) -> list[dict[str, Any]]:
-        """Newest transactions first, with their effective amounts."""
+        """Newest transactions first, each with its sequence number.
+
+        Reversals and corrections are entries of their own that point to the
+        original (``target_seq``); the original lists them (``revision_seqs``)
+        and shows its effective amount.
+        """
+        seq = {tx["id"]: index + 1 for index, tx in enumerate(self.transactions)}
+        revisions: dict[str, list[int]] = {}
+        for tx in self.transactions:
+            target = tx.get("corrects") or tx.get("reverses")
+            if target:
+                revisions.setdefault(target, []).append(seq[tx["id"]])
         result = []
         for tx in reversed(self.transactions):
             if child_id and tx["child_id"] != child_id:
                 continue
-            if tx.get("corrects"):
-                continue  # shown as part of the corrected transaction
             item = dict(tx)
+            item["seq"] = seq[tx["id"]]
+            target = tx.get("corrects") or tx.get("reverses")
+            item["target_seq"] = seq.get(target) if target else None
+            item["revision_seqs"] = revisions.get(tx["id"], [])
+            item["correction_seqs"] = [
+                seq[c["id"]] for c in self.corrections_of(tx["id"])
+            ]
+            item["reversal_seq"] = seq.get(tx.get("reversed_by") or "")
             item["effective_lines"] = lg.effective_lines(
-                tx, self.corrections_of(tx["id"])
+                tx, [] if target else self.corrections_of(tx["id"])
             )
             result.append(item)
             if len(result) >= limit:

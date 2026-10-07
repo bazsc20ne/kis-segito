@@ -86,8 +86,6 @@
   "history.unknown_child": "(törölt gyerek)",
   "history.reverse": "Visszavonás",
   "history.correct": "Összeg módosítása",
-  "history.reversed": "visszavonva",
-  "history.corrected": "módosítva",
   "history.confirm_reverse": "Visszavonod ezt a tranzakciót? Egy ellentétes tétel kerül be, semmi nem törlődik.",
   "history.correct_prompt": "Új érvényes összeg:",
   "settings.knobs": "Gombok",
@@ -139,5 +137,10 @@
   "creator.system": "automatikus",
   "creator.child": "gyerek (gomb)",
   "creator.automation": "automatizmus",
-  "creator.parent": "szülő"
+  "creator.parent": "szülő",
+  "history.correction_of": "{n} korrekciója",
+  "history.reversal_of": "{n} sztornója",
+  "history.revised_by": "módosítva:",
+  "history.reversed_by": "sztornózva:",
+  "history.note_prompt": "Megjegyzés (miért, nem kötelező):"
 }

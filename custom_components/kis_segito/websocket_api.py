@@ -399,6 +399,7 @@ async def ws_reverse(
         vol.Required("transaction_id"): str,
         vol.Optional("account", default=WALLET): vol.In([WALLET, PIGGY]),
         vol.Required("amount"): int,
+        vol.Optional("note", default=""): str,
     }
 )
 @websocket_api.require_admin
@@ -418,6 +419,7 @@ async def ws_correct(
             msg["account"],
             msg["amount"],
             creator=user or "parent",
+            note=msg["note"],
         ),
     )
 

@@ -388,11 +388,16 @@ class KisSegitoPanel extends HTMLElement {
         if (value === null || value.trim() === "" || Number.isNaN(Number(value))) {
           return;
         }
+        const note = prompt(this._t("history.note_prompt"), "");
+        if (note === null) {
+          return;
+        }
         await this._ws({
           type: "kis_segito/tokens/correct",
           transaction_id: arg,
           account: line.account,
           amount: Math.trunc(Number(value)),
+          note,
         });
         await this._load();
         return;
@@ -481,7 +486,10 @@ class KisSegitoPanel extends HTMLElement {
           avatar: "placeholder_avatar",
           birth_date: "",
           active: true,
-          piggy_unlocked: false,
+          // Locked when a reward can unlock it, open otherwise (#11).
+          piggy_unlocked: !this._data.rewards.some(
+            (r) => r.kind === "piggy_unlock" && r.active !== false
+          ),
         };
       case "rewards":
         return { name: "", icon: "reward_gift", cost: 5, active: true, kind: "normal" };
@@ -862,27 +870,38 @@ class KisSegitoPanel extends HTMLElement {
         )
       )
       .join("");
+    const sign = (n) => `${n > 0 ? "+" : ""}${n}`;
     const rows = this._history
       .map((tx) => {
-        const amounts = tx.effective_lines
-          .map((l) => `<span class="amount ${l.amount < 0 ? "neg" : "pos"}">${l.amount > 0 ? "+" : ""}${l.amount}${l.account === "piggy" ? " 🐷" : ""}</span>`)
+        const target = tx.target_seq ? `#${tx.target_seq}` : "";
+        const amounts = (tx.reverses || tx.corrects ? tx.lines : tx.effective_lines)
+          .map((l) => `<span class="amount ${l.amount < 0 ? "neg" : "pos"}">${sign(l.amount)}${l.account === "piggy" ? " 🐷" : ""}</span>`)
           .join(" ");
-        const what =
-          tx.refs?.reward_name || tx.refs?.checkpoint_name || tx.note || this._t(`reason.${tx.reason}`, tx.reason);
+        let what = tx.refs?.reward_name || tx.refs?.checkpoint_name || tx.note || this._t(`reason.${tx.reason}`, tx.reason);
+        if (tx.corrects) {
+          // A correction: its own entry, pointing to the original.
+          what = `${this._t("history.correction_of").replace("{n}", target)}: ${sign(tx.old_amount ?? 0)} → ${sign(tx.new_amount ?? 0)}`;
+        } else if (tx.reverses) {
+          what = this._t("history.reversal_of").replace("{n}", target);
+        }
+        const note = (tx.corrects || tx.reverses) && tx.note ? ` · „${tx.note}”` : "";
         const when = new Date(tx.timestamp).toLocaleString(this._language);
-        const state = tx.reversed_by
-          ? `<span class="muted">${this._e(this._t("history.reversed"))}</span>`
-          : tx.corrections?.length
-            ? `<span class="muted">${this._e(this._t("history.corrected"))}</span>`
-            : "";
+        let revisions = "";
+        if (tx.correction_seqs?.length) {
+          revisions += ` · ${this._t("history.revised_by")} ${tx.correction_seqs.map((n) => `#${n}`).join(", ")}`;
+        }
+        if (tx.reversal_seq) {
+          revisions += ` · ${this._t("history.reversed_by")} #${tx.reversal_seq}`;
+        }
         const actions =
-          this._isAdmin && !tx.reversed_by && !tx.reverses
+          this._isAdmin && !tx.reversed_by && !tx.reverses && !tx.corrects
             ? `<button class="small" data-action="correct" data-arg="${tx.id}">${this._e(this._t("history.correct"))}</button>
                <button class="small" data-action="reverse" data-arg="${tx.id}">${this._e(this._t("history.reverse"))}</button>`
             : "";
-        return `<div class="card row ${tx.reversed_by ? "dim" : ""}">
-          <div class="grow"><div>${amounts} · ${this._e(what)}</div>
-            <div class="muted small">${this._e(when)} · ${this._e(this._childName(tx.child_id))} · ${this._e(this._t(`reason.${tx.reason}`, tx.reason))} · ${this._e(this._t(`creator.${tx.creator}`, tx.creator))}${state ? " · " + state : ""}</div></div>
+        return `<div class="card row ${tx.reversed_by ? "dim" : ""} ${tx.corrects || tx.reverses ? "revision" : ""}">
+          <span class="seq">#${tx.seq}</span>
+          <div class="grow"><div>${amounts} · ${this._e(what)}${this._e(note)}</div>
+            <div class="muted small">${this._e(when)} · ${this._e(this._childName(tx.child_id))} · ${this._e(this._t(`reason.${tx.reason}`, tx.reason))} · ${this._e(this._t(`creator.${tx.creator}`, tx.creator))}${this._e(revisions)}</div></div>
           ${actions}</div>`;
       })
       .join("");
@@ -1160,6 +1179,8 @@ const STYLE = `
   .routine-progress { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 14px; }
   .bar { width: 80px; height: 8px; border-radius: 4px; background: var(--divider-color, #e0e0e0); overflow: hidden; }
   .bar span { display: block; height: 100%; background: var(--success-color, #6BCB77); }
+  .seq { font-variant-numeric: tabular-nums; color: var(--secondary-text-color, #727272); min-width: 40px; }
+  .revision { border-left: 4px solid var(--warning-color, #FF9F43); }
   .amount.pos { color: var(--success-color, #2e7d32); font-weight: 500; }
   .amount.neg { color: var(--error-color, #db4437); font-weight: 500; }
   .overlay {

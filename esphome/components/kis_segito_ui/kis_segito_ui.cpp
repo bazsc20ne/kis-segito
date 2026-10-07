@@ -1033,16 +1033,22 @@ void KisSegitoUI::build_rewards_() {
       [this](lv_obj_t *slot, int index) {
         const Reward &r = this->rewards_[index];
         const Child &c = this->children_[this->child_];
-        const bool locked = r.cost > c.wallet || (r.piggy_unlock && c.piggy_unlocked);
-        lv_obj_t *disc = this->disc_(slot, 130, 120, 200,
-                                     locked ? lv_color_hex(0x4A4F6A)
-                                            : lv_color_mix(lv_color_hex(c.color), lv_color_white(), 80));
-        (void) disc;
+        // An unlocked piggy bank is already owned: a check, no price, no lock.
+        // The lock only means "not enough tokens" (#11).
+        const bool owned = r.piggy_unlock && c.piggy_unlocked;
+        const bool locked = !owned && r.cost > c.wallet;
+        this->disc_(slot, 130, 120, 200,
+                    locked ? lv_color_hex(0x4A4F6A) : lv_color_mix(lv_color_hex(c.color), lv_color_white(), 80));
         lv_obj_t *icon = this->image_(slot, r.icon + "_160", 130, 120);
         if (locked) {
           lv_obj_set_style_image_recolor(icon, lv_color_hex(0x8C96A5), 0);
           lv_obj_set_style_image_recolor_opa(icon, 150, 0);
           this->image_(slot, "status_lock_64", 205, 190);
+        }
+        if (owned) {
+          lv_obj_t *check = this->image_(slot, "action_check_88", 200, 190);
+          lv_image_set_scale(check, 186);  // 88 px -> 64 px
+          return;
         }
         // The price as a small pile of exactly that many tokens.
         this->pile_(slot, 130, 290, r.cost, fnv1_hash(r.id), 4, 9, 16, 9);

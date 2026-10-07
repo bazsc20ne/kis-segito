@@ -86,8 +86,6 @@
   "history.unknown_child": "(deleted child)",
   "history.reverse": "Reverse",
   "history.correct": "Change amount",
-  "history.reversed": "reversed",
-  "history.corrected": "corrected",
   "history.confirm_reverse": "Reverse this transaction? A compensating entry is added; nothing is deleted.",
   "history.correct_prompt": "New effective amount:",
   "settings.knobs": "Knobs",
@@ -139,5 +137,10 @@
   "creator.system": "automatic",
   "creator.child": "child (knob)",
   "creator.automation": "automation",
-  "creator.parent": "parent"
+  "creator.parent": "parent",
+  "history.correction_of": "Correction of {n}",
+  "history.reversal_of": "Reversal of {n}",
+  "history.revised_by": "changed in",
+  "history.reversed_by": "reversed in",
+  "history.note_prompt": "Note (why, optional):"
 }
