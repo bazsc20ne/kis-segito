@@ -266,3 +266,30 @@ async def test_day_templates(manager: KisSegitoManager) -> None:
     assert manager.template_for_day(day)["name"] == "Weekday"
     with pytest.raises(KisSegitoError):
         await manager.async_set_day_template(day=day, template_id="nope")
+
+
+async def test_script_notification_rule(
+    hass: HomeAssistant, manager: KisSegitoManager
+) -> None:
+    from custom_components.kis_segito.notify import Notifier, rule_call
+
+    rule = {
+        "service": "script.send_imessage",
+        "message_field": "text",
+        "title_field": "",
+        "extra": {"recipient": "parent", "empty": ""},
+    }
+    assert rule_call(rule, "Title", "Hello") == (
+        "script",
+        "send_imessage",
+        {"recipient": "parent", "text": "Hello"},
+    )
+    calls: list[ServiceCall] = []
+
+    async def _script(call: ServiceCall) -> None:
+        calls.append(call)
+
+    hass.services.async_register("script", "send_imessage", _script)
+    notifier = Notifier(hass, lambda: [], lambda: "en")
+    await notifier.async_test(rule)
+    assert calls[0].data["text"].startswith("Test message")

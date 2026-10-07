@@ -35,6 +35,8 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "piggy_interest_time": "18:00",
     "piggy_interest_min": None,
     "piggy_interest_max": None,
+    # Scripts with this Home Assistant label are offered as notification targets.
+    "notification_label": "Kis Segítő",
 }
 
 # Configuration audit entries kept (token history is in the ledger).

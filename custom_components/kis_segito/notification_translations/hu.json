@@ -9,5 +9,6 @@
   "streak_completed": "{child} teljesítette a sorozatot: +{amount}!",
   "manual_adjustment": "{child}: {amount_signed} zseton (szülő). Pénztárca: {wallet}.",
   "transaction_reversed": "{child}: egy tranzakciót visszavontak. Pénztárca: {wallet}.",
-  "transaction_revised": "{child}: egy összeget módosítottak ({amount_signed}). Pénztárca: {wallet}."
+  "transaction_revised": "{child}: egy összeget módosítottak ({amount_signed}). Pénztárca: {wallet}.",
+  "test": "Teszt üzenet a Kis Segítőtől: ez a szabály működik."
 }

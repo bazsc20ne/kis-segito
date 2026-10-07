@@ -108,15 +108,9 @@ class Notifier:
         if message is None:
             return
         for rule in rules:
-            domain, _, service = str(rule["service"]).partition(".")
-            if not service:
-                domain, service = "notify", domain
             try:
-                await self.hass.services.async_call(
-                    domain,
-                    service,
-                    {"title": texts.get("title", "Kis Segítő"), "message": message},
-                    blocking=True,
+                await async_send_rule(
+                    self.hass, rule, texts.get("title", "Kis Segítő"), message
                 )
             except Exception:
                 _LOGGER.warning(
@@ -125,3 +119,38 @@ class Notifier:
                     rule["service"],
                     exc_info=True,
                 )
+
+    async def async_test(self, rule: dict[str, Any]) -> None:
+        """Send a sample message through a rule (raises on failure)."""
+        texts = await self.hass.async_add_executor_job(load_texts, self._language())
+        await async_send_rule(
+            self.hass, rule, texts.get("title", "Kis Segítő"), texts.get("test", "Test")
+        )
+
+
+def rule_call(
+    rule: dict[str, Any], title: str, message: str
+) -> tuple[str, str, dict[str, Any]]:
+    """The action call of a rule: notify.* gets title/message; a script gets
+    the message (and title) in the fields chosen in the rule, plus fixed values.
+    """
+    domain, _, service = str(rule["service"]).partition(".")
+    if not service:
+        domain, service = "notify", domain
+    if domain != "script":
+        return domain, service, {"title": title, "message": message}
+    data: dict[str, Any] = {
+        str(k): v for k, v in (rule.get("extra") or {}).items() if v not in (None, "")
+    }
+    data[rule.get("message_field") or "message"] = message
+    if rule.get("title_field"):
+        data[rule["title_field"]] = title
+    return domain, service, data
+
+
+async def async_send_rule(
+    hass: HomeAssistant, rule: dict[str, Any], title: str, message: str
+) -> None:
+    """Send one message through a rule's target."""
+    domain, service, data = rule_call(rule, title, message)
+    await hass.services.async_call(domain, service, data, blocking=True)

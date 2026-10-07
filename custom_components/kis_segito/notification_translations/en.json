@@ -9,5 +9,6 @@
   "streak_completed": "{child} completed the streak: +{amount}!",
   "manual_adjustment": "{child}: {amount_signed} tokens (parent). Wallet: {wallet}.",
   "transaction_reversed": "{child}: a transaction was reversed. Wallet: {wallet}.",
-  "transaction_revised": "{child}: an amount was changed ({amount_signed}). Wallet: {wallet}."
+  "transaction_revised": "{child}: an amount was changed ({amount_signed}). Wallet: {wallet}.",
+  "test": "Test message from Kis Segítő: this rule works."
 }

@@ -10,6 +10,9 @@ import voluptuous as vol
 from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import label_registry as lr
+from homeassistant.helpers.service import async_get_all_descriptions
 
 from .const import CONF_DEVICE_ID, DOMAIN, LANGUAGE_AUTO
 from .device_link import available_languages
@@ -42,6 +45,8 @@ def async_register_commands(hass: HomeAssistant) -> None:
         ws_notifications,
         ws_export,
         ws_day_template,
+        ws_notify_targets,
+        ws_notify_test,
     ):
         websocket_api.async_register_command(hass, command)
 
@@ -108,6 +113,7 @@ async def ws_settings(
         vol.Optional("piggy_interest_max"): vol.Any(
             None, vol.All(int, vol.Range(min=0))
         ),
+        vol.Optional("notification_label"): str,
     }
 )
 @websocket_api.require_admin
@@ -136,6 +142,7 @@ async def ws_settings_update(
             "piggy_interest_time",
             "piggy_interest_min",
             "piggy_interest_max",
+            "notification_label",
         )
         if key in msg
     }
@@ -577,6 +584,13 @@ def ws_week(
                     vol.Optional("events", default=list): [vol.In(EVENT_TYPES)],
                     vol.Optional("children", default=list): [str],
                     vol.Optional("enabled", default=True): bool,
+                    # Script targets: which fields get the message and title,
+                    # and fixed values for other fields.
+                    vol.Optional("message_field", default=""): str,
+                    vol.Optional("title_field", default=""): str,
+                    vol.Optional("extra", default=dict): {
+                        str: vol.Any(str, int, float, bool, None)
+                    },
                 }
             )
         ],
@@ -648,3 +662,85 @@ async def ws_day_template(
             who=_who(connection),
         ),
     )
+
+
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/notify_targets"})
+@websocket_api.async_response
+async def ws_notify_targets(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Notify actions and scripts (with their fields) that can be rule targets.
+
+    Scripts carrying the label set in the settings are marked ``labelled``;
+    the panel lists only those unless "show all scripts" is on.
+    """
+    label_setting = str(_manager(hass).settings.get("notification_label") or "").strip()
+    label_ids: set[str] = set()
+    if label_setting:
+        for label in lr.async_get(hass).async_list_labels():
+            if label_setting.casefold() in (
+                label.label_id.casefold(),
+                label.name.casefold(),
+            ):
+                label_ids.add(label.label_id)
+    descriptions = await async_get_all_descriptions(hass)
+    registry = er.async_get(hass)
+    scripts = []
+    for name, description in sorted(descriptions.get("script", {}).items()):
+        if name in ("turn_on", "turn_off", "toggle", "reload"):
+            continue
+        entry = registry.async_get(f"script.{name}")
+        state = hass.states.get(f"script.{name}")
+        fields = description.get("fields") or {}
+        scripts.append(
+            {
+                "service": f"script.{name}",
+                "name": (state.name if state else None)
+                or description.get("name")
+                or name,
+                "labelled": bool(entry and label_ids & set(entry.labels)),
+                "fields": {
+                    key: {
+                        "name": field.get("name") or key,
+                        "description": field.get("description") or "",
+                        "selector": field.get("selector") or {},
+                    }
+                    for key, field in fields.items()
+                },
+            }
+        )
+    connection.send_result(
+        msg["id"],
+        {
+            "notify": sorted(
+                f"notify.{name}"
+                for name in descriptions.get("notify", {})
+                if name != "send_message"
+            ),
+            "scripts": scripts,
+            "label": label_setting,
+            "label_found": bool(label_ids),
+        },
+    )
+
+
+@websocket_api.websocket_command(
+    {vol.Required("type"): f"{DOMAIN}/notify_test", vol.Required("rule"): dict}
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_notify_test(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Send a sample message through a rule (not saved)."""
+    notifier = _manager(hass).notifier
+    try:
+        await notifier.async_test(msg["rule"])
+    except Exception as err:  # noqa: BLE001 - shown in the panel
+        connection.send_error(msg["id"], "notify_failed", str(err))
+        return
+    connection.send_result(msg["id"], {"ok": True})

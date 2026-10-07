@@ -240,7 +240,12 @@ class KisSegitoPanel extends HTMLElement {
   }
 
   async _loadRules() {
-    this._rules = await this._hass.callWS({ type: "kis_segito/notifications" });
+    const [rules, targets] = await Promise.all([
+      this._hass.callWS({ type: "kis_segito/notifications" }),
+      this._hass.callWS({ type: "kis_segito/notify_targets" }),
+    ]);
+    this._rules = rules;
+    this._targets = targets;
   }
 
   async _ws(msg) {
@@ -427,6 +432,12 @@ class KisSegitoPanel extends HTMLElement {
           : [...days, d].sort();
         break;
       }
+      case "chain":
+        this._expanded = this._expanded || new Set();
+        if (this._expanded.has(arg)) this._expanded.delete(arg);
+        else this._expanded.add(arg);
+        if (ev.preventDefault) ev.preventDefault();
+        break;
       case "clear-picture":
         this._edit.item[arg] = "";
         break;
@@ -487,8 +498,28 @@ class KisSegitoPanel extends HTMLElement {
         return;
       }
       case "rule-add":
-        this._rules.rules.push({ name: "", service: "", events: ["reward_redeemed"], children: [], enabled: true });
+        this._rules.rules.push({
+          name: "",
+          service: "",
+          events: ["reward_redeemed"],
+          children: [],
+          enabled: true,
+          message_field: "",
+          title_field: "",
+          extra: {},
+        });
         break;
+      case "rule-test": {
+        const i = Number(arg);
+        this._testResult = this._testResult || {};
+        try {
+          await this._hass.callWS({ type: "kis_segito/notify_test", rule: this._rules.rules[i] });
+          this._testResult[i] = { ok: true, text: this._t("notifications.test_sent") };
+        } catch (err) {
+          this._testResult[i] = { ok: false, text: `${this._t("notifications.test_failed")} ${err?.message || ""}` };
+        }
+        break;
+      }
       case "rule-remove":
         this._rules.rules.splice(Number(arg), 1);
         break;
@@ -589,6 +620,9 @@ class KisSegitoPanel extends HTMLElement {
         msg.piggy_interest_weekday = Number(el.value);
       }
       await this._ws(msg);
+      if (el.dataset.setting === "notification_label") {
+        await this._loadRules();
+      }
       await this._load();
       return;
     }
@@ -651,7 +685,27 @@ class KisSegitoPanel extends HTMLElement {
     }
     if (el.dataset.rule) {
       const [i, key] = el.dataset.rule.split(":");
-      this._rules.rules[Number(i)][key] = el.type === "checkbox" ? el.checked : el.value;
+      const rule = this._rules.rules[Number(i)];
+      rule[key] = el.type === "checkbox" ? el.checked : el.value;
+      if (key === "service") {
+        rule.message_field = "";
+        rule.title_field = "";
+        rule.extra = {};
+      }
+      if (el.dataset.rerender !== undefined) {
+        this._render();
+      }
+      return;
+    }
+    if (el.dataset.ruleExtra) {
+      const [i, field] = el.dataset.ruleExtra.split(":");
+      const rule = this._rules.rules[Number(i)];
+      rule.extra = { ...(rule.extra || {}), [field]: el.value };
+      return;
+    }
+    if (el.dataset.showAllScripts !== undefined) {
+      this._showAllScripts = el.checked;
+      this._render();
       return;
     }
     if (!el.dataset.path || !this._edit) {
@@ -1000,22 +1054,58 @@ class KisSegitoPanel extends HTMLElement {
   }
 
   _viewNotifications() {
-    if (!this._rules) {
+    if (!this._rules || !this._targets) {
       return `<div class="card empty">${this._e(this._t("common.loading"))}</div>`;
     }
-    const services = Object.keys(this._hass.services?.notify || {})
-      .sort()
-      .map((name) => `notify.${name}`);
     const disabled = this._isAdmin ? "" : "disabled";
+    const scripts = this._targets.scripts;
     const rules = this._rules.rules
       .map((rule, i) => {
-        const options = [`<option value="">—</option>`]
-          .concat(
-            [...new Set([...services, rule.service].filter(Boolean))].map(
-              (svc) => `<option value="${this._e(svc)}" ${svc === rule.service ? "selected" : ""}>${this._e(svc)}</option>`
-            )
-          )
+        // Targets: notify actions, and scripts labelled for notifications
+        // (all scripts with "show all").
+        const shown = scripts.filter((sc) => sc.labelled || this._showAllScripts || sc.service === rule.service);
+        const option = (value, label) =>
+          `<option value="${this._e(value)}" ${value === rule.service ? "selected" : ""}>${this._e(label)}</option>`;
+        const notifyOptions = [...new Set([...this._targets.notify, ...(rule.service?.startsWith("notify.") ? [rule.service] : [])])]
+          .map((svc) => option(svc, svc))
           .join("");
+        const scriptOptions = shown.map((sc) => option(sc.service, `${sc.name} (${sc.service})`)).join("");
+        const target = `<select data-rule="${i}:service" data-rerender ${disabled}><option value="">—</option>
+          <optgroup label="${this._e(this._t("notifications.notify_group"))}">${notifyOptions}</optgroup>
+          ${scriptOptions ? `<optgroup label="${this._e(this._t("notifications.script_group"))}">${scriptOptions}</optgroup>` : ""}</select>`;
+        let mapping = "";
+        const script = scripts.find((sc) => sc.service === rule.service);
+        if (script) {
+          const fieldNames = Object.keys(script.fields);
+          const fieldOptions = (current, allowNone) =>
+            (allowNone ? [`<option value="">—</option>`] : [])
+              .concat(fieldNames.map((f) => `<option value="${this._e(f)}" ${f === current ? "selected" : ""}>${this._e(script.fields[f].name)} (${this._e(f)})</option>`))
+              .join("");
+          const messageField = rule.message_field || (fieldNames.find((f) => /message|text|uzenet|üzenet|body/i.test(f)) ?? "");
+          if (!rule.message_field && messageField) {
+            rule.message_field = messageField;
+          }
+          const extras = fieldNames
+            .filter((f) => f !== rule.message_field && f !== rule.title_field)
+            .map((f) => {
+              const field = script.fields[f];
+              const value = rule.extra?.[f] ?? "";
+              const options = field.selector?.select?.options;
+              const input = Array.isArray(options)
+                ? `<select data-rule-extra="${i}:${this._e(f)}" ${disabled}><option value="">—</option>${options
+                    .map((o) => (typeof o === "string" ? { value: o, label: o } : o))
+                    .map((o) => `<option value="${this._e(o.value)}" ${String(o.value) === String(value) ? "selected" : ""}>${this._e(o.label)}</option>`)
+                    .join("")}</select>`
+                : `<input data-rule-extra="${i}:${this._e(f)}" value="${this._e(value)}" ${disabled}>`;
+              return `<label>${this._e(field.name)} <span class="muted">(${this._e(f)}) ${this._e(field.description)}</span>${input}</label>`;
+            })
+            .join("");
+          mapping = `<div class="sub card">
+            <label>${this._e(this._t("notifications.message_field"))}<select data-rule="${i}:message_field" data-rerender ${disabled}>${fieldOptions(rule.message_field, false)}</select></label>
+            <label>${this._e(this._t("notifications.title_field"))}<select data-rule="${i}:title_field" data-rerender ${disabled}>${fieldOptions(rule.title_field, true)}</select></label>
+            ${extras ? `<div class="muted">${this._e(this._t("notifications.fixed_values"))}</div>${extras}` : ""}
+          </div>`;
+        }
         const events = this._rules.event_types
           .map((ev) => `<button class="chip ${rule.events.includes(ev) ? "sel" : ""}" data-action="rule-event" data-arg="${i}:${ev}" ${disabled}>${this._e(this._t(`event.${ev}`, ev))}</button>`)
           .join("");
@@ -1026,14 +1116,29 @@ class KisSegitoPanel extends HTMLElement {
           <div class="row"><input class="grow" placeholder="${this._e(this._t("notifications.rule_name"))}" data-rule="${i}:name" value="${this._e(rule.name)}" ${disabled}>
             <label class="check"><input type="checkbox" data-rule="${i}:enabled" ${rule.enabled !== false ? "checked" : ""} ${disabled}>${this._e(this._t("common.active"))}</label>
             ${this._isAdmin ? `<button class="icon-btn" data-action="rule-remove" data-arg="${i}">✕</button>` : ""}</div>
-          <label>${this._e(this._t("notifications.target"))}<select data-rule="${i}:service" ${disabled}>${options}</select></label>
+          <label>${this._e(this._t("notifications.target"))}${target}</label>
+          ${mapping}
           <div class="field"><span>${this._e(this._t("notifications.events"))}</span><div class="row wrap">${events}</div></div>
           <div class="field"><span>${this._e(this._t("notifications.children"))}</span><div class="row wrap">${children}
             <span class="muted">${this._e(this._t(rule.children.length ? "routines.only_these" : "routines.everyone"))}</span></div></div>
+          ${this._isAdmin ? `<div class="row"><button class="small" data-action="rule-test" data-arg="${i}" ${rule.service ? "" : "disabled"}>${this._e(this._t("notifications.test"))}</button>
+            ${this._testResult?.[i] ? `<span class="${this._testResult[i].ok ? "muted" : "warn"}">${this._e(this._testResult[i].text)}</span>` : ""}</div>` : ""}
         </div>`;
       })
       .join("");
+    const label = this._targets.label;
+    const labelState = !label
+      ? ""
+      : this._targets.label_found
+        ? `<span class="muted">${this._e(this._t("notifications.label_ok"))}</span>`
+        : `<span class="warn">${this._e(this._t("notifications.label_missing"))}</span>`;
     return `<div class="muted">${this._e(this._t("notifications.hint"))}</div>
+      <div class="card form">
+        <label>${this._e(this._t("notifications.label"))}<input data-setting="notification_label" value="${this._e(label)}" ${disabled}></label>
+        <div class="row wrap">${labelState}
+          <label class="check"><input type="checkbox" data-show-all-scripts ${this._showAllScripts ? "checked" : ""}>${this._e(this._t("notifications.show_all"))}</label></div>
+        <div class="muted">${this._e(this._t("notifications.label_hint"))}</div>
+      </div>
       ${rules || `<div class="card empty">${this._e(this._t("notifications.none"))}</div>`}
       ${this._isAdmin ? `<div class="row"><button data-action="rule-add">+ ${this._e(this._t("notifications.add"))}</button>
         <button class="primary" data-action="rules-save">${this._e(this._t("common.save"))}</button></div>` : ""}`;
@@ -1293,7 +1398,9 @@ class KisSegitoPanel extends HTMLElement {
       .map((tx) => {
         const link = (n) => `<a href="#tx-${n}" class="ref" data-action="goto" data-arg="${n}">#${n}</a>`;
         const target = tx.target_seq ? `[[ref:${tx.target_seq}]]` : "";
-        const amounts = (tx.reverses || tx.corrects ? tx.lines : tx.effective_lines)
+        // Every entry shows its own booked amount (#16); the effective value of a
+        // corrected entry is only in its chain view.
+        const amounts = tx.lines
           .map((l) => `<span class="amount ${l.amount < 0 ? "neg" : "pos"}">${sign(l.amount)}${l.account === "piggy" ? " 🐷" : ""}</span>`)
           .join(" ");
         let what = tx.refs?.reward_name || tx.refs?.checkpoint_name || tx.note || this._t(`reason.${tx.reason}`, tx.reason);
@@ -1306,9 +1413,21 @@ class KisSegitoPanel extends HTMLElement {
         const note = (tx.corrects || tx.reverses) && tx.note ? ` · „${tx.note}”` : "";
         const when = new Date(tx.timestamp).toLocaleString(this._language);
         let revisions = "";
+        let chain = "";
         if (tx.correction_seqs?.length) {
-          const original = tx.lines.map((l) => sign(l.amount)).join(" ");
-          revisions += ` · ${this._e(this._t("history.original"))} ${this._e(original)} · ${this._e(this._t("history.revised_by"))} ${tx.correction_seqs.map(link).join(", ")}`;
+          revisions += ` · ${this._e(this._t("history.revised_by"))} ${tx.correction_seqs.map(link).join(", ")}`;
+          const open = this._expanded?.has(tx.id);
+          revisions += ` · <a class="ref" data-action="chain" data-arg="${tx.id}">${this._e(this._t(open ? "history.chain_hide" : "history.chain"))}</a>`;
+          if (open) {
+            const steps = this._history
+              .filter((h) => h.corrects === tx.id)
+              .sort((a, b) => a.seq - b.seq)
+              .map((h) => `<div>${link(h.seq)} ${this._e(sign(h.old_amount ?? 0))} → ${this._e(sign(h.new_amount ?? 0))} · ${this._e(new Date(h.timestamp).toLocaleString(this._language))} · ${this._e(this._t(`creator.${h.creator}`, h.creator))}${h.note ? ` · „${this._e(h.note)}”` : ""}</div>`)
+              .join("");
+            const effective = tx.effective_lines.map((l) => sign(l.amount)).join(" ");
+            chain = `<div class="chain small"><div>#${tx.seq} ${this._e(this._t("history.booked"))} ${this._e(tx.lines.map((l) => sign(l.amount)).join(" "))}</div>${steps}
+              <div><b>${this._e(this._t("history.effective"))} ${this._e(effective)}</b></div></div>`;
+          }
         }
         if (tx.reversal_seq) {
           revisions += ` · ${this._e(this._t("history.reversed_by"))} ${link(tx.reversal_seq)}`;
@@ -1323,7 +1442,7 @@ class KisSegitoPanel extends HTMLElement {
         return `<div id="tx-${tx.seq}" class="card row ${tx.reversed_by ? "dim" : ""} ${tx.corrects || tx.reverses ? "revision" : ""}">
           <span class="seq">#${tx.seq}</span>
           <div class="grow"><div>${amounts} · ${whatHtml}${this._e(note)}</div>
-            <div class="muted small">${this._e(when)} · ${this._e(this._childName(tx.child_id))} · ${this._e(this._t(`reason.${tx.reason}`, tx.reason))} · ${this._e(this._t(`creator.${tx.creator}`, tx.creator))}${revisions}</div></div>
+            <div class="muted small">${this._e(when)} · ${this._e(this._childName(tx.child_id))} · ${this._e(this._t(`reason.${tx.reason}`, tx.reason))} · ${this._e(this._t(`creator.${tx.creator}`, tx.creator))}${revisions}</div>${chain}</div>
           ${actions}</div>`;
       })
       .join("");
@@ -1634,6 +1753,7 @@ const STYLE = `
   .photo { object-fit: cover; border-radius: 10px; vertical-align: middle; }
   .photo.round { border-radius: 50%; }
   label.upload { display: inline-block; cursor: pointer; padding: 6px 12px; border-radius: 18px; border: 1px solid var(--divider-color, #e0e0e0); }
+  .chain { margin-top: 6px; padding: 6px 10px; border-left: 3px solid var(--divider-color, #e0e0e0); }
   .update { border-color: var(--primary-color, #03a9f4); }
   a.ref { color: var(--primary-color, #03a9f4); text-decoration: none; font-weight: 500; cursor: pointer; }
   a.ref:hover { text-decoration: underline; }
