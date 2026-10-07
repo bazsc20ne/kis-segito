@@ -193,6 +193,7 @@ class KisSegitoUI : public Component {
   Routine &current_routine_();
 
   std::vector<FnItem> functions_for_(const Child &child) const;
+  std::vector<int> shop_() const;
 
   std::map<std::string, image::Image *> images_;
   const lv_font_t *number_font_{nullptr};

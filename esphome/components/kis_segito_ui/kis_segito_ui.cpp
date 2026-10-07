@@ -715,6 +715,18 @@ lv_obj_t *KisSegitoUI::track_arc_(lv_obj_t *parent, int radius, int width, float
   return arc;
 }
 
+std::vector<int> KisSegitoUI::shop_() const {
+  // Rewards the selected child can see: an unlocked piggy bank is not sold
+  // again (#11).
+  std::vector<int> shop;
+  const bool unlocked = !this->children_.empty() && this->children_[this->child_].piggy_unlocked;
+  for (size_t i = 0; i < this->rewards_.size(); i++) {
+    if (!(this->rewards_[i].piggy_unlock && unlocked))
+      shop.push_back(static_cast<int>(i));
+  }
+  return shop;
+}
+
 std::vector<FnItem> KisSegitoUI::functions_for_(const Child &child) const {
   // Today's routines for this child first, then rewards, piggy bank, tokens.
   std::vector<FnItem> fns;
@@ -751,7 +763,7 @@ void KisSegitoUI::show_(Screen screen) {
     return;
   }
   if ((screen == Screen::ROUTINE && this->routines_.empty()) ||
-      ((screen == Screen::REWARDS || screen == Screen::CONFIRM) && this->rewards_.empty()))
+      ((screen == Screen::REWARDS || screen == Screen::CONFIRM) && this->shop_().empty()))
     screen = this->screen_ = Screen::FUNCTIONS;
   if (screen != Screen::CHILDREN && !this->children_[this->child_].selectable)
     screen = this->screen_ = Screen::CHILDREN;
@@ -804,7 +816,7 @@ void KisSegitoUI::rotate(int dir) {
       break;
     case Screen::REWARDS:
       this->carousel_.rotate(dir);
-      this->reward_ = this->carousel_.selected();
+      this->reward_ = this->shop_()[this->carousel_.selected()];
       break;
     case Screen::CONFIRM: {
       this->confirm_yes_ = !this->confirm_yes_;
@@ -864,7 +876,7 @@ void KisSegitoUI::click() {
           this->show_(Screen::ROUTINE);
           break;
         case FnType::REWARDS:
-          if (!this->rewards_.empty())
+          if (!this->shop_().empty())
             this->show_(Screen::REWARDS);
           break;
         case FnType::PIGGY:
@@ -878,7 +890,7 @@ void KisSegitoUI::click() {
     }
     case Screen::REWARDS: {
       const Reward &r = this->rewards_[this->reward_ % this->rewards_.size()];
-      if (r.cost > child.wallet || (r.piggy_unlock && child.piggy_unlocked)) {
+      if (r.cost > child.wallet) {
         // Locked: a short shake instead of opening the confirmation.
         this->shake_(this->carousel_.center_slot());
         return;
@@ -1028,15 +1040,21 @@ void KisSegitoUI::build_functions_() {
 
 void KisSegitoUI::build_rewards_() {
   const Child &child = this->children_[this->child_];
+  // The child's shop: the piggy-bank unlock is left out once it is unlocked.
+  const std::vector<int> shop = this->shop_();
+  int position = 0;
+  for (size_t i = 0; i < shop.size(); i++) {
+    if (shop[i] == this->reward_)
+      position = static_cast<int>(i);
+  }
+  this->reward_ = shop[position];
   this->carousel_.create(
-      this->screen_obj_, static_cast<int>(this->rewards_.size()), this->reward_, 260, 340, 60, 240,
-      [this](lv_obj_t *slot, int index) {
-        const Reward &r = this->rewards_[index];
+      this->screen_obj_, static_cast<int>(shop.size()), position, 260, 340, 60, 240,
+      [this, shop](lv_obj_t *slot, int index) {
+        const Reward &r = this->rewards_[shop[index]];
         const Child &c = this->children_[this->child_];
-        // An unlocked piggy bank is already owned: a check, no price, no lock.
-        // The lock only means "not enough tokens" (#11).
-        const bool owned = r.piggy_unlock && c.piggy_unlocked;
-        const bool locked = !owned && r.cost > c.wallet;
+        // The lock only means "not enough tokens".
+        const bool locked = r.cost > c.wallet;
         this->disc_(slot, 130, 120, 200,
                     locked ? lv_color_hex(0x4A4F6A) : lv_color_mix(lv_color_hex(c.color), lv_color_white(), 80));
         lv_obj_t *icon = this->image_(slot, r.icon + "_160", 130, 120);
@@ -1044,11 +1062,6 @@ void KisSegitoUI::build_rewards_() {
           lv_obj_set_style_image_recolor(icon, lv_color_hex(0x8C96A5), 0);
           lv_obj_set_style_image_recolor_opa(icon, 150, 0);
           this->image_(slot, "status_lock_64", 205, 190);
-        }
-        if (owned) {
-          lv_obj_t *check = this->image_(slot, "action_check_88", 200, 190);
-          lv_image_set_scale(check, 186);  // 88 px -> 64 px
-          return;
         }
         // The price as a small pile of exactly that many tokens.
         this->pile_(slot, 130, 290, r.cost, fnv1_hash(r.id), 4, 9, 16, 9);

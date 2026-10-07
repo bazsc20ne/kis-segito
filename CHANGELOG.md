@@ -6,6 +6,20 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.3.2] - 2026-10-07
+
+### English
+
+- Once a child's piggy bank is unlocked, the piggy-bank unlock reward no
+  longer appears in that child's shop on the knob at all (#11; replaces the
+  "owned" check of 0.3.1).
+
+### Magyar
+
+- Ha a gyerek perselye már fel van oldva, a perselyfeloldó jutalom egyáltalán
+  nem jelenik meg az ő boltjában a gombon (#11; a 0.3.1 „megvan” pipája
+  helyett).
+
 ## [0.3.1] - 2026-10-07
 
 ### English
