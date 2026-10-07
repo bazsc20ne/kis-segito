@@ -6,6 +6,54 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.5.0] - 2026-10-07
+
+### English
+
+- Day templates (e.g. weekday, weekend, holiday) say which routines run on a
+  day; each weekday can have a default template and a single date its own
+  (also on the Today page and with the `kis_segito.set_today_template`
+  action). Days without a template use each routine's own days.
+- Home Assistant entities: `sensor.kis_segito` (active/idle, day template,
+  running routines, next checkpoint), one sensor per child (wallet balance
+  with piggy bank, streak, routine progress, next checkpoint, last
+  transaction) and `calendar.kis_segito` with the routines as events.
+- Own pictures: a photo for each child and a picture for each reward,
+  uploaded in the panel (Home Assistant image_upload); the knob downloads
+  them from Home Assistant in the background and shows the icon until then.
+- Knob: interest paid while the child was away shows a piggy badge on the
+  child selector; opening the piggy bank drops exactly that many tokens in.
+- Knob (full animations): now and then a token rolls off the pile and a
+  cartoon hand puts it back; any input cancels it.
+- Notifications through scripts (#15): a rule can target a script, with the
+  script fields for message and title and fixed values for the others; only
+  scripts with the configured label are listed; a Send test button.
+- History (#16): every entry shows its own booked amount; the effective
+  value of a corrected entry is in its expandable chain.
+
+### Magyar
+
+- Napsablonok (pl. hétköznap, hétvége, szünet): megmondják, mely rutinok
+  futnak egy napon; a hét napjaihoz alapértelmezett sablon, egy-egy dátumhoz
+  saját sablon rendelhető (a Ma oldalon és a `kis_segito.set_today_template`
+  művelettel is). Sablon nélküli napokon minden rutin a saját napjait követi.
+- Home Assistant entitások: `sensor.kis_segito` (aktív/tétlen, napsablon,
+  futó rutinok, következő checkpoint), gyerekenként egy szenzor (pénztárca
+  egyenlege, persely, sorozat, rutin-előrehaladás, következő checkpoint,
+  utolsó tranzakció) és a rutinokat eseményként mutató `calendar.kis_segito`.
+- Saját képek: minden gyerekhez fénykép, minden jutalomhoz kép tölthető fel
+  a panelen (Home Assistant image_upload); a gomb a háttérben letölti őket,
+  addig az ikont mutatja.
+- Gomb: ha a gyerek távollétében kamat érkezett, a gyerekválasztón persely-
+  jelvény látszik; a persely megnyitásakor pontosan annyi zseton hullik bele.
+- Gomb (teljes animáció): időnként egy zseton legurul a kupacról, és egy
+  rajzolt kéz visszateszi; bármilyen mozdulat megszakítja.
+- Értesítés scripten keresztül (#15): egy szabály célpontja script is lehet,
+  megadható, melyik mezőbe menjen az üzenet és a cím, a többi mezőbe fix
+  érték; csak a beállított címkéjű scriptek jelennek meg; „Teszt küldése” gomb.
+- Előzmények (#16): minden bejegyzés a saját könyvelt összegét mutatja; a
+  módosított bejegyzés érvényes értéke a kinyitható láncban látszik.
+
 ## [0.4.0] - 2026-10-07
 
 ### English

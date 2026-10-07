@@ -24,8 +24,7 @@ Mindkét rész független a Home Assistant többi beállításától. A szülő 
 panelen állítja be a gyerekeket, a rutinokat (feladatok, időzített checkpointok, színzónák,
 időalapú zsetonjutalom), a jutalmakat és a perselyt; a gyerek a knobon követi a rutinját,
 zsetont gyűjt és jutalmat vált be. Minden zsetonmozgás visszakereshető, visszavonható
-előzményként tárolódik. A projekt aktív fejlesztés alatt áll; a mentett napi sablonok, a
-saját képek feltöltése és a Home Assistant szenzorok később jönnek.
+előzményként tárolódik. A projekt aktív fejlesztés alatt áll.
 
 ## Hardver
 
@@ -51,7 +50,7 @@ substitutions:
   friendly_name: Kis Segito
 
 packages:
-  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.4.0
+  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.5.0
 
 api:
   encryption:
@@ -94,9 +93,13 @@ Ezután add hozzá a knobot a Home Assistanthez az **ESPHome** integrációval.
 
 Az oldalsávban megjelenik a **Kis Segítő** menüpont: **Ma** (gyerekenkénti áttekintés és
 a mai nap módosítása: egy rutin mára kihagyható vagy eltolható), **Naptár** (heti nézet),
-**Gyerekek**, **Rutinok**, **Jutalmak**, **Zsetonok**, **Előzmények** (szűrhető, sorszámozott,
-hivatkozásokkal), **Értesítések** (szabályok bármely Home Assistant értesítési célponthoz),
-**Beállítások** (többek között adatexport JSON-ba).
+**Gyerekek** (fénykép is feltölthető), **Rutinok**, **Jutalmak** (saját kép is), **Zsetonok**,
+**Előzmények** (szűrhető, sorszámozott, hivatkozásokkal), **Értesítések** (szabályok bármely
+Home Assistant értesítési célponthoz vagy címkével megjelölt scripthez), **Beállítások**
+(többek között adatexport JSON-ba). A **Naptár** oldalon napsablonok (pl. hétköznap, hétvége,
+szünet) is megadhatók: a hét napjaihoz alapértelmezett sablon, egy-egy naphoz eltérő sablon
+rendelhető. A Home Assistantben egy összesítő szenzor (`sensor.kis_segito`), gyerekenként egy
+szenzor és egy naptár (`calendar.kis_segito`) jelenik meg.
 Üres rendszerben a Rutinok és a Jutalmak oldalon egy gombnyomással példa-rutinok és
 -jutalmak hozhatók létre. Egy gyerek legfeljebb egy knobhoz rendelhető (a gyerek oldalán);
 egy knobon a hozzá rendelt gyerekek választhatók, a többiek zárolva látszanak, a gyerek
@@ -155,8 +158,7 @@ Both parts are independent of the rest of your Home Assistant setup. Parents set
 children, routines (tasks, timed checkpoints, colour zones, time-based token rewards),
 rewards and the piggy bank in the Home Assistant panel; the child follows the routine on
 the knob, collects tokens and buys rewards. Every token movement is kept as history that
-can be reviewed and reversed. The project is under active development; saved day
-templates, uploading your own pictures and Home Assistant sensors come later.
+can be reviewed and reversed. The project is under active development.
 
 ### Hardware
 
@@ -182,7 +184,7 @@ substitutions:
   friendly_name: Kis Segito
 
 packages:
-  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.4.0
+  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.5.0
 
 api:
   encryption:
@@ -223,9 +225,12 @@ Then add the knob to Home Assistant with the **ESPHome** integration.
 
 A **Kis Segítő** entry appears in the sidebar: **Today** (per-child overview and "Modify
 today": skip or shift a routine for today only), **Calendar** (week view), **Children**,
-**Routines**, **Rewards**, **Tokens**, **History** (filterable, numbered, with links),
-**Notifications** (rules for any Home Assistant notify target), **Settings** (including a
-JSON export). In an empty
+**Routines**, **Rewards** (own pictures too), **Tokens**, **History** (filterable, numbered,
+with links), **Notifications** (rules for any Home Assistant notify target or labelled
+script), **Settings** (including a JSON export). Children can have a photo. The **Calendar**
+page also holds day templates (e.g. weekday, weekend, holiday): a default per weekday and
+a different one for a single day. Home Assistant gets a summary sensor
+(`sensor.kis_segito`), one sensor per child and a calendar (`calendar.kis_segito`). In an empty
 setup, example routines and rewards can be created with one click on the Routines and
 Rewards pages. A child can be assigned to at most one knob (on the child's page); on a knob
 its children can be selected and the others are shown locked; a knob without children
