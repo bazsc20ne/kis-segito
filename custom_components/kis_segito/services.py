@@ -53,6 +53,9 @@ SCHEMAS = {
         }
     ),
     "reverse_transaction": vol.Schema({vol.Required("transaction_id"): cv.string}),
+    "set_today_template": vol.Schema(
+        {vol.Optional("template_id"): vol.Any(None, cv.string)}
+    ),
 }
 
 
@@ -101,6 +104,12 @@ def async_register_services(hass: HomeAssistant, manager: KisSegitoManager) -> N
                         -data["amount"],
                         source="service",
                         creator="automation",
+                    )
+                case "set_today_template":
+                    await manager.async_set_day_template(
+                        day=manager.today(),
+                        template_id=data.get("template_id") or None,
+                        who="automation",
                     )
                 case "reverse_transaction":
                     await manager.async_reverse(

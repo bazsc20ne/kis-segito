@@ -124,6 +124,16 @@
           "description": "From the history in the panel."
         }
       }
+    },
+    "set_today_template": {
+      "name": "Set today's day template",
+      "description": "Chooses the day template for today (empty: back to the default).",
+      "fields": {
+        "template_id": {
+          "name": "Template ID",
+          "description": "Shown in the panel (Calendar)."
+        }
+      }
     }
   },
   "selector": {
@@ -188,6 +198,9 @@
     },
     "unknown_collection": {
       "message": "Unknown data type."
+    },
+    "unknown_template": {
+      "message": "Unknown day template."
     }
   }
 }

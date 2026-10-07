@@ -41,6 +41,7 @@ def async_register_commands(hass: HomeAssistant) -> None:
         ws_week,
         ws_notifications,
         ws_export,
+        ws_day_template,
     ):
         websocket_api.async_register_command(hass, command)
 
@@ -205,6 +206,9 @@ async def ws_data(
             "rewards": sorted(
                 manager.data["rewards"], key=lambda r: r.get("sort_order", 0)
             ),
+            "templates": manager.data["templates"],
+            "weekday_templates": manager.data["weekday_templates"],
+            "date_templates": manager.data["date_templates"],
             "devices": _devices(hass),
             "icons": await hass.async_add_executor_job(_icons),
         },
@@ -522,10 +526,13 @@ def ws_week(
     days = []
     for offset in range(7):
         day = start + timedelta(days=offset)
+        template = manager.template_for_day(day)
         days.append(
             {
                 "date": day.isoformat(),
                 "today": day == today,
+                "template": template["id"] if template else None,
+                "template_name": template.get("name", "") if template else None,
                 "routines": [
                     {
                         "id": r["id"],
@@ -612,4 +619,32 @@ def ws_export(
             "config": data.store.data,
             "ledger": data.store.ledger["transactions"],
         },
+    )
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/day_template",
+        vol.Exclusive("date", "day"): str,
+        vol.Exclusive("weekday", "day"): vol.All(int, vol.Range(min=0, max=6)),
+        vol.Required("template_id"): vol.Any(None, str),
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_day_template(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Choose the day template of a date or the default of a weekday."""
+    await _run(
+        connection,
+        msg["id"],
+        _manager(hass).async_set_day_template(
+            day=date.fromisoformat(msg["date"]) if msg.get("date") else None,
+            weekday=msg.get("weekday"),
+            template_id=msg["template_id"],
+            who=_who(connection),
+        ),
     )

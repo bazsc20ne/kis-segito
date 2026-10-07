@@ -38,7 +38,7 @@ ACTION_TTL = timedelta(days=7)
 # Daily progress is kept this long.
 DAYS_KEPT = 31
 
-COLLECTIONS = ("children", "routines", "rewards")
+COLLECTIONS = ("children", "routines", "rewards", "templates")
 
 
 class KisSegitoError(Exception):
@@ -133,10 +133,60 @@ class KisSegitoManager:
     def routine_on_day(
         self, routine: dict[str, Any], day: date
     ) -> dict[str, Any] | None:
-        """The routine as it runs on ``day`` (None: not scheduled or skipped)."""
-        if not routine_runs_on(routine, day):
+        """The routine as it runs on ``day`` (None: not scheduled or skipped).
+
+        With a day template for ``day`` the template decides which routines
+        run; without one each routine's own weekdays do.
+        """
+        template = self.template_for_day(day)
+        if template is not None:
+            if not routine.get("active", True) or routine["id"] not in template.get(
+                "routines", []
+            ):
+                return None
+        elif not routine_runs_on(routine, day):
             return None
         return routine_with_override(routine, self.override(day, routine["id"]))
+
+    def template_for_day(self, day: date) -> dict[str, Any] | None:
+        """The day template of ``day``: chosen for the date, else the weekday's."""
+        template_id = self.data["date_templates"].get(day.isoformat())
+        if template_id is None:
+            template_id = self.data["weekday_templates"].get(str(day.weekday()))
+        if not template_id:
+            return None
+        return next((t for t in self.data["templates"] if t["id"] == template_id), None)
+
+    async def async_set_day_template(
+        self,
+        *,
+        day: date | None = None,
+        weekday: int | None = None,
+        template_id: str | None,
+        who: str = "parent",
+    ) -> None:
+        """Choose the template of a date, or the default of a weekday.
+
+        ``template_id`` None removes the choice ("" for a date means: no
+        template that day, routines follow their own weekdays).
+        """
+        if template_id and not any(
+            t["id"] == template_id for t in self.data["templates"]
+        ):
+            raise KisSegitoError("unknown_template")
+        if day is not None:
+            key, store = day.isoformat(), self.data["date_templates"]
+        elif weekday is not None:
+            key, store = str(int(weekday) % 7), self.data["weekday_templates"]
+        else:
+            raise KisSegitoError("unknown_item")
+        old = store.get(key)
+        if template_id is None:
+            store.pop(key, None)
+        else:
+            store[key] = template_id
+        self._audit(who, f"template.{key}", old, template_id)
+        await self._changed()
 
     def routines_on_day(self, day: date) -> list[dict[str, Any]]:
         """Routines running on ``day`` with that day's changes, by start time."""
@@ -823,6 +873,8 @@ class KisSegitoManager:
             del self.data["days"][key]
         for key in [k for k in self.data["overrides"] if k < keep]:
             del self.data["overrides"][key]
+        for key in [k for k in self.data["date_templates"] if k < keep]:
+            del self.data["date_templates"][key]
 
     # ------------------------------------------------------------ streaks & interest
 

@@ -183,5 +183,15 @@
   "settings.export_hint": "Downloads every setting and the full token history as one JSON file.",
   "panel.outdated": "Kis Segítő was updated: reload the page to use the new version.",
   "panel.reload": "Reload",
-  "history.original": "original"
+  "history.original": "original",
+  "templates.title": "Day templates",
+  "templates.hint": "A day template says which routines run on a day (e.g. Weekday, Weekend, Holiday). Choose a default for each weekday; a single date can be changed on the Today page. Days without a template use each routine's own days.",
+  "templates.none": "No day templates yet.",
+  "templates.add": "Add day template",
+  "templates.edit": "Edit day template",
+  "templates.routines": "Routines on this kind of day",
+  "templates.weekdays": "Default template of each weekday",
+  "templates.own_days": "No template (routines' own days)",
+  "modify.template": "Today's day template",
+  "modify.template_default": "Default for this weekday"
 }

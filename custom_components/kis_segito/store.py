@@ -52,6 +52,11 @@ def _empty_config() -> dict[str, Any]:
         "days": {},
         "streaks": {},
         "overrides": {},
+        # Day templates: [{"id", "name", "icon", "routines": [ids]}]; weekday
+        # defaults (0 = Monday) and per-date choices refer to template ids.
+        "templates": [],
+        "weekday_templates": {},
+        "date_templates": {},
         "notifications": [],
         "audit": [],
     }

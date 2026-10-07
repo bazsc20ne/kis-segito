@@ -407,6 +407,16 @@ class KisSegitoPanel extends HTMLElement {
           : [...days, d].sort();
         break;
       }
+      case "toggle-routine": {
+        const list = this._edit.item.routines;
+        const i = list.indexOf(arg);
+        if (i >= 0) {
+          list.splice(i, 1);
+        } else {
+          list.push(arg);
+        }
+        break;
+      }
       case "toggle-child": {
         const list = this._get(path);
         const i = list.indexOf(arg);
@@ -574,6 +584,25 @@ class KisSegitoPanel extends HTMLElement {
       this._render();
       return;
     }
+    if (el.dataset.weekdayTemplate !== undefined) {
+      await this._ws({
+        type: "kis_segito/day_template",
+        weekday: Number(el.dataset.weekdayTemplate),
+        template_id: el.value || null,
+      });
+      await this._load();
+      return;
+    }
+    if (el.dataset.dateTemplate !== undefined) {
+      // "" = the weekday default; "-" = no template that day.
+      await this._ws({
+        type: "kis_segito/day_template",
+        date: el.dataset.dateTemplate,
+        template_id: el.value === "" ? null : el.value === "-" ? "" : el.value,
+      });
+      await this._load();
+      return;
+    }
     if (el.dataset.calendarChild !== undefined) {
       this._calendarChild = el.value;
       this._render();
@@ -637,6 +666,8 @@ class KisSegitoPanel extends HTMLElement {
         };
       case "rewards":
         return { name: "", icon: "reward_gift", cost: 5, active: true, kind: "normal" };
+      case "templates":
+        return { name: "", icon: "nav_calendar", routines: [] };
       default:
         return {
           name: "",
@@ -789,8 +820,11 @@ class KisSegitoPanel extends HTMLElement {
       return "";
     }
     const weekday = (new Date(`${day.date}T12:00:00`).getDay() + 6) % 7;
+    const template = (this._data.templates || []).find((t) => t.id === day.template);
     const scheduled = this._data.routines.filter(
-      (r) => r.active !== false && (!r.weekdays?.length || r.weekdays.includes(weekday))
+      (r) =>
+        r.active !== false &&
+        (template ? template.routines.includes(r.id) : !r.weekdays?.length || r.weekdays.includes(weekday))
     );
     if (!scheduled.length) {
       return "";
@@ -819,8 +853,17 @@ class KisSegitoPanel extends HTMLElement {
           ${controls}</div>`;
       })
       .join("");
+    const templates = this._data.templates || [];
+    const chosen = this._data.date_templates?.[day.date];
+    const templateSelect = templates.length
+      ? `<label>${this._e(this._t("modify.template"))}<select data-date-template="${day.date}" ${this._isAdmin ? "" : "disabled"}>
+          <option value="" ${chosen === undefined ? "selected" : ""}>${this._e(this._t("modify.template_default"))}</option>
+          <option value="-" ${chosen === "" ? "selected" : ""}>${this._e(this._t("templates.own_days"))}</option>
+          ${templates.map((t) => `<option value="${t.id}" ${t.id === chosen ? "selected" : ""}>${this._e(t.name)}</option>`).join("")}
+        </select></label>`
+      : "";
     return `<div class="card form"><h2>${this._e(this._t("modify.title"))}</h2>
-      <div class="muted">${this._e(this._t("modify.hint"))}</div>${rows}</div>`;
+      <div class="muted">${this._e(this._t("modify.hint"))}</div>${templateSelect}${rows}</div>`;
   }
 
   _viewCalendar() {
@@ -860,7 +903,8 @@ class KisSegitoPanel extends HTMLElement {
               <div class="block-sub">${this._e(r.start)}–${this._e(r.end)} · ${this._e(who)}</div>${cps}</div>`;
           })
           .join("");
-        return `<div class="day ${day.today ? "is-today" : ""}"><div class="day-head">${this._e(head)}</div>
+        const tpl = day.template_name ? `<div class="tpl">${this._e(day.template_name)}</div>` : "";
+        return `<div class="day ${day.today ? "is-today" : ""}"><div class="day-head">${this._e(head)}${tpl}</div>
           <div class="day-body" style="height:${(TO - FROM) * PX}px">${blocks}</div></div>`;
       })
       .join("");
@@ -874,7 +918,44 @@ class KisSegitoPanel extends HTMLElement {
         <span class="grow"></span>
         <select data-calendar-child>${options}</select></div>
       <div class="card calendar"><div class="hours" style="height:${(TO - FROM) * PX}px">${hours.join("")}</div>${columns}</div>
-      <div class="muted">${this._e(this._t("calendar.hint"))}</div>`;
+      <div class="muted">${this._e(this._t("calendar.hint"))}</div>
+      ${this._viewTemplates()}`;
+  }
+
+  _viewTemplates() {
+    if (this._edit?.collection === "templates") {
+      const t = this._edit.item;
+      const chips = this._data.routines
+        .map((r) => `<button class="chip ${t.routines.includes(r.id) ? "sel" : ""}" data-action="toggle-routine" data-arg="${r.id}">${this._icon(r.icon, 18)} ${this._e(r.name || this._t("routines.unnamed"))}</button>`)
+        .join("");
+      return `<div class="card form"><h2>${this._e(this._t(t.id ? "templates.edit" : "templates.add"))}</h2>
+        <label>${this._e(this._t("common.name"))}<input data-path="name" value="${this._e(t.name)}"></label>
+        <div class="field"><span>${this._e(this._t("templates.routines"))}</span><div class="row wrap">${chips}</div></div>
+        ${t.id ? `<div class="muted small">ID: ${this._e(t.id)}</div>` : ""}
+        ${this._formButtons(Boolean(t.id))}</div>`;
+    }
+    const templates = this._data.templates || [];
+    const rows = templates
+      .map(
+        (t) => `<div class="row"><span class="grow"><b>${this._e(t.name)}</b>
+          <span class="muted">${this._e(t.routines.map((id) => this._data.routines.find((r) => r.id === id)?.name).filter(Boolean).join(", ") || "—")}</span></span>
+          ${this._isAdmin ? `<button class="small" data-action="edit" data-collection="templates" data-arg="${t.id}">${this._e(this._t("common.edit"))}</button>` : ""}</div>`
+      )
+      .join("");
+    const disabled = this._isAdmin ? "" : "disabled";
+    const defaults = WEEKDAYS.map((d) => {
+      const current = this._data.weekday_templates?.[String(d)] || "";
+      const options = [`<option value="">${this._e(this._t("templates.own_days"))}</option>`]
+        .concat(templates.map((t) => `<option value="${t.id}" ${t.id === current ? "selected" : ""}>${this._e(t.name)}</option>`))
+        .join("");
+      return `<label class="inline">${this._e(this._t(`weekday.${d}`))}<select data-weekday-template="${d}" ${disabled}>${options}</select></label>`;
+    }).join("");
+    return `<div class="card form"><h2>${this._e(this._t("templates.title"))}</h2>
+      <div class="muted">${this._e(this._t("templates.hint"))}</div>
+      ${rows || `<div class="muted">${this._e(this._t("templates.none"))}</div>`}
+      ${this._isAdmin ? `<button data-action="new" data-arg="templates">+ ${this._e(this._t("templates.add"))}</button>` : ""}
+      ${templates.length ? `<h3>${this._e(this._t("templates.weekdays"))}</h3><div class="row wrap">${defaults}</div>` : ""}
+    </div>`;
   }
 
   _viewNotifications() {
@@ -1503,6 +1584,8 @@ const STYLE = `
   .block-title { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .block-sub { color: var(--secondary-text-color, #727272); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .cp { position: absolute; right: 2px; line-height: 0; }
+  .tpl { font-size: 11px; color: var(--primary-color, #03a9f4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .day-head { height: auto; min-height: 24px; }
   .filters select, .filters input { max-width: 180px; }
   .filters input[type="search"] { min-width: 180px; max-width: none; }
   .update { border-color: var(--primary-color, #03a9f4); }

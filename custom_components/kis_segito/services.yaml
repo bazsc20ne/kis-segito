@@ -95,3 +95,8 @@ reverse_transaction:
       required: true
       selector:
         text:
+set_today_template:
+  fields:
+    template_id:
+      selector:
+        text:

@@ -235,3 +235,31 @@ async def test_old_correction_amounts_from_ledger(manager: KisSegitoManager) -> 
     del correction["old_amount"], correction["new_amount"]
     entry = manager.history(kid)[0]
     assert (entry["old_amount"], entry["new_amount"]) == (1, 2)
+
+
+async def test_day_templates(manager: KisSegitoManager) -> None:
+    school = await manager.async_save_item(
+        "routines", {"name": "School morning", "start": "07:00", "end": "07:45"}
+    )
+    free = await manager.async_save_item(
+        "routines", {"name": "Free morning", "start": "08:30", "end": "09:30"}
+    )
+    weekday = await manager.async_save_item(
+        "templates", {"name": "Weekday", "routines": [school["id"]]}
+    )
+    holiday = await manager.async_save_item(
+        "templates", {"name": "Holiday", "routines": [free["id"]]}
+    )
+    day = manager.today()
+    # Without templates both routines follow their own (all) weekdays.
+    assert len(manager.routines_on_day(day)) == 2
+    await manager.async_set_day_template(
+        weekday=day.weekday(), template_id=weekday["id"]
+    )
+    assert [r["name"] for r in manager.routines_on_day(day)] == ["School morning"]
+    await manager.async_set_day_template(day=day, template_id=holiday["id"])
+    assert [r["name"] for r in manager.routines_on_day(day)] == ["Free morning"]
+    await manager.async_set_day_template(day=day, template_id=None)
+    assert manager.template_for_day(day)["name"] == "Weekday"
+    with pytest.raises(KisSegitoError):
+        await manager.async_set_day_template(day=day, template_id="nope")

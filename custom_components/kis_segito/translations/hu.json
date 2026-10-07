@@ -124,6 +124,16 @@
           "description": "A panel előzmények oldaláról."
         }
       }
+    },
+    "set_today_template": {
+      "name": "Mai napsablon beállítása",
+      "description": "Kiválasztja a mai napsablont (üresen: vissza az alapértelmezetthez).",
+      "fields": {
+        "template_id": {
+          "name": "Sablon azonosító",
+          "description": "A panelen (Naptár) látható."
+        }
+      }
     }
   },
   "selector": {
@@ -188,6 +198,9 @@
     },
     "unknown_collection": {
       "message": "Ismeretlen adattípus."
+    },
+    "unknown_template": {
+      "message": "Ismeretlen napsablon."
     }
   }
 }

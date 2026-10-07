@@ -183,5 +183,15 @@
   "settings.export_hint": "Minden beállítást és a teljes zseton-előzményt letölti egyetlen JSON-fájlban.",
   "panel.outdated": "A Kis Segítő frissült: töltsd újra az oldalt az új verzióhoz.",
   "panel.reload": "Újratöltés",
-  "history.original": "eredeti:"
+  "history.original": "eredeti:",
+  "templates.title": "Napsablonok",
+  "templates.hint": "A napsablon megmondja, mely rutinok futnak egy napon (pl. Hétköznap, Hétvége, Szünet). A hét napjaihoz alapértelmezett sablon választható; egy-egy nap a Ma oldalon módosítható. Sablon nélküli napokon minden rutin a saját napjait követi.",
+  "templates.none": "Még nincs napsablon.",
+  "templates.add": "Napsablon hozzáadása",
+  "templates.edit": "Napsablon szerkesztése",
+  "templates.routines": "Rutinok ezen a napon",
+  "templates.weekdays": "A hét napjainak alapértelmezett sablonja",
+  "templates.own_days": "Nincs sablon (a rutinok saját napjai)",
+  "modify.template": "Mai napsablon",
+  "modify.template_default": "A hét napja szerinti alapértelmezett"
 }
