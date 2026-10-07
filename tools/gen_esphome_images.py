@@ -42,7 +42,14 @@ def main() -> int:
     ]
     for key in keys:
         lines += [f"      - id: ks_img_{key}", f"        file: ${{kis_segito_assets}}/{key}.png"]
-    lines += ["", "kis_segito_ui:", "  id: ui", "  number_font: font_number", "  images:"]
+    lines += [
+        "",
+        "kis_segito_ui:",
+        "  id: ui",
+        "  number_font: font_number",
+        "  action_sensor: knob_action",
+        "  images:",
+    ]
     lines += [f"    {key}: ks_img_{key}" for key in keys]
     OUT.write_text("\n".join(lines) + "\n", "utf-8")
     print(f"wrote {len(keys)} images to {OUT.relative_to(ROOT)}")

@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 
+#include "esphome/components/json/json_util.h"
 #include "esphome/core/hal.h"
 #include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
@@ -208,38 +209,237 @@ void Carousel::rotate(int dir) {
 // ---------------------------------------------------------------- Setup / test data
 
 void KisSegitoUI::setup() {
-  // Built-in test data, shown until Home Assistant sends real data.
+  this->load_test_data_();
+  // The last selected child is kept across reboots (as a hash of its id).
+  this->child_pref_ = global_preferences->make_preference<uint32_t>(fnv1_hash("kis_segito_ui_child_id"));
+  uint32_t saved = 0;
+  if (this->child_pref_.load(&saved)) {
+    for (size_t i = 0; i < this->children_.size(); i++) {
+      if (fnv1_hash(this->children_[i].id) == saved)
+        this->child_ = static_cast<int>(i);
+    }
+  }
+}
+
+// Built-in test data, shown until Home Assistant sends a snapshot.
+void KisSegitoUI::load_test_data_() {
+  this->state_now_ = 1800000000;  // any fixed epoch; only differences matter
+  this->state_ms_ = millis();
+  const int64_t now = this->state_now_;
   this->children_ = {
-      {"test_avatar_1", 0x6CB8FF, 7, 12, true, 5, 7, 0.8f},
-      {"test_avatar_2", 0xFF8FB1, 24, 3, true, 2, 7, 0.65f},
-      {"test_avatar_3", 0x6BCB77, 260, 0, false, 6, 7, -1.0f},
+      {"test1", "test_avatar_1", 0x6CB8FF, 7, 12, true, 5, 7, true},
+      {"test2", "test_avatar_2", 0xFF8FB1, 24, 3, true, 2, 7, true},
+      {"test3", "test_avatar_3", 0x6BCB77, 260, 0, false, 6, 7, true},
   };
   this->rewards_ = {
-      {"reward_toy_car", 8}, {"reward_doll", 12}, {"reward_bricks", 20}, {"reward_long_story", 5}, {"reward_treat", 3},
+      {"r1", "reward_toy_car", 8, false}, {"r2", "reward_doll", 12, false},  {"r3", "reward_bricks", 20, false},
+      {"r4", "reward_long_story", 5, false}, {"r5", "reward_treat", 3, false},
   };
-  const std::vector<RoutineTask> tasks = {
-      {"task_clothes", false},
-      {"task_breakfast", false},
-      {"task_toothbrush", false},
-      {"task_shoes", false},
-      {"task_bag", false},
+  Routine morning;
+  morning.id = "morning";
+  morning.icon = "routine_morning";
+  morning.start = now - 12 * 60;
+  morning.end = morning.start + 40 * 60;
+  morning.zones = {{15 * 60, ZONE_WARN}, {5 * 60, ZONE_LATE}};
+  morning.checkpoints = {
+      {"breakfast", "task_breakfast", morning.start + 20 * 60, {}, {{5 * 60, 2}, {0, 1}}},
+      {"door", "task_door_ready", morning.end, {}, {{15 * 60, 3}, {5 * 60, 2}, {0, 1}}},
+      {"flag1", "checkpoint_flag", morning.start + 32 * 60, {"test1"}, {{0, 1}}},
   };
-  this->routines_ = {
-      {"routine_morning", 40 * 60, 0, tasks},
-      {"routine_evening", 30 * 60, 0, tasks},
+  morning.tasks = {
+      {"t1", "task_clothes", "breakfast"}, {"t2", "task_breakfast", "breakfast"}, {"t3", "task_toothbrush", "door"},
+      {"t4", "task_shoes", "door"},        {"t5", "task_bag", "door"},
   };
-  // The last selected child is kept across reboots.
-  this->child_pref_ = global_preferences->make_preference<int32_t>(fnv1_hash("kis_segito_ui_child"));
-  int32_t saved = 0;
-  if (this->child_pref_.load(&saved) && saved >= 0 && saved < static_cast<int32_t>(this->children_.size()))
-    this->child_ = saved;
+  Routine evening = morning;
+  evening.id = "evening";
+  evening.icon = "routine_evening";
+  evening.start = now - 5 * 60;
+  evening.end = evening.start + 30 * 60;
+  for (auto &cp : evening.checkpoints)
+    cp.t = evening.start + (cp.t - morning.start) * 30 / 40;
+  this->routines_ = {morning, evening};
+}
+
+int64_t KisSegitoUI::now_() const {
+  return this->state_now_ + static_cast<int64_t>((millis() - this->state_ms_) / 1000);
+}
+
+static uint32_t parse_color(const char *hex, uint32_t fallback) {
+  if (hex == nullptr)
+    return fallback;
+  if (*hex == '#')
+    hex++;
+  char *end = nullptr;
+  const unsigned long value = strtoul(hex, &end, 16);
+  return end != hex ? static_cast<uint32_t>(value) : fallback;
+}
+
+static std::vector<std::string> string_list(JsonVariantConst value) {
+  std::vector<std::string> out;
+  for (JsonVariantConst item : value.as<JsonArrayConst>())
+    out.emplace_back(item.as<const char *>() ? item.as<const char *>() : "");
+  return out;
+}
+
+void KisSegitoUI::set_state(const std::string &json) {
+  JsonDocument doc = json::parse_json(json);
+  JsonObjectConst root = doc.as<JsonObjectConst>();
+  if (root.isNull() || root["v"].as<int>() != 1) {
+    ESP_LOGW(TAG, "Ignoring state: unreadable or unknown schema");
+    return;
+  }
+  // Keep the selection by id across the update.
+  const std::string child_id = this->children_.empty() ? "" : this->children_[this->child_].id;
+  const std::string routine_id = this->routines_.empty() ? "" : this->current_routine_().id;
+  const std::string reward_id =
+      this->rewards_.empty() ? "" : this->rewards_[this->reward_ % this->rewards_.size()].id;
+
+  this->state_now_ = root["now"].as<int64_t>();
+  this->state_ms_ = millis();
+  std::vector<Child> children;
+  for (JsonObjectConst c : root["children"].as<JsonArrayConst>()) {
+    Child child;
+    child.id = c["id"].as<const char *>() ? c["id"].as<const char *>() : "";
+    child.avatar = c["a"] | "placeholder_avatar";
+    child.color = parse_color(c["c"].as<const char *>(), 0x6CB8FF);
+    child.wallet = c["w"] | 0;
+    child.piggy = c["p"] | 0;
+    child.piggy_unlocked = c["pu"] | false;
+    child.streak = c["s"] | 0;
+    child.streak_target = c["st"] | 7;
+    child.selectable = c["sel"] | true;
+    if (this->images_.count(child.avatar + "_180") == 0)
+      child.avatar = "placeholder_avatar";
+    children.push_back(child);
+  }
+  std::vector<Reward> rewards;
+  for (JsonObjectConst r : root["rewards"].as<JsonArrayConst>()) {
+    Reward reward;
+    reward.id = r["id"] | "";
+    reward.icon = r["i"] | "fn_rewards";
+    reward.cost = r["c"] | 0;
+    reward.piggy_unlock = strcmp(r["k"] | "normal", "piggy_unlock") == 0;
+    rewards.push_back(reward);
+  }
+  std::vector<Routine> routines;
+  for (JsonObjectConst r : root["routines"].as<JsonArrayConst>()) {
+    Routine routine;
+    routine.id = r["id"] | "";
+    routine.icon = r["i"] | "routine_generic";
+    routine.start = r["s"].as<int64_t>();
+    routine.end = r["e"].as<int64_t>();
+    routine.children = string_list(r["ch"]);
+    routine.base_color = parse_color(r["base"].as<const char *>(), ZONE_OK);
+    for (JsonArrayConst z : r["z"].as<JsonArrayConst>())
+      routine.zones.push_back({z[0].as<int>(), parse_color(z[1].as<const char *>(), ZONE_WARN)});
+    std::sort(routine.zones.begin(), routine.zones.end(),
+              [](const Zone &a, const Zone &b) { return a.offset_s > b.offset_s; });
+    for (JsonObjectConst c : r["cp"].as<JsonArrayConst>()) {
+      Checkpoint cp;
+      cp.id = c["id"] | "";
+      cp.icon = c["i"] | "checkpoint_flag";
+      cp.t = c["t"].as<int64_t>();
+      cp.children = string_list(c["ch"]);
+      for (JsonArrayConst b : c["b"].as<JsonArrayConst>())
+        cp.bands.push_back({b[0].as<int>(), b[1].as<int>()});
+      routine.checkpoints.push_back(cp);
+    }
+    for (JsonObjectConst t : r["t"].as<JsonArrayConst>())
+      routine.tasks.push_back({t["id"] | "", t["i"] | "task_generic", t["cp"] | ""});
+    for (JsonPairConst kv : r["done"].as<JsonObjectConst>())
+      routine.done[kv.key().c_str()] = string_list(kv.value());
+    for (JsonPairConst kv : r["cpd"].as<JsonObjectConst>())
+      routine.cp_done[kv.key().c_str()] = string_list(kv.value());
+    routines.push_back(routine);
+  }
+  this->children_ = children;
+  this->rewards_ = rewards;
+  this->routines_ = routines;
+  this->have_state_ = true;
+  if (root["anim"].is<const char *>())
+    this->set_animation_mode(root["anim"].as<const char *>());
+
+  this->child_ = 0;
+  for (size_t i = 0; i < this->children_.size(); i++) {
+    if (this->children_[i].id == child_id)
+      this->child_ = static_cast<int>(i);
+  }
+  this->routine_ = 0;
+  for (size_t i = 0; i < this->routines_.size(); i++) {
+    if (this->routines_[i].id == routine_id)
+      this->routine_ = static_cast<int>(i);
+  }
+  for (size_t i = 0; i < this->rewards_.size(); i++) {
+    if (this->rewards_[i].id == reward_id)
+      this->reward_ = static_cast<int>(i);
+  }
+  ESP_LOGI(TAG, "State: %u children, %u rewards, %u routines", (unsigned) this->children_.size(),
+           (unsigned) this->rewards_.size(), (unsigned) this->routines_.size());
+  if (!this->started_)
+    return;
+  if (this->busy_) {
+    this->pending_rebuild_ = true;  // applied when the animation ends
+    this->shown_routine_ = nullptr;
+    return;
+  }
+  this->pending_rebuild_ = false;
+  this->show_(this->screen_);
+}
+
+void KisSegitoUI::send_action_(const char *kind, const std::string &extra) {
+  // {"a":kind,"id":unique,"c":child,...}: Home Assistant runs each id once.
+  char id[20];
+  snprintf(id, sizeof(id), "%08x%04x", (unsigned) random_uint32(), (unsigned) (++this->action_seq_ & 0xFFFF));
+  std::string json = std::string("{\"a\":\"") + kind + "\",\"id\":\"" + id + "\",\"c\":\"" +
+                     this->children_[this->child_].id + "\"" + extra + "}";
+  ESP_LOGI(TAG, "Action: %s", json.c_str());
+  if (this->action_sensor_ != nullptr)
+    this->action_sensor_->publish_state(json);
+}
+
+bool KisSegitoUI::is_done_(const Routine &r, const std::string &task_id) const {
+  auto it = r.done.find(this->children_[this->child_].id);
+  return it != r.done.end() && std::find(it->second.begin(), it->second.end(), task_id) != it->second.end();
+}
+
+bool KisSegitoUI::cp_done_(const Routine &r, const std::string &cp_id) const {
+  auto it = r.cp_done.find(this->children_[this->child_].id);
+  return it != r.cp_done.end() && std::find(it->second.begin(), it->second.end(), cp_id) != it->second.end();
+}
+
+static bool applies(const std::vector<std::string> &children, const std::string &child_id) {
+  return children.empty() || std::find(children.begin(), children.end(), child_id) != children.end();
+}
+
+// The next checkpoint this child still has to reach in a routine.
+const Checkpoint *KisSegitoUI::next_checkpoint_(const Routine &r) const {
+  const Checkpoint *best = nullptr;
+  for (const auto &cp : r.checkpoints) {
+    if (!applies(cp.children, this->children_[this->child_].id) || this->cp_done_(r, cp.id))
+      continue;
+    if (best == nullptr || cp.t < best->t)
+      best = &cp;
+  }
+  return best;
+}
+
+static int reward_for(const std::vector<Band> &bands, int64_t seconds_early) {
+  int best = 0;
+  int best_threshold = INT32_MIN;
+  for (const auto &b : bands) {
+    if (seconds_early >= b.early_s && b.early_s > best_threshold) {
+      best = std::max(b.tokens, 0);
+      best_threshold = b.early_s;
+    }
+  }
+  return best;
 }
 
 void KisSegitoUI::select_child_(int index) {
   if (index == this->child_)
     return;
   this->child_ = index;
-  int32_t value = index;
+  uint32_t value = fnv1_hash(this->children_[index].id);
   this->child_pref_.save(&value);
 }
 
@@ -280,11 +480,6 @@ void KisSegitoUI::start() {
   if (this->started_)
     return;
   this->started_ = true;
-  const uint32_t now_s = millis() / 1000;
-  // Test routines: the morning one started 12 minutes ago, the evening one 5.
-  this->routines_[0].started_s = now_s > 720 ? now_s - 720 : 0;
-  this->routines_[1].started_s = now_s > 300 ? now_s - 300 : 0;
-
   this->root_ = lv_obj_create(nullptr);
   remove_defaults(this->root_);
   lv_obj_set_style_bg_color(this->root_, lv_color_hex(BASE_BG), 0);
@@ -309,6 +504,11 @@ void KisSegitoUI::start() {
   this->tick_timer_ = lv_timer_create(
       [](lv_timer_t *t) {
         auto *self = static_cast<KisSegitoUI *>(lv_timer_get_user_data(t));
+        if (self->pending_rebuild_ && !self->busy_) {
+          self->pending_rebuild_ = false;
+          self->show_(self->screen_);
+          return;
+        }
         self->update_track_();
         if (self->screen_ != Screen::CHILDREN && !self->busy_ && millis() - self->last_input_ms_ > INACTIVITY_MS)
           self->show_(Screen::CHILDREN);
@@ -316,7 +516,8 @@ void KisSegitoUI::start() {
       1000, this);
 
   this->show_(Screen::CHILDREN);
-  ESP_LOGI(TAG, "UI started with test data (%u children)", (unsigned) this->children_.size());
+  ESP_LOGI(TAG, "UI started (%s, %u children)", this->have_state_ ? "Home Assistant data" : "test data",
+           (unsigned) this->children_.size());
 }
 
 // ---------------------------------------------------------------- Helpers
@@ -514,11 +715,17 @@ lv_obj_t *KisSegitoUI::track_arc_(lv_obj_t *parent, int radius, int width, float
   return arc;
 }
 
-std::vector<Function> KisSegitoUI::functions_for_(const Child &child) const {
-  std::vector<Function> fns = {Function::ROUTINE_MORNING, Function::ROUTINE_EVENING, Function::REWARDS};
+std::vector<FnItem> KisSegitoUI::functions_for_(const Child &child) const {
+  // Today's routines for this child first, then rewards, piggy bank, tokens.
+  std::vector<FnItem> fns;
+  for (size_t i = 0; i < this->routines_.size(); i++) {
+    if (applies(this->routines_[i].children, child.id))
+      fns.push_back({FnType::ROUTINE, static_cast<int>(i)});
+  }
+  fns.push_back({FnType::REWARDS, -1});
   if (child.piggy_unlocked)
-    fns.push_back(Function::PIGGY);
-  fns.push_back(Function::TOKENS);
+    fns.push_back({FnType::PIGGY, -1});
+  fns.push_back({FnType::TOKENS, -1});
   return fns;
 }
 
@@ -534,7 +741,20 @@ void KisSegitoUI::show_(Screen screen) {
   this->task_big_ = this->timeline_ = nullptr;
   this->confirm_ring_ = this->confirm_no_ = this->confirm_yes_obj_ = nullptr;
   this->shown_reward_ = -1;
+  this->pending_rebuild_ = false;
   this->screen_ = screen;
+  if (this->children_.empty()) {
+    // No children configured yet: only the track and the brand mark.
+    this->screen_ = Screen::CHILDREN;
+    lv_obj_set_style_bg_color(this->root_, lv_color_hex(BASE_BG), 0);
+    this->build_track_();
+    return;
+  }
+  if ((screen == Screen::ROUTINE && this->routines_.empty()) ||
+      ((screen == Screen::REWARDS || screen == Screen::CONFIRM) && this->rewards_.empty()))
+    screen = this->screen_ = Screen::FUNCTIONS;
+  if (screen != Screen::CHILDREN && !this->children_[this->child_].selectable)
+    screen = this->screen_ = Screen::CHILDREN;
   const Child &child = this->children_[this->child_];
   const lv_color_t bg = screen == Screen::CHILDREN ? lv_color_hex(BASE_BG) : this->tint_(child.color, 46);
   lv_obj_set_style_bg_color(this->root_, bg, 0);
@@ -570,7 +790,7 @@ void KisSegitoUI::rotate(int dir) {
   if (!this->started_)
     return;
   this->last_input_ms_ = millis();
-  if (this->busy_)
+  if (this->busy_ || this->children_.empty())
     return;
   switch (this->screen_) {
     case Screen::CHILDREN:
@@ -601,62 +821,66 @@ void KisSegitoUI::rotate(int dir) {
   }
 }
 
+void KisSegitoUI::shake_(lv_obj_t *target) {
+  if (target == nullptr || this->anim_ms_(300) == 0)
+    return;
+  lv_anim_t a;
+  lv_anim_init(&a);
+  lv_anim_set_var(&a, target);
+  lv_anim_set_values(&a, -10, 10);
+  lv_anim_set_duration(&a, 60);
+  lv_anim_set_reverse_duration(&a, 60);
+  lv_anim_set_repeat_count(&a, 2);
+  lv_anim_set_exec_cb(&a, [](void *var, int32_t v) { lv_obj_set_style_translate_x(static_cast<lv_obj_t *>(var), v, 0); });
+  lv_anim_set_completed_cb(&a, [](lv_anim_t *anim) {
+    lv_obj_set_style_translate_x(static_cast<lv_obj_t *>(anim->var), 0, 0);
+  });
+  lv_anim_start(&a);
+}
+
 void KisSegitoUI::click() {
   if (!this->started_)
     return;
   this->last_input_ms_ = millis();
-  if (this->busy_)
+  if (this->busy_ || this->children_.empty())
     return;
-  const Child &child = this->children_[this->child_];
+  Child &child = this->children_[this->child_];
   switch (this->screen_) {
     case Screen::CHILDREN:
+      if (!child.selectable) {
+        // Another child's knob: visible, but locked here.
+        this->shake_(this->carousel_.center_slot());
+        return;
+      }
       this->function_ = 0;
       this->show_(Screen::FUNCTIONS);
       break;
     case Screen::FUNCTIONS: {
       const auto fns = this->functions_for_(child);
-      switch (fns[this->function_ % fns.size()]) {
-        case Function::ROUTINE_MORNING:
-          this->routine_ = 0;
+      const FnItem &fn = fns[this->function_ % fns.size()];
+      switch (fn.type) {
+        case FnType::ROUTINE:
+          this->routine_ = fn.routine;
           this->show_(Screen::ROUTINE);
           break;
-        case Function::ROUTINE_EVENING:
-          this->routine_ = 1;
-          this->show_(Screen::ROUTINE);
+        case FnType::REWARDS:
+          if (!this->rewards_.empty())
+            this->show_(Screen::REWARDS);
           break;
-        case Function::REWARDS:
-          this->show_(Screen::REWARDS);
-          break;
-        case Function::PIGGY:
+        case FnType::PIGGY:
           this->show_(Screen::PIGGY);
           break;
-        case Function::TOKENS:
+        case FnType::TOKENS:
           this->show_(Screen::TOKENS);
           break;
       }
       break;
     }
     case Screen::REWARDS: {
-      const Reward &r = this->rewards_[this->reward_];
-      if (r.cost > child.wallet) {
+      const Reward &r = this->rewards_[this->reward_ % this->rewards_.size()];
+      if (r.cost > child.wallet || (r.piggy_unlock && child.piggy_unlocked)) {
         // Locked: a short shake instead of opening the confirmation.
-        lv_obj_t *target = this->carousel_.center_slot();
-        if (target != nullptr && this->anim_ms_(300) > 0) {
-          lv_anim_t a;
-          lv_anim_init(&a);
-          lv_anim_set_var(&a, target);
-          lv_anim_set_values(&a, -10, 10);
-          lv_anim_set_duration(&a, 60);
-          lv_anim_set_reverse_duration(&a, 60);
-          lv_anim_set_repeat_count(&a, 2);
-          lv_anim_set_exec_cb(&a, [](void *var, int32_t v) {
-            lv_obj_set_style_translate_x(static_cast<lv_obj_t *>(var), v, 0);
-          });
-          lv_anim_set_completed_cb(&a, [](lv_anim_t *anim) {
-            lv_obj_set_style_translate_x(static_cast<lv_obj_t *>(anim->var), 0, 0);
-          });
-          lv_anim_start(&a);
-        }
+        this->shake_(this->carousel_.center_slot());
         return;
       }
       this->confirm_yes_ = false;
@@ -672,18 +896,21 @@ void KisSegitoUI::click() {
         this->refuse_offline_(this->confirm_yes_obj_);
         return;
       }
-      Child &c = this->children_[this->child_];
-      const Reward &r = this->rewards_[this->reward_];
-      c.wallet -= r.cost;
+      const Reward &r = this->rewards_[this->reward_ % this->rewards_.size()];
+      // Shown at once; Home Assistant books it and sends the real balance.
+      child.wallet -= r.cost;
+      if (r.piggy_unlock)
+        child.piggy_unlocked = true;
+      this->send_action_("redeem", ",\"r\":\"" + r.id + "\"");
       // The exact number of spent tokens fly from the wallet to the reward.
       this->busy_ = true;
       const int flying = std::min(r.cost, 40);
       for (int i = 0; i < flying; i++) {
-        lv_obj_t *coin = this->image_(this->screen_obj_, "token_coin_front_28", CENTER, 452);
+        lv_obj_t *coin = this->image_(this->screen_obj_, "token_coin_front_28", CENTER, 420);
         lv_anim_t a;
         lv_anim_init(&a);
         lv_anim_set_var(&a, coin);
-        lv_anim_set_values(&a, lv_obj_get_y(coin), 170 + static_cast<int>(hash32(i) % 30));
+        lv_anim_set_values(&a, lv_obj_get_y(coin), 150 + static_cast<int>(hash32(i) % 30));
         lv_anim_set_delay(&a, i * 45);
         lv_anim_set_duration(&a, this->anim_ms_(450));
         lv_anim_set_exec_cb(&a, [](void *var, int32_t v) { lv_obj_set_y(static_cast<lv_obj_t *>(var), v); });
@@ -697,11 +924,11 @@ void KisSegitoUI::click() {
           [](lv_timer_t *t) {
             auto *self = static_cast<KisSegitoUI *>(lv_timer_get_user_data(t));
             lv_timer_delete(t);
+            self->busy_ = false;
             self->show_(Screen::REWARDS);
           },
           this->anim_ms_(450) + flying * 45 + 300, this);
       lv_timer_set_repeat_count(done, 1);
-      ESP_LOGI(TAG, "Test redemption: reward %d for %d tokens", this->reward_, r.cost);
       break;
     }
     case Screen::ROUTINE:
@@ -748,10 +975,17 @@ void KisSegitoUI::build_children_() {
       [this](lv_obj_t *slot, int index) {
         const Child &c = this->children_[index];
         const int cx = 150;  // slot centre
-        this->disc_(slot, cx, 105, 190, lv_color_hex(c.color));
-        this->image_(slot, c.avatar + "_180", cx, 105);
-        this->pile_(slot, cx, 300, c.wallet, static_cast<uint32_t>(index) + 1, 12, 15, 19, 10);
+        // Children of another knob: visible but greyed and locked here.
+        const lv_color_t disc = c.selectable ? lv_color_hex(c.color) : lv_color_hex(0x4A4F6A);
+        this->disc_(slot, cx, 105, 190, disc);
+        lv_obj_t *avatar = this->image_(slot, c.avatar + "_180", cx, 105);
+        this->pile_(slot, cx, 300, c.wallet, fnv1_hash(c.id), 12, 15, 19, 10);
         this->number_pill_(slot, cx, 342, c.wallet, true);
+        if (!c.selectable) {
+          lv_obj_set_style_image_recolor(avatar, lv_color_hex(0x8C96A5), 0);
+          lv_obj_set_style_image_recolor_opa(avatar, 150, 0);
+          this->image_(slot, "status_lock_64", cx + 70, 170);
+        }
       },
       this->anim_ms_(260), true);
 }
@@ -765,9 +999,25 @@ void KisSegitoUI::build_functions_() {
       [this, fns](lv_obj_t *slot, int index) {
         const Child &c = this->children_[this->child_];
         this->disc_(slot, 120, 120, 210, lv_color_mix(lv_color_hex(c.color), lv_color_white(), 90));
-        static const char *const ICONS[] = {"routine_morning_160", "routine_evening_160", "fn_rewards_160",
-                                            "fn_piggy_160", "fn_tokens_160"};
-        this->image_(slot, ICONS[static_cast<int>(fns[index])], 120, 120);
+        const FnItem &fn = fns[index];
+        std::string icon;
+        switch (fn.type) {
+          case FnType::ROUTINE:
+            icon = this->routines_[fn.routine].icon;
+            break;
+          case FnType::REWARDS:
+            icon = "fn_rewards";
+            break;
+          case FnType::PIGGY:
+            icon = "fn_piggy";
+            break;
+          case FnType::TOKENS:
+            icon = "fn_tokens";
+            break;
+        }
+        if (this->images_.count(icon + "_160") == 0)
+          icon = "routine_generic";
+        this->image_(slot, icon + "_160", 120, 120);
       },
       this->anim_ms_(240));
   // Small child marker at the top centre: context only, not the focus.
@@ -783,7 +1033,7 @@ void KisSegitoUI::build_rewards_() {
       [this](lv_obj_t *slot, int index) {
         const Reward &r = this->rewards_[index];
         const Child &c = this->children_[this->child_];
-        const bool locked = r.cost > c.wallet;
+        const bool locked = r.cost > c.wallet || (r.piggy_unlock && c.piggy_unlocked);
         lv_obj_t *disc = this->disc_(slot, 130, 120, 200,
                                      locked ? lv_color_hex(0x4A4F6A)
                                             : lv_color_mix(lv_color_hex(c.color), lv_color_white(), 80));
@@ -795,7 +1045,7 @@ void KisSegitoUI::build_rewards_() {
           this->image_(slot, "status_lock_64", 205, 190);
         }
         // The price as a small pile of exactly that many tokens.
-        this->pile_(slot, 130, 290, r.cost, 1000u + index, 4, 9, 16, 9);
+        this->pile_(slot, 130, 290, r.cost, fnv1_hash(r.id), 4, 9, 16, 9);
         this->number_pill_(slot, 130, 320, r.cost, false);
       },
       this->anim_ms_(240));
@@ -804,7 +1054,7 @@ void KisSegitoUI::build_rewards_() {
 }
 
 void KisSegitoUI::build_confirm_() {
-  const Reward &r = this->rewards_[this->reward_];
+  const Reward &r = this->rewards_[this->reward_ % this->rewards_.size()];
   const Child &child = this->children_[this->child_];
   this->disc_(this->screen_obj_, CENTER, 160, 180, lv_color_mix(lv_color_hex(child.color), lv_color_white(), 80));
   this->image_(this->screen_obj_, r.icon + "_160", CENTER, 160);
@@ -858,17 +1108,19 @@ void KisSegitoUI::build_piggy_() {
 
 Routine &KisSegitoUI::current_routine_() { return this->routines_[this->routine_ % this->routines_.size()]; }
 
+// Position of a moment on a routine's track (0 = start, 1 = end).
+static float track_p(const Routine &r, int64_t t) {
+  const float total = static_cast<float>(std::max<int64_t>(r.end - r.start, 1));
+  return std::max(0.0f, std::min(1.0f, static_cast<float>(t - r.start) / total));
+}
+
 int KisSegitoUI::routine_reward_now_() const {
+  // Tokens for reaching the child's next checkpoint now (time bands from HA).
+  if (this->routines_.empty() || this->children_.empty())
+    return 0;
   const Routine &r = this->routines_[this->routine_ % this->routines_.size()];
-  const uint32_t now_s = millis() / 1000;
-  const int remaining = static_cast<int>(r.started_s + r.total_s) - static_cast<int>(now_s);
-  if (remaining > 15 * 60)
-    return 3;
-  if (remaining > 5 * 60)
-    return 2;
-  if (remaining > 0)
-    return 1;
-  return 0;
+  const Checkpoint *cp = this->next_checkpoint_(r);
+  return cp == nullptr ? 0 : reward_for(cp->bands, cp->t - this->now_());
 }
 
 void KisSegitoUI::build_routine_() {
@@ -881,19 +1133,15 @@ void KisSegitoUI::build_routine_() {
   this->task_big_ = lv_image_create(this->screen_obj_);
   lv_image_set_pivot(this->task_big_, 75, 75);
 
-  // Rebuild the task parts.
   int current = -1;
   for (size_t i = 0; i < r.tasks.size(); i++) {
-    if (!r.tasks[i].done) {
+    if (!this->is_done_(r, r.tasks[i].id)) {
       current = static_cast<int>(i);
       break;
     }
   }
-  if (current >= 0) {
-    lv_image_set_src(this->task_big_, this->img_(r.tasks[current].icon + "_150"));
-  } else {
-    lv_image_set_src(this->task_big_, this->img_("action_check_88"));
-  }
+  const lv_image_dsc_t *big = current >= 0 ? this->img_(r.tasks[current].icon + "_150") : nullptr;
+  lv_image_set_src(this->task_big_, big != nullptr ? big : this->img_("action_check_88"));
   lv_obj_update_layout(this->task_big_);
   lv_obj_set_pos(this->task_big_, CENTER - lv_obj_get_width(this->task_big_) / 2,
                  205 - lv_obj_get_height(this->task_big_) / 2);
@@ -903,7 +1151,7 @@ void KisSegitoUI::build_routine_() {
   for (size_t i = 0; i < r.tasks.size(); i++) {
     if (static_cast<int>(i) == current)
       continue;
-    const bool done = r.tasks[i].done;
+    const bool done = this->is_done_(r, r.tasks[i].id);
     const float deg = done ? 90.0f + 30.0f + 20.0f * done_slot++ : 90.0f - 30.0f - 20.0f * future_slot++;
     const float rad = deg * static_cast<float>(M_PI) / 180.0f;
     const int tx = CENTER + static_cast<int>(150 * std::cos(rad));
@@ -920,15 +1168,24 @@ void KisSegitoUI::build_routine_() {
 // ---------------------------------------------------------------- Time track
 
 Routine *KisSegitoUI::track_routine_() {
-  // On a routine screen its own routine; elsewhere the one running now.
+  // On a routine screen its own routine; elsewhere the one running now for
+  // the selected child (or for anyone).
+  if (this->routines_.empty())
+    return nullptr;
   if (this->screen_ == Screen::ROUTINE)
     return &this->current_routine_();
-  const uint32_t now_s = millis() / 1000;
+  const int64_t now = this->now_();
+  const std::string child_id = this->children_.empty() ? "" : this->children_[this->child_].id;
+  Routine *any = nullptr;
   for (auto &r : this->routines_) {
-    if (now_s >= r.started_s && now_s < r.started_s + r.total_s)
+    if (now < r.start || now >= r.end)
+      continue;
+    if (applies(r.children, child_id))
       return &r;
+    if (any == nullptr)
+      any = &r;
   }
-  return nullptr;
+  return any;
 }
 
 void KisSegitoUI::build_track_() {
@@ -950,17 +1207,22 @@ void KisSegitoUI::build_track_() {
   lv_arc_set_bg_angles(band, 0, 360);
   lv_obj_set_style_arc_rounded(band, false, LV_PART_MAIN);
 
-  // Outer, shared track. The future colour structure is visible from the
-  // start: OK, then warning from T-15 min, then late from T-5 min.
+  // Outer, shared track. The whole future colour structure is visible from
+  // the start: the base colour, then each zone from its offset before the end.
   Routine *r = this->track_routine_();
   this->shown_routine_ = r;
   if (r != nullptr) {
-    const float total = static_cast<float>(r->total_s);
-    const float warn = std::max(0.0f, 1.0f - 15 * 60 / total);
-    const float late = std::max(0.0f, 1.0f - 5 * 60 / total);
-    this->track_arc_(this->track_layer_, OUTER_R, OUTER_W, 0.0f, warn, lv_color_hex(ZONE_OK));
-    this->track_arc_(this->track_layer_, OUTER_R, OUTER_W, warn, late, lv_color_hex(ZONE_WARN));
-    this->track_arc_(this->track_layer_, OUTER_R, OUTER_W, late, 1.0f, lv_color_hex(ZONE_LATE));
+    float from = 0.0f;
+    lv_color_t color = lv_color_hex(r->base_color);
+    for (const auto &zone : r->zones) {
+      const float p = track_p(*r, r->end - zone.offset_s);
+      if (p > from)
+        this->track_arc_(this->track_layer_, OUTER_R, OUTER_W, from, p, color);
+      from = std::max(from, p);
+      color = lv_color_hex(zone.color);
+    }
+    if (from < 1.0f)
+      this->track_arc_(this->track_layer_, OUTER_R, OUTER_W, from, 1.0f, color);
     // Elapsed time is dimmed; update_track_() moves it every second.
     this->elapsed_arc_ = this->track_arc_(this->track_layer_, OUTER_R + 1, OUTER_W + 2, 0.0f, 0.001f,
                                          lv_color_hex(TRACK_DIM));
@@ -976,12 +1238,21 @@ void KisSegitoUI::build_track_() {
   this->build_inner_track_();
 
   if (r != nullptr) {
-    // Global checkpoints on the outer track (test data).
-    int x, y;
-    this->ring_point_(0.5f, OUTER_MID, &x, &y);
-    this->image_(this->track_layer_, "task_breakfast_32", x, y);
-    this->ring_point_(1.0f, OUTER_MID, &x, &y);
-    this->image_(this->track_layer_, "task_door_ready_32", x, y);
+    // Shared (global) checkpoints on the outer track; reached ones are grey.
+    for (const auto &cp : r->checkpoints) {
+      if (!cp.children.empty())
+        continue;
+      int x, y;
+      this->ring_point_(track_p(*r, cp.t), OUTER_MID, &x, &y);
+      std::string key = cp.icon + "_32";
+      if (this->images_.count(key) == 0)
+        key = "checkpoint_flag_32";
+      lv_obj_t *icon = this->image_(this->track_layer_, key, x, y);
+      if (!this->children_.empty() && this->cp_done_(*r, cp.id)) {
+        lv_obj_set_style_image_recolor(icon, lv_color_hex(0x8C96A5), 0);
+        lv_obj_set_style_image_recolor_opa(icon, 200, 0);
+      }
+    }
     this->now_dot_ = this->disc_(this->track_layer_, 0, 0, 18, lv_color_white());
   }
 
@@ -994,21 +1265,35 @@ void KisSegitoUI::build_track_() {
 }
 
 void KisSegitoUI::build_inner_track_() {
-  if (this->inner_layer_ == nullptr)
+  if (this->inner_layer_ == nullptr || this->children_.empty())
     return;
   lv_obj_clean(this->inner_layer_);
   const Child &child = this->children_[this->child_];
-  this->track_arc_(this->inner_layer_, INNER_R, INNER_W, 0.0f, 1.0f, lv_color_mix(lv_color_hex(child.color),
-                                                                                   lv_color_hex(BASE_BG), 200));
-  if (child.checkpoint >= 0 && this->shown_routine_ != nullptr) {
+  this->track_arc_(this->inner_layer_, INNER_R, INNER_W, 0.0f, 1.0f,
+                   lv_color_mix(lv_color_hex(child.color), lv_color_hex(BASE_BG), 200));
+  const Routine *r = this->shown_routine_;
+  if (r == nullptr)
+    return;
+  // This child's own checkpoints on the inner track.
+  for (const auto &cp : r->checkpoints) {
+    if (cp.children.empty() || !applies(cp.children, child.id))
+      continue;
     int x, y;
-    this->ring_point_(child.checkpoint, INNER_MID, &x, &y);
-    this->image_(this->inner_layer_, "checkpoint_flag_28", x, y);
+    this->ring_point_(track_p(*r, cp.t), INNER_MID, &x, &y);
+    std::string key = cp.icon + "_28";
+    if (this->images_.count(key) == 0)
+      key = this->images_.count(cp.icon + "_32") ? cp.icon + "_32" : "checkpoint_flag_28";
+    lv_obj_t *icon = this->image_(this->inner_layer_, key, x, y);
+    if (this->cp_done_(*r, cp.id)) {
+      lv_obj_set_style_image_recolor(icon, lv_color_hex(0x8C96A5), 0);
+      lv_obj_set_style_image_recolor_opa(icon, 200, 0);
+    }
   }
 }
 
 void KisSegitoUI::update_track_() {
-  if (this->track_layer_ == nullptr)
+  // New data waits for the running animation; the shown routine may be gone.
+  if (this->track_layer_ == nullptr || this->pending_rebuild_)
     return;
   // The routine running now may have changed (one ended, another started).
   if (this->screen_ != Screen::ROUTINE && this->track_routine_() != this->shown_routine_ && !this->busy_) {
@@ -1017,9 +1302,7 @@ void KisSegitoUI::update_track_() {
   }
   const Routine *r = this->shown_routine_;
   if (r != nullptr && this->elapsed_arc_ != nullptr) {
-    const uint32_t now_s = millis() / 1000;
-    float p = (static_cast<float>(now_s) - static_cast<float>(r->started_s)) / static_cast<float>(r->total_s);
-    p = std::max(0.001f, std::min(p, 1.0f));
+    const float p = std::max(0.001f, track_p(*r, this->now_()));
     float start = 240.0f - 300.0f * p;
     if (start < 0)
       start += 360;
@@ -1048,18 +1331,40 @@ void KisSegitoUI::update_track_() {
 
 void KisSegitoUI::complete_task_() {
   Routine &r = this->current_routine_();
+  const std::string child_id = this->children_[this->child_].id;
   int current = -1;
   for (size_t i = 0; i < r.tasks.size(); i++) {
-    if (!r.tasks[i].done) {
+    if (!this->is_done_(r, r.tasks[i].id)) {
       current = static_cast<int>(i);
       break;
     }
   }
   if (current < 0)
     return;
-  r.tasks[current].done = true;
-  const bool last = current == static_cast<int>(r.tasks.size()) - 1;
-  const int reward = last ? this->routine_reward_now_() : 0;
+  const RoutineTask &task = r.tasks[current];
+  // Shown at once; Home Assistant books it and sends the real state.
+  r.done[child_id].push_back(task.id);
+  this->send_action_("task", ",\"r\":\"" + r.id + "\",\"t\":\"" + task.id + "\"");
+
+  // Was this the last task before its checkpoint? Then the checkpoint is
+  // reached, worth its current time-band reward.
+  int reward = 0;
+  const Checkpoint *cp = nullptr;
+  for (const auto &c : r.checkpoints) {
+    if (c.id == task.checkpoint)
+      cp = &c;
+  }
+  if (cp != nullptr && applies(cp->children, child_id) && !this->cp_done_(r, cp->id)) {
+    bool all = true;
+    for (const auto &t : r.tasks) {
+      if (t.checkpoint == cp->id && !this->is_done_(r, t.id))
+        all = false;
+    }
+    if (all) {
+      reward = reward_for(cp->bands, cp->t - this->now_());
+      r.cp_done[child_id].push_back(cp->id);
+    }
+  }
   this->busy_ = true;
 
   // Bounce, check, then rebuild with the next task.
@@ -1074,18 +1379,18 @@ void KisSegitoUI::complete_task_() {
     lv_anim_set_exec_cb(&a, [](void *var, int32_t v) { lv_image_set_scale(static_cast<lv_obj_t *>(var), v); });
     lv_anim_start(&a);
   }
-  lv_obj_t *check = this->image_(this->screen_obj_, "action_check_88", CENTER, 205);
-  (void) check;
+  this->image_(this->screen_obj_, "action_check_88", CENTER, 205);
   lv_timer_t *t = lv_timer_create(
       [](lv_timer_t *timer) {
         auto *self = static_cast<KisSegitoUI *>(lv_timer_get_user_data(timer));
         lv_timer_delete(timer);
         self->busy_ = false;
+        self->pending_rebuild_ = false;
         self->show_(Screen::ROUTINE);
       },
       ms + 250, this);
   lv_timer_set_repeat_count(t, 1);
-  if (last && reward > 0)
+  if (reward > 0)
     this->celebrate_(reward);
 }
 

@@ -182,7 +182,7 @@ class DeviceLink:
         snapshot = self.manager.snapshot(self.device_id, language)
         payload = json.dumps(snapshot, separators=(",", ":"), ensure_ascii=False)
         await self.hass.services.async_call(
-            ESPHOME_DOMAIN, service, {"json": payload}, blocking=True
+            ESPHOME_DOMAIN, service, {"data": payload}, blocking=True
         )
         _LOGGER.debug("Sent state (%d bytes) to %s", len(payload), service)
 

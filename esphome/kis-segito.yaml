@@ -120,6 +120,13 @@ api:
             const auto mode = id(animation_mode).current_option();
             id(ui).set_animation_mode(std::string(mode.c_str(), mode.size()));
             id(ui).start();
+    # Data snapshot from Home Assistant (children, rewards, today's routines):
+    # JSON, schema 1, see docs/protocol.md.
+    - action: set_state
+      variables:
+        data: string
+      then:
+        - lambda: id(ui).set_state(std::string(data.c_str(), data.size()));
   on_client_connected:
     - lambda: id(ui).set_connected(true);
   on_client_disconnected:
@@ -402,6 +409,13 @@ binary_sensor:
               id(ui).long_press();
 
 text_sensor:
+  # The child's actions on the knob (JSON with a unique id), for Home
+  # Assistant: completed tasks, redeemed rewards. See docs/protocol.md.
+  - platform: template
+    id: knob_action
+    name: Action
+    icon: mdi:gesture-tap
+    entity_category: diagnostic
   - platform: version
     name: ESPHome version
     entity_category: diagnostic

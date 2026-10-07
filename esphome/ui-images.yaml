@@ -209,6 +209,7 @@ image:
 kis_segito_ui:
   id: ui
   number_font: font_number
+  action_sensor: knob_action
   images:
     test_avatar_1_180: ks_img_test_avatar_1_180
     test_avatar_2_180: ks_img_test_avatar_2_180
