@@ -8,11 +8,26 @@
 // Data comes from the kis_segito/* WebSocket commands; the panel re-reads it
 // after every change (kis_segito/subscribe).
 
+// Must equal the integration version (scripts/check_versions.py checks it):
+// a browser that still runs an older copy of this file shows a reload bar.
+const PANEL_VERSION = "0.4.0";
 const FALLBACK_LANGUAGE = "en";
 const LANGUAGE_AUTO = "auto";
-const TABS = ["today", "children", "routines", "rewards", "tokens", "history", "settings"];
+const TABS = [
+  "today",
+  "calendar",
+  "children",
+  "routines",
+  "rewards",
+  "tokens",
+  "history",
+  "notifications",
+  "settings",
+];
 const TAB_ICONS = {
   today: "nav_today",
+  calendar: "nav_calendar",
+  notifications: "nav_notifications",
   children: "nav_children",
   routines: "nav_routines",
   rewards: "nav_rewards",
@@ -55,7 +70,11 @@ class KisSegitoPanel extends HTMLElement {
     this._tab = "today";
     this._edit = null; // {collection, item}
     this._picker = null; // {path, filter}
-    this._historyChild = "";
+    this._historyFilter = {};
+    this._week = null;
+    this._weekStart = null; // null = this week
+    this._calendarChild = "";
+    this._rules = null;
     this._error = "";
   }
 
@@ -176,19 +195,52 @@ class KisSegitoPanel extends HTMLElement {
       if (this._tab === "history" || this._tab === "tokens") {
         await this._loadHistory();
       }
+      if (this._tab === "today" || this._tab === "calendar") {
+        await this._loadWeek();
+      }
+      if (this._tab === "notifications" && !this._rules) {
+        await this._loadRules();
+      }
     } catch (err) {
       console.warn("Kis Segito: loading data failed", err);
     }
     this._updateLanguage();
     this._render();
+    // A link like …/kis-segito#tx-12 opens that history entry.
+    const anchor = /^#tx-(\d+)$/.exec(location.hash);
+    if (anchor && !this._anchorDone) {
+      this._anchorDone = true;
+      this._tab = "history";
+      await this._loadHistory();
+      this._render();
+      this._onClick({ target: { closest: () => ({ dataset: { action: "goto", arg: anchor[1] } }) } });
+    }
   }
 
   async _loadHistory() {
+    const f = this._historyFilter;
     this._history = await this._hass.callWS({
       type: "kis_segito/history",
-      child_id: this._historyChild || null,
-      limit: 300,
+      child_id: f.child || null,
+      reasons: f.reason ? [f.reason] : null,
+      account: f.account || null,
+      date_from: f.from || null,
+      date_to: f.to || null,
+      search: f.search || null,
+      limit: 500,
     });
+  }
+
+  async _loadWeek() {
+    const msg = { type: "kis_segito/week" };
+    if (this._weekStart) {
+      msg.start = this._weekStart;
+    }
+    this._week = await this._hass.callWS(msg);
+  }
+
+  async _loadRules() {
+    this._rules = await this._hass.callWS({ type: "kis_segito/notifications" });
   }
 
   async _ws(msg) {
@@ -267,6 +319,9 @@ class KisSegitoPanel extends HTMLElement {
       return;
     }
     const { action, arg, path } = el.dataset;
+    if (action === "goto" && ev.preventDefault) {
+      ev.preventDefault();
+    }
     switch (action) {
       case "tab":
         this._tab = arg;
@@ -274,6 +329,12 @@ class KisSegitoPanel extends HTMLElement {
         this._picker = null;
         if (arg === "history" || arg === "tokens") {
           await this._loadHistory();
+        }
+        if (arg === "today" || arg === "calendar") {
+          await this._loadWeek();
+        }
+        if (arg === "notifications") {
+          await this._loadRules();
         }
         break;
       case "new":
@@ -374,6 +435,79 @@ class KisSegitoPanel extends HTMLElement {
       case "adjust":
         await this._adjust(arg);
         return;
+      case "week": {
+        const base = new Date(`${this._week.start}T12:00:00`);
+        base.setDate(base.getDate() + (arg === "next" ? 7 : arg === "prev" ? -7 : 0));
+        this._weekStart = arg === "now" ? null : base.toISOString().slice(0, 10);
+        await this._loadWeek();
+        break;
+      }
+      case "override": {
+        const shift = this.shadowRoot.querySelector(`[data-shift="${arg}"]`);
+        await this._ws({
+          type: "kis_segito/override",
+          routine_id: arg,
+          skip: el.dataset.skip === "1",
+          shift_min: el.dataset.skip === "1" || el.dataset.reset === "1" ? 0 : Math.trunc(Number(shift?.value || 0)),
+        });
+        await this._load();
+        return;
+      }
+      case "rule-add":
+        this._rules.rules.push({ name: "", service: "", events: ["reward_redeemed"], children: [], enabled: true });
+        break;
+      case "rule-remove":
+        this._rules.rules.splice(Number(arg), 1);
+        break;
+      case "rule-event": {
+        const [i, ev2] = arg.split(":");
+        const list = this._rules.rules[Number(i)].events;
+        const k = list.indexOf(ev2);
+        if (k >= 0) list.splice(k, 1);
+        else list.push(ev2);
+        break;
+      }
+      case "rule-child": {
+        const [i, child] = arg.split(":");
+        const list = this._rules.rules[Number(i)].children;
+        const k = list.indexOf(child);
+        if (k >= 0) list.splice(k, 1);
+        else list.push(child);
+        break;
+      }
+      case "rules-save":
+        this._rules = await this._ws({ type: "kis_segito/notifications", rules: this._rules.rules });
+        break;
+      case "reload":
+        location.reload();
+        return;
+      case "goto": {
+        // Jump to a history entry (#n): clear filters that would hide it.
+        let row = this.shadowRoot.getElementById(`tx-${arg}`);
+        if (!row) {
+          this._historyFilter = {};
+          await this._loadHistory();
+          this._render();
+          row = this.shadowRoot.getElementById(`tx-${arg}`);
+        }
+        history.replaceState(null, "", `#tx-${arg}`);
+        if (row) {
+          row.scrollIntoView({ behavior: "smooth", block: "center" });
+          row.classList.add("flash");
+          setTimeout(() => row.classList.remove("flash"), 1600);
+        }
+        return;
+      }
+      case "export": {
+        const data = await this._ws({ type: "kis_segito/export" });
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `kis-segito-${new Date().toISOString().slice(0, 10)}.json`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        return;
+      }
       case "reverse":
         if (!confirm(this._t("history.confirm_reverse"))) {
           return;
@@ -434,10 +568,20 @@ class KisSegitoPanel extends HTMLElement {
       await this._load();
       return;
     }
-    if (el.dataset.filter === "history") {
-      this._historyChild = el.value;
+    if (el.dataset.filter) {
+      this._historyFilter[el.dataset.filter] = el.value;
       await this._loadHistory();
       this._render();
+      return;
+    }
+    if (el.dataset.calendarChild !== undefined) {
+      this._calendarChild = el.value;
+      this._render();
+      return;
+    }
+    if (el.dataset.rule) {
+      const [i, key] = el.dataset.rule.split(":");
+      this._rules.rules[Number(i)][key] = el.type === "checkbox" ? el.checked : el.value;
       return;
     }
     if (!el.dataset.path || !this._edit) {
@@ -635,7 +779,142 @@ class KisSegitoPanel extends HTMLElement {
         </div>`;
       })
       .join("");
-    return `<div class="grid">${cards}</div>`;
+    return `<div class="grid">${cards}</div>${this._viewModifyToday()}`;
+  }
+
+  _viewModifyToday() {
+    // One-day changes: skip a routine or shift all its times, only for today.
+    const day = this._week?.days?.find((d) => d.today);
+    if (!day) {
+      return "";
+    }
+    const weekday = (new Date(`${day.date}T12:00:00`).getDay() + 6) % 7;
+    const scheduled = this._data.routines.filter(
+      (r) => r.active !== false && (!r.weekdays?.length || r.weekdays.includes(weekday))
+    );
+    if (!scheduled.length) {
+      return "";
+    }
+    const rows = scheduled
+      .map((r) => {
+        const running = day.routines.find((x) => x.id === r.id);
+        const skipped = day.skipped.includes(r.id);
+        const shift = running?.override?.shift_min || 0;
+        const times = running ? `${running.start}–${running.end}` : "";
+        const state = skipped
+          ? `<span class="warn">${this._e(this._t("modify.skipped"))}</span>`
+          : shift
+            ? `<span class="warn">${this._e(this._t("modify.shifted").replace("{n}", shift > 0 ? `+${shift}` : shift))}</span>`
+            : "";
+        const controls = this._isAdmin
+          ? skipped
+            ? `<button class="small" data-action="override" data-reset="1" data-arg="${r.id}">${this._e(this._t("modify.restore"))}</button>`
+            : `<label class="inline"><input type="number" step="5" class="short" data-shift="${r.id}" value="${shift}"> ${this._e(this._t("modify.minutes"))}</label>
+               <button class="small" data-action="override" data-arg="${r.id}">${this._e(this._t("modify.shift"))}</button>
+               <button class="small" data-action="override" data-skip="1" data-arg="${r.id}">${this._e(this._t("modify.skip"))}</button>
+               ${shift ? `<button class="small" data-action="override" data-reset="1" data-arg="${r.id}">${this._e(this._t("modify.restore"))}</button>` : ""}`
+          : "";
+        return `<div class="row wrap ${skipped ? "dim" : ""}">${this._icon(r.icon, 32)}
+          <span class="grow">${this._e(r.name || this._t("routines.unnamed"))} <span class="muted">${this._e(times)}</span> ${state}</span>
+          ${controls}</div>`;
+      })
+      .join("");
+    return `<div class="card form"><h2>${this._e(this._t("modify.title"))}</h2>
+      <div class="muted">${this._e(this._t("modify.hint"))}</div>${rows}</div>`;
+  }
+
+  _viewCalendar() {
+    if (!this._week) {
+      return `<div class="card empty">${this._e(this._t("common.loading"))}</div>`;
+    }
+    const FROM = 5 * 60;
+    const TO = 23 * 60;
+    const PX = 0.7; // pixels per minute
+    const toMin = (hhmm) => {
+      const [h, m] = String(hhmm || "0:0").split(":").map(Number);
+      return h * 60 + m;
+    };
+    const filter = this._calendarChild;
+    const hours = [];
+    for (let h = FROM / 60; h <= TO / 60; h += 2) {
+      hours.push(`<div class="hour" style="top:${(h * 60 - FROM) * PX}px">${String(h).padStart(2, "0")}:00</div>`);
+    }
+    const columns = this._week.days
+      .map((day) => {
+        const date = new Date(`${day.date}T12:00:00`);
+        const head = date.toLocaleDateString(this._language, { weekday: "short", day: "numeric", month: "numeric" });
+        const blocks = day.routines
+          .filter((r) => !filter || !r.children.length || r.children.includes(filter))
+          .map((r) => {
+            const top = Math.max(0, (toMin(r.start) - FROM) * PX);
+            const height = Math.max(18, (toMin(r.end) - toMin(r.start)) * PX);
+            const who = r.children.length
+              ? r.children.map((id) => this._child(id)?.name).filter(Boolean).join(", ")
+              : this._t("routines.everyone");
+            const cps = r.checkpoints
+              .filter((c) => c.time)
+              .map((c) => `<span class="cp" style="top:${(toMin(c.time) - toMin(r.start)) * PX - 7}px" title="${this._e(c.name)} ${this._e(c.time)}">${this._icon(c.icon || "checkpoint_flag", 14)}</span>`)
+              .join("");
+            return `<div class="block ${r.override ? "changed" : ""}" style="top:${top}px;height:${height}px">
+              <div class="block-title">${this._icon(r.icon, 16)} ${this._e(r.name || this._t("routines.unnamed"))}</div>
+              <div class="block-sub">${this._e(r.start)}–${this._e(r.end)} · ${this._e(who)}</div>${cps}</div>`;
+          })
+          .join("");
+        return `<div class="day ${day.today ? "is-today" : ""}"><div class="day-head">${this._e(head)}</div>
+          <div class="day-body" style="height:${(TO - FROM) * PX}px">${blocks}</div></div>`;
+      })
+      .join("");
+    const options = [`<option value="">${this._e(this._t("history.all_children"))}</option>`]
+      .concat(this._data.children.map((c) => `<option value="${c.id}" ${c.id === filter ? "selected" : ""}>${this._e(c.name)}</option>`))
+      .join("");
+    return `<div class="row wrap">
+        <button data-action="week" data-arg="prev">‹</button>
+        <button data-action="week" data-arg="now">${this._e(this._t("calendar.this_week"))}</button>
+        <button data-action="week" data-arg="next">›</button>
+        <span class="grow"></span>
+        <select data-calendar-child>${options}</select></div>
+      <div class="card calendar"><div class="hours" style="height:${(TO - FROM) * PX}px">${hours.join("")}</div>${columns}</div>
+      <div class="muted">${this._e(this._t("calendar.hint"))}</div>`;
+  }
+
+  _viewNotifications() {
+    if (!this._rules) {
+      return `<div class="card empty">${this._e(this._t("common.loading"))}</div>`;
+    }
+    const services = Object.keys(this._hass.services?.notify || {})
+      .sort()
+      .map((name) => `notify.${name}`);
+    const disabled = this._isAdmin ? "" : "disabled";
+    const rules = this._rules.rules
+      .map((rule, i) => {
+        const options = [`<option value="">—</option>`]
+          .concat(
+            [...new Set([...services, rule.service].filter(Boolean))].map(
+              (svc) => `<option value="${this._e(svc)}" ${svc === rule.service ? "selected" : ""}>${this._e(svc)}</option>`
+            )
+          )
+          .join("");
+        const events = this._rules.event_types
+          .map((ev) => `<button class="chip ${rule.events.includes(ev) ? "sel" : ""}" data-action="rule-event" data-arg="${i}:${ev}" ${disabled}>${this._e(this._t(`event.${ev}`, ev))}</button>`)
+          .join("");
+        const children = this._data.children
+          .map((c) => `<button class="chip ${rule.children.includes(c.id) ? "sel" : ""}" data-action="rule-child" data-arg="${i}:${c.id}" ${disabled}>${this._e(c.name)}</button>`)
+          .join("");
+        return `<div class="card form">
+          <div class="row"><input class="grow" placeholder="${this._e(this._t("notifications.rule_name"))}" data-rule="${i}:name" value="${this._e(rule.name)}" ${disabled}>
+            <label class="check"><input type="checkbox" data-rule="${i}:enabled" ${rule.enabled !== false ? "checked" : ""} ${disabled}>${this._e(this._t("common.active"))}</label>
+            ${this._isAdmin ? `<button class="icon-btn" data-action="rule-remove" data-arg="${i}">✕</button>` : ""}</div>
+          <label>${this._e(this._t("notifications.target"))}<select data-rule="${i}:service" ${disabled}>${options}</select></label>
+          <div class="field"><span>${this._e(this._t("notifications.events"))}</span><div class="row wrap">${events}</div></div>
+          <div class="field"><span>${this._e(this._t("notifications.children"))}</span><div class="row wrap">${children}
+            <span class="muted">${this._e(this._t(rule.children.length ? "routines.only_these" : "routines.everyone"))}</span></div></div>
+        </div>`;
+      })
+      .join("");
+    return `<div class="muted">${this._e(this._t("notifications.hint"))}</div>
+      ${rules || `<div class="card empty">${this._e(this._t("notifications.none"))}</div>`}
+      ${this._isAdmin ? `<div class="row"><button data-action="rule-add">+ ${this._e(this._t("notifications.add"))}</button>
+        <button class="primary" data-action="rules-save">${this._e(this._t("common.save"))}</button></div>` : ""}`;
   }
 
   _viewChildren() {
@@ -863,17 +1142,33 @@ class KisSegitoPanel extends HTMLElement {
   }
 
   _viewHistory() {
-    const options = [`<option value="">${this._e(this._t("history.all_children"))}</option>`]
+    const f = this._historyFilter;
+    const opt = (value, label, current) =>
+      `<option value="${this._e(value)}" ${value === (current || "") ? "selected" : ""}>${this._e(label)}</option>`;
+    const children = [opt("", this._t("history.all_children"), f.child)]
+      .concat(this._data.children.map((c) => opt(c.id, c.name, f.child)))
+      .join("");
+    const reasons = [opt("", this._t("history.all_types"), f.reason)]
       .concat(
-        this._data.children.map(
-          (c) => `<option value="${c.id}" ${c.id === this._historyChild ? "selected" : ""}>${this._e(c.name)}</option>`
+        ["checkpoint_reward", "reward_redemption", "piggy_transfer", "piggy_interest", "streak_reward", "manual_adjustment", "reversal", "correction"].map((r) =>
+          opt(r, this._t(`reason.${r}`, r), f.reason)
         )
       )
       .join("");
+    const accounts = [opt("", this._t("history.all_accounts"), f.account), opt("wallet", this._t("tokens.wallet"), f.account), opt("piggy", this._t("tokens.piggy"), f.account)].join("");
+    const filters = `<div class="row wrap filters">
+      <select data-filter="child">${children}</select>
+      <select data-filter="reason">${reasons}</select>
+      <select data-filter="account">${accounts}</select>
+      <label class="inline">${this._e(this._t("history.from"))}<input type="date" data-filter="from" value="${this._e(f.from || "")}"></label>
+      <label class="inline">${this._e(this._t("history.to"))}<input type="date" data-filter="to" value="${this._e(f.to || "")}"></label>
+      <input class="grow" type="search" data-filter="search" placeholder="${this._e(this._t("history.search"))}" value="${this._e(f.search || "")}">
+    </div>`;
     const sign = (n) => `${n > 0 ? "+" : ""}${n}`;
     const rows = this._history
       .map((tx) => {
-        const target = tx.target_seq ? `#${tx.target_seq}` : "";
+        const link = (n) => `<a href="#tx-${n}" class="ref" data-action="goto" data-arg="${n}">#${n}</a>`;
+        const target = tx.target_seq ? `[[ref:${tx.target_seq}]]` : "";
         const amounts = (tx.reverses || tx.corrects ? tx.lines : tx.effective_lines)
           .map((l) => `<span class="amount ${l.amount < 0 ? "neg" : "pos"}">${sign(l.amount)}${l.account === "piggy" ? " 🐷" : ""}</span>`)
           .join(" ");
@@ -888,24 +1183,27 @@ class KisSegitoPanel extends HTMLElement {
         const when = new Date(tx.timestamp).toLocaleString(this._language);
         let revisions = "";
         if (tx.correction_seqs?.length) {
-          revisions += ` · ${this._t("history.revised_by")} ${tx.correction_seqs.map((n) => `#${n}`).join(", ")}`;
+          const original = tx.lines.map((l) => sign(l.amount)).join(" ");
+          revisions += ` · ${this._e(this._t("history.original"))} ${this._e(original)} · ${this._e(this._t("history.revised_by"))} ${tx.correction_seqs.map(link).join(", ")}`;
         }
         if (tx.reversal_seq) {
-          revisions += ` · ${this._t("history.reversed_by")} #${tx.reversal_seq}`;
+          revisions += ` · ${this._e(this._t("history.reversed_by"))} ${link(tx.reversal_seq)}`;
         }
+        // Escape the text, then turn the target placeholder into a link.
+        const whatHtml = this._e(what).replace(/\[\[ref:(\d+)\]\]/g, (_m, n) => link(n));
         const actions =
           this._isAdmin && !tx.reversed_by && !tx.reverses && !tx.corrects
             ? `<button class="small" data-action="correct" data-arg="${tx.id}">${this._e(this._t("history.correct"))}</button>
                <button class="small" data-action="reverse" data-arg="${tx.id}">${this._e(this._t("history.reverse"))}</button>`
             : "";
-        return `<div class="card row ${tx.reversed_by ? "dim" : ""} ${tx.corrects || tx.reverses ? "revision" : ""}">
+        return `<div id="tx-${tx.seq}" class="card row ${tx.reversed_by ? "dim" : ""} ${tx.corrects || tx.reverses ? "revision" : ""}">
           <span class="seq">#${tx.seq}</span>
-          <div class="grow"><div>${amounts} · ${this._e(what)}${this._e(note)}</div>
-            <div class="muted small">${this._e(when)} · ${this._e(this._childName(tx.child_id))} · ${this._e(this._t(`reason.${tx.reason}`, tx.reason))} · ${this._e(this._t(`creator.${tx.creator}`, tx.creator))}${this._e(revisions)}</div></div>
+          <div class="grow"><div>${amounts} · ${whatHtml}${this._e(note)}</div>
+            <div class="muted small">${this._e(when)} · ${this._e(this._childName(tx.child_id))} · ${this._e(this._t(`reason.${tx.reason}`, tx.reason))} · ${this._e(this._t(`creator.${tx.creator}`, tx.creator))}${revisions}</div></div>
           ${actions}</div>`;
       })
       .join("");
-    return `<div class="row"><select data-filter="history">${options}</select></div>
+    return `${filters}
       ${rows || `<div class="card empty">${this._e(this._t("history.none"))}</div>`}`;
   }
 
@@ -936,6 +1234,7 @@ class KisSegitoPanel extends HTMLElement {
         <label>${this._e(this._t("settings.animation"))}<select data-setting="animation_mode" ${disabled}>
           ${["full", "reduced", "off"].map((m) => `<option value="${m}" ${s.animation_mode === m ? "selected" : ""}>${this._e(this._t(`settings.animation_${m}`))}</option>`).join("")}
         </select></label>
+        <label>${this._e(this._t("settings.inactivity"))}${num("inactivity_s", 10, 3600, 10)}</label>
       </div>
       <div class="card form">
         <h2>${this._e(this._t("settings.knobs"))}</h2>
@@ -956,6 +1255,9 @@ class KisSegitoPanel extends HTMLElement {
           <label>${this._e(this._t("settings.interest_max"))}${num("piggy_interest_max", 0, 1000)}</label></div>
       </div>
       ${this._isAdmin ? "" : `<div class="muted">${this._e(this._t("settings.admin_only"))}</div>`}
+      ${this._isAdmin ? `<div class="card form"><h2>${this._e(this._t("settings.data"))}</h2>
+        <div class="muted">${this._e(this._t("settings.export_hint"))}</div>
+        <div class="row"><button data-action="export">${this._e(this._t("settings.export"))}</button></div></div>` : ""}
       <div class="muted small">${this._e(this._t("panel.version"))}: ${this._e(this._version)}</div>`;
   }
 
@@ -1006,6 +1308,8 @@ class KisSegitoPanel extends HTMLElement {
         tokens: () => this._viewTokens(),
         history: () => this._viewHistory(),
         settings: () => this._viewSettings(),
+        calendar: () => this._viewCalendar(),
+        notifications: () => this._viewNotifications(),
       }[this._tab];
       body = view();
     }
@@ -1021,6 +1325,10 @@ class KisSegitoPanel extends HTMLElement {
       </div>
       <nav class="tabs">${tabs}</nav>
       <div class="content">
+        ${this._data?.version && this._data.version !== PANEL_VERSION
+          ? `<div class="card update row"><span class="grow">${this._e(this._t("panel.outdated"))}</span>
+              <button class="primary" data-action="reload">${this._e(this._t("panel.reload"))}</button></div>`
+          : ""}
         ${this._error ? `<div class="card error">${this._e(this._error)}</div>` : ""}
         ${body}
       </div>
@@ -1183,6 +1491,25 @@ const STYLE = `
   .revision { border-left: 4px solid var(--warning-color, #FF9F43); }
   .amount.pos { color: var(--success-color, #2e7d32); font-weight: 500; }
   .amount.neg { color: var(--error-color, #db4437); font-weight: 500; }
+  .calendar { display: flex; overflow-x: auto; padding: 8px; gap: 4px; }
+  .hours { position: relative; width: 44px; flex: none; margin-top: 28px; }
+  .hour { position: absolute; font-size: 11px; color: var(--secondary-text-color, #727272); transform: translateY(-50%); }
+  .day { flex: 1; min-width: 96px; }
+  .day-head { height: 24px; text-align: center; font-size: 13px; color: var(--secondary-text-color, #727272); }
+  .day.is-today .day-head { color: var(--primary-color, #03a9f4); font-weight: 500; }
+  .day-body { position: relative; border-left: 1px solid var(--divider-color, #e0e0e0); background: repeating-linear-gradient(to bottom, transparent 0, transparent 83px, var(--divider-color, #e0e0e0) 83px, var(--divider-color, #e0e0e0) 84px); }
+  .block { position: absolute; left: 3px; right: 3px; border-radius: 8px; padding: 3px 6px; overflow: hidden; background: rgba(107, 203, 119, 0.25); border: 1px solid #6BCB77; font-size: 11px; box-sizing: border-box; }
+  .block.changed { background: rgba(255, 159, 67, 0.25); border-color: #FF9F43; }
+  .block-title { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .block-sub { color: var(--secondary-text-color, #727272); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cp { position: absolute; right: 2px; line-height: 0; }
+  .filters select, .filters input { max-width: 180px; }
+  .filters input[type="search"] { min-width: 180px; max-width: none; }
+  .update { border-color: var(--primary-color, #03a9f4); }
+  a.ref { color: var(--primary-color, #03a9f4); text-decoration: none; font-weight: 500; cursor: pointer; }
+  a.ref:hover { text-decoration: underline; }
+  .flash { animation: flash 1.6s ease-out; }
+  @keyframes flash { 0% { background: rgba(255, 201, 74, 0.6); } 100% { background: var(--card-background-color, #fff); } }
   .overlay {
     position: fixed;
     inset: 0;

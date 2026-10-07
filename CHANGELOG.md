@@ -6,6 +6,53 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.4.0] - 2026-10-07
+
+### English
+
+- Calendar: a week view in the panel with the routines as blocks at their
+  times, checkpoints, a child filter and one-day changes highlighted.
+- Modify today (on the Today page): skip a routine or shift all its times for
+  today only; the routine itself stays unchanged; changes are logged.
+- Notification rules: any number of rules, each with a Home Assistant notify
+  target, event types and children; texts in English and Hungarian.
+- History: filter by child, type, account and date range, and search by name,
+  note or #number (#13). Entry references (#n) are links that jump to the
+  entry and highlight it, also via a link like …/kis-segito#tx-12; corrected
+  entries show their original amount; old/new amounts of corrections made
+  before 0.3.1 are computed from the ledger (#14).
+- Piggy bank on the knob: turning chooses how many tokens move (clockwise into
+  the piggy bank, anticlockwise out), pressing moves exactly that many.
+- The knob returns to the child selector after the inactivity time set in the
+  panel.
+- Settings: JSON export of all settings and the full token history.
+- The panel shows a reload bar when the browser still runs an older copy after
+  an update.
+- Configuration audit log (settings, one-day changes, notification rules).
+
+### Magyar
+
+- Naptár: heti nézet a panelen, a rutinok idő szerinti blokkokként, a
+  checkpointokkal, gyerekszűrővel; az egynapos módosítások kiemelve.
+- Mai nap módosítása (a Ma oldalon): egy rutin mára kihagyható, vagy minden
+  időpontja eltolható; maga a rutin nem változik; a módosítások naplózódnak.
+- Értesítési szabályok: tetszőleges számú szabály, mindegyik saját Home
+  Assistant értesítési célponttal, eseménytípusokkal és gyerekekkel; magyar és
+  angol szövegek.
+- Előzmények: szűrés gyerek, típus, számla és dátum szerint, keresés névre,
+  megjegyzésre vagy #számra (#13). A bejegyzés-hivatkozások (#n) linkek, a
+  célbejegyzésre ugranak és kiemelik, …/kis-segito#tx-12 formájú linkkel is; a
+  módosított bejegyzés az eredeti összeget is mutatja; a 0.3.1 előtti
+  korrekciók régi és új összegét a napló alapján számolja (#14).
+- Persely a gombon: tekeréssel választható ki, hány zseton menjen (óramutató
+  irányában a perselybe, visszafelé onnan ki), a gombnyomás pontosan annyit mozgat.
+- A gomb a panelen beállított inaktivitási idő után tér vissza a
+  gyerekválasztóhoz.
+- Beállítások: JSON-export az összes beállításról és a teljes zseton-előzményről.
+- A panel frissítés-sávot mutat, ha a böngésző frissítés után még a régi
+  változatot futtatja.
+- Beállítás-napló (beállítások, egynapos módosítások, értesítési szabályok).
+
 ## [0.3.2] - 2026-10-07
 
 ### English

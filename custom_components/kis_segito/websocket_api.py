@@ -196,6 +196,7 @@ async def ws_data(
     connection.send_result(
         msg["id"],
         {
+            "version": hass.data[DOMAIN].version,
             "settings": await _settings(hass),
             "children": _children(manager),
             "routines": sorted(

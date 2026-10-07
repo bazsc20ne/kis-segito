@@ -32,6 +32,12 @@ def main() -> int:
         match = re.search(pattern, esphome)
         versions[label] = match.group(1) if match else "<missing>"
 
+    panel = (ROOT / "custom_components/kis_segito/frontend/kis-segito-panel.js").read_text(
+        "utf-8"
+    )
+    match = re.search(r'^const PANEL_VERSION = "([^"]+)";', panel, re.MULTILINE)
+    versions["panel (PANEL_VERSION)"] = match.group(1) if match else "<missing>"
+
     changelog = (ROOT / "CHANGELOG.md").read_text("utf-8")
     match = re.search(r"^## \[(\d+\.\d+\.\d+)\]", changelog, re.MULTILINE)
     versions["CHANGELOG.md (latest)"] = match.group(1) if match else "<missing>"

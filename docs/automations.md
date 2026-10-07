@@ -34,6 +34,17 @@ actions:
       message: "{{ trigger.event.data.child_name }}: {{ trigger.event.data.reward_name }}"
 ```
 
+## Notification rules / Értesítési szabályok
+
+On the panel's **Notifications** page each rule sends a short message through a Home
+Assistant notify action (for example the companion app) for the chosen event types and
+children. Texts are in `custom_components/kis_segito/notification_translations/`.
+A failed notification never undoes a token transaction.
+
+A panel **Értesítések** oldalán minden szabály egy Home Assistant értesítési célponton
+(pl. mobilalkalmazás) keresztül rövid üzenetet küld a kiválasztott eseményekről és
+gyerekekről. Sikertelen értesítés soha nem von vissza zsetontranzakciót.
+
 ## Actions
 
 `kis_segito.complete_task`, `kis_segito.complete_checkpoint`,

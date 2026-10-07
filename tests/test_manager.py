@@ -225,3 +225,13 @@ async def test_notification_rules(
     await hass.async_block_till_done()
     assert len(sent) == 1
     assert sent[0].data["message"].startswith("Anna: +3")
+
+
+async def test_old_correction_amounts_from_ledger(manager: KisSegitoManager) -> None:
+    kid = await _child(manager)
+    tx = await manager.async_adjust(kid, 1)
+    correction = await manager.async_correct(tx["id"], "wallet", 2)
+    # Corrections from before 0.3.1 did not store old/new amounts (#14).
+    del correction["old_amount"], correction["new_amount"]
+    entry = manager.history(kid)[0]
+    assert (entry["old_amount"], entry["new_amount"]) == (1, 2)

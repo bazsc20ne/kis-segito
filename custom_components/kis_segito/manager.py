@@ -547,6 +547,26 @@ class KisSegitoManager:
             if target:
                 revisions.setdefault(target, []).append(seq[tx["id"]])
         result = []
+        # Old and new effective amount of each correction, computed from the
+        # ledger (corrections made before 0.3.1 did not store them, #14).
+        before: dict[str, tuple[int, int]] = {}
+        running: dict[tuple[str, str], int] = {}
+        by_id = {tx["id"]: tx for tx in self.transactions}
+        for tx in self.transactions:
+            target = tx.get("corrects")
+            if not target or target not in by_id:
+                continue
+            line = tx["lines"][0]
+            key = (target, line["account"])
+            if key not in running:
+                running[key] = sum(
+                    li["amount"]
+                    for li in by_id[target]["lines"]
+                    if li["account"] == line["account"]
+                )
+            old = running[key]
+            running[key] = old + line["amount"]
+            before[tx["id"]] = (old, running[key])
         needle = (search or "").strip().casefold()
         for tx in reversed(self.transactions):
             if child_id and tx["child_id"] != child_id:
@@ -574,6 +594,8 @@ class KisSegitoManager:
                     continue
             item = dict(tx)
             item["seq"] = seq[tx["id"]]
+            if tx["id"] in before:
+                item["old_amount"], item["new_amount"] = before[tx["id"]]
             target = tx.get("corrects") or tx.get("reverses")
             item["target_seq"] = seq.get(target) if target else None
             item["revision_seqs"] = revisions.get(tx["id"], [])
