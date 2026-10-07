@@ -67,3 +67,61 @@ async def test_language_setting_is_pushed(hass: HomeAssistant, hass_ws_client) -
     await entry.runtime_data.async_push_strings()
     await hass.async_block_till_done()
     assert calls[-1].data["language"] == "hu"
+
+
+async def test_panel_data_flow(hass: HomeAssistant, hass_ws_client) -> None:
+    esphome_entry = MockConfigEntry(
+        domain="esphome", data={"host": "192.0.2.1", "device_name": "test-knob"}
+    )
+    esphome_entry.add_to_hass(hass)
+    device = dr.async_get(hass).async_get_or_create(
+        config_entry_id=esphome_entry.entry_id,
+        connections={(dr.CONNECTION_NETWORK_MAC, "00:00:00:00:00:02")},
+        name="Knob",
+    )
+    entry = MockConfigEntry(
+        domain=DOMAIN, unique_id=device.id, data={CONF_DEVICE_ID: device.id}
+    )
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    client = await hass_ws_client(hass)
+
+    async def call(**msg):
+        await client.send_json_auto_id(msg)
+        return await client.receive_json()
+
+    child = (
+        await call(
+            type=f"{DOMAIN}/save",
+            collection="children",
+            item={"name": "Kid", "color": "#6CB8FF", "avatar": "test_avatar_1"},
+        )
+    )["result"]
+    assert (
+        await call(type=f"{DOMAIN}/assign", child_id=child["id"], device_id=device.id)
+    )["success"]
+    assert (await call(type=f"{DOMAIN}/tokens/adjust", child_id=child["id"], amount=5))[
+        "success"
+    ]
+    refused = await call(
+        type=f"{DOMAIN}/tokens/adjust", child_id=child["id"], amount=-9
+    )
+    assert refused["error"]["code"] == "insufficient_balance"
+
+    data = (await call(type=f"{DOMAIN}/data"))["result"]
+    assert data["children"][0]["balances"]["wallet"] == 5
+    assert data["children"][0]["device_id"] == device.id
+    assert data["devices"][0]["device_id"] == device.id
+    assert "task_toothbrush" in data["icons"]
+
+    history = (await call(type=f"{DOMAIN}/history"))["result"]
+    assert history[0]["effective_lines"][0]["amount"] == 5
+
+    settings = (
+        await call(
+            type=f"{DOMAIN}/settings/update", streak_target=5, animation_mode="reduced"
+        )
+    )["result"]
+    assert settings["streak_target"] == 5
+    assert settings["animation_mode"] == "reduced"
