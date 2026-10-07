@@ -20,9 +20,12 @@ Két, egymással együttműködő részből áll:
 - **Home Assistant integráció** – HACS-ból telepíthető, saját adattárolással és saját
   „Kis Segítő” oldalsáv-menüponttal. A knobot az ESPHome natív API-n keresztül kezeli.
 
-Mindkét rész független a Home Assistant többi beállításától. A projekt korai
-fázisban van: a knobon már működik a gyerekfelület (gyerekválasztó, rutin, jutalombolt,
-zsetonok), egyelőre beépített tesztadatokkal; a HA-oldali adatkezelés a következő lépés.
+Mindkét rész független a Home Assistant többi beállításától. A szülő a Home Assistant
+panelen állítja be a gyerekeket, a rutinokat (feladatok, időzített checkpointok, színzónák,
+időalapú zsetonjutalom), a jutalmakat és a perselyt; a gyerek a knobon követi a rutinját,
+zsetont gyűjt és jutalmat vált be. Minden zsetonmozgás visszakereshető, visszavonható
+előzményként tárolódik. A projekt aktív fejlesztés alatt áll; a naptár, a napi sablonok és
+az értesítési szabályok később jönnek.
 
 ## Hardver
 
@@ -48,7 +51,7 @@ substitutions:
   friendly_name: Kis Segito
 
 packages:
-  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.2.2
+  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.3.0
 
 api:
   encryption:
@@ -89,7 +92,15 @@ Ezután add hozzá a knobot a Home Assistanthez az **ESPHome** integrációval.
 3. **Beállítások → Eszközök és szolgáltatások → Integráció hozzáadása → Kis Segítő**,
    és válaszd ki a knobot.
 
-Az oldalsávban megjelenik a **Kis Segítő** menüpont. A knob kijelzőjének és a panelnek a
+Az oldalsávban megjelenik a **Kis Segítő** menüpont: **Ma** (gyerekenkénti áttekintés),
+**Gyerekek**, **Rutinok**, **Jutalmak**, **Zsetonok**, **Előzmények**, **Beállítások**.
+Üres rendszerben a Rutinok és a Jutalmak oldalon egy gombnyomással példa-rutinok és
+-jutalmak hozhatók létre. Egy gyerek legfeljebb egy knobhoz rendelhető (a gyerek oldalán);
+egy knobon a hozzá rendelt gyerekek választhatók, a többiek zárolva látszanak, a gyerek
+nélküli knob mindenkinek működik. Automatizáláshoz: [docs/automations.md](docs/automations.md),
+a knob és a HA kapcsolata: [docs/protocol.md](docs/protocol.md).
+
+A knob kijelzőjének és a panelnek a
 szövegei alapból a Home Assistant nyelvén jelennek meg (jelenleg angol és magyar; ha egy
 nyelvhez nincs fordítás, angolul). A panel **Beállítások** kártyáján más nyelv is
 választható; ez a knobokra és a panelre is érvényes. Új nyelvet fordítási fájlok
@@ -135,10 +146,12 @@ daily routine. It has two parts that work together:
 - **Home Assistant integration** – installable from HACS, with its own storage and its
   own "Kis Segítő" sidebar entry. It controls the knob through the ESPHome native API.
 
-Both parts are independent of the rest of your Home Assistant setup. The project is at
-an early stage: the child UI already runs on the knob (child selector, routine, reward
-store, tokens), with built-in test data for now; data management in Home Assistant is
-the next step.
+Both parts are independent of the rest of your Home Assistant setup. Parents set up
+children, routines (tasks, timed checkpoints, colour zones, time-based token rewards),
+rewards and the piggy bank in the Home Assistant panel; the child follows the routine on
+the knob, collects tokens and buys rewards. Every token movement is kept as history that
+can be reviewed and reversed. The project is under active development; the calendar, day
+templates and notification rules come later.
 
 ### Hardware
 
@@ -164,7 +177,7 @@ substitutions:
   friendly_name: Kis Segito
 
 packages:
-  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.2.2
+  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.3.0
 
 api:
   encryption:
@@ -203,7 +216,15 @@ Then add the knob to Home Assistant with the **ESPHome** integration.
 2. Install **Kis Segítő** and restart Home Assistant.
 3. **Settings → Devices & services → Add integration → Kis Segítő**, then select the knob.
 
-A **Kis Segítő** entry appears in the sidebar. The texts on the knob display and in the
+A **Kis Segítő** entry appears in the sidebar: **Today** (per-child overview),
+**Children**, **Routines**, **Rewards**, **Tokens**, **History**, **Settings**. In an empty
+setup, example routines and rewards can be created with one click on the Routines and
+Rewards pages. A child can be assigned to at most one knob (on the child's page); on a knob
+its children can be selected and the others are shown locked; a knob without children
+works for everyone. For automations see [docs/automations.md](docs/automations.md), for
+the knob link [docs/protocol.md](docs/protocol.md).
+
+The texts on the knob display and in the
 panel follow the Home Assistant language by default (currently English and Hungarian;
 English when there is no translation for a language). Another language can be chosen on
 the panel's **Settings** card; it applies to the knobs and the panel. A new language only

@@ -6,6 +6,85 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.3.0] - 2026-10-07
+
+### English
+
+Real data: the knob now shows what is set up in Home Assistant instead of test
+data (the test data remains only until Home Assistant first sends data).
+
+- Home Assistant panel with Today, Children, Routines, Rewards, Tokens, History
+  and Settings pages:
+  - children: name, birth date, colour (presets, colour picker, hint when it is
+    close to a time-zone colour), avatar, knob assignment, piggy bank, order;
+  - routines: days of the week, start and end, children, colour zones,
+    checkpoints (shared or per child, reward bands by how early, counts for the
+    streak), tasks linked to checkpoints; one-click example routines;
+  - rewards: icon, price shown as a token pile, piggy-bank unlock; examples;
+  - tokens: manual bonus and debit; history with reversal and amount change;
+  - settings: language, animations, daily streak, weekly piggy-bank interest,
+    knobs with the avatars of their children.
+- Append-only token ledger (wallet and piggy bank): balances are always the
+  sum of the history; reversals and corrections never delete anything.
+- Checkpoint rewards by time bands, daily streak (evaluated after midnight,
+  bonus at the target), weekly compound piggy-bank interest with optional
+  minimum and maximum.
+- Device-child assignment: a child belongs to at most one knob; on a knob with
+  assigned children the others are shown greyed and locked; a knob without
+  children (or with all of them) works for everyone.
+- Knob protocol (docs/protocol.md): Home Assistant sends a compact state
+  snapshot (`set_state`); the knob reports completed tasks and bought rewards
+  as JSON actions with a unique id on its new Action text sensor, booked at
+  most once.
+- On the knob: the function carousel lists the child's routines of today; the
+  time track shows the routine's colour zones, shared checkpoints on the outer
+  and the child's own on the inner track, and the reward available now.
+- Home Assistant actions for automations (`kis_segito.complete_task`,
+  `complete_checkpoint`, `adjust_tokens`, `redeem_reward`, `piggy_deposit`,
+  `piggy_withdraw`, `reverse_transaction`) and the `kis_segito_event` event
+  (docs/automations.md).
+- Every icon of the set is now available on the knob and in the panel.
+
+### Magyar
+
+Valódi adatok: a knob most a Home Assistantben beállított adatokat mutatja a
+tesztadatok helyett (a tesztadatok csak addig látszanak, amíg a Home Assistant
+először adatot nem küld).
+
+- Home Assistant panel Ma, Gyerekek, Rutinok, Jutalmak, Zsetonok, Előzmények és
+  Beállítások oldallal:
+  - gyerekek: név, születési dátum, szín (előre megadott színek, színválasztó,
+    figyelmeztetés, ha közel van egy időzóna-színhez), avatar, gomb-hozzárendelés,
+    persely, sorrend;
+  - rutinok: a hét napjai, kezdés és vége, gyerekek, színzónák, checkpointok
+    (közös vagy gyerekenkénti, jutalomsávok aszerint, mennyivel előtte, beleszámít-e
+    a sorozatba), checkpointokhoz kötött feladatok; példa-rutinok egy gombnyomásra;
+  - jutalmak: ikon, zsetonkupacként mutatott ár, perselyfeloldás; példák;
+  - zsetonok: kézi jóváírás és levonás; előzmények visszavonással és
+    összegmódosítással;
+  - beállítások: nyelv, animációk, napi sorozat, heti perselykamat, a gombok a
+    hozzájuk rendelt gyerekek avatarjaival.
+- Csak bővülő zsetonnapló (pénztárca és persely): az egyenleg mindig az
+  előzmények összege; visszavonás és módosítás soha nem töröl semmit.
+- Checkpoint-jutalom időbeli sávok szerint, napi sorozat (éjfél után értékelve,
+  a cél elérésekor jutalommal), heti kamatos perselykamat opcionális minimummal
+  és maximummal.
+- Eszköz–gyerek hozzárendelés: egy gyerek legfeljebb egy gombhoz tartozik; ha egy
+  gombhoz vannak gyerekek rendelve, a többiek szürkén, zárolva látszanak; a gyerek
+  nélküli (vagy mindenkihez rendelt) gomb mindenkinek működik.
+- Knob-protokoll (docs/protocol.md): a Home Assistant tömör állapotképet küld
+  (`set_state`); a knob az elvégzett feladatokat és a beváltott jutalmakat egyedi
+  azonosítójú JSON-műveletként jelenti az új Action szenzorán, és ezek legfeljebb
+  egyszer könyvelődnek.
+- A knobon a funkció-körhinta a gyerek mai rutinjait mutatja; az időív a rutin
+  színzónáit, a közös checkpointokat a külső, a gyerek sajátjait a belső íven, és az
+  éppen elérhető jutalmat.
+- Home Assistant műveletek automatizáláshoz (`kis_segito.complete_task`,
+  `complete_checkpoint`, `adjust_tokens`, `redeem_reward`, `piggy_deposit`,
+  `piggy_withdraw`, `reverse_transaction`) és a `kis_segito_event` esemény
+  (docs/automations.md).
+- Az ikonkészlet minden ikonja elérhető a knobon és a panelen.
+
 ## [0.2.2] - 2026-10-07
 
 ### English

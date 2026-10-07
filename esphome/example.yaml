@@ -8,7 +8,7 @@ substitutions:
   friendly_name: Kis Segito
 
 packages:
-  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.2.2
+  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.3.0
 
 api:
   encryption:
