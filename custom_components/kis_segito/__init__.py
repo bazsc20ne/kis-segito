@@ -17,6 +17,7 @@ from homeassistant.util import dt as dt_util
 
 from .const import CONF_DEVICE_ID, DOMAIN
 from .device_link import DeviceLink
+from .knob_images import KnobImageView
 from .logic import parse_hhmm
 from .manager import KisSegitoManager
 from .notify import Notifier
@@ -67,6 +68,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         version=str(integration.version), store=store, manager=manager
     )
     async_register_commands(hass)
+    hass.http.register_view(KnobImageView(hass))
     async_register_services(hass, manager)
     _async_schedule_jobs(hass, manager)
     return True

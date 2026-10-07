@@ -10,6 +10,7 @@ or from Home Assistant actions. After each change listeners are notified
 from __future__ import annotations
 
 import logging
+import secrets
 from collections.abc import Callable
 from datetime import date, datetime, timedelta
 from typing import Any
@@ -981,13 +982,27 @@ class KisSegitoManager:
 
     # ------------------------------------------------------------ device snapshot
 
+    def device_token(self, device_id: str) -> str:
+        """The knob's own secret for downloading pictures (created on demand)."""
+        device = self.data["devices"].setdefault(device_id, {})
+        if not device.get("token"):
+            device["token"] = secrets.token_urlsafe(18)
+            self.hass.async_create_task(self.store.async_save())
+        return str(device["token"])
+
+    def device_tokens(self) -> set[str]:
+        """Every knob's picture secret."""
+        return {d["token"] for d in self.data["devices"].values() if d.get("token")}
+
     def device_children(self, device_id: str) -> set[str]:
         """Ids of the children selectable on a knob."""
         children = self.children(active_only=True)
         assigned = [c["id"] for c in children if c.get("device_id") == device_id]
         return selectable_children([c["id"] for c in children], assigned)
 
-    def snapshot(self, device_id: str, language: str) -> dict[str, Any]:
+    def snapshot(
+        self, device_id: str, language: str, base_url: str | None = None
+    ) -> dict[str, Any]:
         """The compact state a knob needs (schema 1, see docs/protocol.md)."""
         now = dt_util.now()
         day = now.date()
@@ -1000,6 +1015,7 @@ class KisSegitoManager:
                 {
                     "id": child["id"],
                     "a": child.get("avatar", "test_avatar_1"),
+                    "ai": child.get("avatar_image") or "",
                     "c": child.get("color", "#6CB8FF"),
                     "w": bal[lg.WALLET],
                     "p": bal[lg.PIGGY],
@@ -1014,6 +1030,7 @@ class KisSegitoManager:
             {
                 "id": r["id"],
                 "i": r.get("icon", "fn_rewards"),
+                "ii": r.get("image") or "",
                 "c": int(r.get("cost", 0)),
                 "k": r.get("kind", "normal"),
             }
@@ -1099,4 +1116,9 @@ class KisSegitoManager:
             "children": children,
             "rewards": rewards,
             "routines": routines,
+            # Where the knob downloads uploaded pictures, and its secret.
+            "img": {
+                "u": base_url or "",
+                "t": self.device_token(device_id) if base_url else "",
+            },
         }

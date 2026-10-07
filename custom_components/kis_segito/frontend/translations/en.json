@@ -193,5 +193,12 @@
   "templates.weekdays": "Default template of each weekday",
   "templates.own_days": "No template (routines' own days)",
   "modify.template": "Today's day template",
-  "modify.template_default": "Default for this weekday"
+  "modify.template_default": "Default for this weekday",
+  "picture.title": "Picture",
+  "picture.icon": "Choose an icon",
+  "picture.upload": "Upload a photo…",
+  "picture.replace": "Replace photo…",
+  "picture.remove": "Use the icon",
+  "picture.hint": "An uploaded photo is shown in the panel and, once downloaded, on the knob; otherwise the icon.",
+  "picture.failed": "The picture could not be uploaded."
 }

@@ -294,7 +294,27 @@ class KisSegitoPanel extends HTMLElement {
   }
 
   _avatar(child, size = 48) {
-    return `<span class="avatar" style="--c:${this._e(child.color || "#6CB8FF")};width:${size}px;height:${size}px">${this._icon(child.avatar || "placeholder_avatar", size - 6)}</span>`;
+    const inner = child.avatar_image
+      ? this._photo(child.avatar_image, size - 6, true)
+      : this._icon(child.avatar || "placeholder_avatar", size - 6);
+    return `<span class="avatar" style="--c:${this._e(child.color || "#6CB8FF")};width:${size}px;height:${size}px">${inner}</span>`;
+  }
+
+  // An uploaded picture (Home Assistant image_upload), served at a fixed size.
+  _photo(id, size, round = false) {
+    return `<img class="photo ${round ? "round" : ""}" src="/api/image/serve/${this._e(id)}/256x256" width="${size}" height="${size}" alt="">`;
+  }
+
+  _pictureField(field, iconPath, filter, iconName) {
+    const id = this._edit.item[field];
+    const preview = id ? this._photo(id, 56, field === "avatar_image") : this._icon(iconName, 56);
+    return `<div class="field"><span>${this._e(this._t("picture.title"))}</span>
+      <div class="row wrap">
+        <button class="pick" data-action="pick" data-path="${iconPath}" data-arg="${filter}" title="${this._e(this._t("picture.icon"))}">${preview}</button>
+        <label class="upload">${this._e(this._t(id ? "picture.replace" : "picture.upload"))}<input type="file" accept="image/*" data-upload="${field}" hidden></label>
+        ${id ? `<button class="small" data-action="clear-picture" data-arg="${field}">${this._e(this._t("picture.remove"))}</button>` : ""}
+      </div>
+      <div class="muted">${this._e(this._t("picture.hint"))}</div></div>`;
   }
 
   // Reads/writes a nested value in the edit buffer by path like "tasks.2.icon".
@@ -407,6 +427,9 @@ class KisSegitoPanel extends HTMLElement {
           : [...days, d].sort();
         break;
       }
+      case "clear-picture":
+        this._edit.item[arg] = "";
+        break;
       case "toggle-routine": {
         const list = this._edit.item.routines;
         const i = list.indexOf(arg);
@@ -581,6 +604,24 @@ class KisSegitoPanel extends HTMLElement {
     if (el.dataset.filter) {
       this._historyFilter[el.dataset.filter] = el.value;
       await this._loadHistory();
+      this._render();
+      return;
+    }
+    if (el.dataset.upload && el.files?.length) {
+      // Upload through Home Assistant's image_upload; keep its id.
+      const form = new FormData();
+      form.append("file", el.files[0]);
+      try {
+        const response = await this._hass.fetchWithAuth("/api/image/upload", { method: "POST", body: form });
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        const image = await response.json();
+        this._edit.item[el.dataset.upload] = image.id;
+      } catch (err) {
+        this._error = this._t("picture.failed");
+        console.warn("Kis Segito: upload failed", err);
+      }
       this._render();
       return;
     }
@@ -1041,6 +1082,7 @@ class KisSegitoPanel extends HTMLElement {
         ${close ? `<div class="warn">${this._e(this._t("children.color_warning"))}</div>` : ""}</div>
       <div class="field"><span>${this._e(this._t("children.avatar"))}</span>
         <button class="pick" data-action="pick" data-path="avatar" data-arg="avatar">${this._icon(c.avatar, 56)}</button></div>
+      ${this._pictureField("avatar_image", "avatar", "avatar", c.avatar)}
       <label>${this._e(this._t("children.knob"))}<select data-path="device_id">${knobs}</select></label>
       <div class="muted">${this._e(this._t("children.knob_hint"))}</div>
       <label class="check"><input type="checkbox" data-path="piggy_unlocked" ${c.piggy_unlocked ? "checked" : ""}>${this._e(this._t("children.piggy_unlocked"))}</label>
@@ -1168,7 +1210,7 @@ class KisSegitoPanel extends HTMLElement {
     }
     const rows = this._data.rewards
       .map(
-        (r, i) => `<div class="card row">${this._icon(r.icon, 56)}
+        (r, i) => `<div class="card row">${r.image ? this._photo(r.image, 56) : this._icon(r.icon, 56)}
           <div class="grow"><div class="title">${this._e(r.name)}${r.kind === "piggy_unlock" ? ` · ${this._e(this._t("rewards.piggy_unlock"))}` : ""}${r.active === false ? ` <span class="muted">(${this._e(this._t("common.inactive"))})</span>` : ""}</div>
             <div class="balance left">${this._pile(r.cost, 20)}<b>${r.cost}</b></div></div>
           ${this._isAdmin ? `<button class="icon-btn" data-action="move" data-arg="rewards:${r.id}:-1" ${i === 0 ? "disabled" : ""}>▲</button>
@@ -1189,6 +1231,7 @@ class KisSegitoPanel extends HTMLElement {
     const r = this._edit.item;
     return `<div class="card form">
       <h2>${this._e(this._t(r.id ? "rewards.edit" : "rewards.add"))}</h2>
+      ${this._pictureField("image", "icon", "reward", r.icon)}
       <div class="row"><button class="pick" data-action="pick" data-path="icon" data-arg="reward">${this._icon(r.icon, 56)}</button>
         <label class="grow">${this._e(this._t("common.name"))}<input data-path="name" value="${this._e(r.name)}"></label></div>
       <label>${this._e(this._t("rewards.cost"))}<input type="number" min="0" data-path="cost" data-rerender value="${r.cost}"></label>
@@ -1588,6 +1631,9 @@ const STYLE = `
   .day-head { height: auto; min-height: 24px; }
   .filters select, .filters input { max-width: 180px; }
   .filters input[type="search"] { min-width: 180px; max-width: none; }
+  .photo { object-fit: cover; border-radius: 10px; vertical-align: middle; }
+  .photo.round { border-radius: 50%; }
+  label.upload { display: inline-block; cursor: pointer; padding: 6px 12px; border-radius: 18px; border: 1px solid var(--divider-color, #e0e0e0); }
   .update { border-color: var(--primary-color, #03a9f4); }
   a.ref { color: var(--primary-color, #03a9f4); text-decoration: none; font-weight: 500; cursor: pointer; }
   a.ref:hover { text-decoration: underline; }

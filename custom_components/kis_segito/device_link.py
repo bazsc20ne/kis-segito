@@ -31,6 +31,7 @@ from homeassistant.helpers.event import (
     EventStateChangedData,
     async_track_state_change_event,
 )
+from homeassistant.helpers.network import NoURLAvailableError, get_url
 from homeassistant.util import slugify
 
 from .const import (
@@ -179,7 +180,17 @@ class DeviceLink:
         language, _strings = await self.hass.async_add_executor_job(
             load_device_strings, self._language()
         )
-        snapshot = self.manager.snapshot(self.device_id, language)
+        try:
+            base_url: str | None = get_url(
+                self.hass,
+                allow_internal=True,
+                allow_external=True,
+                prefer_external=False,
+                allow_cloud=False,
+            )
+        except NoURLAvailableError:
+            base_url = None
+        snapshot = self.manager.snapshot(self.device_id, language, base_url)
         payload = json.dumps(snapshot, separators=(",", ":"), ensure_ascii=False)
         await self.hass.services.async_call(
             ESPHOME_DOMAIN, service, {"data": payload}, blocking=True

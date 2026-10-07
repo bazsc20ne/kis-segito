@@ -107,3 +107,42 @@ async def test_summary_entities(hass: HomeAssistant) -> None:
     assert state.state == "7"
     assert state.attributes["child_id"] == child["id"]
     assert hass.states.get("calendar.kis_segito") is not None
+
+
+async def test_knob_image(hass: HomeAssistant, hass_client_no_auth) -> None:
+    from pathlib import Path
+
+    from PIL import Image
+
+    from custom_components.kis_segito.knob_images import convert
+
+    entry = MockConfigEntry(
+        domain=DOMAIN, unique_id="dev", data={CONF_DEVICE_ID: "dev"}
+    )
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    manager = hass.data[DOMAIN].manager
+    token = manager.device_token("dev")
+
+    folder = Path(hass.config.path("image", "abc123"))
+    await hass.async_add_executor_job(lambda: folder.mkdir(parents=True, exist_ok=True))
+    await hass.async_add_executor_job(
+        lambda: Image.new("RGBA", (300, 200), (255, 0, 0, 255)).save(
+            folder / "original", "PNG"
+        )
+    )
+    raw = await hass.async_add_executor_job(convert, folder / "original", 64)
+    assert raw[:4] == b"KSI1" and len(raw) == 8 + 64 * 64 * 3
+    assert raw[8:10] == b"\x00\xf8"  # pure red in RGB565, little endian
+
+    client = await hass_client_no_auth()
+    assert (
+        await client.get("/api/kis_segito/knob_image/abc123/64?t=wrong")
+    ).status == 403
+    ok = await client.get(f"/api/kis_segito/knob_image/abc123/64?t={token}")
+    assert ok.status == 200
+    assert await ok.read() == raw
+    assert (
+        await client.get(f"/api/kis_segito/knob_image/abc123/99?t={token}")
+    ).status == 404

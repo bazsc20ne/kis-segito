@@ -193,5 +193,12 @@
   "templates.weekdays": "A hét napjainak alapértelmezett sablonja",
   "templates.own_days": "Nincs sablon (a rutinok saját napjai)",
   "modify.template": "Mai napsablon",
-  "modify.template_default": "A hét napja szerinti alapértelmezett"
+  "modify.template_default": "A hét napja szerinti alapértelmezett",
+  "picture.title": "Kép",
+  "picture.icon": "Ikon választása",
+  "picture.upload": "Fénykép feltöltése…",
+  "picture.replace": "Fénykép cseréje…",
+  "picture.remove": "Ikon használata",
+  "picture.hint": "A feltöltött fénykép a panelen és – letöltés után – a gombon látszik; egyébként az ikon.",
+  "picture.failed": "A képet nem sikerült feltölteni."
 }

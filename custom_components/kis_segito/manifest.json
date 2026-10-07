@@ -11,6 +11,7 @@
   "dependencies": [
     "frontend",
     "http",
+    "image_upload",
     "panel_custom",
     "websocket_api"
   ],
