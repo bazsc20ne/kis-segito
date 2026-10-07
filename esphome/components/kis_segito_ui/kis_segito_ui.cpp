@@ -5,6 +5,11 @@
 #include <algorithm>
 #include <cmath>
 
+#include <esp_heap_caps.h>
+#include <esp_http_client.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+
 #include "esphome/components/json/json_util.h"
 #include "esphome/core/hal.h"
 #include "esphome/core/helpers.h"
@@ -296,6 +301,8 @@ void KisSegitoUI::set_state(const std::string &json) {
       this->rewards_.empty() ? "" : this->rewards_[this->reward_ % this->rewards_.size()].id;
 
   this->state_now_ = root["now"].as<int64_t>();
+  this->img_base_ = root["img"]["u"] | "";
+  this->img_token_ = root["img"]["t"] | "";
   this->state_ms_ = millis();
   std::vector<Child> children;
   for (JsonObjectConst c : root["children"].as<JsonArrayConst>()) {
@@ -312,6 +319,8 @@ void KisSegitoUI::set_state(const std::string &json) {
     child.pending_interest = c["pi"] | 0;
     if (this->images_.count(child.avatar + "_180") == 0)
       child.avatar = "placeholder_avatar";
+    if (c["ai"].is<const char *>() && strlen(c["ai"].as<const char *>()) > 0)
+      child.avatar = std::string("@") + c["ai"].as<const char *>();
     children.push_back(child);
   }
   std::vector<Reward> rewards;
@@ -320,6 +329,8 @@ void KisSegitoUI::set_state(const std::string &json) {
     reward.id = r["id"] | "";
     reward.icon = r["i"] | "fn_rewards";
     reward.cost = r["c"] | 0;
+    if (r["ii"].is<const char *>() && strlen(r["ii"].as<const char *>()) > 0)
+      reward.icon = std::string("@") + r["ii"].as<const char *>();
     reward.piggy_unlock = strcmp(r["k"] | "normal", "piggy_unlock") == 0;
     rewards.push_back(reward);
   }
@@ -537,12 +548,126 @@ void KisSegitoUI::start() {
 // ---------------------------------------------------------------- Helpers
 
 const lv_image_dsc_t *KisSegitoUI::img_(const std::string &key) {
+  if (!key.empty() && key[0] == '@') {
+    // An uploaded picture: shown once downloaded, the matching icon until then.
+    auto photo = this->photos_.find(key);
+    if (photo != this->photos_.end())
+      return photo->second;
+    this->request_photo_(key);
+    const bool avatar = key.size() > 4 && key.compare(key.size() - 4, 4, "_180") == 0;
+    return this->img_(avatar ? "placeholder_avatar_180" : "reward_gift_160");
+  }
   auto it = this->images_.find(key);
   if (it == this->images_.end()) {
     ESP_LOGW(TAG, "Missing image %s", key.c_str());
     return nullptr;
   }
   return it->second->get_lv_image_dsc();
+}
+
+void KisSegitoUI::request_photo_(const std::string &key) {
+  if (this->img_base_.empty() || this->photo_requested_.count(key))
+    return;
+  this->photo_requested_.insert(key);
+  // "@<id>_<size>" -> <base>/api/kis_segito/knob_image/<id>/<size>?t=<token>
+  const size_t sep = key.rfind('_');
+  if (sep == std::string::npos || sep < 2)
+    return;
+  const std::string url = this->img_base_ + "/api/kis_segito/knob_image/" + key.substr(1, sep - 1) + "/" +
+                          key.substr(sep + 1) + "?t=" + this->img_token_;
+  {
+    std::lock_guard<std::mutex> lock(this->photo_mutex_);
+    this->photo_queue_.emplace_back(key, url);
+  }
+  if (!this->photo_task_started_) {
+    this->photo_task_started_ = true;
+    xTaskCreate(&KisSegitoUI::photo_task_, "ks_photos", 6144, this, 1, nullptr);
+  }
+}
+
+// Worker task: downloads queued pictures into PSRAM, one at a time.
+void KisSegitoUI::photo_task_(void *arg) {
+  auto *self = static_cast<KisSegitoUI *>(arg);
+  while (true) {
+    std::pair<std::string, std::string> job;
+    {
+      std::lock_guard<std::mutex> lock(self->photo_mutex_);
+      if (!self->photo_queue_.empty()) {
+        job = self->photo_queue_.front();
+        self->photo_queue_.pop_front();
+      }
+    }
+    if (job.first.empty()) {
+      vTaskDelay(pdMS_TO_TICKS(250));
+      continue;
+    }
+    esp_http_client_config_t cfg{};
+    cfg.url = job.second.c_str();
+    cfg.timeout_ms = 10000;
+    esp_http_client_handle_t client = esp_http_client_init(&cfg);
+    uint8_t *buf = nullptr;
+    int got = 0;
+    if (client != nullptr && esp_http_client_open(client, 0) == ESP_OK) {
+      const int64_t len = esp_http_client_fetch_headers(client);
+      if (esp_http_client_get_status_code(client) == 200 && len > 8 && len < 512 * 1024) {
+        buf = static_cast<uint8_t *>(heap_caps_malloc(len, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+        while (buf != nullptr && got < len) {
+          const int r = esp_http_client_read(client, reinterpret_cast<char *>(buf) + got, len - got);
+          if (r <= 0)
+            break;
+          got += r;
+        }
+        if (buf != nullptr && got != len) {
+          heap_caps_free(buf);
+          buf = nullptr;
+        }
+      }
+      esp_http_client_close(client);
+    }
+    if (client != nullptr)
+      esp_http_client_cleanup(client);
+    std::lock_guard<std::mutex> lock(self->photo_mutex_);
+    self->photo_done_.push_back({job.first, buf, static_cast<size_t>(buf != nullptr ? got : 0)});
+  }
+}
+
+void KisSegitoUI::loop() {
+  std::vector<Download> done;
+  {
+    std::lock_guard<std::mutex> lock(this->photo_mutex_);
+    if (this->photo_done_.empty())
+      return;
+    done.swap(this->photo_done_);
+  }
+  bool changed = false;
+  for (auto &d : done) {
+    // b"KSI1" + width + height (uint16 LE) + RGB565 pixels + alpha bytes.
+    if (d.data == nullptr || d.size < 8 || memcmp(d.data, "KSI1", 4) != 0) {
+      ESP_LOGW(TAG, "Picture %s could not be downloaded", d.key.c_str());
+      if (d.data != nullptr)
+        heap_caps_free(d.data);
+      continue;
+    }
+    const uint16_t w = d.data[4] | (d.data[5] << 8);
+    const uint16_t h = d.data[6] | (d.data[7] << 8);
+    if (d.size != 8 + static_cast<size_t>(w) * h * 3) {
+      heap_caps_free(d.data);
+      continue;
+    }
+    auto *dsc = new lv_image_dsc_t{};
+    dsc->header.magic = LV_IMAGE_HEADER_MAGIC;
+    dsc->header.cf = LV_COLOR_FORMAT_RGB565A8;
+    dsc->header.w = w;
+    dsc->header.h = h;
+    dsc->header.stride = w * 2;
+    dsc->data_size = static_cast<uint32_t>(w) * h * 3;
+    dsc->data = d.data + 8;
+    this->photos_[d.key] = dsc;
+    changed = true;
+    ESP_LOGI(TAG, "Picture %s ready (%ux%u)", d.key.c_str(), w, h);
+  }
+  if (changed && this->started_)
+    this->pending_rebuild_ = true;  // shown on the next tick, after animations
 }
 
 uint32_t KisSegitoUI::anim_ms_(uint32_t full_ms) const {

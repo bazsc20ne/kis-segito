@@ -10,7 +10,7 @@ data it shows built-in test data. Child actions are published as JSON on the
 """
 
 import esphome.codegen as cg
-from esphome.components import font, image, text_sensor
+from esphome.components import esp32, font, image, text_sensor
 from esphome.components.lvgl import defines as lv_defines
 import esphome.config_validation as cv
 from esphome.const import CONF_ID
@@ -52,6 +52,9 @@ FINAL_VALIDATE_SCHEMA = _final_validate
 
 
 async def to_code(config):
+    # Uploaded pictures are downloaded from Home Assistant over HTTP.
+    esp32.include_builtin_idf_component("esp_http_client")
+    esp32.include_builtin_idf_component("esp-tls")
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
     for key, image_id in config[CONF_IMAGES].items():

@@ -5,8 +5,11 @@
 
 #pragma once
 
+#include <deque>
 #include <functional>
 #include <map>
+#include <mutex>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -129,7 +132,7 @@ class Carousel {
 class KisSegitoUI : public Component {
  public:
   void setup() override;
-  void loop() override {}
+  void loop() override;
   float get_setup_priority() const override { return setup_priority::PROCESSOR; }
 
   void add_image(const std::string &key, image::Image *img) { this->images_[key] = img; }
@@ -151,6 +154,9 @@ class KisSegitoUI : public Component {
 
  protected:
   const lv_image_dsc_t *img_(const std::string &key);
+  // Uploaded pictures ("@<id>_<size>" keys), downloaded in the background.
+  void request_photo_(const std::string &key);
+  static void photo_task_(void *arg);
   uint32_t anim_ms_(uint32_t full_ms) const;
   lv_color_t tint_(uint32_t color, uint8_t amount) const;
 
@@ -213,6 +219,22 @@ class KisSegitoUI : public Component {
   uint32_t state_ms_{0};           // ... and millis() when it arrived
   uint32_t action_seq_{0};
   text_sensor::TextSensor *action_sensor_{nullptr};
+
+  // Picture downloads: the worker task fills done_, loop() turns them into
+  // LVGL images (LVGL is only touched from the main loop).
+  struct Download {
+    std::string key;
+    uint8_t *data{nullptr};
+    size_t size{0};
+  };
+  std::string img_base_;   // Home Assistant address for pictures
+  std::string img_token_;  // this knob's picture secret
+  std::map<std::string, lv_image_dsc_t *> photos_;
+  std::set<std::string> photo_requested_;
+  std::deque<std::pair<std::string, std::string>> photo_queue_;  // key, url
+  std::vector<Download> photo_done_;
+  std::mutex photo_mutex_;
+  bool photo_task_started_{false};
 
   bool started_{false};
   Screen screen_{Screen::NONE};

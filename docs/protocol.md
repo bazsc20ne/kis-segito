@@ -43,6 +43,12 @@ epoch seconds, colours `#RRGGBB`):
 }
 ```
 
+- `children[].ai`, `rewards[].ii`: id of an uploaded picture (empty: use the
+  icon). The knob downloads it from `img.u` +
+  `/api/kis_segito/knob_image/<id>/<size>?t=<img.t>` (raw RGB565A8 with a
+  `KSI1` header) and shows the icon until it arrives. `img.t` is the knob's
+  own secret; Home Assistant must be reachable over plain HTTP on its
+  internal URL.
 - `children[].pi`: piggy-bank interest paid but not shown to the child yet; the
   knob shows a badge and plays it when the piggy bank is opened.
 - `children[].sel`: whether the child can be selected on this knob (device
