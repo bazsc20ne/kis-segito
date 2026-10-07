@@ -6,6 +6,55 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.6.0] - 2026-10-07
+
+### English
+
+- Calendar (#17, #19): day, 3-day and week views in a Google Calendar-like
+  style; the last chosen view is remembered per user, phones start with the
+  day view.
+- Only this occurrence or the whole series (#17): clicking a routine in the
+  calendar asks, like Outlook. "This occurrence only" opens the full routine
+  editor for that date (times, colour zones, checkpoints with reward bands,
+  tasks, children) with the changed parts marked, "Restore the original",
+  and everything logged; the routine itself is unchanged. Clicking an empty
+  place adds a routine for that day only. Past days are read-only. The Today
+  page has the same editor for today.
+- Dragging in the calendar (#17): drag a routine to move it for that day
+  (its checkpoints move with it), drag its top or bottom edge to change the
+  start or end; 5-minute grid, live time label, Undo; long press on touch
+  screens.
+- Routine colours (#18): every routine gets its own calendar colour (palette
+  and colour picker, a distinct colour for new routines, a hint for similar
+  colours), separate from the knob's time track base colour. Changed
+  occurrences carry a badge and a dashed outline, not only a colour.
+- Mobile (#19): the whole panel works on phones: one column, no sideways
+  scrolling, 44 px touch targets, editors as full-screen sheets.
+
+### Magyar
+
+- Naptár (#17, #19): nap, 3 nap és hét nézet Google Naptár-szerű
+  megjelenéssel; az utoljára választott nézetet felhasználónként megjegyzi,
+  telefonon napi nézettel indul.
+- Csak ez az alkalom vagy a teljes sorozat (#17): a naptárban egy rutinra
+  kattintva Outlook-szerűen rákérdez. A „csak ez az alkalom” az adott dátumra
+  szóló teljes rutinszerkesztőt nyitja meg (idők, színzónák, checkpointok
+  jutalomsávokkal, feladatok, gyerekek), a módosított részek jelölve,
+  „Visszaállítás eredetire”, minden naplózva; maga a rutin nem változik. Üres
+  helyre kattintva csak arra a napra szóló rutin vehető fel. A múltbeli napok
+  csak olvashatók. A Ma oldalon ugyanez a szerkesztő mára érhető el.
+- Húzás a naptárban (#17): a rutin áthúzható az adott napon (a checkpointok
+  vele mozognak), a teteje vagy alja húzásával a kezdés vagy a vége
+  módosul; 5 perces rács, élő időcímke, Visszavonás; érintőképernyőn hosszú
+  nyomással indul.
+- Rutinszínek (#18): minden rutin saját naptárszínt kap (paletta és
+  színválasztó, új rutinnál automatikusan eltérő szín, figyelmeztetés hasonló
+  színnél), külön a gomb időívének alapszínétől. A módosított alkalmakat jelvény
+  és szaggatott keret jelöli, nem csak szín.
+- Mobil (#19): az egész panel jól használható telefonon: egy oszlop, nincs
+  vízszintes görgetés, 44 px-es érintési célok, a szerkesztők teljes képernyős
+  lapként nyílnak.
+
 ## [0.5.0] - 2026-10-07
 
 ### English
