@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.event import async_track_time_change
@@ -43,6 +44,12 @@ class KisSegitoData:
     static_registered: bool = False
     panel_registered: bool = False
     entry_ids: set[str] = field(default_factory=set)
+    # The knob entry that carries the integration-wide entities (summary
+    # sensors, calendar); another one takes over if it is removed.
+    entities_entry_id: str | None = None
+
+
+PLATFORMS = [Platform.CALENDAR, Platform.SENSOR]
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
@@ -112,6 +119,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: KisSegitoConfigEntry) ->
     )
     entry.runtime_data = link
     link.async_start()
+    if data.entities_entry_id is None:
+        data.entities_entry_id = entry.entry_id
+        await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
 
 
@@ -119,6 +129,13 @@ async def async_unload_entry(hass: HomeAssistant, entry: KisSegitoConfigEntry) -
     """Unload one knob; remove the panel with the last one."""
     entry.runtime_data.async_stop()
     data: KisSegitoData = hass.data[DOMAIN]
+    if data.entities_entry_id == entry.entry_id:
+        if not await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
+            return False
+        data.entities_entry_id = None
+        # Another knob entry takes over the integration-wide entities.
+        if others := [e for e in data.entry_ids if e != entry.entry_id]:
+            hass.config_entries.async_schedule_reload(others[0])
     data.entry_ids.discard(entry.entry_id)
     if not data.entry_ids and data.panel_registered:
         async_unregister_panel(hass)

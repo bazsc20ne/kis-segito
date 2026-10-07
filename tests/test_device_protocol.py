@@ -79,3 +79,31 @@ async def test_state_push_and_action(hass: HomeAssistant) -> None:
     hass.states.async_set(action_entity.entity_id, json.dumps(action))
     await hass.async_block_till_done()
     assert manager.balances(child["id"])["wallet"] == 2
+
+
+async def test_summary_entities(hass: HomeAssistant) -> None:
+    esphome_entry = MockConfigEntry(
+        domain="esphome", data={"host": "192.0.2.1", "device_name": "knob-two"}
+    )
+    esphome_entry.add_to_hass(hass)
+    device = dr.async_get(hass).async_get_or_create(
+        config_entry_id=esphome_entry.entry_id,
+        connections={(dr.CONNECTION_NETWORK_MAC, "00:00:00:00:00:04")},
+        name="Knob two",
+    )
+    entry = MockConfigEntry(
+        domain=DOMAIN, unique_id=device.id, data={CONF_DEVICE_ID: device.id}
+    )
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    manager = hass.data[DOMAIN].manager
+
+    assert hass.states.get("sensor.kis_segito").state == "idle"
+    child = await manager.async_save_item("children", {"name": "Kid"})
+    await manager.async_adjust(child["id"], 7)
+    await hass.async_block_till_done()
+    state = hass.states.get("sensor.kis_segito_kid")
+    assert state.state == "7"
+    assert state.attributes["child_id"] == child["id"]
+    assert hass.states.get("calendar.kis_segito") is not None
