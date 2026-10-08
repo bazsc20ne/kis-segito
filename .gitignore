@@ -9,5 +9,4 @@ __pycache__/
 .venv/
 venv/
 
-# Working rules are kept in a private repository.
 CLAUDE.md
