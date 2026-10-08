@@ -18,13 +18,13 @@ jobs:
     name: Compile firmware
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: esphome/build-action@v7.0.0
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: esphome/build-action@76cd6898550762b189215bbe6e50e29080fd2c33 # v7.0.0
         id: build
         with:
           yaml-file: esphome/kis-segito-factory.yaml
           version: ${{ vars.ESPHOME_VERSION || '2026.9.1' }}
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: firmware
           path: ${{ steps.build.outputs.name }}
@@ -34,10 +34,10 @@ jobs:
     name: Compile display test firmware
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Use placeholder secrets
         run: cp esphome/secrets.example.yaml esphome/secrets.yaml
-      - uses: esphome/build-action@v7.0.0
+      - uses: esphome/build-action@76cd6898550762b189215bbe6e50e29080fd2c33 # v7.0.0
         with:
           yaml-file: esphome/display-test.yaml
           version: ${{ vars.ESPHOME_VERSION || '2026.9.1' }}
@@ -46,8 +46,8 @@ jobs:
     name: Compile diagnostic packages
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: esphome/build-action@v7.0.0
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: esphome/build-action@76cd6898550762b189215bbe6e50e29080fd2c33 # v7.0.0
         with:
           yaml-file: esphome/tests/diagnostics.yaml
           version: ${{ vars.ESPHOME_VERSION || '2026.9.1' }}
