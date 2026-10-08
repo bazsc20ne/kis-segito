@@ -8,3 +8,6 @@ __pycache__/
 .ruff_cache/
 .venv/
 venv/
+
+# Working rules are kept in a private repository.
+CLAUDE.md
