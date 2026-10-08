@@ -489,6 +489,8 @@ class KisSegitoPanel extends HTMLElement {
     if (!name) {
       return "";
     }
+    // An alias shares another icon's artwork.
+    name = this._data?.icon_aliases?.[name] || name;
     // Small places use the simplified variant, when the icon has one.
     const small = size <= 44 && this._data?.small_icons?.includes(name) ? "small/" : "";
     return `<img class="icon" src="${this._staticUrl}/icons/${small}${this._e(name)}.png?v=${this._version}" width="${size}" height="${size}" alt="">`;
@@ -2024,7 +2026,7 @@ class KisSegitoPanel extends HTMLElement {
       avatar: (n) => n.startsWith("avatar_") || n.startsWith("test_avatar") || n === "placeholder_avatar",
       task: (n) => n.startsWith("task_") || n.startsWith("routine_"),
       checkpoint: (n) => n.startsWith("task_") || n.startsWith("routine_") || n === "checkpoint_flag",
-      routine: (n) => n.startsWith("routine_"),
+      routine: (n) => n.startsWith("routine_") || n.startsWith("task_"),
       reward: (n) => n.startsWith("reward_") || n === "fn_piggy",
     };
     const filter = filters[this._picker.filter] || (() => true);

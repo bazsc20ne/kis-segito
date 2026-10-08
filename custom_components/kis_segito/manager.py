@@ -22,6 +22,7 @@ from homeassistant.util import dt as dt_util
 
 from . import ledger as lg
 from .const import EVENT_KIS_SEGITO
+from .icons import stored_icon
 from .logic import (
     applies_to,
     at,
@@ -1176,7 +1177,7 @@ class KisSegitoManager:
                 checkpoints.append(
                     {
                         "id": cp["id"],
-                        "i": cp.get("icon", "checkpoint_flag"),
+                        "i": stored_icon(cp.get("icon", "checkpoint_flag")),
                         "t": int(self.checkpoint_time(routine, cp, day).timestamp()),
                         "ch": cp.get("children", []),
                         "b": [
@@ -1209,7 +1210,7 @@ class KisSegitoManager:
             routines.append(
                 {
                     "id": routine["id"],
-                    "i": routine.get("icon", "routine_generic"),
+                    "i": stored_icon(routine.get("icon", "routine_generic")),
                     "s": int(start.timestamp()),
                     "e": int(end.timestamp()),
                     "ch": routine.get("children", []),
@@ -1225,7 +1226,7 @@ class KisSegitoManager:
                     "t": [
                         {
                             "id": t["id"],
-                            "i": t.get("icon", "task_generic"),
+                            "i": stored_icon(t.get("icon", "task_generic")),
                             "cp": (self.task_checkpoint(routine, t) or {}).get(
                                 "id", ""
                             ),

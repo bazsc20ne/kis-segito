@@ -110,3 +110,12 @@ def test_ledger_refuses_bad_lines() -> None:
         _tx(1.5)  # type: ignore[arg-type]
     with pytest.raises(lg.LedgerError):
         _tx(1, "savings")
+
+
+def test_icon_aliases() -> None:
+    from custom_components.kis_segito.icons import ICON_ALIASES, stored_icon
+
+    assert stored_icon("task_bath") == "routine_bath"
+    assert stored_icon("task_toothbrush") == "task_toothbrush"
+    # Every alias points to an icon that has its own artwork.
+    assert all(not target.startswith("task_bath") for target in ICON_ALIASES.values())

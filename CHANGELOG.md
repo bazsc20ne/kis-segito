@@ -15,6 +15,13 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   again, as in 0.7.3 (running it from flash is now an experimental option,
   `psram_xip: "n"`). Everything else from 0.7.4 stays: smoother carousels,
   the detent-based encoder and the screen settings in the panel.
+- New artwork for every task icon and the checkpoint flag (each with a
+  simplified small variant), new tasks: pyjamas and coat for boys and for
+  girls, and the six built-in backgrounds.
+- Icons that are the same picture for a task and a routine (bath, tidying up,
+  ready to leave, dinner, bed, play, packing) are stored once; existing
+  routines keep working, and every routine icon can be chosen for tasks and
+  checkpoints and the other way round. The firmware got smaller.
 - A second screensaver: continuous confetti, next to the bouncing balls
   (Settings → Knob screen, also per knob).
 - After a restart the knob logs why its previous run ended (for example a
@@ -28,6 +35,13 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   PSRAM-ból fut, mint a 0.7.3-ban (a flashből futtatás most kísérleti
   beállítás: `psram_xip: "n"`). A 0.7.4 többi része megmarad: simább
   körhinták, kattanás alapú enkóder és a képernyő-beállítások a panelen.
+- Új rajzok minden feladatikonhoz és a checkpoint zászlóhoz (mindegyik
+  egyszerűsített kis változattal), új feladatok: fiú és lány pizsama és kabát,
+  valamint a hat beépített háttér.
+- A feladatnál és rutinnál ugyanazt a képet használó ikonok (fürdés,
+  rendrakás, indulás, vacsora, alvás, játék, összekészülés) csak egyszer
+  tárolódnak; a meglévő rutinok változatlanul működnek, és minden rutinikon
+  választható feladathoz és checkpointhoz, és fordítva. A firmware kisebb lett.
 - Második képernyővédő: folyamatos konfetti a pattogó labdák mellett
   (Beállítások → Gomb képernyője, gombonként is).
 - Újraindulás után a gomb naplózza, miért ért véget az előző futása (például

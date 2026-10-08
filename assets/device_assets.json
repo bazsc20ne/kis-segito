@@ -61,16 +61,6 @@
     40,
     32
   ],
-  "task_bag": [
-    150,
-    40,
-    32
-  ],
-  "task_door_ready": [
-    150,
-    40,
-    32
-  ],
   "checkpoint_flag": [
     28,
     32
@@ -147,22 +137,7 @@
     32,
     28
   ],
-  "task_bath": [
-    150,
-    40,
-    32
-  ],
-  "task_bed": [
-    150,
-    40,
-    32
-  ],
   "task_coat": [
-    150,
-    40,
-    32
-  ],
-  "task_dinner": [
     150,
     40,
     32
@@ -182,22 +157,12 @@
     40,
     32
   ],
-  "task_play": [
-    150,
-    40,
-    32
-  ],
   "task_socks": [
     150,
     40,
     32
   ],
   "task_story": [
-    150,
-    40,
-    32
-  ],
-  "task_tidy_up": [
     150,
     40,
     32
@@ -315,5 +280,34 @@
     40,
     32,
     28
-  ]
+  ],
+  "task_coat_boy": [
+    150,
+    40,
+    32
+  ],
+  "task_coat_girl": [
+    150,
+    40,
+    32
+  ],
+  "task_pajamas_boy": [
+    150,
+    40,
+    32
+  ],
+  "task_pajamas_girl": [
+    150,
+    40,
+    32
+  ],
+  "_aliases": {
+    "task_bath": "routine_bath",
+    "task_tidy_up": "routine_cleanup",
+    "task_door_ready": "routine_departure",
+    "task_dinner": "routine_meal",
+    "task_bed": "routine_nap",
+    "task_play": "routine_play",
+    "task_bag": "routine_prepare"
+  }
 }

@@ -325,12 +325,12 @@ void KisSegitoUI::load_test_data_() {
   morning.zones = {{15 * 60, ZONE_WARN}, {5 * 60, ZONE_LATE}};
   morning.checkpoints = {
       {"breakfast", "task_breakfast", morning.start + 20 * 60, {}, {{5 * 60, 2}, {0, 1}}},
-      {"door", "task_door_ready", morning.end, {}, {{15 * 60, 3}, {5 * 60, 2}, {0, 1}}},
+      {"door", "routine_departure", morning.end, {}, {{15 * 60, 3}, {5 * 60, 2}, {0, 1}}},
       {"flag1", "checkpoint_flag", morning.start + 32 * 60, {"test1"}, {{0, 1}}},
   };
   morning.tasks = {
       {"t1", "task_clothes", "breakfast"}, {"t2", "task_breakfast", "breakfast"}, {"t3", "task_toothbrush", "door"},
-      {"t4", "task_shoes", "door"},        {"t5", "task_bag", "door"},
+      {"t4", "task_shoes", "door"},        {"t5", "routine_prepare", "door"},
   };
   Routine evening = morning;
   evening.id = "evening";

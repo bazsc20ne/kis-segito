@@ -1,0 +1,9 @@
+{
+  "task_bag": "routine_prepare",
+  "task_bath": "routine_bath",
+  "task_bed": "routine_nap",
+  "task_dinner": "routine_meal",
+  "task_door_ready": "routine_departure",
+  "task_play": "routine_play",
+  "task_tidy_up": "routine_cleanup"
+}

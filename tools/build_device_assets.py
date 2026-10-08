@@ -6,7 +6,9 @@ Reads assets/device_assets.json (icon id -> pixel sizes) and writes
 assets/device/<id>_<size>.png from assets/icons/source/<id>.png. For sizes up
 to SMALL_MAX px, assets/icons/source/<id>_small.png is used when it exists.
 An id listed under "_fallbacks" (id -> other id) is rendered from the other
-id's source while its own source file is missing.
+id's source while its own source file is missing. Ids under "_aliases" (id ->
+stored id) have no images of their own: they use the stored id's artwork
+everywhere (frontend/icons/aliases.json for Home Assistant and the panel).
 
 Resizing is done in linear light with premultiplied alpha (no dark fringes),
 using a Lanczos filter, with light sharpening on small sizes.
@@ -129,6 +131,10 @@ def main() -> int:
         )
         web += 1
     print(f"wrote {web} panel icons to {WEB_OUT.relative_to(ROOT)}")
+    # Icon ids that share another icon's artwork ("_aliases": id -> stored id).
+    (WEB_OUT / "aliases.json").write_text(
+        json.dumps(manifest.get("_aliases", {}), indent=2, sort_keys=True) + "\n", "utf-8"
+    )
     return 0
 
 

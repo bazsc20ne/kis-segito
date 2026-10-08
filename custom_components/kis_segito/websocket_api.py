@@ -16,6 +16,7 @@ from homeassistant.helpers.service import async_get_all_descriptions
 
 from .const import CONF_DEVICE_ID, DOMAIN, LANGUAGE_AUTO
 from .device_link import api_encrypted, available_languages
+from .icons import ICON_ALIASES
 from .ledger import PIGGY, WALLET
 from .manager import (
     BACKGROUND_PRESETS,
@@ -307,6 +308,7 @@ async def ws_data(
             "devices": _devices(hass),
             "icons": await hass.async_add_executor_job(_icons),
             "small_icons": await hass.async_add_executor_job(_small_icons),
+            "icon_aliases": ICON_ALIASES,
             "backgrounds": list(BACKGROUND_PRESETS),
         },
     )
