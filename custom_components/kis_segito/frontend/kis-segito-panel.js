@@ -12,7 +12,7 @@
 // a browser that still runs an older copy of this file shows a reload bar.
 // Knob screen power settings (seconds; dim_level in percent).
 const SCREEN_KEYS = ["saver_after", "dim_after", "dim_level", "blank_after", "off_after"];
-const PANEL_VERSION = "0.7.4";
+const PANEL_VERSION = "0.7.5";
 const FALLBACK_LANGUAGE = "en";
 const LANGUAGE_AUTO = "auto";
 const TABS = [

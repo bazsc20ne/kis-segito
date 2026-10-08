@@ -6,6 +6,30 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.7.5] - 2026-10-08
+
+### English
+
+- Fix (#30): 0.7.4 did not start on the knob; it restarted before the start
+  was confirmed, and the knob went back to 0.7.3. The firmware runs from PSRAM
+  again, as in 0.7.3 (running it from flash is now an experimental option,
+  `psram_xip: "n"`). Everything else from 0.7.4 stays: smoother carousels,
+  the detent-based encoder and the screen settings in the panel.
+- After a restart the knob logs why its previous run ended (for example a
+  crash or a power dip), also to Home Assistant.
+- Hardware notes: how to read the knob's serial log with a USB-UART adapter.
+
+### Magyar
+
+- Javítás (#30): a 0.7.4 nem indult el a gombon; a sikeres indulás jelzése
+  előtt újraindult, és a gomb visszaállt a 0.7.3-ra. A firmware ismét a
+  PSRAM-ból fut, mint a 0.7.3-ban (a flashből futtatás most kísérleti
+  beállítás: `psram_xip: "n"`). A 0.7.4 többi része megmarad: simább
+  körhinták, kattanás alapú enkóder és a képernyő-beállítások a panelen.
+- Újraindulás után a gomb naplózza, miért ért véget az előző futása (például
+  összeomlás vagy feszültségesés), a Home Assistant felé is.
+- Hardverleírás: a gomb soros naplójának kiolvasása USB-UART adapterrel.
+
 ## [0.7.4] - 2026-10-08
 
 ### English

@@ -168,6 +168,7 @@ class KisSegitoUI : public Component {
   const lv_image_dsc_t *img_(const std::string &key);
   // Uploaded pictures ("@<id>_<size>" keys), downloaded in the background.
   void request_photo_(const std::string &key);
+  void log_reset_reason_();
   const lv_image_dsc_t *background_(const std::string &id);
   static void photo_task_(void *arg);
   uint32_t anim_ms_(uint32_t full_ms) const;
@@ -257,6 +258,7 @@ class KisSegitoUI : public Component {
   bool photo_task_started_{false};
 
   bool started_{false};
+  bool boot_info_logged_{false};
   uint32_t saver_after_{0};
   uint32_t dim_after_{60};
   uint8_t dim_level_{15};

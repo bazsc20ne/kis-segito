@@ -31,6 +31,22 @@ Az USB csak az első felíráshoz kell; utána a firmware hálózaton frissíthe
 napló a Home Assistantben / az ESPHome Builderben látható. A knob sima USB-s
 töltőről is működik.
 
+## Reading the serial log / Soros napló
+
+If the knob restarts before it reaches Wi-Fi (for example after an update), its
+messages are only on the serial port UART0: GPIO43 (TX) and GPIO44 (RX) on the
+debug board's TX/RX pins, 115200 baud. Connect a 3.3 V USB-UART adapter (adapter
+RX to knob TX, adapter TX to knob RX, GND to GND) and open it with any serial
+terminal, e.g. `esphome logs` with the adapter's port. After such a restart the
+knob also logs why its previous run ended ("Previous run ended by: …") once it is
+back and connected to Home Assistant.
+
+Ha a knob még a WiFi előtt újraindul (például frissítés után), az üzenetei csak a
+soros porton (UART0) érhetők el: GPIO43 (TX) és GPIO44 (RX) a debug panel TX/RX
+lábain, 115200 baud. Egy 3,3 V-os USB-UART adapterrel olvasható (adapter RX a knob
+TX-ére, adapter TX a knob RX-ére, GND a GND-re). Ilyenkor a knob a következő sikeres
+indulás után azt is naplózza, miért ért véget az előző futása.
+
 ## Pinout / Lábkiosztás
 
 | Function | GPIO | Notes |

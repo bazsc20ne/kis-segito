@@ -9,6 +9,7 @@
 #include <cstring>
 
 #include <esp_heap_caps.h>
+#include <esp_system.h>
 #include <esp_http_client.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
@@ -247,7 +248,48 @@ void Carousel::rotate(int dir) {
 
 // ---------------------------------------------------------------- Setup / test data
 
+static const char *reset_reason_text(esp_reset_reason_t reason) {
+  switch (reason) {
+    case ESP_RST_POWERON:
+      return "power on";
+    case ESP_RST_EXT:
+      return "external pin";
+    case ESP_RST_SW:
+      return "software restart";
+    case ESP_RST_PANIC:
+      return "crash (panic)";
+    case ESP_RST_INT_WDT:
+      return "interrupt watchdog";
+    case ESP_RST_TASK_WDT:
+      return "task watchdog";
+    case ESP_RST_WDT:
+      return "other watchdog";
+    case ESP_RST_DEEPSLEEP:
+      return "deep sleep";
+    case ESP_RST_BROWNOUT:
+      return "brownout (power dip)";
+    case ESP_RST_SDIO:
+      return "SDIO";
+    default:
+      return "unknown";
+  }
+}
+
+// Why the previous run ended; after an OTA rollback this explains the crash.
+// Logged at boot and again with the first state from Home Assistant, when the
+// log also reaches Home Assistant.
+void KisSegitoUI::log_reset_reason_() {
+  const esp_reset_reason_t reason = esp_reset_reason();
+  if (reason == ESP_RST_PANIC || reason == ESP_RST_INT_WDT || reason == ESP_RST_TASK_WDT ||
+      reason == ESP_RST_WDT || reason == ESP_RST_BROWNOUT) {
+    ESP_LOGE(TAG, "Previous run ended by: %s (reset reason %d)", reset_reason_text(reason), (int) reason);
+  } else {
+    ESP_LOGI(TAG, "Previous run ended by: %s (reset reason %d)", reset_reason_text(reason), (int) reason);
+  }
+}
+
 void KisSegitoUI::setup() {
+  this->log_reset_reason_();
   log_psram("at boot");
   this->load_test_data_();
   // The last selected child is kept across reboots (as a hash of its id).
@@ -442,6 +484,10 @@ void KisSegitoUI::set_state(const std::string &json) {
   }
   ESP_LOGI(TAG, "State: %u children, %u rewards, %u routines", (unsigned) this->children_.size(),
            (unsigned) this->rewards_.size(), (unsigned) this->routines_.size());
+  if (!this->boot_info_logged_) {
+    this->boot_info_logged_ = true;
+    this->log_reset_reason_();
+  }
   log_psram("after the state");
   if (!this->started_)
     return;
