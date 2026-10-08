@@ -136,9 +136,8 @@ hozzáadásával lehet felvenni.
   érkező kérésre válaszol (Home Assistant Cloudon és az interneten át nem), a kulcsot csak a
   kérés fejlécében fogadja el. Új képkulcs: panel → **Beállítások → Gombok → Új képkulcs**.
   Titkosítatlan gombnál a Home Assistant javítási értesítést mutat.
-- **Telepítés:** a package-re mindig **verziócímkével** hivatkozz (`@vX.Y.Z`), soha ne
-  `@main`-nel. A release-ek mellett lévő `SHA256SUMS.txt` alapján a letöltött firmware
-  ellenőrizhető: `sha256sum -c --ignore-missing SHA256SUMS.txt`.
+- **Frissítés:** a fenti mintában a package egy adott verzióra mutat (`@v0.7.0`), így a
+  gomb firmware-e csak akkor változik, amikor ezt átírod egy újabb verzióra.
 - **Nem része a projektnek:** aki fizikailag hozzáfér a gombhoz, kiolvashatja a
   flash-memóriáját (és a benne lévő titkos adatokat). Ez egy otthoni, házilag épített
   eszköz, ezért a flash-titkosítás és a secure boot nem cél.
@@ -299,9 +298,8 @@ needs new translation files.
   or the internet) and accepts the key only in a request header. New picture key: panel →
   **Settings → Knobs → New picture key**. For an unencrypted knob Home Assistant shows a
   repair issue.
-- **Installing:** always reference the package **by version tag** (`@vX.Y.Z`), never
-  `@main`. Check downloaded firmware against the `SHA256SUMS.txt` attached to each
-  release: `sha256sum -c --ignore-missing SHA256SUMS.txt`.
+- **Updates:** in the example above the package points to a given version (`@v0.7.0`), so
+  the knob's firmware changes only when you change it to a newer version.
 - **Out of scope:** anyone with physical access to the knob can read its flash memory (and
   the secrets in it). This is a DIY device for the home, so flash encryption and secure
   boot are not goals.
