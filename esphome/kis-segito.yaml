@@ -10,15 +10,21 @@
 #     name: kis-segito
 #     friendly_name: Kis Segito
 #   packages:
-#     kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.6.0
+#     kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.7.0
 #   api:
 #     encryption:
 #       key: !secret kis_segito_api_key
+#   ota:
+#     - id: !extend kis_segito_ota
+#       password: !secret ota_password
 #   wifi:
 #     ssid: !secret wifi_ssid
 #     password: !secret wifi_password
+#     ap:
+#       password: !secret ap_password
 #
-# See esphome/example.yaml. Secrets never belong in this repository.
+# See esphome/example.yaml and docs/security.md. Use a separate API key for each
+# knob. Secrets never belong in this repository.
 #
 # The child UI is drawn by the kis_segito_ui external component (esphome/components)
 # with the icons from assets/device. On-screen texts are not hard-coded: Home
@@ -33,8 +39,8 @@ substitutions:
   friendly_name: Kis Segito
   # Where the UI component and its images come from. They must match the
   # version of this package; CI and local builds point them at the repository.
-  kis_segito_components: github://bazsc20ne/kis-segito@v0.6.0
-  kis_segito_assets: https://raw.githubusercontent.com/bazsc20ne/kis-segito/v0.6.0/assets/device
+  kis_segito_components: github://bazsc20ne/kis-segito@v0.7.0
+  kis_segito_assets: https://raw.githubusercontent.com/bazsc20ne/kis-segito/v0.7.0/assets/device
   # Display tuning values are in hardware/board.yaml and can be overridden here.
   # Encoder counts per mechanical click at the finest resolution (4 counts per
   # quadrature cycle). The MD80E encoder makes half a cycle per click = 2.
@@ -54,7 +60,7 @@ esphome:
   name_add_mac_suffix: false
   project:
     name: bazsc20ne.kis-segito
-    version: "0.6.0"
+    version: "0.7.0"
 
 external_components:
   - source: ${kis_segito_components}
@@ -132,9 +138,18 @@ api:
   on_client_disconnected:
     - lambda: id(ui).set_connected(false);
 
+# Your device config sets the OTA password (see esphome/example.yaml):
+#   ota:
+#     - id: !extend kis_segito_ota
+#       password: !secret ota_password
 ota:
   - platform: esphome
+    id: kis_segito_ota
 
+# The fallback access point (with the captive portal) opens only when the knob
+# cannot join Wi-Fi; it is the only way to change Wi-Fi without a cable. Its
+# portal also accepts a firmware upload, so give it a password in your device
+# config:  wifi: ap: password: !secret ap_password
 wifi:
   ap: {}
 

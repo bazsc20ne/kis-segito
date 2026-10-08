@@ -32,6 +32,17 @@ def main() -> int:
         match = re.search(pattern, esphome)
         versions[label] = match.group(1) if match else "<missing>"
 
+    # Device configs reference the package by its release tag, never @main.
+    for label, path in (
+        ("esphome/example.yaml package ref", "esphome/example.yaml"),
+        ("factory dashboard_import ref", "esphome/kis-segito-factory.yaml"),
+    ):
+        match = re.search(
+            r"github://bazsc20ne/kis-segito/esphome/kis-segito\.yaml@v([\d.]+)",
+            (ROOT / path).read_text("utf-8"),
+        )
+        versions[label] = match.group(1) if match else "<missing>"
+
     panel = (ROOT / "custom_components/kis_segito/frontend/kis-segito-panel.js").read_text(
         "utf-8"
     )

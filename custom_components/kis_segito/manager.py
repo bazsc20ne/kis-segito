@@ -9,6 +9,7 @@ or from Home Assistant actions. After each change listeners are notified
 
 from __future__ import annotations
 
+import hmac
 import logging
 import secrets
 from collections.abc import Callable
@@ -36,6 +37,7 @@ _LOGGER = logging.getLogger(__name__)
 
 # Device action ids are remembered this long (duplicate retries are ignored).
 ACTION_TTL = timedelta(days=7)
+ACTION_KEPT = 2000
 # Daily progress is kept this long.
 DAYS_KEPT = 31
 
@@ -779,6 +781,7 @@ class KisSegitoManager:
         return result
 
     def _prune_actions(self) -> None:
+        """Forget processed action ids older than ACTION_TTL, keep at most ACTION_KEPT."""
         limit = dt_util.now() - ACTION_TTL
         actions = self.store.ledger["actions"]
         for key in [
@@ -787,6 +790,9 @@ class KisSegitoManager:
             if (parsed := dt_util.parse_datetime(v.get("at", ""))) is None
             or parsed < limit
         ]:
+            del actions[key]
+        # Insertion order is processing order: drop the oldest beyond the cap.
+        for key in list(actions)[: max(0, len(actions) - ACTION_KEPT)]:
             del actions[key]
 
     # ------------------------------------------------------------ routines today
@@ -1065,6 +1071,24 @@ class KisSegitoManager:
     def device_tokens(self) -> set[str]:
         """Every knob's picture secret."""
         return {d["token"] for d in self.data["devices"].values() if d.get("token")}
+
+    def valid_device_token(self, token: str) -> bool:
+        """Whether ``token`` is a knob's picture secret (constant-time compare)."""
+        if not token:
+            return False
+        found = False
+        for known in self.device_tokens():
+            found |= hmac.compare_digest(token.encode(), known.encode())
+        return found
+
+    async def async_rotate_device_token(
+        self, device_id: str, *, who: str = "parent"
+    ) -> None:
+        """Replace a knob's picture secret; the old one stops working at once."""
+        device = self.data["devices"].setdefault(device_id, {})
+        device["token"] = secrets.token_urlsafe(18)
+        self._audit(who, f"device_token.{device_id}", None, None)
+        await self._changed()
 
     def device_children(self, device_id: str) -> set[str]:
         """Ids of the children selectable on a knob."""

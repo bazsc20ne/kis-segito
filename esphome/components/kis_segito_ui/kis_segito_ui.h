@@ -222,6 +222,11 @@ class KisSegitoUI : public Component {
 
   // Picture downloads: the worker task fills done_, loop() turns them into
   // LVGL images (LVGL is only touched from the main loop).
+  struct PhotoJob {
+    std::string key;
+    std::string url;
+    std::string token;
+  };
   struct Download {
     std::string key;
     uint8_t *data{nullptr};
@@ -231,7 +236,8 @@ class KisSegitoUI : public Component {
   std::string img_token_;  // this knob's picture secret
   std::map<std::string, lv_image_dsc_t *> photos_;
   std::set<std::string> photo_requested_;
-  std::deque<std::pair<std::string, std::string>> photo_queue_;  // key, url
+  std::set<std::string> photo_failed_;  // retried with the next picture key
+  std::deque<PhotoJob> photo_queue_;
   std::vector<Download> photo_done_;
   std::mutex photo_mutex_;
   bool photo_task_started_{false};

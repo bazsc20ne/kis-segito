@@ -35,3 +35,8 @@ LANGUAGE_AUTO: Final = "auto"
 
 # Generic Home Assistant event for automations (see docs/events.md).
 EVENT_KIS_SEGITO: Final = "kis_segito_event"
+
+# Security notes, linked from repair issues.
+SECURITY_DOCS_URL: Final = (
+    "https://github.com/bazsc20ne/kis-segito/blob/main/docs/security.md"
+)

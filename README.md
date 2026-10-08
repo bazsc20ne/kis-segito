@@ -50,15 +50,21 @@ substitutions:
   friendly_name: Kis Segito
 
 packages:
-  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.6.0
+  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.7.0
 
 api:
   encryption:
     key: !secret kis_segito_api_key
 
+ota:
+  - id: !extend kis_segito_ota
+    password: !secret ota_password
+
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
+  ap:
+    password: !secret ap_password
 ```
 
 Az első felírás USB-n történik (debug/adapter panel), utána OTA-val frissíthető.
@@ -113,6 +119,31 @@ szövegei alapból a Home Assistant nyelvén jelennek meg (jelenleg angol és ma
 nyelvhez nincs fordítás, angolul). A panel **Beállítások** kártyáján más nyelv is
 választható; ez a knobokra és a panelre is érvényes. Új nyelvet fordítási fájlok
 hozzáadásával lehet felvenni.
+
+## Biztonság
+
+- **Kötelező titkos adatok** gombonként, az ESPHome `secrets.yaml`-ban (soha ne kerüljenek
+  repóba): `kis_segito_api_key` – az API titkosítási kulcsa, **minden gombnak külön**;
+  `ota_password` – a hálózati firmware-frissítés jelszava; `ap_password` – a tartalék
+  hozzáférési pont jelszava. A tartalék hozzáférési pont csak akkor indul el, ha a gomb
+  nem tud csatlakozni a WiFi-hez; a beállítóoldala firmware-feltöltést is fogad, ezért kell
+  hozzá jelszó.
+- **Kész firmware:** a release-ben lévő gyári firmware-ben nincs titkos adat (titkosítatlan
+  API, jelszó nélküli OTA). Az első indítás után vedd át az ESPHome Builderbe, add hozzá a
+  fenti sorokat, és telepítsd újra.
+- **Képek csak a helyi hálózatról:** a gomb a feltöltött képeket a saját képkulcsával tölti
+  le, amelyet csak titkosított API-kapcsolaton kap meg. A képvégpont csak helyi hálózatról
+  érkező kérésre válaszol (Home Assistant Cloudon és az interneten át nem), a kulcsot csak a
+  kérés fejlécében fogadja el. Új képkulcs: panel → **Beállítások → Gombok → Új képkulcs**.
+  Titkosítatlan gombnál a Home Assistant javítási értesítést mutat.
+- **Telepítés:** a package-re mindig **verziócímkével** hivatkozz (`@vX.Y.Z`), soha ne
+  `@main`-nel. A release-ek mellett lévő `SHA256SUMS.txt` alapján a letöltött firmware
+  ellenőrizhető: `sha256sum -c --ignore-missing SHA256SUMS.txt`.
+- **Nem része a projektnek:** aki fizikailag hozzáfér a gombhoz, kiolvashatja a
+  flash-memóriáját (és a benne lévő titkos adatokat). Ez egy otthoni, házilag épített
+  eszköz, ezért a flash-titkosítás és a secure boot nem cél.
+
+Részletek: [docs/security.md](docs/security.md).
 
 ## Köszönet és források
 
@@ -184,15 +215,21 @@ substitutions:
   friendly_name: Kis Segito
 
 packages:
-  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.6.0
+  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.7.0
 
 api:
   encryption:
     key: !secret kis_segito_api_key
 
+ota:
+  - id: !extend kis_segito_ota
+    password: !secret ota_password
+
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
+  ap:
+    password: !secret ap_password
 ```
 
 The first flash is done over USB (debug/adapter board); after that it updates over the
@@ -244,6 +281,32 @@ panel follow the Home Assistant language by default (currently English and Hunga
 English when there is no translation for a language). Another language can be chosen on
 the panel's **Settings** card; it applies to the knobs and the panel. A new language only
 needs new translation files.
+
+### Security
+
+- **Required secrets** for each knob, in the ESPHome `secrets.yaml` (never in a
+  repository): `kis_segito_api_key` – the API encryption key, **a separate one for each
+  knob**; `ota_password` – the password for firmware updates over the network;
+  `ap_password` – the password of the fallback access point. The fallback access point
+  opens only when the knob cannot join Wi-Fi; its setup page also accepts a firmware
+  upload, which is why it needs a password.
+- **Ready-made firmware:** the factory firmware in a release has no secrets (unencrypted
+  API, OTA without a password). After the first start, adopt it in the ESPHome Builder,
+  add the lines above and install it again.
+- **Pictures only from the local network:** the knob downloads uploaded pictures with its
+  own picture key, which it gets only over an encrypted API connection. The picture
+  endpoint answers only requests from the local network (not through Home Assistant Cloud
+  or the internet) and accepts the key only in a request header. New picture key: panel →
+  **Settings → Knobs → New picture key**. For an unencrypted knob Home Assistant shows a
+  repair issue.
+- **Installing:** always reference the package **by version tag** (`@vX.Y.Z`), never
+  `@main`. Check downloaded firmware against the `SHA256SUMS.txt` attached to each
+  release: `sha256sum -c --ignore-missing SHA256SUMS.txt`.
+- **Out of scope:** anyone with physical access to the knob can read its flash memory (and
+  the secrets in it). This is a DIY device for the home, so flash encryption and secure
+  boot are not goals.
+
+Details: [docs/security.md](docs/security.md).
 
 ### Credits and sources
 

@@ -205,5 +205,11 @@
     "past_day": {
       "message": "Past days cannot be changed."
     }
+  },
+  "issues": {
+    "unencrypted_api": {
+      "title": "Knob {name} is not encrypted",
+      "description": "Home Assistant talks to the knob {name} without API encryption, so its data travels in clear text on your network. Until it is encrypted, the knob does not get its picture key and shows no uploaded pictures.\n\nAdd an API encryption key to the knob's ESPHome configuration (one key per knob), install it, then enter the same key in the ESPHome integration."
+    }
   }
 }

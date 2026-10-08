@@ -6,6 +6,68 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.7.0] - 2026-10-08
+
+### English
+
+Security hardening (#21). **Update the knob firmware together with the
+integration**: pictures are now downloaded with the key in a request header.
+
+- Knob firmware: the example config requires an OTA password
+  (`ota_password`) and a password for the fallback access point
+  (`ap_password`), and uses one API encryption key per knob. The package's
+  OTA entry has the id `kis_segito_ota`, so a device config can add the
+  password with `!extend`. The factory firmware's import link points to the
+  release tag instead of `main`.
+- Picture key only over an encrypted connection: Home Assistant sends a knob
+  its picture key only when the knob's API is encrypted; otherwise the knob
+  shows icons and a repair issue explains how to add a key.
+- Picture endpoint: answers only requests from the local network (not through
+  Home Assistant Cloud), takes the key only from the `X-Kis-Segito-Token`
+  header and compares it in constant time. Panel → Settings → Knobs → "New
+  picture key" replaces a knob's key at once.
+- Knob actions: strict checks (size, exact fields, types and ranges), at most
+  20 actions per knob per minute, and the list of processed action ids is
+  limited in age and size.
+- Uploaded pictures: the real image type is checked, files over 30 MB and
+  images over 100 megapixels are refused before decoding, large JPEG photos
+  are decoded at a reduced scale; the knob's copy has no metadata.
+- GitHub Actions are pinned to commit SHAs. Releases can be published as the
+  repository owner (optional `RELEASE_TOKEN` secret).
+- 15 new routine icons (placeholder artwork for now).
+- Docs: README "Security" section, docs/security.md.
+
+### Magyar
+
+Biztonsági megerősítés (#21). **A gomb firmware-ét az integrációval együtt
+frissítsd**: a képeket mostantól a kérés fejlécében küldött kulccsal tölti le.
+
+- Gomb-firmware: a mintakonfiguráció OTA-jelszót (`ota_password`) és a
+  tartalék hozzáférési ponthoz jelszót (`ap_password`) kér, és gombonként
+  külön API titkosítási kulcsot használ. A package OTA-bejegyzésének
+  azonosítója `kis_segito_ota`, így az eszköz konfigurációja `!extend`-del
+  adhatja hozzá a jelszót. A gyári firmware importlinkje a release címkéjére
+  mutat a `main` helyett.
+- Képkulcs csak titkosított kapcsolaton: a Home Assistant csak akkor küldi el
+  a gombnak a képkulcsát, ha a gomb API-kapcsolata titkosított; különben a
+  gomb ikonokat mutat, és egy javítási értesítés elmagyarázza, hogyan kell
+  kulcsot beállítani.
+- Képvégpont: csak a helyi hálózatról érkező kérésekre válaszol (Home
+  Assistant Cloudon át nem), a kulcsot csak az `X-Kis-Segito-Token`
+  fejlécből fogadja el, és konstans idejű összehasonlítással ellenőrzi. Panel
+  → Beállítások → Gombok → „Új képkulcs”: a gomb kulcsa azonnal lecserélődik.
+- Gomb-műveletek: szigorú ellenőrzés (méret, pontosan a várt mezők, típusok
+  és tartományok), gombonként legfeljebb 20 művelet percenként, a feldolgozott
+  műveletazonosítók listája kor és méret szerint korlátozott.
+- Feltöltött képek: a valódi képtípust ellenőrzi, a 30 MB-nál nagyobb fájlokat
+  és a 100 megapixelnél nagyobb képeket dekódolás előtt elutasítja, a nagy
+  JPEG-fotókat csökkentett felbontásban dekódolja; a gomb példányában nincs
+  metaadat.
+- A GitHub Actions lépései commit-azonosítóra rögzítve. A release-eket a repó
+  tulajdonosa nevében is ki lehet adni (opcionális `RELEASE_TOKEN` secret).
+- 15 új rutinikon (egyelőre ideiglenes rajzokkal).
+- Dokumentáció: „Biztonság” szakasz a README-ben, docs/security.md.
+
 ## [0.6.0] - 2026-10-07
 
 ### English

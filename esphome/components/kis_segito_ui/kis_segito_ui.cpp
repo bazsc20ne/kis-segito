@@ -302,7 +302,14 @@ void KisSegitoUI::set_state(const std::string &json) {
 
   this->state_now_ = root["now"].as<int64_t>();
   this->img_base_ = root["img"]["u"] | "";
-  this->img_token_ = root["img"]["t"] | "";
+  const std::string token = root["img"]["t"] | "";
+  if (token != this->img_token_) {
+    // A new picture key: retry the pictures the old one could not fetch.
+    for (const auto &key : this->photo_failed_)
+      this->photo_requested_.erase(key);
+    this->photo_failed_.clear();
+    this->img_token_ = token;
+  }
   this->state_ms_ = millis();
   std::vector<Child> children;
   for (JsonObjectConst c : root["children"].as<JsonArrayConst>()) {
@@ -569,15 +576,16 @@ void KisSegitoUI::request_photo_(const std::string &key) {
   if (this->img_base_.empty() || this->photo_requested_.count(key))
     return;
   this->photo_requested_.insert(key);
-  // "@<id>_<size>" -> <base>/api/kis_segito/knob_image/<id>/<size>?t=<token>
+  // "@<id>_<size>" -> <base>/api/kis_segito/knob_image/<id>/<size>; the token goes
+  // in a header, never in the URL (URLs end up in logs).
   const size_t sep = key.rfind('_');
   if (sep == std::string::npos || sep < 2)
     return;
-  const std::string url = this->img_base_ + "/api/kis_segito/knob_image/" + key.substr(1, sep - 1) + "/" +
-                          key.substr(sep + 1) + "?t=" + this->img_token_;
+  const std::string url =
+      this->img_base_ + "/api/kis_segito/knob_image/" + key.substr(1, sep - 1) + "/" + key.substr(sep + 1);
   {
     std::lock_guard<std::mutex> lock(this->photo_mutex_);
-    this->photo_queue_.emplace_back(key, url);
+    this->photo_queue_.push_back({key, url, this->img_token_});
   }
   if (!this->photo_task_started_) {
     this->photo_task_started_ = true;
@@ -589,7 +597,7 @@ void KisSegitoUI::request_photo_(const std::string &key) {
 void KisSegitoUI::photo_task_(void *arg) {
   auto *self = static_cast<KisSegitoUI *>(arg);
   while (true) {
-    std::pair<std::string, std::string> job;
+    PhotoJob job;
     {
       std::lock_guard<std::mutex> lock(self->photo_mutex_);
       if (!self->photo_queue_.empty()) {
@@ -597,14 +605,16 @@ void KisSegitoUI::photo_task_(void *arg) {
         self->photo_queue_.pop_front();
       }
     }
-    if (job.first.empty()) {
+    if (job.key.empty()) {
       vTaskDelay(pdMS_TO_TICKS(250));
       continue;
     }
     esp_http_client_config_t cfg{};
-    cfg.url = job.second.c_str();
+    cfg.url = job.url.c_str();
     cfg.timeout_ms = 10000;
     esp_http_client_handle_t client = esp_http_client_init(&cfg);
+    if (client != nullptr)
+      esp_http_client_set_header(client, "X-Kis-Segito-Token", job.token.c_str());
     uint8_t *buf = nullptr;
     int got = 0;
     if (client != nullptr && esp_http_client_open(client, 0) == ESP_OK) {
@@ -627,7 +637,7 @@ void KisSegitoUI::photo_task_(void *arg) {
     if (client != nullptr)
       esp_http_client_cleanup(client);
     std::lock_guard<std::mutex> lock(self->photo_mutex_);
-    self->photo_done_.push_back({job.first, buf, static_cast<size_t>(buf != nullptr ? got : 0)});
+    self->photo_done_.push_back({job.key, buf, static_cast<size_t>(buf != nullptr ? got : 0)});
   }
 }
 
@@ -644,6 +654,7 @@ void KisSegitoUI::loop() {
     // b"KSI1" + width + height (uint16 LE) + RGB565 pixels + alpha bytes.
     if (d.data == nullptr || d.size < 8 || memcmp(d.data, "KSI1", 4) != 0) {
       ESP_LOGW(TAG, "Picture %s could not be downloaded", d.key.c_str());
+      this->photo_failed_.insert(d.key);
       if (d.data != nullptr)
         heap_caps_free(d.data);
       continue;
@@ -652,6 +663,7 @@ void KisSegitoUI::loop() {
     const uint16_t h = d.data[6] | (d.data[7] << 8);
     if (d.size != 8 + static_cast<size_t>(w) * h * 3) {
       heap_caps_free(d.data);
+      this->photo_failed_.insert(d.key);
       continue;
     }
     auto *dsc = new lv_image_dsc_t{};

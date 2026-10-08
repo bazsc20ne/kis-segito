@@ -10,7 +10,7 @@
 
 // Must equal the integration version (scripts/check_versions.py checks it):
 // a browser that still runs an older copy of this file shows a reload bar.
-const PANEL_VERSION = "0.6.0";
+const PANEL_VERSION = "0.7.0";
 const FALLBACK_LANGUAGE = "en";
 const LANGUAGE_AUTO = "auto";
 const TABS = [
@@ -853,6 +853,12 @@ class KisSegitoPanel extends HTMLElement {
         URL.revokeObjectURL(a.href);
         return;
       }
+      case "rotate-token":
+        if (!confirm(this._t("settings.knob_new_key_confirm"))) {
+          return;
+        }
+        await this._ws({ type: "kis_segito/device/rotate_token", device_id: arg });
+        return;
       case "reverse":
         if (!confirm(this._t("history.confirm_reverse"))) {
           return;
@@ -1834,7 +1840,11 @@ class KisSegitoPanel extends HTMLElement {
         const avatars = assigned.length
           ? assigned.map((c) => this._avatar(c, 32)).join("")
           : `<span class="muted">${this._e(this._t("settings.knob_everyone"))}</span>`;
-        return `<div class="row">${this._icon("nav_settings", 28)}<span class="grow">${this._e(d.name)}</span>${avatars}</div>`;
+        const warning = d.encrypted ? "" : `<div class="muted warn">${this._e(this._t("settings.knob_unencrypted"))}</div>`;
+        const rotate = this._isAdmin
+          ? `<button class="small" data-action="rotate-token" data-arg="${this._e(d.device_id)}">${this._e(this._t("settings.knob_new_key"))}</button>`
+          : "";
+        return `<div class="row">${this._icon("nav_settings", 28)}<span class="grow">${this._e(d.name)}</span>${avatars}${rotate}</div>${warning}`;
       })
       .join("");
     const weekdays = WEEKDAYS.map(
@@ -2101,6 +2111,7 @@ const STYLE = `
   .grow { flex: 1; min-width: 0; }
   .title { font-weight: 500; font-size: 16px; }
   .muted { color: var(--secondary-text-color, #727272); font-size: 13px; }
+  .muted.warn { color: var(--error-color, #db4437); }
   .warn { color: var(--warning-color, #FF9F43); font-size: 13px; }
   .dim { opacity: 0.55; }
   h2 { margin: 0 0 8px; font-size: 18px; font-weight: 500; }

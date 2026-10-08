@@ -10,13 +10,14 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.event import async_track_time_change
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.loader import async_get_integration
 from homeassistant.util import dt as dt_util
 
 from .const import CONF_DEVICE_ID, DOMAIN
-from .device_link import DeviceLink
+from .device_link import DeviceLink, unencrypted_issue_id
 from .knob_images import KnobImageView
 from .logic import parse_hhmm
 from .manager import KisSegitoManager
@@ -143,3 +144,10 @@ async def async_unload_entry(hass: HomeAssistant, entry: KisSegitoConfigEntry) -
         async_unregister_panel(hass)
         data.panel_registered = False
     return True
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: KisSegitoConfigEntry) -> None:
+    """A removed knob leaves no repair issue behind."""
+    ir.async_delete_issue(
+        hass, DOMAIN, unencrypted_issue_id(entry.data[CONF_DEVICE_ID])
+    )

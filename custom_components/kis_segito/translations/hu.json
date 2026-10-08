@@ -205,5 +205,11 @@
     "past_day": {
       "message": "Múltbeli nap nem módosítható."
     }
+  },
+  "issues": {
+    "unencrypted_api": {
+      "title": "A(z) {name} gomb kapcsolata nem titkosított",
+      "description": "A Home Assistant titkosítás nélkül kommunikál a(z) {name} gombbal, így az adatai olvashatóan mennek át a hálózaton. Amíg ez így van, a gomb nem kapja meg a képkulcsát, és nem jelennek meg rajta a feltöltött képek.\n\nAdj meg egy API titkosítási kulcsot a gomb ESPHome-konfigurációjában (gombonként külön kulcsot), telepítsd, majd ugyanezt a kulcsot add meg az ESPHome integrációban is."
+    }
   }
 }

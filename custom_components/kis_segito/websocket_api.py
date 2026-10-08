@@ -15,7 +15,7 @@ from homeassistant.helpers import label_registry as lr
 from homeassistant.helpers.service import async_get_all_descriptions
 
 from .const import CONF_DEVICE_ID, DOMAIN, LANGUAGE_AUTO
-from .device_link import available_languages
+from .device_link import api_encrypted, available_languages
 from .ledger import PIGGY, WALLET
 from .manager import COLLECTIONS, KisSegitoError, KisSegitoManager
 from .notify import EVENT_TYPES
@@ -48,6 +48,7 @@ def async_register_commands(hass: HomeAssistant) -> None:
         ws_notify_targets,
         ws_notify_test,
         ws_day_routine,
+        ws_rotate_device_token,
     ):
         websocket_api.async_register_command(hass, command)
 
@@ -177,9 +178,31 @@ def _devices(hass: HomeAssistant) -> list[dict[str, Any]]:
             {
                 "device_id": device_id,
                 "name": (device.name_by_user or device.name) if device else entry.title,
+                "encrypted": device is not None and api_encrypted(hass, device),
             }
         )
     return result
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/device/rotate_token",
+        vol.Required("device_id"): str,
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_rotate_device_token(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Give a knob a new picture key; the old one stops working at once."""
+    if msg["device_id"] not in {d["device_id"] for d in _devices(hass)}:
+        connection.send_error(msg["id"], "unknown_device", "Unknown knob")
+        return
+    await _manager(hass).async_rotate_device_token(msg["device_id"])
+    connection.send_result(msg["id"])
 
 
 def _children(manager: KisSegitoManager) -> list[dict[str, Any]]:

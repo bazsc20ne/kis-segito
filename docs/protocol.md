@@ -45,10 +45,14 @@ epoch seconds, colours `#RRGGBB`):
 
 - `children[].ai`, `rewards[].ii`: id of an uploaded picture (empty: use the
   icon). The knob downloads it from `img.u` +
-  `/api/kis_segito/knob_image/<id>/<size>?t=<img.t>` (raw RGB565A8 with a
-  `KSI1` header) and shows the icon until it arrives. `img.t` is the knob's
-  own secret; Home Assistant must be reachable over plain HTTP on its
-  internal URL.
+  `/api/kis_segito/knob_image/<id>/<size>` with its own secret `img.t` in the
+  `X-Kis-Segito-Token` request header (never in the URL). The answer is raw
+  RGB565A8 with a `KSI1` header; the knob shows the icon until it arrives.
+  Home Assistant must be reachable over plain HTTP on its internal URL; the
+  endpoint answers only requests from the local network (not through Home
+  Assistant Cloud). `img` is empty (`u` and `t` are `""`) while the knob's API
+  connection is not encrypted. A new key (panel → Settings → Knobs) replaces
+  the old one at once; the knob gets it in the next snapshot.
 - `children[].pi`: piggy-bank interest paid but not shown to the child yet; the
   knob shows a badge and plays it when the piggy bank is opened.
 - `children[].sel`: whether the child can be selected on this knob (device
@@ -69,7 +73,13 @@ arrived, so the track moves without further messages.
 
 The knob publishes each child action as JSON on its **Action** text sensor.
 Every action has a unique `id`; the integration runs each id only once and
-keeps processed ids for 7 days, so retries never book tokens twice.
+keeps processed ids for 7 days (at most 2000), so retries never book tokens
+twice.
+
+Home Assistant accepts only well-formed actions: at most 255 bytes of JSON,
+exactly the fields listed below (no others), ids of 1–64 letters, digits or
+`_ . : -`, and `n` a non-zero integer within ±100000. Each knob may send at
+most 20 actions per minute; anything else is ignored and logged.
 
 | `a` | Fields | Meaning |
 |---|---|---|

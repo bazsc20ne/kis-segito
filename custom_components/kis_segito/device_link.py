@@ -14,10 +14,13 @@ from __future__ import annotations
 
 import json
 import logging
+import time
+from collections import deque
 from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+import voluptuous as vol
 from homeassistant.const import (
     EVENT_CORE_CONFIG_UPDATE,
     STATE_UNAVAILABLE,
@@ -26,6 +29,7 @@ from homeassistant.const import (
 from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.debounce import Debouncer
 from homeassistant.helpers.event import (
     EventStateChangedData,
@@ -37,9 +41,11 @@ from homeassistant.util import slugify
 from .const import (
     ACTION_SENSOR_NAME,
     DEFAULT_LANGUAGE,
+    DOMAIN,
     ESPHOME_ACTION_SET_STATE,
     ESPHOME_ACTION_SET_UI_STRINGS,
     ESPHOME_DOMAIN,
+    SECURITY_DOCS_URL,
 )
 
 if TYPE_CHECKING:
@@ -48,6 +54,78 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 DEVICE_TRANSLATIONS_DIR = Path(__file__).parent / "device_translations"
+
+# Limits for what a knob reports (see docs/protocol.md, "Actions").
+ACTION_MAX_BYTES = 255  # also the longest Home Assistant state
+ACTION_RATE_COUNT = 20
+ACTION_RATE_WINDOW_S = 60.0
+_ID = vol.All(str, vol.Match(r"^[\w.:-]{1,64}\Z"))
+ACTION_SCHEMA = vol.Any(
+    vol.Schema(
+        {
+            vol.Required("a"): "task",
+            vol.Required("id"): _ID,
+            vol.Required("c"): _ID,
+            vol.Required("r"): _ID,
+            vol.Required("t"): _ID,
+        }
+    ),
+    vol.Schema(
+        {
+            vol.Required("a"): "redeem",
+            vol.Required("id"): _ID,
+            vol.Required("c"): _ID,
+            vol.Required("r"): _ID,
+        }
+    ),
+    vol.Schema(
+        {
+            vol.Required("a"): "piggy",
+            vol.Required("id"): _ID,
+            vol.Required("c"): _ID,
+            vol.Required("n"): vol.All(
+                int, vol.NotIn([0]), vol.Range(min=-100_000, max=100_000)
+            ),
+        }
+    ),
+    vol.Schema(
+        {
+            vol.Required("a"): "seen",
+            vol.Required("id"): _ID,
+            vol.Required("c"): _ID,
+        }
+    ),
+)
+
+
+def parse_action(raw: str) -> dict[str, Any] | None:
+    """A knob action, or None when it is too big, unreadable or not allowed."""
+    if len(raw.encode()) > ACTION_MAX_BYTES:
+        return None
+    try:
+        action = json.loads(raw)
+    except ValueError:
+        return None
+    if not isinstance(action, dict) or isinstance(action.get("n"), bool):
+        return None
+    try:
+        return ACTION_SCHEMA(action)
+    except vol.Invalid:
+        return None
+
+
+def api_encrypted(hass: HomeAssistant, device: dr.DeviceEntry) -> bool:
+    """Whether Home Assistant talks to this ESPHome device with an encryption key."""
+    for entry_id in device.config_entries:
+        entry = hass.config_entries.async_get_entry(entry_id)
+        if entry is not None and entry.domain == ESPHOME_DOMAIN:
+            return bool(entry.data.get("noise_psk"))
+    return False
+
+
+def unencrypted_issue_id(device_id: str) -> str:
+    """Repair issue id for a knob without API encryption."""
+    return f"unencrypted_api_{device_id}"
 
 
 def _load_strings_file(path: Path) -> dict[str, str]:
@@ -113,6 +191,7 @@ class DeviceLink:
         self._language = language or (lambda: self.hass.config.language)
         self._unsubs: list[CALLBACK_TYPE] = []
         self._action_entity: str | None = None
+        self._action_times: deque[float] = deque()
         self._debouncer = Debouncer(
             hass,
             _LOGGER,
@@ -190,12 +269,36 @@ class DeviceLink:
             )
         except NoURLAvailableError:
             base_url = None
+        # The picture secret travels only over an encrypted API connection.
+        if not self._check_encryption():
+            base_url = None
         snapshot = self.manager.snapshot(self.device_id, language, base_url)
         payload = json.dumps(snapshot, separators=(",", ":"), ensure_ascii=False)
         await self.hass.services.async_call(
             ESPHOME_DOMAIN, service, {"data": payload}, blocking=True
         )
         _LOGGER.debug("Sent state (%d bytes) to %s", len(payload), service)
+
+    def _check_encryption(self) -> bool:
+        """Whether the API is encrypted; raises or clears a repair issue."""
+        device = dr.async_get(self.hass).async_get(self.device_id)
+        encrypted = device is not None and api_encrypted(self.hass, device)
+        issue_id = unencrypted_issue_id(self.device_id)
+        if encrypted:
+            ir.async_delete_issue(self.hass, DOMAIN, issue_id)
+        else:
+            name = (device.name_by_user or device.name) if device else self.device_id
+            ir.async_create_issue(
+                self.hass,
+                DOMAIN,
+                issue_id,
+                is_fixable=False,
+                severity=ir.IssueSeverity.WARNING,
+                translation_key="unencrypted_api",
+                translation_placeholders={"name": str(name)},
+                learn_more_url=SECURITY_DOCS_URL,
+            )
+        return encrypted
 
     @callback
     def async_schedule_state(self) -> None:
@@ -205,12 +308,16 @@ class DeviceLink:
     async def _async_run_action(self, raw: str) -> None:
         if self.manager is None:
             return
-        try:
-            action = json.loads(raw)
-        except ValueError:
-            _LOGGER.warning("Knob %s sent an unreadable action", self.device_id)
+        now = time.monotonic()
+        while self._action_times and now - self._action_times[0] > ACTION_RATE_WINDOW_S:
+            self._action_times.popleft()
+        if len(self._action_times) >= ACTION_RATE_COUNT:
+            _LOGGER.warning("Knob %s sends too many actions; ignored", self.device_id)
             return
-        if not isinstance(action, dict):
+        self._action_times.append(now)
+        action = parse_action(raw)
+        if action is None:
+            _LOGGER.warning("Knob %s sent an invalid action; ignored", self.device_id)
             return
         await self.manager.async_device_action(action)
         # Refused actions change nothing: resend so the knob drops its guess.

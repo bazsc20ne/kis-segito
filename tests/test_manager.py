@@ -342,3 +342,14 @@ async def test_day_routine_edits(manager: KisSegitoManager) -> None:
             day - timedelta(days=1), routine["id"], edited
         )
     assert err.value.code == "past_day"
+
+
+async def test_processed_action_ids_are_bounded(
+    manager: KisSegitoManager, monkeypatch
+) -> None:
+    from custom_components.kis_segito import manager as manager_module
+
+    monkeypatch.setattr(manager_module, "ACTION_KEPT", 3)
+    for i in range(5):
+        await manager.async_device_action({"a": "nothing", "id": f"id{i}"})
+    assert list(manager.store.ledger["actions"]) == ["id2", "id3", "id4"]

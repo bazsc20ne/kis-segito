@@ -8,6 +8,7 @@ import json
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import issue_registry as ir
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.kis_segito.const import CONF_DEVICE_ID, DOMAIN
@@ -15,7 +16,12 @@ from custom_components.kis_segito.const import CONF_DEVICE_ID, DOMAIN
 
 async def test_state_push_and_action(hass: HomeAssistant) -> None:
     esphome_entry = MockConfigEntry(
-        domain="esphome", data={"host": "192.0.2.1", "device_name": "test-knob"}
+        domain="esphome",
+        data={
+            "host": "192.0.2.1",
+            "device_name": "test-knob",
+            "noise_psk": "a2lzLXNlZ2l0by1leGFtcGxlLWtleS1ub3QtcmVhbCE=",
+        },
     )
     esphome_entry.add_to_hass(hass)
     device = dr.async_get(hass).async_get_or_create(
@@ -68,6 +74,31 @@ async def test_state_push_and_action(hass: HomeAssistant) -> None:
     assert snapshot["children"][0]["w"] == 5
     assert snapshot["children"][0]["c"] == "#FF0000"
     assert snapshot["rewards"][0]["i"] == "reward_treat"
+
+    # Encrypted API: the knob gets its picture key, and there is no repair issue.
+    assert snapshot["img"]["t"] == manager.device_token(device.id)
+    assert (
+        ir.async_get(hass).async_get_issue(DOMAIN, f"unencrypted_api_{device.id}")
+        is None
+    )
+
+    # Unencrypted API: no picture key, and a repair issue explains why.
+    hass.config_entries.async_update_entry(
+        esphome_entry, data={"host": "192.0.2.1", "device_name": "test-knob"}
+    )
+    await link.async_push_state()
+    assert states[-1]["img"] == {"u": "", "t": ""}
+    assert ir.async_get(hass).async_get_issue(DOMAIN, f"unencrypted_api_{device.id}")
+
+    # Invalid actions are ignored: unknown fields, wrong types, too big.
+    for bad in (
+        {"a": "redeem", "id": "x1", "c": child["id"], "r": reward["id"], "z": 1},
+        {"a": "piggy", "id": "x2", "c": child["id"], "n": "5"},
+        {"a": "redeem", "id": "x3", "c": child["id"], "r": "r" * 65},
+    ):
+        hass.states.async_set(action_entity.entity_id, json.dumps(bad))
+        await hass.async_block_till_done()
+    assert manager.balances(child["id"])["wallet"] == 5
 
     # The knob reports a redemption on its Action sensor.
     action = {"a": "redeem", "id": "abc123", "c": child["id"], "r": reward["id"]}
@@ -137,12 +168,60 @@ async def test_knob_image(hass: HomeAssistant, hass_client_no_auth) -> None:
     assert raw[8:10] == b"\x00\xf8"  # pure red in RGB565, little endian
 
     client = await hass_client_no_auth()
-    assert (
-        await client.get("/api/kis_segito/knob_image/abc123/64?t=wrong")
-    ).status == 403
-    ok = await client.get(f"/api/kis_segito/knob_image/abc123/64?t={token}")
+    url = "/api/kis_segito/knob_image/abc123"
+    header = "X-Kis-Segito-Token"
+    assert (await client.get(f"{url}/64", headers={header: "wrong"})).status == 403
+    # The token is accepted only in the header, never in the URL.
+    assert (await client.get(f"{url}/64?t={token}")).status == 403
+    ok = await client.get(f"{url}/64", headers={header: token})
     assert ok.status == 200
     assert await ok.read() == raw
-    assert (
-        await client.get(f"/api/kis_segito/knob_image/abc123/99?t={token}")
-    ).status == 404
+    assert (await client.get(f"{url}/99", headers={header: token})).status == 404
+
+    # A rotated key replaces the old one at once.
+    await manager.async_rotate_device_token("dev")
+    assert (await client.get(f"{url}/64", headers={header: token})).status == 403
+    new_token = manager.device_token("dev")
+    assert new_token != token
+    assert (await client.get(f"{url}/64", headers={header: new_token})).status == 200
+
+
+async def test_knob_image_local_only(hass: HomeAssistant) -> None:
+    from types import SimpleNamespace
+
+    from custom_components.kis_segito.knob_images import _from_local_network
+
+    def request(remote: str | None) -> SimpleNamespace:
+        return SimpleNamespace(remote=remote)
+
+    assert _from_local_network(hass, request("192.168.1.20"))
+    assert _from_local_network(hass, request("127.0.0.1"))
+    assert _from_local_network(hass, request("fe80::1"))
+    assert not _from_local_network(hass, request("203.0.113.5"))
+    assert not _from_local_network(hass, request(None))
+    assert not _from_local_network(hass, request("not-an-ip"))
+
+
+async def test_knob_image_limits(hass: HomeAssistant, tmp_path) -> None:
+    import pytest
+    from PIL import Image
+
+    from custom_components.kis_segito import knob_images
+
+    # Not an image, whatever the name says.
+    fake = tmp_path / "fake"
+    fake.write_bytes(b"<svg xmlns='http://www.w3.org/2000/svg'/>")
+    with pytest.raises(knob_images.ImageRejected):
+        knob_images.convert(fake, 64)
+
+    # Too many pixels: refused from the header, before decoding.
+    big = tmp_path / "big"
+    Image.new("L", (12000, 9000)).save(big, "PNG")
+    with pytest.raises(knob_images.ImageRejected):
+        knob_images.convert(big, 64)
+
+    # A large JPEG is decoded at a reduced scale; the result has no metadata.
+    photo = tmp_path / "photo"
+    Image.new("RGB", (4000, 3000), (0, 0, 255)).save(photo, "JPEG")
+    raw = knob_images.convert(photo, 64)
+    assert raw[:4] == b"KSI1" and len(raw) == 8 + 64 * 64 * 3
