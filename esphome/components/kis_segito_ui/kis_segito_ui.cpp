@@ -305,7 +305,7 @@ void KisSegitoUI::set_state(const std::string &json) {
 
   this->state_now_ = root["now"].as<int64_t>();
   this->img_base_ = root["img"]["u"] | "";
-  this->background_ = root["bg"] | "";
+  this->general_bg_ = root["bg"] | "";
   const std::string token = root["img"]["t"] | "";
   if (token != this->img_token_) {
     // A new picture key: retry the pictures the old one could not fetch.
@@ -604,7 +604,7 @@ const lv_image_dsc_t *KisSegitoUI::img_(const std::string &key) {
 }
 
 const lv_image_dsc_t *KisSegitoUI::background_(const std::string &id) {
-  const std::string &use = id.empty() ? this->background_ : id;
+  const std::string &use = id.empty() ? this->general_bg_ : id;
   if (use.empty())
     return nullptr;
   return this->img_("@" + use + "_480");

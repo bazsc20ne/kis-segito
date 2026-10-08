@@ -236,7 +236,7 @@ class KisSegitoUI : public Component {
   };
   std::string img_base_;   // Home Assistant address for pictures
   std::string img_token_;  // this knob's picture secret
-  std::string background_;  // general background picture id (empty: none)
+  std::string general_bg_;  // general background picture id (empty: none)
   std::map<std::string, lv_image_dsc_t *> photos_;
   std::set<std::string> photo_requested_;
   std::set<std::string> photo_failed_;  // retried with the next picture key
