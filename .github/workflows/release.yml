@@ -6,6 +6,11 @@
 # - pushing a vX.Y.Z tag, or
 # - running it manually with a version; the vX.Y.Z tag is then created on the
 #   commit the workflow runs on.
+#
+# With a RELEASE_TOKEN repository secret (a fine-grained personal access token for
+# this repository with "Contents: read and write") the release and the tag are
+# created as the token's owner; without it, as github-actions. A tag created with
+# that token triggers this workflow again: that run sees the release and stops.
 name: Release
 
 on:
@@ -25,8 +30,26 @@ env:
   TAG: ${{ github.event_name == 'workflow_dispatch' && format('v{0}', inputs.version) || github.ref_name }}
 
 jobs:
+  check:
+    name: Check for an existing release
+    runs-on: ubuntu-latest
+    outputs:
+      exists: ${{ steps.release.outputs.exists }}
+    steps:
+      - id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" > /dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
   firmware:
     name: Build firmware
+    needs: check
+    if: needs.check.outputs.exists != 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -61,6 +84,7 @@ jobs:
         run: python3 scripts/release_notes.py "${TAG}" > release-notes.md
       - uses: softprops/action-gh-release@v2
         with:
+          token: ${{ secrets.RELEASE_TOKEN || github.token }}
           tag_name: ${{ env.TAG }}
           target_commitish: ${{ github.sha }}
           name: ${{ env.TAG }}
