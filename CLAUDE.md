@@ -83,6 +83,7 @@ Neither part may depend on anything else in the user's Home Assistant setup.
 ## Releases
 
 - Semantic versioning: `vMAJOR.MINOR.PATCH`.
+- Raise the PATCH number by default; a MINOR or MAJOR step only when the owner says so.
 - These versions must equal the tag: `custom_components/kis_segito/manifest.json`
   `version`, `esphome/kis-segito.yaml` `project.version`, the latest `CHANGELOG.md`
   section; `esphome/example.yaml` should reference the new tag.
