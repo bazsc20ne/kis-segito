@@ -8,6 +8,14 @@ resized copy in LVGL's RGB565A8 layout:
     b"KSI1" + width (uint16 LE) + height (uint16 LE)
     + width*height RGB565 pixels (LE) + width*height alpha bytes
 
+Backgrounds (size 480, the whole round screen) are opaque, without alpha:
+
+    b"KSI2" + width (uint16 LE) + height (uint16 LE)
+    + width*height RGB565 pixels (LE)
+
+A background is a built-in preset (frontend/backgrounds/bg_<n>.jpg) or an
+uploaded picture.
+
 The rendition holds pixels only, no metadata (EXIF, GPS) of the original.
 
 The knob authenticates with its own random token, sent in the state snapshot
@@ -35,6 +43,9 @@ from .const import DOMAIN
 URL = "/api/kis_segito/knob_image/{image_id}/{size}"
 TOKEN_HEADER = "X-Kis-Segito-Token"
 SIZES = (64, 160, 180)
+BACKGROUND_SIZE = 480
+PRESETS_DIR = Path(__file__).parent / "frontend" / "backgrounds"
+PRESET_ID = re.compile(r"^bg_[1-6]$")
 IMAGE_ID = re.compile(r"^[a-z0-9_]{1,64}$")
 # Limits checked before a picture is decoded (decompression bombs).
 MAX_FILE_BYTES = 30 * 1024 * 1024
@@ -69,13 +80,29 @@ def convert(path: Path, size: int) -> bytes:
     except (Image.DecompressionBombError, Image.UnidentifiedImageError) as err:
         raise ImageRejected(str(err)) from err
     image = ImageOps.fit(image, (size, size), Image.LANCZOS)
-    pixels = bytearray()
-    alpha = bytearray()
-    for r, g, b, a in image.getdata():
-        value = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3)
-        pixels += struct.pack("<H", value)
-        alpha.append(a)
-    return b"KSI1" + struct.pack("<HH", size, size) + bytes(pixels) + bytes(alpha)
+    pixels, alpha = _rgb565(image)
+    header = struct.pack("<HH", size, size)
+    if size == BACKGROUND_SIZE:
+        return b"KSI2" + header + pixels
+    return b"KSI1" + header + pixels + alpha
+
+
+def _rgb565(image) -> tuple[bytes, bytes]:
+    """RGB565 (little endian) and alpha bytes of an RGBA image."""
+    try:
+        import numpy as np
+    except ImportError:
+        pixels = bytearray()
+        alpha = bytearray()
+        for r, g, b, a in image.getdata():
+            value = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3)
+            pixels += struct.pack("<H", value)
+            alpha.append(a)
+        return bytes(pixels), bytes(alpha)
+    rgba = np.asarray(image, dtype=np.uint16)
+    r, g, b = rgba[..., 0], rgba[..., 1], rgba[..., 2]
+    value = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3)
+    return value.astype("<u2").tobytes(), rgba[..., 3].astype(np.uint8).tobytes()
 
 
 @lru_cache(maxsize=64)
@@ -111,9 +138,18 @@ class KnobImageView(HomeAssistantView):
         manager = self.hass.data[DOMAIN].manager
         if not manager.valid_device_token(request.headers.get(TOKEN_HEADER, "")):
             return web.Response(status=403)
-        if not IMAGE_ID.match(image_id) or not size.isdigit() or int(size) not in SIZES:
+        if not IMAGE_ID.match(image_id) or not size.isdigit():
             return web.Response(status=404)
-        path = Path(self.hass.config.path("image", image_id, "original"))
+        if int(size) == BACKGROUND_SIZE:
+            path = (
+                PRESETS_DIR / f"{image_id}.jpg"
+                if PRESET_ID.match(image_id)
+                else Path(self.hass.config.path("image", image_id, "original"))
+            )
+        elif int(size) in SIZES:
+            path = Path(self.hass.config.path("image", image_id, "original"))
+        else:
+            return web.Response(status=404)
         if not path.is_file():
             return web.Response(status=404)
         data = await self.hass.async_add_executor_job(

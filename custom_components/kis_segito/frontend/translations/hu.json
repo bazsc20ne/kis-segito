@@ -245,5 +245,14 @@
   "scope.title": "Mit módosítasz?",
   "scope.hint": "A „csak ez az alkalom” csak ezt az egy napot módosítja; a „teljes sorozat” magát a rutint, minden napra.",
   "scope.once": "Csak ez az alkalom",
-  "scope.series": "A teljes sorozat"
+  "scope.series": "A teljes sorozat",
+  "background.title": "Háttér",
+  "background.none": "Nincs",
+  "background.general": "Általános",
+  "background.preset": "Háttér",
+  "background.own": "Saját kép",
+  "background.upload": "Saját kép feltöltése",
+  "background.hint": "Minden gombon és ezen a panelen látszik; egy gyereknek saját háttere is lehet a gyerek oldalán.",
+  "background.child_hint": "A gombon ennek a gyereknek a képernyőin és a gyerek kártyáján látszik; az „Általános” a beállításokban megadott hátteret használja.",
+  "error.invalid_background": "Ismeretlen háttér."
 }

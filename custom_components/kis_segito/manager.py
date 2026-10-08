@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import hmac
 import logging
+import re
 import secrets
 from collections.abc import Callable
 from datetime import date, datetime, timedelta
@@ -42,6 +43,10 @@ ACTION_KEPT = 2000
 DAYS_KEPT = 31
 
 COLLECTIONS = ("children", "routines", "rewards", "templates")
+# Built-in backgrounds (frontend/backgrounds/bg_<n>.jpg).
+BACKGROUND_PRESETS = tuple(f"bg_{n}" for n in range(1, 7))
+# "" (none or, for a child, the general one), a preset or an uploaded picture.
+BACKGROUND_VALUE = r"^(|bg_[1-6]|[a-z0-9]{1,64})$"
 
 
 class KisSegitoError(Exception):
@@ -243,6 +248,10 @@ class KisSegitoManager:
             raise KisSegitoError("unknown_collection")
         items: list[dict[str, Any]] = self.data[collection]
         item = dict(item)
+        if collection == "children" and not re.match(
+            BACKGROUND_VALUE, str(item.get("background", ""))
+        ):
+            raise KisSegitoError("invalid_background")
         if not item.get("id"):
             item["id"] = lg.new_id()
             item.setdefault("sort_order", len(items))
@@ -1099,7 +1108,7 @@ class KisSegitoManager:
     def snapshot(
         self, device_id: str, language: str, base_url: str | None = None
     ) -> dict[str, Any]:
-        """The compact state a knob needs (schema 1, see protocol.py)."""
+        """The compact state a knob needs (schema 1, see docs/protocol.md)."""
         now = dt_util.now()
         day = now.date()
         tz = dt_util.get_default_time_zone()
@@ -1120,6 +1129,7 @@ class KisSegitoManager:
                     "s": self.streak(child["id"]),
                     "st": int(self.settings.get("streak_target", 7)),
                     "sel": child["id"] in selectable,
+                    "bg": child.get("background") or "",
                 }
             )
         rewards = [
@@ -1207,6 +1217,7 @@ class KisSegitoManager:
             "v": 1,
             "now": int(now.timestamp()),
             "lang": language,
+            "bg": self.settings.get("background") or "",
             "anim": self.settings.get("animation_mode", "full"),
             "idle": int(self.settings.get("inactivity_s", 60)),
             "children": children,

@@ -1,9 +1,12 @@
-# SPDX-License-Identifier: AGPL-3.0-only
-"""Knob protocol (schema 1).
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
-The integration and the knob talk only through the ESPHome native API.
+# Knob protocol (schema 1)
 
-Home Assistant → knob
+How the integration and the knob talk to each other, for anyone who wants to
+build their own knob or display on top of Kis Segítő. They talk only through the
+ESPHome native API.
+
+## Home Assistant → knob
 
 API actions of the firmware (`esphome/kis-segito.yaml`), called by the
 integration as `esphome.<node>_<action>`:
@@ -21,11 +24,12 @@ epoch seconds, colours `#RRGGBB`):
   "v": 1,
   "now": 1791360000,
   "lang": "hu",
+  "bg": "bg_2",
   "anim": "full",
   "idle": 60,
   "children": [
     {"id": "…", "a": "test_avatar_1", "c": "#6CB8FF", "w": 17, "p": 23,
-     "pu": true, "pi": 0, "s": 5, "st": 7, "sel": true}
+     "pu": true, "pi": 0, "s": 5, "st": 7, "sel": true, "bg": ""}
   ],
   "rewards": [
     {"id": "…", "i": "reward_long_story", "c": 8, "k": "normal"}
@@ -52,12 +56,17 @@ epoch seconds, colours `#RRGGBB`):
   Assistant Cloud). `img` is empty (`u` and `t` are `""`) while the knob's API
   connection is not encrypted. A new key (panel → Settings → Knobs) replaces
   the old one at once; the knob gets it in the next snapshot.
+- `bg`, `children[].bg`: background of the screen: `""` (none), a built-in
+  preset (`bg_1` … `bg_6`) or an uploaded picture id. The general `bg` is used
+  on the child selector and for children without their own `bg`. The knob
+  downloads it like a picture, at size 480, as `KSI2` (RGB565 without alpha,
+  the whole screen).
 - `children[].pi`: piggy-bank interest paid but not shown to the child yet; the
   knob shows a badge and plays it when the piggy bank is opened.
 - `children[].sel`: whether the child can be selected on this knob (device
   assignment); others are shown locked.
 - `children[].a`, `rewards[].i`, `routines[].i`, `cp[].i`, `t[].i`: icon ids of
-  the shared icon set (`assets/device_assets.json`).
+  the shared icon set (the file names in `assets/device/` without the size).
 - `routines`: today's routines shown on knobs. `ch` empty = every child.
 - `z`: colour zones, each starting `offset` seconds before the end `e`.
 - `cp`: checkpoints; `ch` empty = shared (outer track), otherwise the
@@ -68,7 +77,7 @@ epoch seconds, colours `#RRGGBB`):
 The knob computes the current time as `now` + the time since the snapshot
 arrived, so the track moves without further messages.
 
-Knob → Home Assistant
+## Knob → Home Assistant
 
 The knob publishes each child action as JSON on its **Action** text sensor.
 Every action has a unique `id`; the integration runs each id only once and
@@ -91,4 +100,3 @@ The knob shows the result at once; Home Assistant validates and books it and
 sends a new snapshot, which corrects the knob if the action was refused (for
 example: not enough tokens). Without a Home Assistant connection the knob
 refuses token transactions.
-"""

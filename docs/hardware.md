@@ -76,6 +76,24 @@ Az `esphome/display-test.yaml` ugyanazt a lapdefiníciót használja LVGL nélk�
 az ESPHome tesztképét mutatja. OTA-val ugyanarra az eszközre tölthető, a teszt
 után a normál firmware visszatölthető.
 
+## If the picture looks wrong / Ha a kép hibás
+
+The defaults match this knob's panel (GC9503CV controller, as the vendor's
+factory firmware). If your unit behaves differently:
+
+- only stripes or a rolling picture: check the PCLK and porch settings;
+- wrong colours in the middle tones (the test card's gradient columns): try
+  `display_colmod: "0x55"`;
+- red missing: keep `display_controller: gc9503` (the `st7701` table leaves red
+  dark on this panel);
+- faint stripes on black: try a different `display_drive_strength`.
+
+Az alapértékek ennek a knobnak a paneljéhez valók. Ha a kép hibás: csíkok vagy
+gördülő kép esetén a PCLK- és porch-beállításokat, rossz középtónusoknál a
+`display_colmod: "0x55"` értéket, hiányzó pirosnál a `display_controller: gc9503`
+beállítást, fekete háttéren látszó halvány csíkoknál más `display_drive_strength`
+értéket érdemes kipróbálni.
+
 ## Diagnostic packages / Diagnosztikai package-ek
 
 Optional packages in `esphome/diagnostics/` for tracking down display problems.

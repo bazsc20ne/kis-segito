@@ -3,7 +3,10 @@
 #include "kis_segito_ui.h"
 
 #include <algorithm>
+#include <climits>
 #include <cmath>
+#include <cstdlib>
+#include <cstring>
 
 #include <esp_heap_caps.h>
 #include <esp_http_client.h>
@@ -302,6 +305,7 @@ void KisSegitoUI::set_state(const std::string &json) {
 
   this->state_now_ = root["now"].as<int64_t>();
   this->img_base_ = root["img"]["u"] | "";
+  this->background_ = root["bg"] | "";
   const std::string token = root["img"]["t"] | "";
   if (token != this->img_token_) {
     // A new picture key: retry the pictures the old one could not fetch.
@@ -324,6 +328,7 @@ void KisSegitoUI::set_state(const std::string &json) {
     child.streak_target = c["st"] | 7;
     child.selectable = c["sel"] | true;
     child.pending_interest = c["pi"] | 0;
+    child.background = c["bg"] | "";
     if (this->images_.count(child.avatar + "_180") == 0)
       child.avatar = "placeholder_avatar";
     if (c["ai"].is<const char *>() && strlen(c["ai"].as<const char *>()) > 0)
@@ -561,15 +566,48 @@ const lv_image_dsc_t *KisSegitoUI::img_(const std::string &key) {
     if (photo != this->photos_.end())
       return photo->second;
     this->request_photo_(key);
-    const bool avatar = key.size() > 4 && key.compare(key.size() - 4, 4, "_180") == 0;
-    return this->img_(avatar ? "placeholder_avatar_180" : "reward_gift_160");
+    auto ends_with = [&key](const char *suffix) {
+      const size_t n = strlen(suffix);
+      return key.size() > n && key.compare(key.size() - n, n, suffix) == 0;
+    };
+    if (ends_with("_480"))
+      return nullptr;  // a background: none until it arrives
+    return this->img_(ends_with("_180") ? "placeholder_avatar_180" : "reward_gift_160");
   }
   auto it = this->images_.find(key);
   if (it == this->images_.end()) {
-    ESP_LOGW(TAG, "Missing image %s", key.c_str());
-    return nullptr;
+    // Not built in at this size: use the nearest size of the same icon.
+    const size_t sep = key.rfind('_');
+    if (sep != std::string::npos && sep + 1 < key.size()) {
+      const std::string prefix = key.substr(0, sep + 1);
+      const int want = atoi(key.c_str() + sep + 1);
+      int best_diff = INT_MAX;
+      for (auto i = this->images_.lower_bound(prefix); i != this->images_.end(); ++i) {
+        if (i->first.compare(0, prefix.size(), prefix) != 0)
+          break;
+        const std::string rest = i->first.substr(prefix.size());
+        if (rest.empty() || rest.find_first_not_of("0123456789") != std::string::npos)
+          continue;
+        const int diff = std::abs(atoi(rest.c_str()) - want);
+        if (diff < best_diff) {
+          best_diff = diff;
+          it = i;
+        }
+      }
+    }
+    if (it == this->images_.end()) {
+      ESP_LOGW(TAG, "Missing image %s", key.c_str());
+      return nullptr;
+    }
   }
   return it->second->get_lv_image_dsc();
+}
+
+const lv_image_dsc_t *KisSegitoUI::background_(const std::string &id) {
+  const std::string &use = id.empty() ? this->background_ : id;
+  if (use.empty())
+    return nullptr;
+  return this->img_("@" + use + "_480");
 }
 
 void KisSegitoUI::request_photo_(const std::string &key) {
@@ -619,7 +657,7 @@ void KisSegitoUI::photo_task_(void *arg) {
     int got = 0;
     if (client != nullptr && esp_http_client_open(client, 0) == ESP_OK) {
       const int64_t len = esp_http_client_fetch_headers(client);
-      if (esp_http_client_get_status_code(client) == 200 && len > 8 && len < 512 * 1024) {
+      if (esp_http_client_get_status_code(client) == 200 && len > 8 && len < 600 * 1024) {
         buf = static_cast<uint8_t *>(heap_caps_malloc(len, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
         while (buf != nullptr && got < len) {
           const int r = esp_http_client_read(client, reinterpret_cast<char *>(buf) + got, len - got);
@@ -651,8 +689,10 @@ void KisSegitoUI::loop() {
   }
   bool changed = false;
   for (auto &d : done) {
-    // b"KSI1" + width + height (uint16 LE) + RGB565 pixels + alpha bytes.
-    if (d.data == nullptr || d.size < 8 || memcmp(d.data, "KSI1", 4) != 0) {
+    // b"KSI1" + width + height (uint16 LE) + RGB565 pixels + alpha bytes, or
+    // b"KSI2" (backgrounds): the same without alpha.
+    const bool opaque = d.data != nullptr && d.size >= 8 && memcmp(d.data, "KSI2", 4) == 0;
+    if (d.data == nullptr || d.size < 8 || (!opaque && memcmp(d.data, "KSI1", 4) != 0)) {
       ESP_LOGW(TAG, "Picture %s could not be downloaded", d.key.c_str());
       this->photo_failed_.insert(d.key);
       if (d.data != nullptr)
@@ -661,18 +701,19 @@ void KisSegitoUI::loop() {
     }
     const uint16_t w = d.data[4] | (d.data[5] << 8);
     const uint16_t h = d.data[6] | (d.data[7] << 8);
-    if (d.size != 8 + static_cast<size_t>(w) * h * 3) {
+    const size_t bytes_per_pixel = opaque ? 2 : 3;
+    if (d.size != 8 + static_cast<size_t>(w) * h * bytes_per_pixel) {
       heap_caps_free(d.data);
       this->photo_failed_.insert(d.key);
       continue;
     }
     auto *dsc = new lv_image_dsc_t{};
     dsc->header.magic = LV_IMAGE_HEADER_MAGIC;
-    dsc->header.cf = LV_COLOR_FORMAT_RGB565A8;
+    dsc->header.cf = opaque ? LV_COLOR_FORMAT_RGB565 : LV_COLOR_FORMAT_RGB565A8;
     dsc->header.w = w;
     dsc->header.h = h;
     dsc->header.stride = w * 2;
-    dsc->data_size = static_cast<uint32_t>(w) * h * 3;
+    dsc->data_size = static_cast<uint32_t>(w) * h * bytes_per_pixel;
     dsc->data = d.data + 8;
     this->photos_[d.key] = dsc;
     changed = true;
@@ -911,6 +952,7 @@ void KisSegitoUI::show_(Screen screen) {
     // No children configured yet: only the track and the brand mark.
     this->screen_ = Screen::CHILDREN;
     lv_obj_set_style_bg_color(this->root_, lv_color_hex(BASE_BG), 0);
+    lv_obj_set_style_bg_image_src(this->root_, this->background_(""), 0);
     this->build_track_();
     return;
   }
@@ -922,6 +964,9 @@ void KisSegitoUI::show_(Screen screen) {
   const Child &child = this->children_[this->child_];
   const lv_color_t bg = screen == Screen::CHILDREN ? lv_color_hex(BASE_BG) : this->tint_(child.color, 46);
   lv_obj_set_style_bg_color(this->root_, bg, 0);
+  // The general background on the child selector, the child's own (or the
+  // general one) on that child's screens; none: the plain colour.
+  lv_obj_set_style_bg_image_src(this->root_, this->background_(screen == Screen::CHILDREN ? "" : child.background), 0);
   this->build_track_();
   switch (screen) {
     case Screen::CHILDREN:

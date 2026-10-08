@@ -27,11 +27,14 @@ Neither part may depend on anything else in the user's Home Assistant setup.
 
 - Every public text is written for the people who install and use Kis Segítő: README,
   `docs/`, `CHANGELOG.md` and release notes, example configs, issue and PR comments,
-  Home Assistant, panel and knob texts. It never contains developer notes, working
-  rules or instructions meant for Claude.
-- Developer knowledge goes only into this file or into code comments. The knob
-  protocol is documented in `custom_components/kis_segito/protocol.py`.
-- Changelog entries describe only what users notice (no CI, tooling, file moves).
+  Home Assistant, panel and knob texts. Technical details are welcome when they are
+  useful to users, written for them.
+- Public texts and code comments never contain developer instructions, working rules
+  or anything addressed to Claude, and never say who asked for a change. Code
+  comments only explain the code. Working rules live only in this file.
+- The changelog lists everything that affects users, also what they do not see
+  (speed, efficiency, security, how the system works), but no CI or tooling
+  housekeeping.
 - Logo and brand mark: exactly two variants, Hungarian ("Kis Segítő") for `hu` and
   English ("Little Helper") for every other language; a new language never needs a
   new logo.

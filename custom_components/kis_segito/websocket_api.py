@@ -17,7 +17,13 @@ from homeassistant.helpers.service import async_get_all_descriptions
 from .const import CONF_DEVICE_ID, DOMAIN, LANGUAGE_AUTO
 from .device_link import api_encrypted, available_languages
 from .ledger import PIGGY, WALLET
-from .manager import COLLECTIONS, KisSegitoError, KisSegitoManager
+from .manager import (
+    BACKGROUND_PRESETS,
+    BACKGROUND_VALUE,
+    COLLECTIONS,
+    KisSegitoError,
+    KisSegitoManager,
+)
 from .notify import EVENT_TYPES
 from .panel import FRONTEND_DIR, panel_language_names
 
@@ -116,6 +122,7 @@ async def ws_settings(
             None, vol.All(int, vol.Range(min=0))
         ),
         vol.Optional("notification_label"): str,
+        vol.Optional("background"): vol.Match(BACKGROUND_VALUE),
     }
 )
 @websocket_api.require_admin
@@ -145,6 +152,7 @@ async def ws_settings_update(
             "piggy_interest_min",
             "piggy_interest_max",
             "notification_label",
+            "background",
         )
         if key in msg
     }
@@ -166,6 +174,12 @@ def _manager(hass: HomeAssistant) -> KisSegitoManager:
 
 def _icons() -> list[str]:
     return sorted(path.stem for path in (FRONTEND_DIR / "icons").glob("*.png"))
+
+
+def _small_icons() -> list[str]:
+    return sorted(
+        path.stem for path in (FRONTEND_DIR / "icons" / "small").glob("*.png")
+    )
 
 
 def _devices(hass: HomeAssistant) -> list[dict[str, Any]]:
@@ -242,6 +256,8 @@ async def ws_data(
             "date_templates": manager.data["date_templates"],
             "devices": _devices(hass),
             "icons": await hass.async_add_executor_job(_icons),
+            "small_icons": await hass.async_add_executor_job(_small_icons),
+            "backgrounds": list(BACKGROUND_PRESETS),
         },
     )
 

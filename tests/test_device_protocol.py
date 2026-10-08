@@ -225,3 +225,42 @@ async def test_knob_image_limits(hass: HomeAssistant, tmp_path) -> None:
     Image.new("RGB", (4000, 3000), (0, 0, 255)).save(photo, "JPEG")
     raw = knob_images.convert(photo, 64)
     assert raw[:4] == b"KSI1" and len(raw) == 8 + 64 * 64 * 3
+
+
+async def test_knob_background(hass: HomeAssistant, hass_client_no_auth) -> None:
+    from custom_components.kis_segito.manager import KisSegitoError
+
+    entry = MockConfigEntry(
+        domain=DOMAIN, unique_id="dev", data={CONF_DEVICE_ID: "dev"}
+    )
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    manager = hass.data[DOMAIN].manager
+    token = manager.device_token("dev")
+
+    # A built-in background, at the knob's screen size, without alpha.
+    client = await hass_client_no_auth()
+    header = {"X-Kis-Segito-Token": token}
+    ok = await client.get("/api/kis_segito/knob_image/bg_3/480", headers=header)
+    assert ok.status == 200
+    raw = await ok.read()
+    assert raw[:4] == b"KSI2" and len(raw) == 8 + 480 * 480 * 2
+    assert (
+        await client.get("/api/kis_segito/knob_image/bg_9/480", headers=header)
+    ).status == 404
+
+    # The general background and a child's own one reach the snapshot.
+    await manager.async_update_settings({"background": "bg_2"})
+    child = await manager.async_save_item(
+        "children", {"name": "Kid", "background": "bg_5"}
+    )
+    snapshot = manager.snapshot("dev", "en")
+    assert snapshot["bg"] == "bg_2"
+    assert snapshot["children"][0]["bg"] == "bg_5"
+    import pytest
+
+    with pytest.raises(KisSegitoError):
+        await manager.async_save_item(
+            "children", {"id": child["id"], "background": "../etc"}
+        )

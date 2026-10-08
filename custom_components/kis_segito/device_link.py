@@ -7,7 +7,7 @@ firmware exposes API actions, which the ESPHome integration registers as
 names and pushes the on-screen strings in the chosen language (by default the
 Home Assistant language) and the data snapshot (``set_state``). The knob reports
 the child's actions through its "Action" text sensor (JSON); see
-protocol.py.
+docs/protocol.md.
 """
 
 from __future__ import annotations
@@ -55,7 +55,7 @@ _LOGGER = logging.getLogger(__name__)
 
 DEVICE_TRANSLATIONS_DIR = Path(__file__).parent / "device_translations"
 
-# Limits for what a knob reports (see protocol.py, "Knob → Home Assistant").
+# Limits for what a knob reports (see docs/protocol.md, "Knob → Home Assistant").
 ACTION_MAX_BYTES = 255  # also the longest Home Assistant state
 ACTION_RATE_COUNT = 20
 ACTION_RATE_WINDOW_S = 60.0

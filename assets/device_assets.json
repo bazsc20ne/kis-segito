@@ -21,10 +21,16 @@
     240
   ],
   "routine_morning": [
-    160
+    160,
+    40,
+    32,
+    28
   ],
   "routine_evening": [
-    160
+    160,
+    40,
+    32,
+    28
   ],
   "fn_rewards": [
     160
@@ -136,7 +142,10 @@
     160
   ],
   "routine_generic": [
-    160
+    160,
+    40,
+    32,
+    28
   ],
   "task_bath": [
     150,
@@ -218,48 +227,129 @@
     48
   ],
   "routine_departure": [
-    160
+    160,
+    40,
+    32,
+    28
   ],
   "routine_school": [
-    160
+    160,
+    40,
+    32,
+    28
   ],
   "routine_meal": [
-    160
+    160,
+    40,
+    32,
+    28
   ],
   "routine_bath": [
-    160
+    160,
+    40,
+    32,
+    28
   ],
   "routine_cleanup": [
-    160
+    160,
+    40,
+    32,
+    28
   ],
   "routine_learning": [
-    160
+    160,
+    40,
+    32,
+    28
   ],
   "routine_play": [
-    160
+    160,
+    40,
+    32,
+    28
   ],
   "routine_sport": [
-    160
+    160,
+    40,
+    32,
+    28
   ],
   "routine_outing": [
-    160
+    160,
+    40,
+    32,
+    28
   ],
   "routine_travel": [
-    160
+    160,
+    40,
+    32,
+    28
   ],
   "routine_quiet": [
-    160
+    160,
+    40,
+    32,
+    28
   ],
   "routine_nap": [
-    160
+    160,
+    40,
+    32,
+    28
   ],
   "routine_helper": [
-    160
+    160,
+    40,
+    32,
+    28
   ],
   "routine_prepare": [
-    160
+    160,
+    40,
+    32,
+    28
   ],
   "routine_special": [
-    160
+    160,
+    40,
+    32,
+    28
+  ],
+  "avatar_01": [
+    180
+  ],
+  "avatar_02": [
+    180
+  ],
+  "avatar_03": [
+    180
+  ],
+  "avatar_04": [
+    180
+  ],
+  "avatar_05": [
+    180
+  ],
+  "avatar_06": [
+    180
+  ],
+  "avatar_07": [
+    180
+  ],
+  "avatar_08": [
+    180
+  ],
+  "avatar_09": [
+    180
+  ],
+  "avatar_10": [
+    180
+  ],
+  "avatar_11": [
+    180
+  ],
+  "avatar_12": [
+    180
   ]
 }

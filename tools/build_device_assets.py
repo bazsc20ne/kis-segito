@@ -12,7 +12,8 @@ Resizing is done in linear light with premultiplied alpha (no dark fringes),
 using a Lanczos filter, with light sharpening on small sizes.
 
 It also writes the Home Assistant panel's copies (WEB_SIZE px) of every icon
-to custom_components/kis_segito/frontend/icons/<id>.png.
+to custom_components/kis_segito/frontend/icons/<id>.png, and of every
+<id>_small.png to frontend/icons/small/<id>.png.
 
 Usage: build_device_assets.py   (requires Pillow and numpy)
 """
@@ -32,6 +33,7 @@ MANIFEST = ROOT / "assets" / "device_assets.json"
 SMALL_MAX = 44
 WEB_OUT = ROOT / "custom_components" / "kis_segito" / "frontend" / "icons"
 WEB_SIZE = 96
+WEB_SMALL_SIZE = 88  # 44 px at 2x
 # Sources that are not icons for the panel.
 WEB_SKIP = ("ball_", "brand_logo", "brand_app_icon", "token_pile_shadow")
 
@@ -106,6 +108,14 @@ def main() -> int:
         if name.endswith("_small") or name.startswith(WEB_SKIP):
             continue
         resize(Image.open(source), WEB_SIZE).save(WEB_OUT / f"{name}.png", optimize=True)
+        web += 1
+    # Simplified variants for small places in the panel (SMALL_MAX px and less).
+    (WEB_OUT / "small").mkdir(exist_ok=True)
+    for source in sorted(SOURCE.glob("*_small.png")):
+        name = source.stem.removesuffix("_small")
+        resize(Image.open(source), WEB_SMALL_SIZE).save(
+            WEB_OUT / "small" / f"{name}.png", optimize=True
+        )
         web += 1
     print(f"wrote {web} panel icons to {WEB_OUT.relative_to(ROOT)}")
     return 0

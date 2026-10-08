@@ -24,7 +24,7 @@
 namespace esphome::kis_segito_ui {
 
 // Data model. Home Assistant sends it as a JSON snapshot (set_state, see
-// custom_components/kis_segito/protocol.py); until then built-in test data is shown. Times are Unix
+// docs/protocol.md); until then built-in test data is shown. Times are Unix
 // epoch seconds.
 
 struct Child {
@@ -38,6 +38,7 @@ struct Child {
   int streak_target{7};
   bool selectable{true};  // false: shown locked on this knob
   int pending_interest{0};  // interest not shown to the child yet
+  std::string background;   // picture id; empty: the general background
 };
 
 struct Reward {
@@ -156,6 +157,7 @@ class KisSegitoUI : public Component {
   const lv_image_dsc_t *img_(const std::string &key);
   // Uploaded pictures ("@<id>_<size>" keys), downloaded in the background.
   void request_photo_(const std::string &key);
+  const lv_image_dsc_t *background_(const std::string &id);
   static void photo_task_(void *arg);
   uint32_t anim_ms_(uint32_t full_ms) const;
   lv_color_t tint_(uint32_t color, uint8_t amount) const;
@@ -234,6 +236,7 @@ class KisSegitoUI : public Component {
   };
   std::string img_base_;   // Home Assistant address for pictures
   std::string img_token_;  // this knob's picture secret
+  std::string background_;  // general background picture id (empty: none)
   std::map<std::string, lv_image_dsc_t *> photos_;
   std::set<std::string> photo_requested_;
   std::set<std::string> photo_failed_;  // retried with the next picture key

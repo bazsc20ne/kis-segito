@@ -37,6 +37,9 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "piggy_interest_max": None,
     # Scripts with this Home Assistant label are offered as notification targets.
     "notification_label": "Kis Segítő",
+    # Background of the knob and the panel: "" (none), a preset ("bg_1" …) or
+    # an uploaded picture id; a child's own background overrides it.
+    "background": "",
 }
 
 # Configuration audit entries kept (token history is in the ledger).

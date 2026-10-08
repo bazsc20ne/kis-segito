@@ -48,22 +48,44 @@ accepts a firmware upload, which is why it needs a password.
 
 ## Pictures
 
-Uploaded pictures (children's photos, rewards) reach the knob only on the local
-network and only over an encrypted connection; they cannot be reached through
-Home Assistant Cloud or the internet. If a knob's connection is not encrypted,
-Home Assistant shows a repair issue (**Settings → System → Repairs**) and the
-knob shows icons instead of the pictures until you add an encryption key.
+Uploaded pictures (children's photos, rewards, backgrounds) reach the knob only on
+the local network and only over an encrypted connection:
 
-A knob's access to the pictures can be renewed at any time: panel → **Settings →
-Knobs → New picture key**. The knob gets the new key automatically.
+- Each knob gets its own random picture key, and only while its connection to
+  Home Assistant is encrypted. If it is not, Home Assistant shows a repair issue
+  (**Settings → System → Repairs**) and the knob shows icons instead of the
+  pictures until you add an encryption key.
+- The knob's picture address answers only requests from the local network
+  (private, loopback or link-local addresses), never requests through Home
+  Assistant Cloud or from the internet.
+- The knob sends its key in a request header, never in the address, so the key
+  does not end up in logs; keys are compared in constant time.
+- A knob's key can be replaced at any time: panel → **Settings → Knobs → New
+  picture key**. The old key stops working at once; the knob gets the new one
+  automatically.
 
-Pictures are resized for the knob automatically; images over 100 megapixels are
-refused. The knob's copy contains no metadata (EXIF, location).
+Pictures are resized for the knob automatically. Before a picture is read, its
+real type is checked (not only its file name), and files over 30 MB or images
+over 100 megapixels are refused; large photos are read at a reduced resolution.
+The knob's copy contains pixels only, no metadata (EXIF, location).
 
-## Updates
+## Messages from the knob
+
+Home Assistant accepts only well-formed messages from a knob (at most 255 bytes,
+exactly the expected fields, types and ranges) and at most 20 per minute per
+knob; anything else is ignored. Each action is booked at most once, even if the
+knob sends it again after a reconnect.
+
+## Updates and downloads
 
 The example config points to a given version of the package (`@vX.Y.Z`), so the
 knob's firmware changes only when you change it to a newer version.
+
+Every release lists the SHA-256 checksums of its firmware files in
+`SHA256SUMS.txt`. To check a downloaded file, put it next to that file and run
+`sha256sum -c --ignore-missing SHA256SUMS.txt` (Linux, macOS); "OK" means the file
+is exactly the released one. The release builds use build steps pinned to exact
+versions.
 
 ## Out of scope
 

@@ -245,5 +245,14 @@
   "scope.title": "Change which?",
   "scope.hint": "This occurrence only changes this one day; the whole series changes the routine itself on every day.",
   "scope.once": "This occurrence only",
-  "scope.series": "The whole series"
+  "scope.series": "The whole series",
+  "background.title": "Background",
+  "background.none": "None",
+  "background.general": "General",
+  "background.preset": "Background",
+  "background.own": "Own picture",
+  "background.upload": "Upload own picture",
+  "background.hint": "Shown on every knob and in this panel; a child can have their own on the child's page.",
+  "background.child_hint": "Shown on this child's screens on the knob and on the child's card; \"General\" uses the background from the settings.",
+  "error.invalid_background": "Unknown background."
 }

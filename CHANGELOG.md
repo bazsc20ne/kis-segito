@@ -6,6 +6,36 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.8.0] - 2026-10-08
+
+### English
+
+- Backgrounds: a general background for the knobs and the panel (Settings),
+  and each child can have their own (child's page), shown on that child's
+  screens on the knob and on the child's card in the panel. Six built-in
+  backgrounds (temporary artwork for now) or your own uploaded picture. The
+  knob downloads the background from Home Assistant like the pictures.
+- New artwork: twelve avatars to choose for the children, the routine icons
+  (each with a simplified small variant), the function icons, the piggy bank,
+  the brand mark, the logo and the integration icon.
+- The routine icons can also be chosen for tasks and checkpoints; small
+  places on the knob and in the panel use their simplified variant.
+- Pictures for the knob are prepared several times faster.
+
+### Magyar
+
+- Hátterek: általános háttér a gombokra és a panelre (Beállítások), és
+  gyerekenként saját háttér is megadható (a gyerek oldalán), amely a gombon az
+  adott gyerek képernyőin és a panelen a gyerek kártyáján látszik. Hat beépített
+  háttér (egyelőre ideiglenes rajzokkal) vagy saját feltöltött kép. A gomb a
+  hátteret a képekhez hasonlóan a Home Assistanttől tölti le.
+- Új rajzok: tizenkét választható avatar a gyerekeknek, a rutinikonok (mindegyik
+  egyszerűsített kis változattal), a funkcióikonok, a persely, a márkajel, a
+  logó és az integráció ikonja.
+- A rutinikonok feladathoz és checkpointhoz is választhatók; a gombon és a
+  panelen a kis helyeken az egyszerűsített változatuk látszik.
+- A gombnak szánt képek többszörösen gyorsabban készülnek el.
+
 ## [0.7.0] - 2026-10-08
 
 ### English
@@ -22,13 +52,20 @@ integration**, otherwise uploaded pictures do not appear on the knob.
   its picture key only when the knob's API is encrypted; otherwise the knob
   shows icons and a repair issue explains how to add a key.
 - Pictures reach the knob only from the local network, never through Home
-  Assistant Cloud or the internet. Panel → Settings → Knobs → "New picture
-  key" gives a knob a new key at once.
-- The integration ignores malformed or too frequent messages from a knob.
-- Uploaded pictures: images over 100 megapixels are refused; the knob's copy
-  contains no metadata (EXIF, location).
+  Assistant Cloud or the internet. The knob sends its key in a request header
+  instead of the address (so it stays out of logs), and keys are compared in
+  constant time. Panel → Settings → Knobs → "New picture key" gives a knob a
+  new key at once.
+- Messages from a knob are checked strictly (size, exact fields, types and
+  ranges), at most 20 per minute per knob; the list of already booked actions
+  is limited in age and size.
+- Uploaded pictures: the real image type is checked, files over 30 MB and
+  images over 100 megapixels are refused before they are read, large photos
+  are read at a reduced resolution; the knob's copy contains no metadata
+  (EXIF, location).
+- Release builds use build steps pinned to exact versions.
 - 15 new routine icons (temporary artwork for now).
-- README: new "Security" section.
+- README: new "Security" section, details in docs/security.md.
 
 ### Magyar
 
@@ -44,13 +81,19 @@ frissítsd**, különben a feltöltött képek nem jelennek meg a gombon.
   gomb ikonokat mutat, és egy javítási értesítés elmagyarázza, hogyan kell
   kulcsot beállítani.
 - A képek csak a helyi hálózatról jutnak el a gombra, Home Assistant Cloudon
-  és az interneten át soha. Panel → Beállítások → Gombok → „Új képkulcs”: a
-  gomb azonnal új kulcsot kap.
-- Az integráció figyelmen kívül hagyja a gomb hibás vagy túl sűrű üzeneteit.
-- Feltöltött képek: a 100 megapixelnél nagyobb képeket elutasítja; a gombra
-  kerülő példányban nincs metaadat (EXIF, helyadat).
+  és az interneten át soha. A gomb a kulcsát a kérés fejlécében küldi a cím
+  helyett (így nem kerül naplóba), a kulcsok összehasonlítása konstans idejű.
+  Panel → Beállítások → Gombok → „Új képkulcs”: a gomb azonnal új kulcsot kap.
+- A gomb üzeneteit szigorúan ellenőrzi (méret, pontosan a várt mezők, típusok
+  és tartományok), gombonként legfeljebb 20-at percenként; a már könyvelt
+  műveletek listája kor és méret szerint korlátozott.
+- Feltöltött képek: a valódi képtípust ellenőrzi, a 30 MB-nál nagyobb fájlokat
+  és a 100 megapixelnél nagyobb képeket beolvasás előtt elutasítja, a nagy
+  fotókat csökkentett felbontásban olvassa be; a gombra kerülő példányban
+  nincs metaadat (EXIF, helyadat).
+- A kiadások pontos verzióra rögzített build-lépésekkel készülnek.
 - 15 új rutinikon (egyelőre ideiglenes rajzokkal).
-- README: új „Biztonság” szakasz.
+- README: új „Biztonság” szakasz, részletek a docs/security.md-ben.
 
 ## [0.6.0] - 2026-10-07
 

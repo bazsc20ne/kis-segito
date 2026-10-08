@@ -10,7 +10,7 @@
 
 // Must equal the integration version (scripts/check_versions.py checks it):
 // a browser that still runs an older copy of this file shows a reload bar.
-const PANEL_VERSION = "0.7.0";
+const PANEL_VERSION = "0.8.0";
 const FALLBACK_LANGUAGE = "en";
 const LANGUAGE_AUTO = "auto";
 const TABS = [
@@ -486,7 +486,52 @@ class KisSegitoPanel extends HTMLElement {
     if (!name) {
       return "";
     }
-    return `<img class="icon" src="${this._staticUrl}/icons/${this._e(name)}.png?v=${this._version}" width="${size}" height="${size}" alt="">`;
+    // Small places use the simplified variant, when the icon has one.
+    const small = size <= 44 && this._data?.small_icons?.includes(name) ? "small/" : "";
+    return `<img class="icon" src="${this._staticUrl}/icons/${small}${this._e(name)}.png?v=${this._version}" width="${size}" height="${size}" alt="">`;
+  }
+
+  // A background value: "" (none), a preset ("bg_1" …) or an uploaded picture id.
+  _backgroundUrl(value) {
+    if (!value) {
+      return "";
+    }
+    return value.startsWith("bg_")
+      ? `${this._staticUrl}/backgrounds/${this._e(value)}.jpg?v=${this._version}`
+      : `/api/image/serve/${this._e(value)}/512x512`;
+  }
+
+  // Background chooser; scope "settings" (the general one) or "child" (edit buffer).
+  _backgroundField(scope, value) {
+    const presets = this._data.backgrounds || [];
+    const uploaded = value && !value.startsWith("bg_") ? value : "";
+    const tile = (v, label) => {
+      const url = this._backgroundUrl(v);
+      const style = url ? `background-image:url('${url}')` : "";
+      return `<button class="bg-tile ${v === (value || "") ? "sel" : ""}" style="${style}" data-action="bg-set" data-scope="${scope}" data-arg="${this._e(v)}" title="${this._e(label)}">${url ? "" : this._e(label)}</button>`;
+    };
+    const none = this._t(scope === "child" ? "background.general" : "background.none");
+    const tiles = [tile("", none), ...presets.map((p, i) => tile(p, `${this._t("background.preset")} ${i + 1}`))];
+    if (uploaded) {
+      tiles.push(tile(uploaded, this._t("background.own")));
+    }
+    const upload = this._isAdmin
+      ? `<label class="upload">${this._e(this._t("background.upload"))}<input type="file" accept="image/*" data-upload-bg="${scope}" hidden></label>`
+      : "";
+    return `<div class="field"><span>${this._e(this._t("background.title"))}</span>
+      <div class="row wrap bg-tiles">${tiles.join("")}</div>
+      <div class="row wrap">${upload}</div>
+      <div class="muted">${this._e(this._t(scope === "child" ? "background.child_hint" : "background.hint"))}</div></div>`;
+  }
+
+  async _setBackground(scope, value) {
+    if (scope === "child") {
+      this._edit.item.background = value;
+      this._render();
+      return;
+    }
+    await this._ws({ type: "kis_segito/settings/update", background: value });
+    await this._load();
   }
 
   _child(id) {
@@ -853,6 +898,9 @@ class KisSegitoPanel extends HTMLElement {
         URL.revokeObjectURL(a.href);
         return;
       }
+      case "bg-set":
+        await this._setBackground(el.dataset.scope, arg);
+        return;
       case "rotate-token":
         if (!confirm(this._t("settings.knob_new_key_confirm"))) {
           return;
@@ -926,6 +974,22 @@ class KisSegitoPanel extends HTMLElement {
       this._historyFilter[el.dataset.filter] = el.value;
       await this._loadHistory();
       this._render();
+      return;
+    }
+    if (el.dataset.uploadBg && el.files?.length) {
+      const form = new FormData();
+      form.append("file", el.files[0]);
+      try {
+        const response = await this._hass.fetchWithAuth("/api/image/upload", { method: "POST", body: form });
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        await this._setBackground(el.dataset.uploadBg, (await response.json()).id);
+      } catch (err) {
+        this._error = this._t("picture.failed");
+        console.warn("Kis Segito: upload failed", err);
+        this._render();
+      }
       return;
     }
     if (el.dataset.upload && el.files?.length) {
@@ -1184,7 +1248,8 @@ class KisSegitoPanel extends HTMLElement {
               <span class="muted">${done}/${total}</span></div>`;
           })
           .join("");
-        return `<div class="card child-card" style="--c:${this._e(c.color)}">
+        const bg = this._backgroundUrl(c.background || this._data.settings.background);
+        return `<div class="card child-card ${bg ? "has-bg" : ""}" style="--c:${this._e(c.color)};${bg ? `--bg:url('${bg}')` : ""}">
           <div class="row">${this._avatar(c, 64)}
             <div class="grow"><div class="title">${this._e(c.name)}</div>
               <div class="muted">${this._icon("streak_flame", 18)} ${c.streak}/${this._data.settings.streak_target}</div></div>
@@ -1524,6 +1589,7 @@ class KisSegitoPanel extends HTMLElement {
       <div class="field"><span>${this._e(this._t("children.avatar"))}</span>
         <button class="pick" data-action="pick" data-path="avatar" data-arg="avatar">${this._icon(c.avatar, 56)}</button></div>
       ${this._pictureField("avatar_image", "avatar", "avatar", c.avatar)}
+      ${this._backgroundField("child", c.background || "")}
       <label>${this._e(this._t("children.knob"))}<select data-path="device_id">${knobs}</select></label>
       <div class="muted">${this._e(this._t("children.knob_hint"))}</div>
       <label class="check"><input type="checkbox" data-path="piggy_unlocked" ${c.piggy_unlocked ? "checked" : ""}>${this._e(this._t("children.piggy_unlocked"))}</label>
@@ -1860,6 +1926,10 @@ class KisSegitoPanel extends HTMLElement {
         <label>${this._e(this._t("settings.inactivity"))}${num("inactivity_s", 10, 3600, 10)}</label>
       </div>
       <div class="card form">
+        <h2>${this._e(this._t("background.title"))}</h2>
+        ${this._backgroundField("settings", s.background || "")}
+      </div>
+      <div class="card form">
         <h2>${this._e(this._t("settings.knobs"))}</h2>
         ${devices || `<div class="muted">${this._e(this._t("settings.no_knobs"))}</div>`}
         <div class="muted">${this._e(this._t("settings.knobs_hint"))}</div>
@@ -1898,9 +1968,9 @@ class KisSegitoPanel extends HTMLElement {
       return "";
     }
     const filters = {
-      avatar: (n) => n.startsWith("test_avatar") || n === "placeholder_avatar",
-      task: (n) => n.startsWith("task_"),
-      checkpoint: (n) => n.startsWith("task_") || n === "checkpoint_flag",
+      avatar: (n) => n.startsWith("avatar_") || n.startsWith("test_avatar") || n === "placeholder_avatar",
+      task: (n) => n.startsWith("task_") || n.startsWith("routine_"),
+      checkpoint: (n) => n.startsWith("task_") || n.startsWith("routine_") || n === "checkpoint_flag",
       routine: (n) => n.startsWith("routine_"),
       reward: (n) => n.startsWith("reward_") || n === "fn_piggy",
     };
@@ -1953,7 +2023,7 @@ class KisSegitoPanel extends HTMLElement {
         <span class="title">${this._e(this._t("panel.title"))}</span>
       </div>
       <nav class="tabs">${tabs}</nav>
-      <div class="content">
+      <div class="content" style="${this._data?.settings?.background ? `--page-bg:url('${this._backgroundUrl(this._data.settings.background)}')` : ""}">
         ${this._data?.version && this._data.version !== PANEL_VERSION
           ? `<div class="card update row"><span class="grow">${this._e(this._t("panel.outdated"))}</span>
               <button class="primary" data-action="reload">${this._e(this._t("panel.reload"))}</button></div>`
@@ -2105,6 +2175,19 @@ const STYLE = `
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
   .grid .card { margin: 0; }
   .child-card { border-top: 4px solid var(--c); }
+  /* The child's background behind a veil of the card colour, so text stays readable. */
+  .child-card.has-bg {
+    background: linear-gradient(color-mix(in srgb, var(--card-background-color, #fff) 82%, transparent),
+      color-mix(in srgb, var(--card-background-color, #fff) 82%, transparent)), var(--bg) center / cover;
+  }
+  .content { background: var(--page-bg, none) center / cover fixed; }
+  .bg-tiles { gap: 8px; }
+  .bg-tile {
+    width: 72px; height: 72px; border-radius: 12px; padding: 4px; font-size: 12px;
+    background: var(--secondary-background-color, #eee) center / cover;
+    border: 2px solid var(--divider-color, #e0e0e0); color: var(--primary-text-color);
+  }
+  .bg-tile.sel { border: 3px solid var(--primary-color, #03a9f4); }
   .row { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
   .row.wrap { flex-wrap: wrap; }
   .row.small, .small { font-size: 12px; }
