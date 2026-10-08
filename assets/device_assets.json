@@ -216,5 +216,50 @@
   ],
   "badge_piggy_plus": [
     48
+  ],
+  "routine_departure": [
+    160
+  ],
+  "routine_school": [
+    160
+  ],
+  "routine_meal": [
+    160
+  ],
+  "routine_bath": [
+    160
+  ],
+  "routine_cleanup": [
+    160
+  ],
+  "routine_learning": [
+    160
+  ],
+  "routine_play": [
+    160
+  ],
+  "routine_sport": [
+    160
+  ],
+  "routine_outing": [
+    160
+  ],
+  "routine_travel": [
+    160
+  ],
+  "routine_quiet": [
+    160
+  ],
+  "routine_nap": [
+    160
+  ],
+  "routine_helper": [
+    160
+  ],
+  "routine_prepare": [
+    160
+  ],
+  "routine_special": [
+    160
   ]
 }

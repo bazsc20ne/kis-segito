@@ -209,6 +209,36 @@ image:
         file: ${kis_segito_assets}/hand_cartoon_64.png
       - id: ks_img_badge_piggy_plus_48
         file: ${kis_segito_assets}/badge_piggy_plus_48.png
+      - id: ks_img_routine_departure_160
+        file: ${kis_segito_assets}/routine_departure_160.png
+      - id: ks_img_routine_school_160
+        file: ${kis_segito_assets}/routine_school_160.png
+      - id: ks_img_routine_meal_160
+        file: ${kis_segito_assets}/routine_meal_160.png
+      - id: ks_img_routine_bath_160
+        file: ${kis_segito_assets}/routine_bath_160.png
+      - id: ks_img_routine_cleanup_160
+        file: ${kis_segito_assets}/routine_cleanup_160.png
+      - id: ks_img_routine_learning_160
+        file: ${kis_segito_assets}/routine_learning_160.png
+      - id: ks_img_routine_play_160
+        file: ${kis_segito_assets}/routine_play_160.png
+      - id: ks_img_routine_sport_160
+        file: ${kis_segito_assets}/routine_sport_160.png
+      - id: ks_img_routine_outing_160
+        file: ${kis_segito_assets}/routine_outing_160.png
+      - id: ks_img_routine_travel_160
+        file: ${kis_segito_assets}/routine_travel_160.png
+      - id: ks_img_routine_quiet_160
+        file: ${kis_segito_assets}/routine_quiet_160.png
+      - id: ks_img_routine_nap_160
+        file: ${kis_segito_assets}/routine_nap_160.png
+      - id: ks_img_routine_helper_160
+        file: ${kis_segito_assets}/routine_helper_160.png
+      - id: ks_img_routine_prepare_160
+        file: ${kis_segito_assets}/routine_prepare_160.png
+      - id: ks_img_routine_special_160
+        file: ${kis_segito_assets}/routine_special_160.png
 
 kis_segito_ui:
   id: ui
@@ -315,3 +345,18 @@ kis_segito_ui:
     placeholder_avatar_180: ks_img_placeholder_avatar_180
     hand_cartoon_64: ks_img_hand_cartoon_64
     badge_piggy_plus_48: ks_img_badge_piggy_plus_48
+    routine_departure_160: ks_img_routine_departure_160
+    routine_school_160: ks_img_routine_school_160
+    routine_meal_160: ks_img_routine_meal_160
+    routine_bath_160: ks_img_routine_bath_160
+    routine_cleanup_160: ks_img_routine_cleanup_160
+    routine_learning_160: ks_img_routine_learning_160
+    routine_play_160: ks_img_routine_play_160
+    routine_sport_160: ks_img_routine_sport_160
+    routine_outing_160: ks_img_routine_outing_160
+    routine_travel_160: ks_img_routine_travel_160
+    routine_quiet_160: ks_img_routine_quiet_160
+    routine_nap_160: ks_img_routine_nap_160
+    routine_helper_160: ks_img_routine_helper_160
+    routine_prepare_160: ks_img_routine_prepare_160
+    routine_special_160: ks_img_routine_special_160
