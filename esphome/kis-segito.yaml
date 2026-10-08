@@ -10,7 +10,7 @@
 #     name: kis-segito
 #     friendly_name: Kis Segito
 #   packages:
-#     kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.7.6
+#     kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.7.7
 #   api:
 #     encryption:
 #       key: !secret kis_segito_api_key
@@ -39,8 +39,8 @@ substitutions:
   friendly_name: Kis Segito
   # Where the UI component and its images come from. They must match the
   # version of this package; CI and local builds point them at the repository.
-  kis_segito_components: github://bazsc20ne/kis-segito@v0.7.6
-  kis_segito_assets: https://raw.githubusercontent.com/bazsc20ne/kis-segito/v0.7.6/assets/device
+  kis_segito_components: github://bazsc20ne/kis-segito@v0.7.7
+  kis_segito_assets: https://raw.githubusercontent.com/bazsc20ne/kis-segito/v0.7.7/assets/device
   # Display tuning values are in hardware/board.yaml and can be overridden here.
   # Encoder counts per mechanical click at the finest resolution (4 counts per
   # quadrature cycle). The MD80E encoder makes half a cycle per click = 2.
@@ -54,6 +54,10 @@ substitutions:
   # highlight image draws it.
   ball_highlight_dx: "0"
   ball_highlight_dy: "0"
+  # LVGL draw buffer, as a share of the screen. With 100% each frame reaches
+  # the panel in one piece (no visible cut while something moves); smaller
+  # values save PSRAM (a full buffer is 450 KB) but draw in bands.
+  lvgl_buffer_size: "100%"
 
 esphome:
   name: ${name}
@@ -62,7 +66,7 @@ esphome:
   name_add_mac_suffix: false
   project:
     name: bazsc20ne.kis-segito
-    version: "0.7.6"
+    version: "0.7.7"
 
 external_components:
   - source: ${kis_segito_components}
@@ -135,10 +139,6 @@ api:
         data: string
       then:
         - lambda: id(ui).set_state(std::string(data.c_str(), data.size()));
-  on_client_connected:
-    - lambda: id(ui).set_connected(true);
-  on_client_disconnected:
-    - lambda: id(ui).set_connected(false);
 
 # Your device config sets the OTA password (see esphome/example.yaml):
 #   ota:
@@ -169,8 +169,17 @@ globals:
   - id: encoder_last_ms
     type: uint32_t
     initial_value: "0"
+  # Detent grid of the raw encoder count (count modulo counts per click),
+  # learnt where the knob rests.
+  - id: encoder_phase
+    type: int
+    initial_value: "0"
   # A press that woke the screen does not also act as a click.
   - id: swallow_click
+    type: bool
+    initial_value: "false"
+  # The current press already acted as a long press.
+  - id: long_press_fired
     type: bool
     initial_value: "false"
   # Translated UI strings, filled by Home Assistant (key -> text).
@@ -407,6 +416,19 @@ script:
             - lvgl.page.show: loading_page
             - script.execute: start_balls
 
+  # Long press: acts as soon as the button has been held for the set time,
+  # without waiting for the release.
+  - id: long_press_timer
+    mode: restart
+    then:
+      - delay: !lambda return (uint32_t) id(long_press_time).state;
+      - lambda: |-
+          if (id(knob_button).state && !id(swallow_click)) {
+            id(long_press_fired) = true;
+            id(last_input_ms) = millis();
+            id(ui).long_press();
+          }
+
   # One UI step clockwise / anticlockwise.
   - id: knob_step_up
     then:
@@ -446,15 +468,27 @@ sensor:
     # full detent (counts_per_click raw counts) away from the last committed
     # rest position. Partial moves, the detent's overshoot and its spring-back
     # never step back. After a pause the rest position is re-aligned, so the
-    # first detent after it always counts.
+    # first detent after it always counts. The steps are queued; the screen
+    # reacts to them in the UI's own loop.
     on_value:
       - lambda: |-
           const int pos = (int) x;
           const uint32_t now = millis();
           if (${encoder_debug})
             ESP_LOGD("kis_segito", "Encoder raw %d (base %d)", pos, id(encoder_base));
-          if (now - id(encoder_last_ms) > 300)
-            id(encoder_base) = id(encoder_last_pos);  // the detent it rested in
+          const int cpc = ${encoder_counts_per_click};
+          const int last = id(encoder_last_pos);
+          if (now - id(encoder_last_ms) > 1000)
+            id(encoder_phase) = ((last % cpc) + cpc) % cpc;  // resting in a detent
+          if (now - id(encoder_last_ms) > 300) {
+            // Re-align to the detent it rested in, on the detent grid: a pause
+            // seen in the middle of a detent (a busy moment) counts from the
+            // detent the knob came from.
+            int base = last - ((((last - id(encoder_phase)) % cpc) + cpc) % cpc);
+            if (pos < last && base != last)
+              base += cpc;
+            id(encoder_base) = base;
+          }
           id(encoder_last_ms) = now;
           id(encoder_last_pos) = pos;
           id(last_input_ms) = now;
@@ -480,6 +514,20 @@ sensor:
     entity_category: diagnostic
 
 number:
+  # How long the button is held for a long press (back / reconnect).
+  - platform: template
+    id: long_press_time
+    name: Long press time
+    icon: mdi:gesture-tap-hold
+    entity_category: config
+    mode: box
+    unit_of_measurement: ms
+    min_value: 300
+    max_value: 2000
+    step: 50
+    initial_value: 500
+    optimistic: true
+    restore_value: true
   # Encoder sensitivity, adjustable from Home Assistant and kept across reboots.
   - platform: template
     id: encoder_clicks_per_step
@@ -521,38 +569,31 @@ binary_sensor:
     filters:
       - delayed_on: 10ms
       - delayed_off: 10ms
-    # Pressing while the screen is dimmed or off wakes it at once (on the
-    # press, not the release); that press is not a click or long press.
+    # Pressing while the screensaver runs or the screen is dimmed or off wakes
+    # it at once (on the press, not the release); that press is not a click or
+    # long press. Otherwise a release before the long press time is a click,
+    # holding it is a long press (back one level; on the home screen it
+    # connects to Home Assistant again).
     on_press:
       - lambda: |-
           id(last_input_ms) = millis();
+          id(long_press_fired) = false;
           if (id(screen_state) != 0 || !id(backlight).current_values.is_on()) {
-            id(wake_screen).execute();
+            ESP_LOGI("kis_segito", "Woken by the button");
             id(swallow_click) = true;
+            id(wake_screen).execute();
+            return;
           }
-    # Short press = select / confirm; long press = back one level.
-    on_click:
-      - min_length: 10ms
-        max_length: 650ms
-        then:
-          - lambda: |-
-              id(last_input_ms) = millis();
-              if (id(swallow_click)) {
-                id(swallow_click) = false;
-                return;
-              }
-              id(ui).click();
-    on_multi_click:
-      - timing:
-          - ON for at least 700ms
-        then:
-          - lambda: |-
-              id(last_input_ms) = millis();
-              if (id(swallow_click)) {
-                id(swallow_click) = false;
-                return;
-              }
-              id(ui).long_press();
+          id(swallow_click) = false;
+          id(long_press_timer).execute();
+    on_release:
+      - script.stop: long_press_timer
+      - lambda: |-
+          id(last_input_ms) = millis();
+          if (!id(swallow_click) && !id(long_press_fired))
+            id(ui).click();
+          id(swallow_click) = false;
+          id(long_press_fired) = false;
 
 text_sensor:
   # The child's actions on the knob (JSON with a unique id), for Home
@@ -586,9 +627,8 @@ font:
 lvgl:
   displays:
     - knob_display
-  # A quarter-screen draw buffer: LVGL draws in parts into the panel's own
-  # frame buffer, so PSRAM is not spent on a second full-screen buffer.
-  buffer_size: 25%
+  # See lvgl_buffer_size above.
+  buffer_size: ${lvgl_buffer_size}
   bg_color: 0x000000
   default_font: montserrat_24
   on_boot:

@@ -23,6 +23,9 @@ CONF_IMAGES = "images"
 CONF_NUMBER_FONT = "number_font"
 CONF_ACTION_SENSOR = "action_sensor"
 
+CACHE_PARTITION_SIZE = 0x400000  # 4 MB
+INV_AREAS = 128
+
 kis_segito_ui_ns = cg.esphome_ns.namespace("kis_segito_ui")
 KisSegitoUI = kis_segito_ui_ns.class_("KisSegitoUI", cg.Component)
 
@@ -44,6 +47,9 @@ def _final_validate(config):
     # images (snapshot) itself, and its images must be known to LVGL so their
     # colour format is enabled.
     lv_defines.add_lv_use("arc", "flex", "snapshot")
+    # Small moving objects (screensaver confetti) each invalidate their own
+    # area; with LVGL's default of 32 areas a busy frame becomes a full redraw.
+    lv_defines.add_define("LV_INV_BUF_SIZE", INV_AREAS)
     lv_defines.get_lv_images_used().update(config[CONF_IMAGES].values())
     return config
 
@@ -55,6 +61,10 @@ async def to_code(config):
     # Uploaded pictures are downloaded from Home Assistant over HTTP.
     esp32.include_builtin_idf_component("esp_http_client")
     esp32.include_builtin_idf_component("esp-tls")
+    # Flash cache for the downloaded pictures (see picture_cache.h). A knob
+    # installed with an older version gets it only when flashed over USB, since
+    # an update over the network keeps the partition table.
+    esp32.add_partition("ks_cache", "data", 0x40, CACHE_PARTITION_SIZE)
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
     for key, image_id in config[CONF_IMAGES].items():

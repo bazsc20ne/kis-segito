@@ -72,6 +72,9 @@ epoch seconds, colours `#RRGGBB`):
 - Icons of routines, tasks and rewards (`routine_…`, `task_…`, `reward_…`) are
   not part of the firmware: the knob downloads them like a picture, at the size
   it shows them (`knob_image/<icon>/<size>`).
+- Every picture answer carries an `ETag`. The knob stores the pictures in its
+  flash cache and, once after each start, asks again with `If-None-Match`; an
+  unchanged picture is answered with `304 Not Modified`.
 - `children[].a`: the built-in avatars `avatar_01` … `avatar_12` are not part of
   the firmware; the knob downloads them like a picture, at size 180.
 - `children[].a`, `rewards[].i`, `routines[].i`, `cp[].i`, `t[].i`: icon ids of

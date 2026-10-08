@@ -21,6 +21,8 @@
 #include "esphome/core/component.h"
 #include "esphome/core/preferences.h"
 
+#include "picture_cache.h"
+
 namespace esphome::kis_segito_ui {
 
 // Data model. Home Assistant sends it as a JSON snapshot (set_state, see
@@ -110,11 +112,20 @@ class Carousel {
   void refill();
   // Frees the slot snapshots; call after the slots were deleted.
   void release();
+  // release() for slots that were deleted with their screen.
+  void forget();
+  // A downloaded picture arrived: slots rendered without it are drawn again.
+  void refill_key(const std::string &key);
+  // Whether a slot shows (or waits for) this downloaded picture.
+  bool uses(const std::string &key) const;
 
  protected:
   void fill_slot_(int slot);
   void place_(int slot, int offset, bool animate);
   int wrap_(int index) const;
+  // After a slide, fills the spare slot with the next item in the same
+  // direction, so the next turn starts at once.
+  void prepare_spare_();
 
   lv_obj_t *slots_[4]{};
   int index_[4]{};
@@ -128,6 +139,10 @@ class Carousel {
   uint32_t anim_ms_{250};
   bool snapshot_{false};
   lv_draw_buf_t *snap_[4]{};
+  std::set<std::string> keys_[4];  // downloaded pictures each slot uses
+  bool ready_[4]{};                // the slot holds item index_[i]
+  int last_dir_{1};
+  lv_timer_t *prepare_timer_{nullptr};
   FillFn fill_;
 };
 
@@ -140,7 +155,8 @@ class KisSegitoUI : public Component {
   void add_image(const std::string &key, image::Image *img) { this->images_[key] = img; }
   void set_number_font(font::Font *f) { this->number_font_ = f->get_lv_font(); }
 
-  // Called from YAML.
+  // Called from YAML. Input is queued and handled in loop(), so the input
+  // callbacks return at once.
   void start();
   void rotate(int dir);
   void click();
@@ -170,6 +186,23 @@ class KisSegitoUI : public Component {
 
  protected:
   const lv_image_dsc_t *img_(const std::string &key);
+  // The downloaded-picture key ("@<id>_<size>") an image key is shown with,
+  // or "" for a built-in image.
+  std::string photo_key_(const std::string &key) const;
+  // Remembers an image object that shows a downloaded picture, so it can be
+  // updated when the picture arrives or changes.
+  void bind_(lv_obj_t *obj, const std::string &key, int cx, int cy);
+  static void unbind_cb_(lv_event_t *e);
+  void picture_ready_(const std::string &key);
+  // Frees downloaded pictures nothing shows (the least recently used last).
+  void release_photos_(bool all_unused);
+  void handle_input_();
+  void do_rotate_(int dir);
+  void do_click_();
+  void do_long_press_();
+  void poll_connection_();
+  void reconnect_();
+  void confetti_step_();
   // Uploaded pictures ("@<id>_<size>" keys), downloaded in the background.
   void request_photo_(const std::string &key);
   void log_reset_reason_();
@@ -252,16 +285,37 @@ class KisSegitoUI : public Component {
     uint8_t *data{nullptr};
     size_t size{0};
   };
+  struct Photo {
+    lv_image_dsc_t *dsc{nullptr};
+    uint8_t *raw{nullptr};  // the downloaded buffer (header + pixels)
+    size_t bytes{0};
+    uint32_t used_ms{0};
+  };
+  struct Binding {
+    lv_obj_t *obj;
+    std::string key;
+    int16_t cx, cy;
+  };
   std::string img_base_;   // Home Assistant address for pictures
   std::string img_token_;  // this knob's picture secret
   std::string general_bg_;  // general background picture id (empty: none)
-  std::map<std::string, lv_image_dsc_t *> photos_;
+  std::string wanted_bg_;   // background id the current screen asks for
+  std::string shown_bg_;    // picture key of the background on screen
+  std::map<std::string, Photo> photos_;
+  std::vector<Binding> bindings_;
   std::set<std::string> photo_requested_;
   std::set<std::string> photo_failed_;  // retried with the next picture key
   std::deque<PhotoJob> photo_queue_;
   std::vector<Download> photo_done_;
   std::mutex photo_mutex_;
   bool photo_task_started_{false};
+  // Download task only: the flash cache and the pictures checked with Home
+  // Assistant since the start.
+  PictureCache cache_;
+  std::set<std::string> validated_;
+  uint32_t state_sig_{0};  // the last snapshot without its time
+  std::deque<int> input_;  // queued input: +1/-1 turn, 2 click, 3 long press
+  uint32_t last_poll_ms_{0};
 
   bool started_{false};
   bool boot_info_logged_{false};
@@ -272,13 +326,25 @@ class KisSegitoUI : public Component {
   uint32_t off_after_{120};
   std::string saver_type_{"balls"};
   static constexpr int CONFETTI = 40;
+  static constexpr int CONFETTI_MIN = 36;  // blown-away pieces come back below this
   struct Piece {
     lv_obj_t *obj{nullptr};
-    float x{0}, y{0}, speed{1}, phase{0};
+    bool alive{false};
+    float x{0}, y{0};      // centre, px
+    float vy{0};           // falling speed, px/s
+    float vx{0};           // sideways drift, px/s
+    float gust{0};         // extra sideways speed from a gust, px/s
+    float gust_vy{0};      // extra vertical speed from a gust, px/s
+    float sway{0}, sway_hz{0}, phase{0};
+    float flip_hz{0}, flip{0};
+    int w{0}, h{0};
   };
+  void spawn_piece_(Piece &p, bool anywhere);
   Piece confetti_[CONFETTI];
   lv_obj_t *confetti_layer_{nullptr};
   lv_timer_t *confetti_timer_{nullptr};
+  uint32_t confetti_ms_{0};
+  uint32_t next_gust_ms_{0};
   Screen screen_{Screen::NONE};
   int child_{0};
   int function_{0};

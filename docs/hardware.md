@@ -31,6 +31,34 @@ Az USB csak az első felíráshoz kell; utána a firmware hálózaton frissíthe
 napló a Home Assistantben / az ESPHome Builderben látható. A knob sima USB-s
 töltőről is működik.
 
+## Picture cache / Képgyorsítótár
+
+The knob keeps the pictures it downloads from Home Assistant (avatars, icons,
+backgrounds) in a 4 MB area of its flash, so after a restart they appear at once
+and are not downloaded again; once after each start the knob only checks with
+Home Assistant whether they changed. When the area is full, the pictures not
+used for the longest time make room.
+
+The area is a partition of its own. An update over the network keeps the
+partition table, so a knob first installed with version 0.7.6 or older gets the
+cache only after flashing the factory firmware (`*.factory.bin`) over USB once.
+Until then everything works the same, only the pictures are downloaded again
+after each start. Flashing the factory firmware resets the knob's own settings
+(e.g. encoder clicks per step) to their defaults.
+
+A knob a Home Assistanttől letöltött képeket (avatarok, ikonok, hátterek) a
+flash egy 4 MB-os részében tárolja, így újraindulás után azonnal megjelennek, és
+nem kell újra letölteni őket; indulásonként egyszer csak azt kérdezi meg a Home
+Assistanttől, változtak-e. Ha a terület megtelik, a legrégebben nem használt
+képek adnak helyet.
+
+A terület külön partíció. A hálózati frissítés a partíciótáblát nem cseréli,
+ezért a 0.7.6-os vagy régebbi verzióval telepített knob csak akkor kapja meg a
+gyorsítótárat, ha egyszer USB-n felírod a gyári firmware-t (`*.factory.bin`).
+Addig minden ugyanúgy működik, csak a képeket minden indulás után újra letölti.
+A gyári firmware felírása a knob saját beállításait (pl. lépésenkénti
+kattintások) alapértékre állítja.
+
 ## Reading the serial log / Soros napló
 
 If the knob restarts before it reaches Wi-Fi (for example after an update), its
@@ -76,6 +104,7 @@ substitutions:
   display_pclk_inverted: "true"
   encoder_counts_per_click: "4"  # encoder counts per click (default 2)
   encoder_debug: "true"          # log every raw encoder count (checking detents)
+  lvgl_buffer_size: "50%"        # draw buffer (default 100%; less saves PSRAM)
 ```
 
 A fenti értékek fork nélkül, az eszközkonfig `substitutions` részében átírhatók.

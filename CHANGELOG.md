@@ -6,6 +6,98 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.7.7] - 2026-10-08
+
+### English
+
+- Pictures (#31):
+  - A picture that is replaced or no longer shown now leaves the memory. Before,
+    every background change kept about 450 KB of PSRAM until the carousels
+    could not slide smoothly any more.
+  - The knob keeps the downloaded pictures in a 4 MB cache in its flash: after a
+    restart they appear at once and are not downloaded again. Once after each
+    start it asks Home Assistant whether a picture changed; an unchanged one is
+    not sent again. A knob first installed with 0.7.6 or older needs the
+    factory firmware flashed over USB once for the cache (see
+    docs/hardware.md); without it everything works as before.
+  - An arriving picture is drawn only where it is shown, instead of building
+    the whole screen again, and a snapshot from Home Assistant in which only
+    the time changed no longer redraws the screen.
+  - Less PSRAM is held back (384 KB instead of 768 KB), so the carousel
+    snapshots fit more often.
+- Carousels (#10): the next item is prepared while the knob rests, so a slide
+  starts at once. The debug log shows how long a frame takes while sliding.
+- Moving pictures are no longer drawn in two halves with a visible cut (#26):
+  the full-screen draw buffer is back as the default (substitution
+  `lvgl_buffer_size`).
+- Knob and button (#27, #32):
+  - Turns and presses are queued and handled by the screen right after, so the
+    knob's input never waits for drawing; after a busy moment the encoder
+    counts from the detent it came from, so no step is lost.
+  - A long press acts as soon as the button has been held long enough, without
+    waiting for the release. The time is a new setting, "Long press time"
+    (default 0.5 s).
+  - A press wakes the knob from the screensaver, dimming or a dark screen, and
+    does nothing else.
+  - A long press on the home screen connects to Home Assistant again: Home
+    Assistant sends the texts and the data anew.
+- The offline mark (crossed-out cloud) shows only when Home Assistant is not
+  connected; another connection, such as a log viewer, no longer switches it on
+  or off (#32).
+- No light patches at the outer rim of the screen: the background picture no
+  longer shows through at the edge (#32).
+- New confetti screensaver: pieces fall faster and smoothly on swaying paths,
+  each at its own speed and with its own flutter, in slightly different sizes;
+  now and then a gust blows a few of them away, each a little differently.
+- The knob logs its screen power settings (screensaver, dimming, drawing off,
+  backlight off) when they arrive from Home Assistant.
+
+### Magyar
+
+- Képek (#31):
+  - A lecserélt vagy már nem látható kép felszabadítja a memóriát. Eddig minden
+    háttércsere kb. 450 KB PSRAM-ot foglalt le, amíg a körhinták már nem tudtak
+    simán csúszni.
+  - A gomb a letöltött képeket a flash 4 MB-os gyorsítótárában tartja:
+    újraindulás után azonnal megjelennek, és nem kell újra letölteni őket.
+    Indulásonként egyszer megkérdezi a Home Assistanttől, változott-e egy kép;
+    a változatlant nem kapja meg újra. A 0.7.6-os vagy régebbi verzióval
+    telepített gombhoz a gyorsítótárhoz egyszer USB-n fel kell írni a gyári
+    firmware-t (lásd docs/hardware.md); nélküle minden úgy működik, mint eddig.
+  - A beérkező kép csak ott rajzolódik újra, ahol látszik, nem épül újra az
+    egész képernyő, és ha a Home Assistant adataiban csak az idő változott,
+    a képernyő nem rajzolódik újra.
+  - Kevesebb PSRAM marad tartalékban (768 KB helyett 384 KB), így a körhinták
+    pillanatképei gyakrabban elférnek.
+- Körhinták (#10): a következő elem előre elkészül, amíg a gomb nyugalomban
+  van, így a csúszás azonnal indul. A hibakereső napló mutatja, mennyi ideig
+  tart egy képkocka csúszás közben.
+- A mozgó képek nem rajzolódnak két részletben, látható vágással (#26): újra a
+  teljes képernyős rajzolási puffer az alapértelmezés (`lvgl_buffer_size`
+  helyettesítés).
+- Forgatás és gomb (#27, #32):
+  - A forgatások és nyomások sorba állnak, és a képernyő rögtön utánuk kezeli
+    őket, így a bemenet sosem vár a rajzolásra; egy terhelt pillanat után a
+    forgatás attól a rovátkától számol, ahonnan a gomb elindult, így nem vész el
+    lépés.
+  - A hosszú nyomás azonnal hat, amint elég ideig nyomva tartod, nem kell
+    elengedni. Az idő új beállítás: „Long press time” (alapérték 0,5 mp).
+  - Egy nyomás felébreszti a gombot a képernyővédőből, a halványításból vagy a
+    sötét képernyőből, és mást nem csinál.
+  - Hosszú nyomás a kezdőképernyőn újra csatlakoztat a Home Assistanthez: az
+    újra elküldi a szövegeket és az adatokat.
+- Az offline jel (áthúzott felhő) csak akkor látszik, ha a Home Assistant nincs
+  csatlakozva; más kapcsolat, például egy naplónéző, már nem kapcsolja be vagy
+  ki (#32).
+- Nincsenek világos foltok a képernyő külső peremén: a háttérkép nem látszik át
+  a szélén (#32).
+- Új konfetti-képernyővédő: a darabok gyorsabban és folyamatosan hullanak, lengő
+  pályán, mindegyik a saját sebességével és libbenésével, kicsit eltérő
+  méretben; időnként egy szélroham elfúj közülük néhányat, mindegyiket kicsit
+  másképp.
+- A gomb naplózza a képernyő-beállításait (képernyővédő, halványítás, rajzolás
+  ki, háttérvilágítás ki), amikor megérkeznek a Home Assistanttől.
+
 ## [0.7.6] - 2026-10-08
 
 ### English

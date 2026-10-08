@@ -20,6 +20,10 @@ the same way, so they are not part of the firmware.
 
 The rendition holds pixels only, no metadata (EXIF, GPS) of the original.
 
+Each answer carries an ETag. The knob keeps the pictures in its flash and asks
+again with ``If-None-Match``; an unchanged picture is answered with 304 (Not
+Modified) without converting it again.
+
 The knob authenticates with its own random token, sent in the state snapshot
 only over an encrypted ESPHome API connection. The knob sends it back in the
 ``X-Kis-Segito-Token`` header (never in the URL), and the view answers only
@@ -28,6 +32,7 @@ requests from the local network, never through Home Assistant Cloud.
 
 from __future__ import annotations
 
+import hashlib
 import re
 import struct
 from functools import lru_cache
@@ -59,6 +64,8 @@ IMAGE_ID = re.compile(r"^[a-z0-9_]{1,64}$")
 MAX_FILE_BYTES = 30 * 1024 * 1024
 MAX_PIXELS = 100_000_000
 FORMATS = {"JPEG", "PNG", "GIF", "WEBP", "BMP"}
+# Part of every ETag: changes when the knob format or the conversion changes.
+RENDER_VERSION = "1"
 
 
 class ImageRejected(Exception):
@@ -186,9 +193,24 @@ class KnobImageView(HomeAssistantView):
             return web.Response(status=404)
         if not path.is_file():
             return web.Response(status=404)
+        mtime = path.stat().st_mtime
+        etag = _etag(path, mtime, int(size))
+        headers = {"ETag": etag, "Cache-Control": "no-cache"}
+        if request.headers.get("If-None-Match") == etag:
+            return web.Response(status=304, headers=headers)
         data = await self.hass.async_add_executor_job(
-            _cached, str(path), path.stat().st_mtime, int(size)
+            _cached, str(path), mtime, int(size)
         )
         if data is None:
             return web.Response(status=415)
-        return web.Response(body=data, content_type="application/octet-stream")
+        return web.Response(
+            body=data, content_type="application/octet-stream", headers=headers
+        )
+
+
+def _etag(path: Path, mtime: float, size: int) -> str:
+    """Identifies one rendition: the source file, its version and the size."""
+    digest = hashlib.sha256(
+        f"{RENDER_VERSION}|{path}|{mtime}|{size}".encode()
+    ).hexdigest()
+    return f'"{digest[:24]}"'

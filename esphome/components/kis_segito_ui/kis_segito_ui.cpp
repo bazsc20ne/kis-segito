@@ -3,10 +3,12 @@
 #include "kis_segito_ui.h"
 
 #include <algorithm>
+#include <cctype>
 #include <climits>
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
+#include <strings.h>
 
 #include <esp_heap_caps.h>
 #include <esp_system.h>
@@ -18,14 +20,21 @@
 #include "esphome/core/hal.h"
 #include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
+#include "esphome/core/defines.h"
+#ifdef USE_API
+#include "esphome/components/api/api_server.h"
+#endif
 
 namespace esphome::kis_segito_ui {
 
 static const char *const TAG = "kis_segito_ui";
 
-// PSRAM always kept free for LVGL's own draw buffers (layers, image decoding):
-// slot snapshots and picture downloads are skipped instead of eating into it.
-static constexpr size_t PSRAM_RESERVE = 768 * 1024;
+// PSRAM always kept free for LVGL's own work (layers, image transforms): slot
+// snapshots and picture downloads are skipped instead of eating into it.
+static constexpr size_t PSRAM_RESERVE = 384 * 1024;
+// Downloaded pictures nothing shows are kept in PSRAM up to this size (the
+// least recently used go first); the flash cache brings the others back.
+static constexpr size_t PHOTO_KEEP_UNUSED = 1024 * 1024;
 
 static size_t psram_largest_block() { return heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT); }
 
@@ -45,6 +54,13 @@ static bool is_online_icon(const std::string &key) {
 // Set while a carousel slot is filled without a snapshot: piles are drawn with
 // fewer coins then, so redrawing them while sliding stays quick.
 static bool g_light_drawing = false;
+
+// While a carousel slot is filled: collects the downloaded pictures it uses.
+static std::set<std::string> *g_fill_keys = nullptr;
+
+// Frame statistics while a carousel slides (debug log).
+static uint32_t g_slide_frames = 0, g_slide_render_ms = 0, g_refr_start = 0;
+static bool g_slide_measure = false;
 
 static void log_psram(const char *when) {
   ESP_LOGI(TAG, "PSRAM %s: %u KB free, largest block %u KB", when,
@@ -122,11 +138,43 @@ lv_obj_t *Carousel::center_slot() const {
 }
 
 void Carousel::release() {
-  for (auto &buf : this->snap_) {
-    if (buf != nullptr) {
-      lv_draw_buf_destroy(buf);
-      buf = nullptr;
+  if (this->prepare_timer_ != nullptr) {
+    lv_timer_delete(this->prepare_timer_);
+    this->prepare_timer_ = nullptr;
+  }
+  for (int i = 0; i < 4; i++) {
+    if (this->snap_[i] != nullptr) {
+      lv_draw_buf_destroy(this->snap_[i]);
+      this->snap_[i] = nullptr;
     }
+    this->keys_[i].clear();
+    this->ready_[i] = false;
+  }
+  g_slide_measure = false;
+}
+
+void Carousel::forget() {
+  this->release();
+  for (auto &slot : this->slots_)
+    slot = nullptr;
+  this->count_ = 0;
+}
+
+bool Carousel::uses(const std::string &key) const {
+  for (const auto &keys : this->keys_) {
+    if (keys.count(key))
+      return true;
+  }
+  return false;
+}
+
+void Carousel::refill_key(const std::string &key) {
+  // Only slots rendered into a snapshot need it; live image objects are
+  // updated directly.
+  for (int i = 0; i < 4; i++) {
+    if (this->slots_[i] != nullptr && this->ready_[i] && this->keys_[i].count(key) &&
+        lv_obj_has_flag(this->slots_[i], LV_OBJ_FLAG_USER_1))
+      this->fill_slot_(i);
   }
 }
 
@@ -140,18 +188,22 @@ void Carousel::fill_slot_(int i) {
   }
   const size_t snap_bytes = static_cast<size_t>(this->slot_w_) * this->slot_h_ * 4;
   g_light_drawing = !this->snapshot_ || !psram_can_spare(snap_bytes);
+  this->keys_[i].clear();
+  g_fill_keys = &this->keys_[i];
   this->fill_(slot, this->index_[i]);
+  g_fill_keys = nullptr;
   g_light_drawing = false;
+  this->ready_[i] = true;
   if (!this->snapshot_)
     return;
   // Render the slot's content at full opacity into one image, unless PSRAM is
   // short: then the objects stay (slower to animate, but always drawn).
-  const size_t needed = snap_bytes;
-  if (!psram_can_spare(needed)) {
+  if (!psram_can_spare(snap_bytes)) {
     static bool logged = false;
     if (!logged) {
-      ESP_LOGE(TAG, "Not enough PSRAM for carousel snapshots (%u KB needed); drawing the objects instead",
-               (unsigned) (needed / 1024));
+      ESP_LOGE(TAG, "Not enough PSRAM for carousel snapshots (%u KB each, plus %u KB kept free); drawing the "
+                    "objects instead",
+               (unsigned) (snap_bytes / 1024), (unsigned) (PSRAM_RESERVE / 1024));
       log_psram("now");
       logged = true;
     }
@@ -185,6 +237,7 @@ void Carousel::refill() {
       this->fill_slot_(i);
     } else {
       lv_obj_clean(this->slots_[i]);
+      this->ready_[i] = false;
     }
     this->place_(i, offsets[i], false);
   }
@@ -238,12 +291,19 @@ void Carousel::rotate(int dir) {
   if (this->count_ <= 1 || dir == 0)
     return;
   dir = dir > 0 ? 1 : -1;
+  this->last_dir_ = dir;
+  if (this->prepare_timer_ != nullptr) {
+    lv_timer_delete(this->prepare_timer_);
+    this->prepare_timer_ = nullptr;
+  }
   // Finish a running animation immediately so input never waits.
   for (int i = 0; i < 4; i++) {
     lv_anim_delete(this->slots_[i], nullptr);
     this->place_(i, this->offset_[i], false);
   }
-  // The spare slot (|offset| == 2, or the one not shown) becomes the incoming item.
+  // The spare slot (|offset| == 2, or the one not shown) becomes the incoming
+  // item. It is usually prepared already (prepare_spare_); turning back the
+  // other way fills it now.
   int spare = 0;
   for (int i = 0; i < 4; i++) {
     if (std::abs(this->offset_[i]) > 1) {
@@ -251,9 +311,12 @@ void Carousel::rotate(int dir) {
       break;
     }
   }
+  const int incoming = this->wrap_(this->selected_ + 2 * dir);
+  const bool prepared = this->ready_[spare] && this->offset_[spare] == 2 * dir && this->index_[spare] == incoming;
   this->offset_[spare] = 2 * dir;
-  this->index_[spare] = this->wrap_(this->selected_ + 2 * dir);
-  this->fill_slot_(spare);
+  this->index_[spare] = incoming;
+  if (!prepared)
+    this->fill_slot_(spare);
   this->place_(spare, this->offset_[spare], false);
   lv_obj_remove_flag(this->slots_[spare], LV_OBJ_FLAG_HIDDEN);
 
@@ -261,6 +324,39 @@ void Carousel::rotate(int dir) {
   for (int i = 0; i < 4; i++) {
     this->offset_[i] -= dir;
     this->place_(i, this->offset_[i], true);
+  }
+  g_slide_frames = g_slide_render_ms = 0;
+  g_slide_measure = this->anim_ms_ > 0;
+  this->prepare_timer_ = lv_timer_create(
+      [](lv_timer_t *t) {
+        auto *self = static_cast<Carousel *>(lv_timer_get_user_data(t));
+        self->prepare_timer_ = nullptr;
+        lv_timer_delete(t);
+        if (g_slide_measure && g_slide_frames > 0) {
+          ESP_LOGD(TAG, "Slide: %u frames, %u ms drawing per frame", (unsigned) g_slide_frames,
+                   (unsigned) (g_slide_render_ms / g_slide_frames));
+        }
+        g_slide_measure = false;
+        self->prepare_spare_();
+      },
+      this->anim_ms_ + 40, this);
+}
+
+void Carousel::prepare_spare_() {
+  if (this->count_ <= 1)
+    return;
+  for (int i = 0; i < 4; i++) {
+    if (std::abs(this->offset_[i]) <= 1)
+      continue;
+    const int index = this->wrap_(this->selected_ + 2 * this->last_dir_);
+    if (this->ready_[i] && this->offset_[i] == 2 * this->last_dir_ && this->index_[i] == index)
+      return;
+    this->offset_[i] = 2 * this->last_dir_;
+    this->index_[i] = index;
+    lv_obj_add_flag(this->slots_[i], LV_OBJ_FLAG_HIDDEN);
+    this->fill_slot_(i);
+    this->place_(i, this->offset_[i], false);
+    return;
   }
 }
 
@@ -388,6 +484,28 @@ void KisSegitoUI::set_state(const std::string &json) {
     ESP_LOGW(TAG, "Ignoring state: unreadable or unknown schema");
     return;
   }
+  // The same data again with only the time moved on: no need to rebuild.
+  uint32_t sig = 2166136261u;
+  {
+    const size_t at = json.find("\"now\":");
+    for (size_t i = 0; i < json.size(); i++) {
+      if (i == at) {
+        i += 6;
+        while (i < json.size() && isdigit(static_cast<unsigned char>(json[i])))
+          i++;
+        if (i >= json.size())
+          break;
+      }
+      sig = (sig ^ static_cast<uint8_t>(json[i])) * 16777619u;
+    }
+  }
+  if (sig == this->state_sig_ && this->have_state_) {
+    this->state_now_ = root["now"].as<int64_t>();
+    this->state_ms_ = millis();
+    return;
+  }
+  this->state_sig_ = sig;
+  const bool first_state = !this->have_state_;
   // Keep the selection by id across the update.
   const std::string child_id = this->children_.empty() ? "" : this->children_[this->child_].id;
   const std::string routine_id = this->routines_.empty() ? "" : this->current_routine_().id;
@@ -478,12 +596,24 @@ void KisSegitoUI::set_state(const std::string &json) {
   this->inactivity_ms_ = static_cast<uint32_t>(std::max(10, root["idle"] | 60)) * 1000;
   if (root["scr"].is<JsonObjectConst>()) {
     JsonObjectConst scr = root["scr"].as<JsonObjectConst>();
-    this->saver_after_ = std::max(0, scr["saver"] | 0);
-    this->dim_after_ = std::max(0, scr["dim"] | 60);
-    this->dim_level_ = static_cast<uint8_t>(std::min(100, std::max(1, scr["lvl"] | 15)));
-    this->blank_after_ = std::max(0, scr["blank"] | 0);
-    this->off_after_ = std::max(0, scr["off"] | 120);
-    this->saver_type_ = scr["ss"] | "balls";
+    const std::string saver_type = scr["ss"] | "balls";
+    const uint32_t saver = std::max(0, scr["saver"] | 0), dim = std::max(0, scr["dim"] | 60),
+                   blank = std::max(0, scr["blank"] | 0), off = std::max(0, scr["off"] | 120);
+    const uint8_t lvl = static_cast<uint8_t>(std::min(100, std::max(1, scr["lvl"] | 15)));
+    if (saver != this->saver_after_ || dim != this->dim_after_ || lvl != this->dim_level_ ||
+        blank != this->blank_after_ || off != this->off_after_ || saver_type != this->saver_type_ ||
+        first_state) {
+      ESP_LOGI(TAG, "Screen: screensaver (%s) after %us, dimmed to %u%% after %us, drawing off after %us, "
+                    "backlight off after %us (0 = never)",
+               saver_type.c_str(), (unsigned) saver, (unsigned) lvl, (unsigned) dim, (unsigned) blank,
+               (unsigned) off);
+    }
+    this->saver_after_ = saver;
+    this->dim_after_ = dim;
+    this->dim_level_ = lvl;
+    this->blank_after_ = blank;
+    this->off_after_ = off;
+    this->saver_type_ = saver_type;
   }
   if (root["anim"].is<const char *>())
     this->set_animation_mode(root["anim"].as<const char *>());
@@ -527,6 +657,9 @@ void KisSegitoUI::send_action_(const char *kind, const std::string &extra) {
   std::string json = std::string("{\"a\":\"") + kind + "\",\"id\":\"" + id + "\",\"c\":\"" +
                      this->children_[this->child_].id + "\"" + extra + "}";
   ESP_LOGI(TAG, "Action: %s", json.c_str());
+  // The screen now shows a guess; the next snapshot replaces it, even if it
+  // is the same as the last one.
+  this->state_sig_ = 0;
   if (this->action_sensor_ != nullptr)
     this->action_sensor_->publish_state(json);
 }
@@ -627,6 +760,18 @@ void KisSegitoUI::start() {
   remove_defaults(this->track_layer_);
   lv_obj_set_size(this->track_layer_, SCREEN, SCREEN);
   lv_screen_load(this->root_);
+  // How long drawing a frame takes while a carousel slides (debug log).
+  lv_display_add_event_cb(
+      lv_display_get_default(), [](lv_event_t *) { g_refr_start = millis(); }, LV_EVENT_REFR_START, nullptr);
+  lv_display_add_event_cb(
+      lv_display_get_default(),
+      [](lv_event_t *) {
+        if (g_slide_measure) {
+          g_slide_frames++;
+          g_slide_render_ms += millis() - g_refr_start;
+        }
+      },
+      LV_EVENT_REFR_READY, nullptr);
 
   // Always visible while offline, at the right edge of the top gap.
   this->offline_icon_ = lv_image_create(lv_layer_top());
@@ -667,24 +812,33 @@ void KisSegitoUI::start() {
 
 // ---------------------------------------------------------------- Helpers
 
+std::string KisSegitoUI::photo_key_(const std::string &key) const {
+  if (!key.empty() && key[0] == '@')
+    return key;
+  if (this->images_.count(key) == 0 && is_online_icon(key))
+    return "@" + key;  // downloaded from Home Assistant
+  return "";
+}
+
 const lv_image_dsc_t *KisSegitoUI::img_(const std::string &key) {
-  if (!key.empty() && key[0] == '@') {
-    // An uploaded picture: shown once downloaded, the matching icon until then.
-    auto photo = this->photos_.find(key);
-    if (photo != this->photos_.end())
-      return photo->second;
-    this->request_photo_(key);
-    auto ends_with = [&key](const char *suffix) {
-      const size_t n = strlen(suffix);
-      return key.size() > n && key.compare(key.size() - n, n, suffix) == 0;
-    };
-    if (ends_with("_180"))
+  const std::string pk = this->photo_key_(key);
+  if (!pk.empty()) {
+    // A downloaded picture: shown once it is here; until then a placeholder
+    // for avatars, nothing for icons and backgrounds.
+    if (g_fill_keys != nullptr)
+      g_fill_keys->insert(pk);
+    auto photo = this->photos_.find(pk);
+    if (photo != this->photos_.end()) {
+      photo->second.used_ms = millis();
+      return photo->second.dsc;
+    }
+    this->request_photo_(pk);
+    const size_t n = 4;
+    if (pk.size() > n && pk.compare(pk.size() - n, n, "_180") == 0)
       return this->img_("placeholder_avatar_180");
-    return nullptr;  // an icon or background: nothing until it arrives
+    return nullptr;
   }
   auto it = this->images_.find(key);
-  if (it == this->images_.end() && is_online_icon(key))
-    return this->img_("@" + key);  // downloaded from Home Assistant
   if (it == this->images_.end()) {
     // Not built in at this size: use the nearest size of the same icon.
     const size_t sep = key.rfind('_');
@@ -713,12 +867,78 @@ const lv_image_dsc_t *KisSegitoUI::img_(const std::string &key) {
   return it->second->get_lv_image_dsc();
 }
 
+void KisSegitoUI::bind_(lv_obj_t *obj, const std::string &key, int cx, int cy) {
+  this->bindings_.push_back({obj, key, static_cast<int16_t>(cx), static_cast<int16_t>(cy)});
+  lv_obj_add_event_cb(obj, &KisSegitoUI::unbind_cb_, LV_EVENT_DELETE, this);
+}
+
+void KisSegitoUI::unbind_cb_(lv_event_t *e) {
+  auto *self = static_cast<KisSegitoUI *>(lv_event_get_user_data(e));
+  lv_obj_t *obj = lv_event_get_target_obj(e);
+  auto &b = self->bindings_;
+  b.erase(std::remove_if(b.begin(), b.end(), [obj](const Binding &x) { return x.obj == obj; }), b.end());
+}
+
+// A downloaded picture arrived (or changed): shown where it is used, without
+// rebuilding the screen.
+void KisSegitoUI::picture_ready_(const std::string &key) {
+  auto it = this->photos_.find(key);
+  if (it == this->photos_.end() || !this->started_)
+    return;
+  const lv_image_dsc_t *dsc = it->second.dsc;
+  if (key == this->shown_bg_)
+    lv_obj_set_style_bg_image_src(this->root_, dsc, 0);  // a newer version of it
+  for (const auto &b : this->bindings_) {
+    if (b.key != key)
+      continue;
+    lv_image_set_src(b.obj, dsc);
+    lv_obj_set_pos(b.obj, b.cx - dsc->header.w / 2, b.cy - dsc->header.h / 2);
+  }
+  this->carousel_.refill_key(key);
+  this->apply_background_(this->wanted_bg_);
+}
+
+void KisSegitoUI::release_photos_(bool all_unused) {
+  std::vector<std::pair<uint32_t, std::string>> unused;
+  size_t unused_bytes = 0;
+  for (const auto &kv : this->photos_) {
+    if (kv.first == this->shown_bg_ || this->carousel_.uses(kv.first))
+      continue;
+    bool bound = false;
+    for (const auto &b : this->bindings_) {
+      if (b.key == kv.first) {
+        bound = true;
+        break;
+      }
+    }
+    if (bound)
+      continue;
+    unused.emplace_back(kv.second.used_ms, kv.first);
+    unused_bytes += kv.second.bytes;
+  }
+  std::sort(unused.begin(), unused.end());  // least recently used first
+  for (const auto &u : unused) {
+    if (!all_unused && unused_bytes <= PHOTO_KEEP_UNUSED && psram_can_spare(512 * 1024))
+      break;
+    Photo &p = this->photos_[u.second];
+    lv_image_cache_drop(p.dsc);
+    heap_caps_free(p.raw);
+    delete p.dsc;
+    unused_bytes -= p.bytes;
+    this->photos_.erase(u.second);
+    this->photo_requested_.erase(u.second);  // loaded again when needed
+  }
+}
+
 void KisSegitoUI::apply_background_(const std::string &id) {
+  this->wanted_bg_ = id;
   const std::string &use = id.empty() ? this->general_bg_ : id;
   const lv_image_dsc_t *dsc = this->background_(id);
   if (dsc == nullptr && !use.empty() && !this->photo_failed_.count("@" + use + "_480"))
     return;  // still loading: keep what is shown
-  lv_obj_set_style_bg_image_src(this->root_, dsc, 0);
+  this->shown_bg_ = dsc != nullptr ? "@" + use + "_480" : "";
+  if (lv_obj_get_style_bg_image_src(this->root_, LV_PART_MAIN) != dsc)
+    lv_obj_set_style_bg_image_src(this->root_, dsc, 0);
 }
 
 bool KisSegitoUI::has_image_(const std::string &key) const {
@@ -753,9 +973,23 @@ void KisSegitoUI::request_photo_(const std::string &key) {
   }
 }
 
-// Worker task: downloads queued pictures into PSRAM, one at a time.
+static esp_err_t http_event(esp_http_client_event_t *evt) {
+  if (evt->event_id == HTTP_EVENT_ON_HEADER && evt->user_data != nullptr && strcasecmp(evt->header_key, "ETag") == 0)
+    *static_cast<std::string *>(evt->user_data) = evt->header_value;
+  return ESP_OK;
+}
+
+// Worker task: loads queued pictures into PSRAM, one at a time: from the
+// flash cache when it is there (checked once per start with Home Assistant,
+// which answers "not modified" for an unchanged picture), else downloaded and
+// stored in the cache.
 void KisSegitoUI::photo_task_(void *arg) {
   auto *self = static_cast<KisSegitoUI *>(arg);
+  self->cache_.begin();
+  auto deliver = [self](const std::string &key, uint8_t *buf, size_t size) {
+    std::lock_guard<std::mutex> lock(self->photo_mutex_);
+    self->photo_done_.push_back({key, buf, size});
+  };
   while (true) {
     PhotoJob job;
     {
@@ -766,20 +1000,38 @@ void KisSegitoUI::photo_task_(void *arg) {
       }
     }
     if (job.key.empty()) {
-      vTaskDelay(pdMS_TO_TICKS(250));
+      vTaskDelay(pdMS_TO_TICKS(100));
       continue;
     }
+    std::string cached_etag;
+    size_t cached_size = 0;
+    uint8_t *cached = nullptr;
+    if (self->cache_.ready() && psram_can_spare(600 * 1024))
+      cached = self->cache_.read(job.key, &cached_size, &cached_etag);
+    if (cached != nullptr) {
+      deliver(job.key, cached, cached_size);
+      if (self->validated_.count(job.key))
+        continue;
+    }
+    std::string etag;
     esp_http_client_config_t cfg{};
     cfg.url = job.url.c_str();
     cfg.timeout_ms = 10000;
+    cfg.event_handler = http_event;
+    cfg.user_data = &etag;
     esp_http_client_handle_t client = esp_http_client_init(&cfg);
-    if (client != nullptr)
+    if (client != nullptr) {
       esp_http_client_set_header(client, "X-Kis-Segito-Token", job.token.c_str());
+      if (cached != nullptr && !cached_etag.empty())
+        esp_http_client_set_header(client, "If-None-Match", cached_etag.c_str());
+    }
     uint8_t *buf = nullptr;
     int got = 0;
+    int status = 0;
     if (client != nullptr && esp_http_client_open(client, 0) == ESP_OK) {
       const int64_t len = esp_http_client_fetch_headers(client);
-      if (esp_http_client_get_status_code(client) == 200 && len > 8 && len < 600 * 1024) {
+      status = esp_http_client_get_status_code(client);
+      if (status == 200 && len > 8 && len < 600 * 1024) {
         if (psram_can_spare(len)) {
           buf = static_cast<uint8_t *>(heap_caps_malloc(len, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
         } else {
@@ -800,12 +1052,28 @@ void KisSegitoUI::photo_task_(void *arg) {
     }
     if (client != nullptr)
       esp_http_client_cleanup(client);
-    std::lock_guard<std::mutex> lock(self->photo_mutex_);
-    self->photo_done_.push_back({job.key, buf, static_cast<size_t>(buf != nullptr ? got : 0)});
+    if (status == 304 || (status == 200 && buf != nullptr))
+      self->validated_.insert(job.key);
+    if (buf != nullptr) {
+      if (self->cache_.ready() && !etag.empty())
+        self->cache_.write(job.key, etag, buf, got);
+      deliver(job.key, buf, got);
+    } else if (cached == nullptr) {
+      deliver(job.key, nullptr, 0);  // could not be loaded
+    }
+    // With a cached copy and Home Assistant out of reach, the cached one stays.
   }
 }
 
 void KisSegitoUI::loop() {
+  this->handle_input_();
+  const uint32_t now = millis();
+  if (now - this->last_poll_ms_ >= 1000) {
+    this->last_poll_ms_ = now;
+    this->poll_connection_();
+    if (this->started_)
+      this->release_photos_(false);
+  }
   std::vector<Download> done;
   {
     std::lock_guard<std::mutex> lock(this->photo_mutex_);
@@ -813,7 +1081,6 @@ void KisSegitoUI::loop() {
       return;
     done.swap(this->photo_done_);
   }
-  bool changed = false;
   for (auto &d : done) {
     // b"KSI1" + width + height (uint16 LE) + RGB565 pixels + alpha bytes, or
     // b"KSI2" (backgrounds): the same without alpha.
@@ -823,6 +1090,8 @@ void KisSegitoUI::loop() {
       this->photo_failed_.insert(d.key);
       if (d.data != nullptr)
         heap_caps_free(d.data);
+      if (this->started_)
+        this->apply_background_(this->wanted_bg_);  // a failed background: the plain colour
       continue;
     }
     const uint16_t w = d.data[4] | (d.data[5] << 8);
@@ -841,12 +1110,21 @@ void KisSegitoUI::loop() {
     dsc->header.stride = w * 2;
     dsc->data_size = static_cast<uint32_t>(w) * h * bytes_per_pixel;
     dsc->data = d.data + 8;
-    this->photos_[d.key] = dsc;
-    changed = true;
-    ESP_LOGI(TAG, "Picture %s ready (%ux%u)", d.key.c_str(), w, h);
+    Photo old;
+    auto it = this->photos_.find(d.key);
+    if (it != this->photos_.end())
+      old = it->second;  // a newer version: replaced once it is shown
+    this->photos_[d.key] = {dsc, d.data, d.size, millis()};
+    this->photo_failed_.erase(d.key);
+    this->photo_requested_.insert(d.key);
+    ESP_LOGD(TAG, "Picture %s ready (%ux%u)", d.key.c_str(), w, h);
+    this->picture_ready_(d.key);
+    if (old.dsc != nullptr) {
+      lv_image_cache_drop(old.dsc);
+      heap_caps_free(old.raw);
+      delete old.dsc;
+    }
   }
-  if (changed && this->started_)
-    this->pending_rebuild_ = true;  // shown on the next tick, after animations
 }
 
 uint32_t KisSegitoUI::anim_ms_(uint32_t full_ms) const {
@@ -906,6 +1184,9 @@ lv_obj_t *KisSegitoUI::image_(lv_obj_t *parent, const std::string &key, int cx, 
     lv_image_set_src(img, dsc);
     lv_obj_set_pos(img, cx - dsc->header.w / 2, cy - dsc->header.h / 2);
   }
+  const std::string pk = this->photo_key_(key);
+  if (!pk.empty())
+    this->bind_(img, pk, cx, cy);
   return img;
 }
 
@@ -1074,7 +1355,7 @@ void KisSegitoUI::show_(Screen screen) {
   this->busy_ = false;
   this->cancel_idle_anim_();
   lv_obj_clean(this->screen_obj_);
-  this->carousel_.release();  // its slots were just deleted
+  this->carousel_.forget();  // its slots were just deleted
   this->task_big_ = this->timeline_ = this->piggy_label_ = nullptr;
   this->confirm_ring_ = this->confirm_no_ = this->confirm_yes_obj_ = nullptr;
   this->shown_reward_ = -1;
@@ -1129,8 +1410,36 @@ void KisSegitoUI::show_(Screen screen) {
 }
 
 void KisSegitoUI::rotate(int dir) {
-  if (!this->started_)
+  if (this->started_ && dir != 0)
+    this->input_.push_back(dir > 0 ? 1 : -1);
+}
+
+void KisSegitoUI::click() {
+  if (this->started_)
+    this->input_.push_back(2);
+}
+
+void KisSegitoUI::long_press() {
+  if (this->started_)
+    this->input_.push_back(3);
+}
+
+// One queued input per loop, so the screen is drawn between steps.
+void KisSegitoUI::handle_input_() {
+  if (this->input_.empty())
     return;
+  const int in = this->input_.front();
+  this->input_.pop_front();
+  if (in == 2) {
+    this->do_click_();
+  } else if (in == 3) {
+    this->do_long_press_();
+  } else {
+    this->do_rotate_(in);
+  }
+}
+
+void KisSegitoUI::do_rotate_(int dir) {
   this->last_input_ms_ = millis();
   this->cancel_idle_anim_();
   if (this->busy_ || this->children_.empty())
@@ -1189,9 +1498,7 @@ void KisSegitoUI::shake_(lv_obj_t *target) {
   lv_anim_start(&a);
 }
 
-void KisSegitoUI::click() {
-  if (!this->started_)
-    return;
+void KisSegitoUI::do_click_() {
   this->last_input_ms_ = millis();
   this->cancel_idle_anim_();
   if (this->busy_ || this->children_.empty())
@@ -1339,11 +1646,13 @@ void KisSegitoUI::click() {
   }
 }
 
-void KisSegitoUI::long_press() {
-  if (!this->started_)
-    return;
+void KisSegitoUI::do_long_press_() {
   this->last_input_ms_ = millis();
   switch (this->screen_) {
+    case Screen::CHILDREN:
+      // On the home screen: connect to Home Assistant again.
+      this->reconnect_();
+      break;
     case Screen::FUNCTIONS:
       this->show_(Screen::CHILDREN);
       break;
@@ -1359,6 +1668,32 @@ void KisSegitoUI::long_press() {
     default:
       break;
   }
+}
+
+// Home Assistant subscribed to the knob's states: connected. (Other API
+// clients, such as a log viewer, do not count.)
+void KisSegitoUI::poll_connection_() {
+#ifdef USE_API
+  if (api::global_api_server == nullptr)
+    return;
+  const bool connected = api::global_api_server->is_connected_with_state_subscription();
+  if (connected != this->connected_)
+    this->set_connected(connected);
+#endif
+}
+
+void KisSegitoUI::reconnect_() {
+  ESP_LOGI(TAG, "Reconnecting to Home Assistant (long press)");
+#ifdef USE_API
+  if (api::global_api_server != nullptr) {
+    // Closing the connections makes Home Assistant connect again and send
+    // the texts and the data anew.
+    for (const auto &client : api::global_api_server->active_clients())
+      client->on_fatal_error();
+  }
+#endif
+  this->set_connected(false);
+  this->refuse_offline_(nullptr);  // the offline mark pulses
 }
 
 // ---------------------------------------------------------------- Screens
@@ -1666,9 +2001,6 @@ void KisSegitoUI::build_routine_() {
   this->timeline_ = lv_obj_create(this->screen_obj_);
   remove_defaults(this->timeline_);
   lv_obj_set_size(this->timeline_, SCREEN, SCREEN);
-  this->task_big_ = lv_image_create(this->screen_obj_);
-  lv_image_set_pivot(this->task_big_, 75, 75);
-
   int current = -1;
   for (size_t i = 0; i < r.tasks.size(); i++) {
     if (!this->is_done_(r, r.tasks[i].id)) {
@@ -1676,11 +2008,9 @@ void KisSegitoUI::build_routine_() {
       break;
     }
   }
-  const lv_image_dsc_t *big = current >= 0 ? this->img_(r.tasks[current].icon + "_150") : nullptr;
-  lv_image_set_src(this->task_big_, big != nullptr ? big : this->img_("action_check_88"));
-  lv_obj_update_layout(this->task_big_);
-  lv_obj_set_pos(this->task_big_, CENTER - lv_obj_get_width(this->task_big_) / 2,
-                 205 - lv_obj_get_height(this->task_big_) / 2);
+  this->task_big_ =
+      this->image_(this->screen_obj_, current >= 0 ? r.tasks[current].icon + "_150" : "action_check_88", CENTER, 205);
+  lv_image_set_pivot(this->task_big_, 75, 75);
 
   // Completed tasks collect on the left (grey), future ones on the right.
   int done_slot = 0, future_slot = 0;
@@ -1739,7 +2069,9 @@ void KisSegitoUI::build_track_() {
     lv_obj_set_style_arc_rounded(fade, false, LV_PART_MAIN);
     lv_obj_set_style_arc_opa(fade, static_cast<lv_opa_t>(50 + i * 50), LV_PART_MAIN);
   }
-  lv_obj_t *band = this->track_arc_(this->track_layer_, CENTER, CENTER - BAND_R, 0.0f, 1.0f, bg);
+  // A little beyond the screen edge, so its anti-aliased outer edge never lets
+  // the background picture show through at the rim.
+  lv_obj_t *band = this->track_arc_(this->track_layer_, CENTER + 6, CENTER + 6 - BAND_R, 0.0f, 1.0f, bg);
   lv_arc_set_bg_angles(band, 0, 360);
   lv_obj_set_style_arc_rounded(band, false, LV_PART_MAIN);
 
@@ -1962,46 +2294,117 @@ void KisSegitoUI::celebrate_(int tokens) {
 
 // ---------------------------------------------------------------- Screensaver
 
-// Continuous confetti: small pieces fall over a black screen, sway a little and
-// start again at the top. One timer moves them all.
+// Continuous confetti over a black screen. Each piece falls on its own
+// swaying path at its own speed and flutters (its width follows a turning
+// motion). Now and then a gust catches a few pieces near each other and blows
+// them sideways, each a little differently; pieces blown off the screen come
+// back only when too few are left. One timer moves them all at a fixed rate.
+static constexpr uint32_t CONFETTI_COLORS[] = {0xFF6B6B, 0xFFC94A, 0x6BCB77, 0x6CB8FF, 0xA78BFA, 0xFF8FB1};
+
+static float frand(float lo, float hi) { return lo + (hi - lo) * static_cast<float>(random_uint32() % 10000) / 10000.0f; }
+
+void KisSegitoUI::spawn_piece_(Piece &p, bool anywhere) {
+  const float k = frand(0.8f, 1.2f);  // size within +/-20 %
+  const bool wide = random_uint32() & 1;
+  p.w = std::max(3, static_cast<int>(std::lround((wide ? 12 : 7) * k)));
+  p.h = std::max(3, static_cast<int>(std::lround((wide ? 7 : 12) * k)));
+  p.x = frand(30, SCREEN - 30);
+  p.y = anywhere ? frand(-SCREEN, SCREEN - 40) : frand(-60, -16);
+  p.vy = frand(150, 210);
+  p.vx = frand(-18, 18);
+  p.gust = p.gust_vy = 0;
+  p.sway = frand(10, 26);
+  p.sway_hz = frand(0.35f, 0.8f);
+  p.phase = frand(0, 6.283f);
+  p.flip_hz = frand(0.8f, 2.2f);
+  p.flip = frand(0, 6.283f);
+  p.alive = true;
+  lv_obj_set_size(p.obj, p.w, p.h);
+  lv_obj_remove_flag(p.obj, LV_OBJ_FLAG_HIDDEN);
+}
+
 void KisSegitoUI::start_confetti() {
   if (this->confetti_layer_ != nullptr)
     return;
-  static const uint32_t COLORS[] = {0xFF6B6B, 0xFFC94A, 0x6BCB77, 0x6CB8FF, 0xA78BFA, 0xFF8FB1};
   this->confetti_layer_ = lv_obj_create(lv_layer_top());
   remove_defaults(this->confetti_layer_);
   lv_obj_set_size(this->confetti_layer_, SCREEN, SCREEN);
   lv_obj_set_style_bg_color(this->confetti_layer_, lv_color_black(), 0);
   lv_obj_set_style_bg_opa(this->confetti_layer_, LV_OPA_COVER, 0);
   for (int i = 0; i < CONFETTI; i++) {
-    const uint32_t h = hash32(i + 301);
     Piece &p = this->confetti_[i];
     p.obj = lv_obj_create(this->confetti_layer_);
     remove_defaults(p.obj);
-    const bool wide = (h >> 3) & 1;
-    lv_obj_set_size(p.obj, wide ? 12 : 7, wide ? 7 : 12);
     lv_obj_set_style_radius(p.obj, 2, 0);
-    lv_obj_set_style_bg_color(p.obj, lv_color_hex(COLORS[i % 6]), 0);
+    lv_obj_set_style_bg_color(p.obj, lv_color_hex(CONFETTI_COLORS[i % 6]), 0);
     lv_obj_set_style_bg_opa(p.obj, LV_OPA_COVER, 0);
-    p.x = 40.0f + static_cast<float>(h % 400);
-    p.y = -static_cast<float>((h >> 8) % SCREEN);  // spread over the first fall
-    p.speed = 1.2f + static_cast<float>((h >> 16) % 20) / 10.0f;
-    p.phase = static_cast<float>((h >> 4) % 628) / 100.0f;
+    this->spawn_piece_(p, true);  // already spread over the screen
   }
+  this->confetti_ms_ = millis();
+  this->next_gust_ms_ = this->confetti_ms_ + 3000 + random_uint32() % 4000;
   this->confetti_timer_ = lv_timer_create(
-      [](lv_timer_t *t) {
-        auto *self = static_cast<KisSegitoUI *>(lv_timer_get_user_data(t));
-        for (auto &p : self->confetti_) {
-          p.y += p.speed;
-          p.phase += 0.08f;
-          if (p.y > SCREEN + 10) {
-            p.y = -14;
-            p.x = 40.0f + static_cast<float>(random_uint32() % 400);
-          }
-          lv_obj_set_pos(p.obj, static_cast<int>(p.x + 10.0f * sinf(p.phase)), static_cast<int>(p.y));
-        }
-      },
-      40, this);
+      [](lv_timer_t *t) { static_cast<KisSegitoUI *>(lv_timer_get_user_data(t))->confetti_step_(); }, 33, this);
+}
+
+void KisSegitoUI::confetti_step_() {
+  const uint32_t now = millis();
+  // Real elapsed time, so a late frame does not slow the fall down.
+  const float dt = std::min(static_cast<float>(now - this->confetti_ms_), 60.0f) / 1000.0f;
+  this->confetti_ms_ = now;
+  if (static_cast<int32_t>(now - this->next_gust_ms_) >= 0) {
+    // A gust: 5-7 pieces closest to a random point, in a random direction.
+    this->next_gust_ms_ = now + 4000 + random_uint32() % 6000;
+    const float gx = frand(60, SCREEN - 60), gy = frand(60, SCREEN - 140);
+    const float dir = (random_uint32() & 1) ? 1.0f : -1.0f;
+    const float lift = frand(-60, 20);  // slightly up or down, varies per gust
+    std::vector<std::pair<float, int>> near;
+    for (int i = 0; i < CONFETTI; i++) {
+      const Piece &p = this->confetti_[i];
+      if (p.alive && p.y > 0)
+        near.emplace_back((p.x - gx) * (p.x - gx) + (p.y - gy) * (p.y - gy), i);
+    }
+    std::sort(near.begin(), near.end());
+    const size_t n = std::min<size_t>(near.size(), 5 + random_uint32() % 3);
+    for (size_t j = 0; j < n; j++) {
+      Piece &p = this->confetti_[near[j].second];
+      p.gust = dir * frand(220, 520);  // each one blown a little differently
+      p.gust_vy = lift * frand(0.5f, 1.5f);
+    }
+  }
+  int alive = 0;
+  for (const auto &p : this->confetti_)
+    alive += p.alive ? 1 : 0;
+  for (auto &p : this->confetti_) {
+    if (!p.alive) {
+      if (alive < CONFETTI_MIN) {
+        this->spawn_piece_(p, false);
+        alive++;
+      }
+      continue;
+    }
+    p.phase += 6.283f * p.sway_hz * dt;
+    p.flip += 6.283f * p.flip_hz * dt;
+    // A gust fades out over about a second (air drag).
+    const float drag = std::max(0.0f, 1.0f - 1.6f * dt);
+    p.gust *= drag;
+    p.gust_vy *= drag;
+    p.x += (p.vx + p.gust + p.sway * 6.283f * p.sway_hz * cosf(p.phase)) * dt;
+    p.y += (p.vy + p.gust_vy) * dt;
+    if (p.x < -30 || p.x > SCREEN + 30) {
+      // Blown off the screen.
+      p.alive = false;
+      lv_obj_add_flag(p.obj, LV_OBJ_FLAG_HIDDEN);
+      continue;
+    }
+    if (p.y > SCREEN + 16) {
+      this->spawn_piece_(p, false);  // fell out at the bottom: again from the top
+      continue;
+    }
+    // Fluttering: the piece turns, so its visible width changes.
+    const int w = std::max(2, static_cast<int>(std::lround(p.w * std::fabs(cosf(p.flip)))));
+    lv_obj_set_width(p.obj, w);
+    lv_obj_set_pos(p.obj, static_cast<int>(p.x) - w / 2, static_cast<int>(p.y) - p.h / 2);
+  }
 }
 
 void KisSegitoUI::stop_confetti() {

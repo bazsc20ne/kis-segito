@@ -350,3 +350,34 @@ async def test_knob_served_icons(hass: HomeAssistant, hass_client_no_auth) -> No
         raw = await ok.read()
         assert raw[:4] == b"KSI1" and len(raw) == 8 + size * size * 3
     assert (await client.get(f"{url}/no_such_icon/150", headers=header)).status == 404
+
+
+async def test_knob_image_not_modified(
+    hass: HomeAssistant, hass_client_no_auth
+) -> None:
+    entry = MockConfigEntry(
+        domain=DOMAIN, unique_id="dev", data={CONF_DEVICE_ID: "dev"}
+    )
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    token = hass.data[DOMAIN].manager.device_token("dev")
+    client = await hass_client_no_auth()
+    url = "/api/kis_segito/knob_image/task_shoes/150"
+    first = await client.get(url, headers={"X-Kis-Segito-Token": token})
+    assert first.status == 200
+    etag = first.headers["ETag"]
+    # The knob's cached copy is still current: no picture is sent.
+    again = await client.get(
+        url, headers={"X-Kis-Segito-Token": token, "If-None-Match": etag}
+    )
+    assert again.status == 304
+    assert await again.read() == b""
+    # Another size is another picture.
+    other = await client.get(
+        "/api/kis_segito/knob_image/task_shoes/40",
+        headers={"X-Kis-Segito-Token": token, "If-None-Match": etag},
+    )
+    assert other.status == 200
+    # Without the knob's key nothing is answered, not even "not modified".
+    assert (await client.get(url, headers={"If-None-Match": etag})).status == 403
