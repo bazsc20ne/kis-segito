@@ -49,7 +49,7 @@ substitutions:
   friendly_name: Kis Segito
 
 packages:
-  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.7.2
+  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.7.3
 
 api:
   encryption:
@@ -110,8 +110,8 @@ szenzor és egy naptár (`calendar.kis_segito`) jelenik meg.
 egy knobon a hozzá rendelt gyerekek választhatók, a többiek zárolva látszanak, a gyerek
 nélküli knob mindenkinek működik. A knob perselyképernyőjén tekeréssel választható ki,
 hány zseton kerüljön a perselybe vagy onnan vissza; a gombnyomás könyveli. Háttér: a **Beállítások** oldalon egy
-általános háttér választható (6 beépített vagy saját feltöltött kép) a gombokra és a
-panelre, a gyerek oldalán pedig gyerekenként saját háttér. Automatizáláshoz:
+általános háttér választható a gombokra (6 beépített vagy saját feltöltött kép), a gyerek
+oldalán pedig gyerekenként saját háttér. Automatizáláshoz:
 [docs/automations.md](docs/automations.md), saját gombhoz vagy kijelzőhöz:
 [docs/protocol.md](docs/protocol.md).
 
@@ -137,7 +137,7 @@ választható; ez a knobokra és a panelre is érvényes. Új nyelv:
   át nem érhetők el. Ha egy gomb kapcsolata nem titkosított, a Home Assistant javítási
   értesítést mutat, és a gomb a képek helyett ikonokat jelenít meg. A gomb hozzáférése a
   képekhez megújítható: panel → **Beállítások → Gombok → Új képkulcs**.
-- **Frissítés:** a fenti mintában a package egy adott verzióra mutat (`@v0.7.2`), így a
+- **Frissítés:** a fenti mintában a package egy adott verzióra mutat (`@v0.7.3`), így a
   gomb firmware-e csak akkor változik, amikor ezt átírod egy újabb verzióra.
 - **Nem része a projektnek:** aki fizikailag hozzáfér a gombhoz, kiolvashatja a
   flash-memóriáját (és a benne lévő titkos adatokat). Ez egy otthoni, házilag épített
@@ -215,7 +215,7 @@ substitutions:
   friendly_name: Kis Segito
 
 packages:
-  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.7.2
+  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.7.3
 
 api:
   encryption:
@@ -273,8 +273,8 @@ Rewards pages. A child can be assigned to at most one knob (on the child's page)
 its children can be selected and the others are shown locked; a knob without children
 works for everyone. On the knob's piggy-bank screen, turning chooses how many tokens go
 into the piggy bank or back out; pressing books it. Background: the **Settings** page has a
-general background (6 built-in or your own uploaded picture) for the knobs and the
-panel, and each child can have their own on the child's page. For automations see
+general background for the knobs (6 built-in or your own uploaded picture), and each
+child can have their own on the child's page. For automations see
 [docs/automations.md](docs/automations.md), for building your own knob or display
 [docs/protocol.md](docs/protocol.md).
 
@@ -301,7 +301,7 @@ the panel's **Settings** card; it applies to the knobs and the panel. Adding a l
   Assistant shows a repair issue and the knob shows icons instead of the pictures. A
   knob's access to the pictures can be renewed: panel → **Settings → Knobs → New picture
   key**.
-- **Updates:** in the example above the package points to a given version (`@v0.7.2`), so
+- **Updates:** in the example above the package points to a given version (`@v0.7.3`), so
   the knob's firmware changes only when you change it to a newer version.
 - **Out of scope:** anyone with physical access to the knob can read its flash memory (and
   the secrets in it). This is a DIY device for the home, so flash encryption and secure

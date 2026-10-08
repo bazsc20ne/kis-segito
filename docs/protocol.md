@@ -65,6 +65,8 @@ epoch seconds, colours `#RRGGBB`):
   knob shows a badge and plays it when the piggy bank is opened.
 - `children[].sel`: whether the child can be selected on this knob (device
   assignment); others are shown locked.
+- `children[].a`: the built-in avatars `avatar_01` … `avatar_12` are not part of
+  the firmware; the knob downloads them like a picture, at size 180.
 - `children[].a`, `rewards[].i`, `routines[].i`, `cp[].i`, `t[].i`: icon ids of
   the shared icon set (the file names in `assets/device/` without the size).
 - `routines`: today's routines shown on knobs. `ch` empty = every child.

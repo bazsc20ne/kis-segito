@@ -6,6 +6,39 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.7.3] - 2026-10-08
+
+### English
+
+- Fix (#23): with 0.7.1 the knob's screen stayed black, because the firmware
+  ran out of PSRAM. The knob keeps its program and built-in images in PSRAM,
+  and the twelve new avatars took about 1.2 MB of it. The avatars are no longer
+  part of the firmware: the knob downloads the chosen avatar from Home
+  Assistant like an uploaded picture (the firmware is about 1.2 MB smaller).
+- The knob always keeps 768 KB of PSRAM free for drawing: when memory is
+  short, the carousels draw their content directly instead of keeping
+  pre-rendered copies, and a picture or background that does not fit is
+  skipped. Either case is logged once as an error.
+- The knob logs its free PSRAM and the largest free block at boot and after
+  each update from Home Assistant.
+- Backgrounds are shown only on the knob; the panel keeps its normal look.
+
+### Magyar
+
+- Javítás (#23): a 0.7.1-gyel a gomb képernyője fekete maradt, mert a
+  firmware-nek elfogyott a PSRAM-ja. A gomb a programját és a beépített képeit
+  a PSRAM-ban tartja, és a tizenkét új avatar kb. 1,2 MB-ot foglalt belőle. Az
+  avatarok már nem részei a firmware-nek: a gomb a kiválasztott avatart a
+  feltöltött képekhez hasonlóan a Home Assistanttől tölti le (a firmware kb.
+  1,2 MB-tal kisebb).
+- A gomb mindig 768 KB PSRAM-ot szabadon hagy a rajzoláshoz: ha kevés a
+  memória, a körhinták előre kirajzolt másolat helyett közvetlenül rajzolják a
+  tartalmukat, a be nem férő kép vagy háttér pedig kimarad. Mindkettőt egyszer,
+  hibaként naplózza.
+- A gomb induláskor és a Home Assistant minden frissítése után naplózza a szabad
+  PSRAM-ot és a legnagyobb szabad blokkot.
+- A háttér csak a gombon látszik; a panel a megszokott kinézetű marad.
+
 ## [0.7.2] - 2026-10-08
 
 ### English

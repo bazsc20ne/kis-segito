@@ -346,30 +346,6 @@ image:
         file: ${kis_segito_assets}/routine_special_32.png
       - id: ks_img_routine_special_28
         file: ${kis_segito_assets}/routine_special_28.png
-      - id: ks_img_avatar_01_180
-        file: ${kis_segito_assets}/avatar_01_180.png
-      - id: ks_img_avatar_02_180
-        file: ${kis_segito_assets}/avatar_02_180.png
-      - id: ks_img_avatar_03_180
-        file: ${kis_segito_assets}/avatar_03_180.png
-      - id: ks_img_avatar_04_180
-        file: ${kis_segito_assets}/avatar_04_180.png
-      - id: ks_img_avatar_05_180
-        file: ${kis_segito_assets}/avatar_05_180.png
-      - id: ks_img_avatar_06_180
-        file: ${kis_segito_assets}/avatar_06_180.png
-      - id: ks_img_avatar_07_180
-        file: ${kis_segito_assets}/avatar_07_180.png
-      - id: ks_img_avatar_08_180
-        file: ${kis_segito_assets}/avatar_08_180.png
-      - id: ks_img_avatar_09_180
-        file: ${kis_segito_assets}/avatar_09_180.png
-      - id: ks_img_avatar_10_180
-        file: ${kis_segito_assets}/avatar_10_180.png
-      - id: ks_img_avatar_11_180
-        file: ${kis_segito_assets}/avatar_11_180.png
-      - id: ks_img_avatar_12_180
-        file: ${kis_segito_assets}/avatar_12_180.png
 
 kis_segito_ui:
   id: ui
@@ -545,15 +521,3 @@ kis_segito_ui:
     routine_special_40: ks_img_routine_special_40
     routine_special_32: ks_img_routine_special_32
     routine_special_28: ks_img_routine_special_28
-    avatar_01_180: ks_img_avatar_01_180
-    avatar_02_180: ks_img_avatar_02_180
-    avatar_03_180: ks_img_avatar_03_180
-    avatar_04_180: ks_img_avatar_04_180
-    avatar_05_180: ks_img_avatar_05_180
-    avatar_06_180: ks_img_avatar_06_180
-    avatar_07_180: ks_img_avatar_07_180
-    avatar_08_180: ks_img_avatar_08_180
-    avatar_09_180: ks_img_avatar_09_180
-    avatar_10_180: ks_img_avatar_10_180
-    avatar_11_180: ks_img_avatar_11_180
-    avatar_12_180: ks_img_avatar_12_180

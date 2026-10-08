@@ -22,6 +22,19 @@ namespace esphome::kis_segito_ui {
 
 static const char *const TAG = "kis_segito_ui";
 
+// PSRAM always kept free for LVGL's own draw buffers (layers, image decoding):
+// slot snapshots and picture downloads are skipped instead of eating into it.
+static constexpr size_t PSRAM_RESERVE = 768 * 1024;
+
+static size_t psram_largest_block() { return heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT); }
+
+static bool psram_can_spare(size_t bytes) { return psram_largest_block() >= bytes + PSRAM_RESERVE; }
+
+static void log_psram(const char *when) {
+  ESP_LOGI(TAG, "PSRAM %s: %u KB free, largest block %u KB", when,
+           (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024), (unsigned) (psram_largest_block() / 1024));
+}
+
 static constexpr int SCREEN = 480;
 static constexpr int CENTER = SCREEN / 2;
 static constexpr uint32_t BASE_BG = 0x1B2140;  // deep navy
@@ -69,6 +82,7 @@ void Carousel::create(lv_obj_t *parent, int count, int selected, int slot_w, int
   this->count_ = std::max(count, 1);
   this->selected_ = this->wrap_(selected);
   this->slot_w_ = slot_w;
+  this->slot_h_ = slot_h;
   this->y_ = y;
   this->spacing_ = spacing;
   this->fill_ = std::move(fill);
@@ -110,7 +124,19 @@ void Carousel::fill_slot_(int i) {
   this->fill_(slot, this->index_[i]);
   if (!this->snapshot_)
     return;
-  // Render the slot's content at full opacity into one image.
+  // Render the slot's content at full opacity into one image, unless PSRAM is
+  // short: then the objects stay (slower to animate, but always drawn).
+  const size_t needed = static_cast<size_t>(this->slot_w_) * this->slot_h_ * 4;
+  if (!psram_can_spare(needed)) {
+    static bool logged = false;
+    if (!logged) {
+      ESP_LOGE(TAG, "Not enough PSRAM for carousel snapshots (%u KB needed); drawing the objects instead",
+               (unsigned) (needed / 1024));
+      log_psram("now");
+      logged = true;
+    }
+    return;
+  }
   const bool hidden = lv_obj_has_flag(slot, LV_OBJ_FLAG_HIDDEN);
   const lv_opa_t opa = lv_obj_get_style_opa(slot, LV_PART_MAIN);
   lv_obj_remove_flag(slot, LV_OBJ_FLAG_HIDDEN);
@@ -218,6 +244,7 @@ void Carousel::rotate(int dir) {
 // ---------------------------------------------------------------- Setup / test data
 
 void KisSegitoUI::setup() {
+  log_psram("at boot");
   this->load_test_data_();
   // The last selected child is kept across reboots (as a hash of its id).
   this->child_pref_ = global_preferences->make_preference<uint32_t>(fnv1_hash("kis_segito_ui_child_id"));
@@ -329,8 +356,10 @@ void KisSegitoUI::set_state(const std::string &json) {
     child.selectable = c["sel"] | true;
     child.pending_interest = c["pi"] | 0;
     child.background = c["bg"] | "";
-    if (this->images_.count(child.avatar + "_180") == 0)
-      child.avatar = "placeholder_avatar";
+    if (this->images_.count(child.avatar + "_180") == 0) {
+      // Built-in avatars come from Home Assistant like uploaded pictures.
+      child.avatar = child.avatar.rfind("avatar_", 0) == 0 ? "@" + child.avatar : "placeholder_avatar";
+    }
     if (c["ai"].is<const char *>() && strlen(c["ai"].as<const char *>()) > 0)
       child.avatar = std::string("@") + c["ai"].as<const char *>();
     children.push_back(child);
@@ -401,6 +430,7 @@ void KisSegitoUI::set_state(const std::string &json) {
   }
   ESP_LOGI(TAG, "State: %u children, %u rewards, %u routines", (unsigned) this->children_.size(),
            (unsigned) this->rewards_.size(), (unsigned) this->routines_.size());
+  log_psram("after the state");
   if (!this->started_)
     return;
   if (this->busy_) {
@@ -658,7 +688,11 @@ void KisSegitoUI::photo_task_(void *arg) {
     if (client != nullptr && esp_http_client_open(client, 0) == ESP_OK) {
       const int64_t len = esp_http_client_fetch_headers(client);
       if (esp_http_client_get_status_code(client) == 200 && len > 8 && len < 600 * 1024) {
-        buf = static_cast<uint8_t *>(heap_caps_malloc(len, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+        if (psram_can_spare(len)) {
+          buf = static_cast<uint8_t *>(heap_caps_malloc(len, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+        } else {
+          ESP_LOGE(TAG, "Not enough PSRAM for picture %s (%u KB)", job.key.c_str(), (unsigned) (len / 1024));
+        }
         while (buf != nullptr && got < len) {
           const int r = esp_http_client_read(client, reinterpret_cast<char *>(buf) + got, len - got);
           if (r <= 0)

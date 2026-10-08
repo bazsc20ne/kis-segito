@@ -10,7 +10,7 @@
 
 // Must equal the integration version (scripts/check_versions.py checks it):
 // a browser that still runs an older copy of this file shows a reload bar.
-const PANEL_VERSION = "0.7.2";
+const PANEL_VERSION = "0.7.3";
 const FALLBACK_LANGUAGE = "en";
 const LANGUAGE_AUTO = "auto";
 const TABS = [
@@ -1248,8 +1248,7 @@ class KisSegitoPanel extends HTMLElement {
               <span class="muted">${done}/${total}</span></div>`;
           })
           .join("");
-        const bg = this._backgroundUrl(c.background || this._data.settings.background);
-        return `<div class="card child-card ${bg ? "has-bg" : ""}" style="--c:${this._e(c.color)};${bg ? `--bg:url('${bg}')` : ""}">
+        return `<div class="card child-card" style="--c:${this._e(c.color)}">
           <div class="row">${this._avatar(c, 64)}
             <div class="grow"><div class="title">${this._e(c.name)}</div>
               <div class="muted">${this._icon("streak_flame", 18)} ${c.streak}/${this._data.settings.streak_target}</div></div>
@@ -2023,7 +2022,7 @@ class KisSegitoPanel extends HTMLElement {
         <span class="title">${this._e(this._t("panel.title"))}</span>
       </div>
       <nav class="tabs">${tabs}</nav>
-      <div class="content" style="${this._data?.settings?.background ? `--page-bg:url('${this._backgroundUrl(this._data.settings.background)}')` : ""}">
+      <div class="content">
         ${this._data?.version && this._data.version !== PANEL_VERSION
           ? `<div class="card update row"><span class="grow">${this._e(this._t("panel.outdated"))}</span>
               <button class="primary" data-action="reload">${this._e(this._t("panel.reload"))}</button></div>`
@@ -2175,12 +2174,6 @@ const STYLE = `
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
   .grid .card { margin: 0; }
   .child-card { border-top: 4px solid var(--c); }
-  /* The child's background behind a veil of the card colour, so text stays readable. */
-  .child-card.has-bg {
-    background: linear-gradient(color-mix(in srgb, var(--card-background-color, #fff) 82%, transparent),
-      color-mix(in srgb, var(--card-background-color, #fff) 82%, transparent)), var(--bg) center / cover;
-  }
-  .content { background: var(--page-bg, none) center / cover fixed; }
   .bg-tiles { gap: 8px; }
   .bg-tile {
     width: 72px; height: 72px; border-radius: 12px; padding: 4px; font-size: 12px;

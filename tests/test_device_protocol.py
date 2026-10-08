@@ -274,3 +274,22 @@ def test_summary_refresh_runs_in_event_loop() -> None:
     # The minute timer must write the state from the event loop: a timer target
     # that is not a callback (or coroutine) runs in a worker thread.
     assert is_callback(_Base._async_tick)
+
+
+async def test_knob_builtin_avatar(hass: HomeAssistant, hass_client_no_auth) -> None:
+    entry = MockConfigEntry(
+        domain=DOMAIN, unique_id="dev", data={CONF_DEVICE_ID: "dev"}
+    )
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    token = hass.data[DOMAIN].manager.device_token("dev")
+    client = await hass_client_no_auth()
+    header = {"X-Kis-Segito-Token": token}
+    ok = await client.get("/api/kis_segito/knob_image/avatar_01/180", headers=header)
+    assert ok.status == 200
+    raw = await ok.read()
+    assert raw[:4] == b"KSI1" and len(raw) == 8 + 180 * 180 * 3
+    assert (
+        await client.get("/api/kis_segito/knob_image/avatar_99/180", headers=header)
+    ).status == 404

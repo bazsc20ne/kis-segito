@@ -14,7 +14,8 @@ Backgrounds (size 480, the whole round screen) are opaque, without alpha:
     + width*height RGB565 pixels (LE)
 
 A background is a built-in preset (frontend/backgrounds/bg_<n>.jpg) or an
-uploaded picture.
+uploaded picture. The built-in avatars (knob_avatars/avatar_<nn>.png) are served
+the same way, so they are not part of the firmware.
 
 The rendition holds pixels only, no metadata (EXIF, GPS) of the original.
 
@@ -46,6 +47,8 @@ SIZES = (64, 160, 180)
 BACKGROUND_SIZE = 480
 PRESETS_DIR = Path(__file__).parent / "frontend" / "backgrounds"
 PRESET_ID = re.compile(r"^bg_[1-6]$")
+AVATARS_DIR = Path(__file__).parent / "knob_avatars"
+AVATAR_ID = re.compile(r"^avatar_[0-9]{2}$")
 IMAGE_ID = re.compile(r"^[a-z0-9_]{1,64}$")
 # Limits checked before a picture is decoded (decompression bombs).
 MAX_FILE_BYTES = 30 * 1024 * 1024
@@ -146,6 +149,8 @@ class KnobImageView(HomeAssistantView):
                 if PRESET_ID.match(image_id)
                 else Path(self.hass.config.path("image", image_id, "original"))
             )
+        elif AVATAR_ID.match(image_id) and int(size) in SIZES:
+            path = AVATARS_DIR / f"{image_id}.png"
         elif int(size) in SIZES:
             path = Path(self.hass.config.path("image", image_id, "original"))
         else:

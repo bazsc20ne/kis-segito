@@ -252,7 +252,7 @@
   "background.preset": "Háttér",
   "background.own": "Saját kép",
   "background.upload": "Saját kép feltöltése",
-  "background.hint": "Minden gombon és ezen a panelen látszik; egy gyereknek saját háttere is lehet a gyerek oldalán.",
-  "background.child_hint": "A gombon ennek a gyereknek a képernyőin és a gyerek kártyáján látszik; az „Általános” a beállításokban megadott hátteret használja.",
+  "background.hint": "Minden gombon látszik; egy gyereknek saját háttere is lehet a gyerek oldalán.",
+  "background.child_hint": "A gombon ennek a gyereknek a képernyőin látszik; az „Általános” a beállításokban megadott hátteret használja.",
   "error.invalid_background": "Ismeretlen háttér."
 }

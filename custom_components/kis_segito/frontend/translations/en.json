@@ -252,7 +252,7 @@
   "background.preset": "Background",
   "background.own": "Own picture",
   "background.upload": "Upload own picture",
-  "background.hint": "Shown on every knob and in this panel; a child can have their own on the child's page.",
-  "background.child_hint": "Shown on this child's screens on the knob and on the child's card; \"General\" uses the background from the settings.",
+  "background.hint": "Shown on every knob; a child can have their own on the child's page.",
+  "background.child_hint": "Shown on this child's screens on the knob; \"General\" uses the background from the settings.",
   "error.invalid_background": "Unknown background."
 }

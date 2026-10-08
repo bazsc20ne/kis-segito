@@ -33,6 +33,8 @@ MANIFEST = ROOT / "assets" / "device_assets.json"
 SMALL_MAX = 44
 WEB_OUT = ROOT / "custom_components" / "kis_segito" / "frontend" / "icons"
 WEB_SIZE = 96
+AVATARS_OUT = ROOT / "custom_components" / "kis_segito" / "knob_avatars"
+AVATAR_SIZE = 180
 WEB_SMALL_SIZE = 88  # 44 px at 2x
 # Sources that are not icons for the panel.
 WEB_SKIP = ("ball_", "brand_logo", "brand_app_icon", "token_pile_shadow")
@@ -100,6 +102,15 @@ def main() -> int:
             img.save(OUT / f"{icon}_{size}.png", optimize=True)
             count += 1
     print(f"wrote {count} images to {OUT.relative_to(ROOT)}")
+
+    # Built-in avatars are not compiled into the firmware: the integration serves
+    # them to the knob like uploaded pictures (they would use PSRAM otherwise).
+    AVATARS_OUT.mkdir(parents=True, exist_ok=True)
+    avatars = 0
+    for source in sorted(SOURCE.glob("avatar_[0-9][0-9].png")):
+        resize(Image.open(source), AVATAR_SIZE).save(AVATARS_OUT / source.name, optimize=True)
+        avatars += 1
+    print(f"wrote {avatars} avatars to {AVATARS_OUT.relative_to(ROOT)}")
 
     WEB_OUT.mkdir(parents=True, exist_ok=True)
     web = 0

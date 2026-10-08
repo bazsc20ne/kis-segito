@@ -122,6 +122,7 @@ class Carousel {
   int count_{0};
   int selected_{0};
   int slot_w_{0};
+  int slot_h_{0};
   int y_{0};
   int spacing_{0};
   uint32_t anim_ms_{250};
