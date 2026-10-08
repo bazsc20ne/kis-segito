@@ -6,7 +6,6 @@
 
 <a id="magyar"></a>
 
-[![Validate](https://github.com/bazsc20ne/kis-segito/actions/workflows/validate.yml/badge.svg)](https://github.com/bazsc20ne/kis-segito/actions/workflows/validate.yml)
 [![hacs](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz/)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
 
@@ -111,14 +110,12 @@ szenzor és egy naptár (`calendar.kis_segito`) jelenik meg.
 egy knobon a hozzá rendelt gyerekek választhatók, a többiek zárolva látszanak, a gyerek
 nélküli knob mindenkinek működik. A knob perselyképernyőjén tekeréssel választható ki,
 hány zseton kerüljön a perselybe vagy onnan vissza; a gombnyomás könyveli. Automatizáláshoz:
-[docs/automations.md](docs/automations.md), a knob és a HA kapcsolata:
-[docs/protocol.md](docs/protocol.md).
+[docs/automations.md](docs/automations.md).
 
 A knob kijelzőjének és a panelnek a
 szövegei alapból a Home Assistant nyelvén jelennek meg (jelenleg angol és magyar; ha egy
 nyelvhez nincs fordítás, angolul). A panel **Beállítások** kártyáján más nyelv is
-választható; ez a knobokra és a panelre is érvényes. Új nyelvet fordítási fájlok
-hozzáadásával lehet felvenni.
+választható; ez a knobokra és a panelre is érvényes.
 
 ## Biztonság
 
@@ -131,11 +128,11 @@ hozzáadásával lehet felvenni.
 - **Kész firmware:** a release-ben lévő gyári firmware-ben nincs titkos adat (titkosítatlan
   API, jelszó nélküli OTA). Az első indítás után vedd át az ESPHome Builderbe, add hozzá a
   fenti sorokat, és telepítsd újra.
-- **Képek csak a helyi hálózatról:** a gomb a feltöltött képeket a saját képkulcsával tölti
-  le, amelyet csak titkosított API-kapcsolaton kap meg. A képvégpont csak helyi hálózatról
-  érkező kérésre válaszol (Home Assistant Cloudon és az interneten át nem), a kulcsot csak a
-  kérés fejlécében fogadja el. Új képkulcs: panel → **Beállítások → Gombok → Új képkulcs**.
-  Titkosítatlan gombnál a Home Assistant javítási értesítést mutat.
+- **Képek:** a feltöltött képeket (gyerekfotók, jutalmak) a gomb csak a helyi hálózaton
+  és csak titkosított kapcsolat mellett kapja meg; Home Assistant Cloudon és az interneten
+  át nem érhetők el. Ha egy gomb kapcsolata nem titkosított, a Home Assistant javítási
+  értesítést mutat, és a gomb a képek helyett ikonokat jelenít meg. A gomb hozzáférése a
+  képekhez megújítható: panel → **Beállítások → Gombok → Új képkulcs**.
 - **Frissítés:** a fenti mintában a package egy adott verzióra mutat (`@v0.7.0`), így a
   gomb firmware-e csak akkor változik, amikor ezt átírod egy újabb verzióra.
 - **Nem része a projektnek:** aki fizikailag hozzáfér a gombhoz, kiolvashatja a
@@ -272,14 +269,12 @@ Rewards pages. A child can be assigned to at most one knob (on the child's page)
 its children can be selected and the others are shown locked; a knob without children
 works for everyone. On the knob's piggy-bank screen, turning chooses how many tokens go
 into the piggy bank or back out; pressing books it. For automations see
-[docs/automations.md](docs/automations.md), for the knob link
-[docs/protocol.md](docs/protocol.md).
+[docs/automations.md](docs/automations.md).
 
 The texts on the knob display and in the
 panel follow the Home Assistant language by default (currently English and Hungarian;
 English when there is no translation for a language). Another language can be chosen on
-the panel's **Settings** card; it applies to the knobs and the panel. A new language only
-needs new translation files.
+the panel's **Settings** card; it applies to the knobs and the panel.
 
 ### Security
 
@@ -292,12 +287,12 @@ needs new translation files.
 - **Ready-made firmware:** the factory firmware in a release has no secrets (unencrypted
   API, OTA without a password). After the first start, adopt it in the ESPHome Builder,
   add the lines above and install it again.
-- **Pictures only from the local network:** the knob downloads uploaded pictures with its
-  own picture key, which it gets only over an encrypted API connection. The picture
-  endpoint answers only requests from the local network (not through Home Assistant Cloud
-  or the internet) and accepts the key only in a request header. New picture key: panel →
-  **Settings → Knobs → New picture key**. For an unencrypted knob Home Assistant shows a
-  repair issue.
+- **Pictures:** the knob gets uploaded pictures (children's photos, rewards) only on the
+  local network and only over an encrypted connection; they cannot be reached through
+  Home Assistant Cloud or the internet. If a knob's connection is not encrypted, Home
+  Assistant shows a repair issue and the knob shows icons instead of the pictures. A
+  knob's access to the pictures can be renewed: panel → **Settings → Knobs → New picture
+  key**.
 - **Updates:** in the example above the package points to a given version (`@v0.7.0`), so
   the knob's firmware changes only when you change it to a newer version.
 - **Out of scope:** anyone with physical access to the knob can read its flash memory (and

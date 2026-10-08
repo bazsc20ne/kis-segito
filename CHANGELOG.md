@@ -11,62 +11,46 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
 ### English
 
 Security hardening (#21). **Update the knob firmware together with the
-integration**: pictures are now downloaded with the key in a request header.
+integration**, otherwise uploaded pictures do not appear on the knob.
 
 - Knob firmware: the example config requires an OTA password
   (`ota_password`) and a password for the fallback access point
-  (`ap_password`), and uses one API encryption key per knob. The package's
-  OTA entry has the id `kis_segito_ota`, so a device config can add the
-  password with `!extend`. The factory firmware's import link points to the
-  release tag instead of `main`.
+  (`ap_password`), and uses one API encryption key per knob (see the
+  README). Adopting the ready-made firmware in the ESPHome Builder uses the
+  released version.
 - Picture key only over an encrypted connection: Home Assistant sends a knob
   its picture key only when the knob's API is encrypted; otherwise the knob
   shows icons and a repair issue explains how to add a key.
-- Picture endpoint: answers only requests from the local network (not through
-  Home Assistant Cloud), takes the key only from the `X-Kis-Segito-Token`
-  header and compares it in constant time. Panel → Settings → Knobs → "New
-  picture key" replaces a knob's key at once.
-- Knob actions: strict checks (size, exact fields, types and ranges), at most
-  20 actions per knob per minute, and the list of processed action ids is
-  limited in age and size.
-- Uploaded pictures: the real image type is checked, files over 30 MB and
-  images over 100 megapixels are refused before decoding, large JPEG photos
-  are decoded at a reduced scale; the knob's copy has no metadata.
-- GitHub Actions are pinned to commit SHAs. Releases can be published as the
-  repository owner (optional `RELEASE_TOKEN` secret).
-- 15 new routine icons (placeholder artwork for now).
-- Docs: README "Security" section, docs/security.md.
+- Pictures reach the knob only from the local network, never through Home
+  Assistant Cloud or the internet. Panel → Settings → Knobs → "New picture
+  key" gives a knob a new key at once.
+- The integration ignores malformed or too frequent messages from a knob.
+- Uploaded pictures: images over 100 megapixels are refused; the knob's copy
+  contains no metadata (EXIF, location).
+- 15 new routine icons (temporary artwork for now).
+- README: new "Security" section.
 
 ### Magyar
 
 Biztonsági megerősítés (#21). **A gomb firmware-ét az integrációval együtt
-frissítsd**: a képeket mostantól a kérés fejlécében küldött kulccsal tölti le.
+frissítsd**, különben a feltöltött képek nem jelennek meg a gombon.
 
 - Gomb-firmware: a mintakonfiguráció OTA-jelszót (`ota_password`) és a
   tartalék hozzáférési ponthoz jelszót (`ap_password`) kér, és gombonként
-  külön API titkosítási kulcsot használ. A package OTA-bejegyzésének
-  azonosítója `kis_segito_ota`, így az eszköz konfigurációja `!extend`-del
-  adhatja hozzá a jelszót. A gyári firmware importlinkje a release címkéjére
-  mutat a `main` helyett.
+  külön API titkosítási kulcsot használ (lásd a README-t). A kész firmware
+  ESPHome Builderbe való átvételekor a kiadott verzió kerül be.
 - Képkulcs csak titkosított kapcsolaton: a Home Assistant csak akkor küldi el
   a gombnak a képkulcsát, ha a gomb API-kapcsolata titkosított; különben a
   gomb ikonokat mutat, és egy javítási értesítés elmagyarázza, hogyan kell
   kulcsot beállítani.
-- Képvégpont: csak a helyi hálózatról érkező kérésekre válaszol (Home
-  Assistant Cloudon át nem), a kulcsot csak az `X-Kis-Segito-Token`
-  fejlécből fogadja el, és konstans idejű összehasonlítással ellenőrzi. Panel
-  → Beállítások → Gombok → „Új képkulcs”: a gomb kulcsa azonnal lecserélődik.
-- Gomb-műveletek: szigorú ellenőrzés (méret, pontosan a várt mezők, típusok
-  és tartományok), gombonként legfeljebb 20 művelet percenként, a feldolgozott
-  műveletazonosítók listája kor és méret szerint korlátozott.
-- Feltöltött képek: a valódi képtípust ellenőrzi, a 30 MB-nál nagyobb fájlokat
-  és a 100 megapixelnél nagyobb képeket dekódolás előtt elutasítja, a nagy
-  JPEG-fotókat csökkentett felbontásban dekódolja; a gomb példányában nincs
-  metaadat.
-- A GitHub Actions lépései commit-azonosítóra rögzítve. A release-eket a repó
-  tulajdonosa nevében is ki lehet adni (opcionális `RELEASE_TOKEN` secret).
+- A képek csak a helyi hálózatról jutnak el a gombra, Home Assistant Cloudon
+  és az interneten át soha. Panel → Beállítások → Gombok → „Új képkulcs”: a
+  gomb azonnal új kulcsot kap.
+- Az integráció figyelmen kívül hagyja a gomb hibás vagy túl sűrű üzeneteit.
+- Feltöltött képek: a 100 megapixelnél nagyobb képeket elutasítja; a gombra
+  kerülő példányban nincs metaadat (EXIF, helyadat).
 - 15 új rutinikon (egyelőre ideiglenes rajzokkal).
-- Dokumentáció: „Biztonság” szakasz a README-ben, docs/security.md.
+- README: új „Biztonság” szakasz.
 
 ## [0.6.0] - 2026-10-07
 
@@ -278,10 +262,8 @@ data (the test data remains only until Home Assistant first sends data).
 - Device-child assignment: a child belongs to at most one knob; on a knob with
   assigned children the others are shown greyed and locked; a knob without
   children (or with all of them) works for everyone.
-- Knob protocol (docs/protocol.md): Home Assistant sends a compact state
-  snapshot (`set_state`); the knob reports completed tasks and bought rewards
-  as JSON actions with a unique id on its new Action text sensor, booked at
-  most once.
+- The knob gets its data from Home Assistant and reports completed tasks and
+  bought rewards back; each is booked at most once, even after a reconnect.
 - On the knob: the function carousel lists the child's routines of today; the
   time track shows the routine's colour zones, shared checkpoints on the outer
   and the child's own on the inner track, and the reward available now.
@@ -318,10 +300,9 @@ először adatot nem küld).
 - Eszköz–gyerek hozzárendelés: egy gyerek legfeljebb egy gombhoz tartozik; ha egy
   gombhoz vannak gyerekek rendelve, a többiek szürkén, zárolva látszanak; a gyerek
   nélküli (vagy mindenkihez rendelt) gomb mindenkinek működik.
-- Knob-protokoll (docs/protocol.md): a Home Assistant tömör állapotképet küld
-  (`set_state`); a knob az elvégzett feladatokat és a beváltott jutalmakat egyedi
-  azonosítójú JSON-műveletként jelenti az új Action szenzorán, és ezek legfeljebb
-  egyszer könyvelődnek.
+- A knob a Home Assistanttől kapja az adatait, és visszajelzi az elvégzett
+  feladatokat és a beváltott jutalmakat; mindegyik legfeljebb egyszer
+  könyvelődik, újracsatlakozás után is.
 - A knobon a funkció-körhinta a gyerek mai rutinjait mutatja; az időív a rutin
   színzónáit, a közös checkpointokat a külső, a gyerek sajátjait a belső íven, és az
   éppen elérhető jutalmat.
@@ -386,8 +367,6 @@ először adatot nem küld).
   is kept in flash for the next boot.
 - The routine screen's top gap uses the same language-specific brand mark.
 - Logo at the top of the README (Hungarian and English section).
-- `tools/build_device_assets.py`: `_fallbacks` in `assets/device_assets.json`
-  render an icon from another source while its own artwork is missing.
 
 ### Magyar
 
@@ -397,8 +376,6 @@ először adatot nem küld).
   következő indításhoz flash-ben tárolja.
 - Az időív felső résében is ez a nyelvfüggő márkajel látszik.
 - Logó a README tetején (a magyar és az angol részben is).
-- `tools/build_device_assets.py`: az `assets/device_assets.json` `_fallbacks`
-  részében megadott ikonok saját rajz hiányában egy másik forrásból készülnek.
 
 ## [0.2.0] - 2026-10-06
 
@@ -432,9 +409,7 @@ Assistant data follows in a later version):
   language, English when there is no translation) or any available
   translation. It applies to the knobs and to the panel; the list comes from the
   translation files.
-- Icon pipeline: source artwork in `assets/icons/source`, rendered by
-  `tools/build_device_assets.py`; the icon list is in `docs/icons.md`. The icons
-  are placeholder sketches for now.
+- The icons are temporary sketches for now.
 
 ### Magyar
 
@@ -465,9 +440,7 @@ Assistant adatai egy későbbi verzióban jönnek):
 - Nyelvválasztó a Kis Segítő panelen: „Automatikus” (a Home Assistant nyelve,
   fordítás hiányában angol) vagy bármelyik elérhető fordítás. A knobokra és a
   panelre is érvényes; a lista a fordítási fájlokból jön.
-- Ikon-csővezeték: forrásrajzok az `assets/icons/source` mappában, a méreteket a
-  `tools/build_device_assets.py` készíti; az ikonlista a `docs/icons.md`-ben.
-  Az ikonok egyelőre helyettesítő vázlatok.
+- Az ikonok egyelőre ideiglenes vázlatok.
 
 ## [0.1.11] - 2026-10-06
 
@@ -659,7 +632,6 @@ Assistant adatai egy későbbi verzióban jönnek):
   table (the one the factory demo runs) with the vendor timings (26 MHz,
   non-inverted PCLK, 8/20/40, 8/20/50). The previous ST7701-style table stays
   available with `display_controller: st7701`.
-- Init tables moved to `esphome/hardware/panel/`.
 
 ### Magyar
 
@@ -668,7 +640,6 @@ Assistant adatai egy későbbi verzióban jönnek):
   használja (ezt futtatja a gyári demó is), a gyártói időzítésekkel (26 MHz,
   nem invertált PCLK, 8/20/40, 8/20/50). Az előző, ST7701-es tábla
   `display_controller: st7701` beállítással továbbra is elérhető.
-- Az init táblák az `esphome/hardware/panel/` mappába kerültek.
 
 ## [0.1.2] - 2026-10-06
 
@@ -682,7 +653,6 @@ Assistant adatai egy későbbi verzióban jönnek):
   config (#1).
 - New `esphome/display-test.yaml`: the same board without LVGL, showing
   ESPHome's test card, for checking the panel on its own.
-- The board definition moved to `esphome/hardware/board.yaml`.
 
 ### Magyar
 
@@ -693,7 +663,6 @@ Assistant adatai egy későbbi verzióban jönnek):
   beállítások. Minden időzítés substitution, így az eszközkonfigból hangolható (#1).
 - Új `esphome/display-test.yaml`: ugyanaz a lap LVGL nélkül, az ESPHome
   tesztképével (test card), a kijelző önálló ellenőrzéséhez.
-- A lapdefiníció az `esphome/hardware/board.yaml` fájlba került.
 
 ## [0.1.1] - 2026-10-06
 
@@ -726,8 +695,7 @@ First testable skeleton.
 - **Home Assistant integration** `kis_segito` (HACS): config flow that links an
   ESPHome knob, an empty "Kis Segítő" sidebar panel, versioned storage, English
   and Hungarian translations. Sends the knob texts on connect and on language change.
-- GitHub Actions: hassfest, HACS validation, tests, ESPHome build; tagged releases
-  attach the factory and OTA firmware.
+- Each release has the ready-made factory and OTA firmware attached.
 
 ### Magyar
 
@@ -742,8 +710,7 @@ Első, tesztelhető váz.
 - **Home Assistant integráció** `kis_segito` (HACS): config flow az ESPHome-os
   knob kiválasztásához, üres „Kis Segítő” oldalsáv-panel, verziózott adattárolás,
   angol és magyar fordítás. Csatlakozáskor és nyelvváltáskor elküldi a knob szövegeit.
-- GitHub Actions: hassfest, HACS-validáció, tesztek, ESPHome-fordítás; a tagelt
-  release-ekhez csatolva a factory és az OTA firmware.
+- Minden release-hez csatolva van a kész factory és OTA firmware.
 
 [0.2.0]: https://github.com/bazsc20ne/kis-segito/releases/tag/v0.2.0
 [0.1.11]: https://github.com/bazsc20ne/kis-segito/releases/tag/v0.1.11

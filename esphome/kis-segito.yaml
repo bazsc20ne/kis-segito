@@ -127,7 +127,7 @@ api:
             id(ui).set_animation_mode(std::string(mode.c_str(), mode.size()));
             id(ui).start();
     # Data snapshot from Home Assistant (children, rewards, today's routines):
-    # JSON, schema 1, see docs/protocol.md.
+    # JSON, schema 1, see custom_components/kis_segito/protocol.py.
     - action: set_state
       variables:
         data: string
@@ -425,7 +425,7 @@ binary_sensor:
 
 text_sensor:
   # The child's actions on the knob (JSON with a unique id), for Home
-  # Assistant: completed tasks, redeemed rewards. See docs/protocol.md.
+  # Assistant: completed tasks, redeemed rewards. See custom_components/kis_segito/protocol.py.
   - platform: template
     id: knob_action
     name: Action

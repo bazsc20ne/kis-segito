@@ -24,7 +24,7 @@
 namespace esphome::kis_segito_ui {
 
 // Data model. Home Assistant sends it as a JSON snapshot (set_state, see
-// docs/protocol.md); until then built-in test data is shown. Times are Unix
+// custom_components/kis_segito/protocol.py); until then built-in test data is shown. Times are Unix
 // epoch seconds.
 
 struct Child {

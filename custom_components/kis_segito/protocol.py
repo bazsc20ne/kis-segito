@@ -1,10 +1,9 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-only -->
-
-# Knob protocol (schema 1)
+# SPDX-License-Identifier: AGPL-3.0-only
+"""Knob protocol (schema 1).
 
 The integration and the knob talk only through the ESPHome native API.
 
-## Home Assistant → knob
+Home Assistant → knob
 
 API actions of the firmware (`esphome/kis-segito.yaml`), called by the
 integration as `esphome.<node>_<action>`:
@@ -58,7 +57,7 @@ epoch seconds, colours `#RRGGBB`):
 - `children[].sel`: whether the child can be selected on this knob (device
   assignment); others are shown locked.
 - `children[].a`, `rewards[].i`, `routines[].i`, `cp[].i`, `t[].i`: icon ids of
-  the shared icon set (`docs/icons.md`).
+  the shared icon set (`assets/device_assets.json`).
 - `routines`: today's routines shown on knobs. `ch` empty = every child.
 - `z`: colour zones, each starting `offset` seconds before the end `e`.
 - `cp`: checkpoints; `ch` empty = shared (outer track), otherwise the
@@ -69,7 +68,7 @@ epoch seconds, colours `#RRGGBB`):
 The knob computes the current time as `now` + the time since the snapshot
 arrived, so the track moves without further messages.
 
-## Knob → Home Assistant
+Knob → Home Assistant
 
 The knob publishes each child action as JSON on its **Action** text sensor.
 Every action has a unique `id`; the integration runs each id only once and
@@ -92,3 +91,4 @@ The knob shows the result at once; Home Assistant validates and books it and
 sends a new snapshot, which corrects the knob if the action was refused (for
 example: not enough tokens). Without a Home Assistant connection the knob
 refuses token transactions.
+"""

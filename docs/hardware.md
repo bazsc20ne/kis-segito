@@ -6,27 +6,10 @@
 - Display controller: GC9503CV, RGB interface (16 data lines used) + 3-wire SPI for the init sequence
 - Input: rotary encoder (A/B) and push button – no touch
 
-Source: VIEWESMART schematic `MD80E.SCH.20240725_00` and the vendor's ESP-IDF
-example for this board, `examples/ESP-IDF/UEDX48480021-MD80E-SDK`
-([VIEWESMART/UEDX48480021-MD80ESP32_2.1inch-Knob](https://github.com/VIEWESMART/UEDX48480021-MD80ESP32_2.1inch-Knob), MIT).
-The panel (UE021WV-RB40-L002B) uses a **GC9503CV** controller per its datasheet.
-The vendor example contains two init tables: an active ST7701-style one and a
-commented-out GC9503 one. The factory demo firmware runs the **GC9503** table at
-26 MHz, so that is the default (`esphome/hardware/panel/gc9503.yaml`). The
-ST7701-style table (`panel/st7701.yaml`) leaves the red channel dark on this
-panel, and ESPHome's built-in `UEDX48480021-MD80ET` model gives only stripes.
+## Display settings / Kijelző-beállítások
 
-The board wires the 16 RGB lines to the **upper** bits of the panel's 24-bit bus
-(R3–R7, G2–G7, B3–B7). The factory demo sends no COLMOD, so the panel stays in
-its 24-bit power-on mode, which matches this wiring. ESPHome's `mipi_rgb`
-always appends its own COLMOD/MADCTL/INVOFF, so `esphome/hardware/board.yaml`
-replaces the display's init sequence at boot with the demo's order: init table,
-120 ms, DISPON. With COLMOD 0x55 (16-bit) saturated colours are right but
-mid-tones are wrong; with 0x66 (18-bit) red is missing.
-
-## Display timings / Kijelző-időzítés
-
-From the vendor `esp-bsp.h`; all are substitutions in `esphome/hardware/board.yaml`.
+Defaults that work for this knob; each can be changed with a substitution (see
+Tuning below).
 
 | Setting | Value | Substitution |
 |---|---|---|
@@ -34,21 +17,19 @@ From the vendor `esp-bsp.h`; all are substitutions in `esphome/hardware/board.ya
 | PCLK | 26 MHz, not inverted | `display_pclk_frequency`, `display_pclk_inverted` |
 | HSYNC pulse / back / front | 8 / 20 / 40 | `display_hsync_pulse_width`, `display_hsync_back_porch`, `display_hsync_front_porch` |
 | VSYNC pulse / back / front | 8 / 20 / 50 | `display_vsync_pulse_width`, `display_vsync_back_porch`, `display_vsync_front_porch` |
-| COLMOD after the table | none (as the factory demo) | `display_colmod` (`"0"`, `"0x55"`, `"0x66"`, `"0x77"`) |
+| COLMOD after the table | none | `display_colmod` (`"0"`, `"0x55"`, `"0x66"`, `"0x77"`) |
 | Serial log on UART0 (GPIO43/44) | 115200 baud | `logger_baud_rate` (`"0"` = off, frees UART0) |
 | RGB bus drive strength | ESP-IDF default | `display_drive_strength` (`"-1"` = default, `"0"`…`"3"` ≈ 5/10/20/40 mA) |
 
-## Native USB port / Natív USB-port
+## USB
 
-The firmware leaves the ESP32-S3's native USB port (USB-Serial-JTAG) unused at
-runtime: ESP-IDF's secondary console is off and the serial log is on UART0. With
-the console on that port, the display stayed blank whenever no PC was connected
-(for example on a USB charger). USB is still used for the first flash; logs are
-available over the network (Home Assistant / ESPHome Builder).
+USB is needed only for the first flash; after that the firmware is updated over
+the network, and its logs are visible in Home Assistant / the ESPHome Builder.
+The knob also works from a plain USB charger.
 
-A firmware futás közben nem használja az ESP32-S3 natív USB-portját: ha azon
-futott az ESP-IDF konzol, töltőről (PC nélkül) a kijelző üres maradt. Az első
-felíráshoz a USB továbbra is kell; a napló hálózaton látható.
+Az USB csak az első felíráshoz kell; utána a firmware hálózaton frissíthető, a
+napló a Home Assistantben / az ESPHome Builderben látható. A knob sima USB-s
+töltőről is működik.
 
 ## Pinout / Lábkiosztás
 
@@ -89,9 +70,7 @@ A fenti értékek fork nélkül, az eszközkonfig `substitutions` részében át
 card: colour bars, border, text), `black`, `white`, `grey`, `dark` (very dark
 grey) or `ramp` (black-to-white horizontal ramp). Flash it over the air to the same
 device, check the picture, then flash the normal firmware back. With the default
-settings the test card should show sharp colour bars in the right order; stripes
-or a rolling image point to PCLK/porch settings; wrong mid-tones (the gradient
-columns) to `display_colmod`.
+settings the test card shows sharp colour bars in the right order.
 
 Az `esphome/display-test.yaml` ugyanazt a lapdefiníciót használja LVGL nélkül, és
 az ESPHome tesztképét mutatja. OTA-val ugyanarra az eszközre tölthető, a teszt

@@ -1099,7 +1099,7 @@ class KisSegitoManager:
     def snapshot(
         self, device_id: str, language: str, base_url: str | None = None
     ) -> dict[str, Any]:
-        """The compact state a knob needs (schema 1, see docs/protocol.md)."""
+        """The compact state a knob needs (schema 1, see protocol.py)."""
         now = dt_util.now()
         day = now.date()
         tz = dt_util.get_default_time_zone()

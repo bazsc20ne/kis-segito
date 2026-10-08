@@ -23,6 +23,19 @@ Neither part may depend on anything else in the user's Home Assistant setup.
   comments, docs, commit messages, release notes, issues).
 - Do not design UI or invent features beyond what the owner has asked for.
 
+## Public texts
+
+- Every public text is written for the people who install and use Kis Segítő: README,
+  `docs/`, `CHANGELOG.md` and release notes, example configs, issue and PR comments,
+  Home Assistant, panel and knob texts. It never contains developer notes, working
+  rules or instructions meant for Claude.
+- Developer knowledge goes only into this file or into code comments. The knob
+  protocol is documented in `custom_components/kis_segito/protocol.py`.
+- Changelog entries describe only what users notice (no CI, tooling, file moves).
+- Logo and brand mark: exactly two variants, Hungarian ("Kis Segítő") for `hu` and
+  English ("Little Helper") for every other language; a new language never needs a
+  new logo.
+
 ## License
 
 - License: AGPL-3.0 (`LICENSE`). Never replace or change it.
