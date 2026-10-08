@@ -16,6 +16,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <misc/cache/instance/lv_image_cache.h>
+#include <misc/cache/instance/lv_image_header_cache.h>
 
 #include "esphome/components/json/json_util.h"
 #include "esphome/core/hal.h"
@@ -52,9 +53,68 @@ static bool is_online_icon(const std::string &key) {
   return false;
 }
 
-// Set while a carousel slot is filled without a snapshot: piles are drawn with
-// fewer coins then, so redrawing them while sliding stays quick.
-static bool g_light_drawing = false;
+
+// Carousel slots are drawn inside this window: everything outside it is under
+// the opaque band of the time track, so it never needs drawing while a
+// carousel slides.
+static constexpr int WIN_X = 44, WIN_Y = 44, WIN_END = 436;
+
+// Snapshot buffers, allocated once and reused (no fragmentation): one
+// ARGB8888 buffer to render a slot into, and one RGB565A8 buffer per slot.
+static constexpr int SNAP_MAX_W = 300, SNAP_MAX_H = 410;
+static lv_draw_buf_t *g_snap_tmp = nullptr;
+static lv_draw_buf_t *g_slot_buf[4] = {};
+
+static bool snapshot_buffers_ready() {
+  if (g_snap_tmp == nullptr)
+    g_snap_tmp = lv_draw_buf_create(SNAP_MAX_W, SNAP_MAX_H, LV_COLOR_FORMAT_ARGB8888, LV_STRIDE_AUTO);
+  for (auto &buf : g_slot_buf) {
+    if (buf == nullptr && g_snap_tmp != nullptr)
+      buf = lv_draw_buf_create(SNAP_MAX_W, SNAP_MAX_H, LV_COLOR_FORMAT_RGB565A8, LV_STRIDE_AUTO);
+  }
+  return g_snap_tmp != nullptr && g_slot_buf[3] != nullptr;
+}
+
+// Converts the opaque part of an ARGB8888 snapshot into `dst` as RGB565A8,
+// cropped to the pixels that are not fully transparent. The crop's position
+// in the snapshot goes to x0/y0; false when nothing is visible or it does not
+// fit.
+static bool crop_to_rgb565a8(const lv_draw_buf_t *src, lv_draw_buf_t *dst, int *x0, int *y0) {
+  const int w = src->header.w, h = src->header.h;
+  const uint32_t sstride = src->header.stride;
+  int minx = w, miny = h, maxx = -1, maxy = -1;
+  for (int y = 0; y < h; y++) {
+    const uint8_t *row = src->data + y * sstride;
+    for (int x = 0; x < w; x++) {
+      if (row[x * 4 + 3] != 0) {
+        minx = std::min(minx, x);
+        maxx = std::max(maxx, x);
+        miny = std::min(miny, y);
+        maxy = y;
+      }
+    }
+  }
+  if (maxx < 0)
+    return false;
+  const int cw = maxx - minx + 1, ch = maxy - miny + 1;
+  lv_image_cache_drop(dst);
+  lv_image_header_cache_drop(dst);
+  if (lv_draw_buf_reshape(dst, LV_COLOR_FORMAT_RGB565A8, cw, ch, cw * 2) == nullptr)
+    return false;
+  uint8_t *alpha = dst->data + cw * 2 * ch;
+  for (int y = 0; y < ch; y++) {
+    const uint8_t *s = src->data + (y + miny) * sstride + minx * 4;
+    auto *d = reinterpret_cast<uint16_t *>(dst->data + y * cw * 2);
+    uint8_t *a = alpha + y * cw;
+    for (int x = 0; x < cw; x++, s += 4) {
+      d[x] = static_cast<uint16_t>(((s[2] & 0xF8) << 8) | ((s[1] & 0xFC) << 3) | (s[0] >> 3));
+      a[x] = s[3];
+    }
+  }
+  *x0 = minx;
+  *y0 = miny;
+  return true;
+}
 
 // While a carousel slot is filled: collects the downloaded pictures it uses.
 static std::set<std::string> *g_fill_keys = nullptr;
@@ -120,8 +180,16 @@ void Carousel::create(lv_obj_t *parent, int count, int selected, int slot_w, int
   this->spacing_ = spacing;
   this->fill_ = std::move(fill);
   this->anim_ms_ = anim_ms;
+  // The slots move inside a window that clips them to the inner circle's
+  // square, so a slide redraws only that area.
+  const int top = std::max(y, WIN_Y);
+  this->window_ = lv_obj_create(parent);
+  remove_defaults(this->window_);
+  lv_obj_set_pos(this->window_, WIN_X, top);
+  lv_obj_set_size(this->window_, WIN_END - WIN_X, std::max(1, std::min(y + slot_h, WIN_END) - top));
+  this->win_y_ = top;
   for (int i = 0; i < 4; i++) {
-    lv_obj_t *slot = lv_obj_create(parent);
+    lv_obj_t *slot = lv_obj_create(this->window_);
     remove_defaults(slot);
     lv_obj_set_size(slot, slot_w, slot_h);
     lv_obj_set_user_data(slot, reinterpret_cast<void *>(static_cast<intptr_t>(slot_w)));
@@ -144,10 +212,6 @@ void Carousel::release() {
     this->prepare_timer_ = nullptr;
   }
   for (int i = 0; i < 4; i++) {
-    if (this->snap_[i] != nullptr) {
-      lv_draw_buf_destroy(this->snap_[i]);
-      this->snap_[i] = nullptr;
-    }
     this->keys_[i].clear();
     this->ready_[i] = false;
   }
@@ -156,6 +220,7 @@ void Carousel::release() {
 
 void Carousel::forget() {
   this->release();
+  this->window_ = nullptr;
   for (auto &slot : this->slots_)
     slot = nullptr;
   this->count_ = 0;
@@ -181,30 +246,21 @@ void Carousel::refill_key(const std::string &key) {
 
 void Carousel::fill_slot_(int i) {
   lv_obj_t *slot = this->slots_[i];
-  lv_obj_clean(slot);  // before freeing the snapshot its image shows
+  lv_obj_clean(slot);  // its snapshot image goes before the buffer is reused
   lv_obj_remove_flag(slot, LV_OBJ_FLAG_USER_1);
-  if (this->snap_[i] != nullptr) {
-    lv_draw_buf_destroy(this->snap_[i]);
-    this->snap_[i] = nullptr;
-  }
-  const size_t snap_bytes = static_cast<size_t>(this->slot_w_) * this->slot_h_ * 4;
-  g_light_drawing = !this->snapshot_ || !psram_can_spare(snap_bytes);
   this->keys_[i].clear();
   g_fill_keys = &this->keys_[i];
   this->fill_(slot, this->index_[i]);
   g_fill_keys = nullptr;
-  g_light_drawing = false;
   this->ready_[i] = true;
   if (!this->snapshot_)
     return;
-  // Render the slot's content at full opacity into one image, unless PSRAM is
-  // short: then the objects stay (slower to animate, but always drawn).
-  if (!psram_can_spare(snap_bytes)) {
+  // Render the slot's content once into one cropped image, unless the
+  // buffers are missing: then the objects stay (slower to slide).
+  if (this->slot_w_ > SNAP_MAX_W || this->slot_h_ > SNAP_MAX_H || !snapshot_buffers_ready()) {
     static bool logged = false;
     if (!logged) {
-      ESP_LOGE(TAG, "Not enough PSRAM for carousel snapshots (%u KB each, plus %u KB kept free); drawing the "
-                    "objects instead",
-               (unsigned) (snap_bytes / 1024), (unsigned) (PSRAM_RESERVE / 1024));
+      ESP_LOGE(TAG, "No memory for carousel snapshots; drawing the objects instead");
       log_psram("now");
       logged = true;
     }
@@ -213,19 +269,24 @@ void Carousel::fill_slot_(int i) {
   const bool hidden = lv_obj_has_flag(slot, LV_OBJ_FLAG_HIDDEN);
   lv_obj_remove_flag(slot, LV_OBJ_FLAG_HIDDEN);
   lv_obj_update_layout(slot);
-  lv_draw_buf_t *buf = lv_snapshot_take(slot, LV_COLOR_FORMAT_ARGB8888);
+  const lv_result_t res = lv_snapshot_take_to_draw_buf(slot, LV_COLOR_FORMAT_ARGB8888, g_snap_tmp);
   if (hidden)
     lv_obj_add_flag(slot, LV_OBJ_FLAG_HIDDEN);
-  if (buf == nullptr) {
-    ESP_LOGW(TAG, "Slot snapshot failed (out of memory?); keeping the objects");
-    return;
-  }
+  int x0 = 0, y0 = 0;
   lv_obj_clean(slot);
+  if (res != LV_RESULT_OK || !crop_to_rgb565a8(g_snap_tmp, g_slot_buf[i], &x0, &y0)) {
+    if (res != LV_RESULT_OK) {
+      ESP_LOGW(TAG, "Slot snapshot failed; drawing the objects");
+      g_fill_keys = &this->keys_[i];
+      this->fill_(slot, this->index_[i]);
+      g_fill_keys = nullptr;
+    }
+    return;  // (or an empty slot)
+  }
   lv_obj_t *img = lv_image_create(slot);
-  lv_image_set_src(img, buf);
-  lv_obj_set_pos(img, 0, 0);
+  lv_image_set_src(img, g_slot_buf[i]);
+  lv_obj_set_pos(img, x0, y0);
   lv_obj_add_flag(slot, LV_OBJ_FLAG_USER_1);  // a snapshot: fades cheaply
-  this->snap_[i] = buf;
 }
 
 void Carousel::refill() {
@@ -247,7 +308,7 @@ void Carousel::refill() {
 static void slot_x_cb(void *var, int32_t centre_x) {
   auto *slot = static_cast<lv_obj_t *>(var);
   const int half = static_cast<int>(reinterpret_cast<intptr_t>(lv_obj_get_user_data(slot))) / 2;
-  lv_obj_set_x(slot, centre_x - half);
+  lv_obj_set_x(slot, centre_x - half - WIN_X);
   // Side slots fade (to ~105). Only a snapshot image fades: its image opacity is
   // cheap, while an opacity on the slot itself makes LVGL render the whole slot
   // into a layer on every frame, which makes the slide stutter or jump.
@@ -261,7 +322,7 @@ static void slot_x_cb(void *var, int32_t centre_x) {
 void Carousel::place_(int slot, int offset, bool animate) {
   lv_obj_t *obj = this->slots_[slot];
   const int target = CENTER + offset * this->spacing_;
-  lv_obj_set_y(obj, this->y_);
+  lv_obj_set_y(obj, this->y_ - this->win_y_);
   const bool visible = std::abs(offset) <= 1 && (this->count_ > 1 || offset == 0);
   if (visible)
     lv_obj_remove_flag(obj, LV_OBJ_FLAG_HIDDEN);
@@ -272,7 +333,7 @@ void Carousel::place_(int slot, int offset, bool animate) {
     return;
   }
   const int half = static_cast<int>(reinterpret_cast<intptr_t>(lv_obj_get_user_data(obj))) / 2;
-  const int from = lv_obj_get_x(obj) + half;
+  const int from = lv_obj_get_x(obj) + half + WIN_X;
   lv_anim_t a;
   lv_anim_init(&a);
   lv_anim_set_var(&a, obj);
@@ -338,6 +399,8 @@ void Carousel::rotate(int dir) {
                    (unsigned) (g_slide_render_ms / g_slide_frames));
         }
         g_slide_measure = false;
+        if (self->on_settled)
+          self->on_settled();
         self->prepare_spare_();
       },
       this->anim_ms_ + 40, this);
@@ -806,6 +869,15 @@ void KisSegitoUI::start() {
       },
       1000, this);
 
+  // The inner track is hidden while a carousel slides (fewer things to draw
+  // on every frame) and comes back, for the centred child, when it stops.
+  this->carousel_.on_settled = [this]() {
+    if (this->inner_layer_ == nullptr)
+      return;
+    if (this->screen_ == Screen::CHILDREN)
+      this->build_inner_track_();
+    lv_obj_remove_flag(this->inner_layer_, LV_OBJ_FLAG_HIDDEN);
+  };
   this->show_(Screen::CHILDREN);
   ESP_LOGI(TAG, "UI started (%s, %u children)", this->have_state_ ? "Home Assistant data" : "test data",
            (unsigned) this->children_.size());
@@ -1216,10 +1288,66 @@ lv_obj_t *KisSegitoUI::number_pill_(lv_obj_t *parent, int cx, int cy, int value,
   return pill;
 }
 
+// Blends a built-in image (RGB565A8, RGB565 or ARGB8888) at (x, y) over an
+// RGB565A8 canvas ("over" compositing, so the canvas keeps its own alpha).
+static void blend_into(lv_draw_buf_t *canvas, const lv_image_dsc_t *src, int x, int y) {
+  const int cw = canvas->header.w, ch = canvas->header.h;
+  const int sw = src->header.w, sh = src->header.h;
+  const uint32_t cstride = canvas->header.stride;
+  uint8_t *calpha = canvas->data + cstride * ch;
+  const lv_color_format_t cf = static_cast<lv_color_format_t>(src->header.cf);
+  const uint32_t sstride = src->header.stride;
+  for (int j = 0; j < sh; j++) {
+    const int ty = y + j;
+    if (ty < 0 || ty >= ch)
+      continue;
+    auto *drow = reinterpret_cast<uint16_t *>(canvas->data + ty * cstride);
+    uint8_t *arow = calpha + ty * (cstride / 2);
+    for (int i = 0; i < sw; i++) {
+      const int tx = x + i;
+      if (tx < 0 || tx >= cw)
+        continue;
+      uint32_t r, g, b, a;
+      if (cf == LV_COLOR_FORMAT_ARGB8888) {
+        const uint8_t *p = src->data + j * sstride + i * 4;
+        b = p[0];
+        g = p[1];
+        r = p[2];
+        a = p[3];
+      } else {
+        const uint16_t c = reinterpret_cast<const uint16_t *>(src->data + j * sstride)[i];
+        r = (c >> 8) & 0xF8;
+        g = (c >> 3) & 0xFC;
+        b = (c << 3) & 0xF8;
+        a = cf == LV_COLOR_FORMAT_RGB565A8 ? src->data[sstride * sh + j * (sstride / 2) + i] : 255;
+      }
+      if (a == 0)
+        continue;
+      const uint32_t da = arow[tx];
+      if (a == 255 || da == 0) {
+        drow[tx] = static_cast<uint16_t>(((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3));
+        arow[tx] = static_cast<uint8_t>(a);
+        continue;
+      }
+      const uint16_t dc = drow[tx];
+      const uint32_t dr = (dc >> 8) & 0xF8, dg = (dc >> 3) & 0xFC, db = (dc << 3) & 0xF8;
+      const uint32_t dw = da * (255 - a) / 255;  // what still shows of the canvas
+      const uint32_t oa = a + dw;
+      r = (r * a + dr * dw) / oa;
+      g = (g * a + dg * dw) / oa;
+      b = (b * a + db * dw) / oa;
+      drow[tx] = static_cast<uint16_t>(((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3));
+      arow[tx] = static_cast<uint8_t>(oa);
+    }
+  }
+}
+
 // A physical-looking heap of exactly `count` coins. It grows upwards as a
 // pyramid up to max_rows, then spreads sideways up to max_width coins, then
 // "flows" downwards below base_y (off the screen if needed). Coins below the
-// screen are counted but not created.
+// screen are counted but not drawn. The coins are composed into one picture
+// (one object instead of hundreds); the newest few (count % 10) stay separate
+// objects in front of it.
 void KisSegitoUI::pile_(lv_obj_t *parent, int cx, int base_y, int count, uint32_t seed, int max_rows, int max_width,
                         int dx, int dy) {
   if (count <= 0)
@@ -1257,31 +1385,70 @@ void KisSegitoUI::pile_(lv_obj_t *parent, int cx, int base_y, int count, uint32_
     left -= n;
   }
 
-  // Create back to front: top pyramid rows first, then the base, then the spill.
+  // Back to front: top pyramid rows first, then the base, then the spill.
   std::vector<size_t> order;
   for (size_t i = 0; i < rows.size(); i++)
     order.push_back(i);
   std::sort(order.begin(), order.end(), [&rows](size_t a, size_t b) { return rows[a].y < rows[b].y; });
 
-  int created = 0;
+  struct Coin {
+    int x, y;  // top left in parent coordinates
+    const lv_image_dsc_t *dsc;
+  };
+  std::vector<Coin> coins;
   for (size_t idx : order) {
     const Row &row = rows[idx];
     if (row.y - 14 > SCREEN + 16)
       continue;  // below the screen: counted, not drawn
-    const int max_coins = g_light_drawing ? 30 : 320;
-    for (int i = 0; i < row.n && created < max_coins; i++) {
+    for (int i = 0; i < row.n; i++) {
       const uint32_t h = hash32(seed * 7919u + idx * 131u + i);
       const int jx = static_cast<int>(h % 7) - 3;
       const int jy = static_cast<int>((h >> 8) % 5) - 2;
       const int x = cx + static_cast<int>((i - (row.n - 1) / 2.0f) * dx) + jx;
-      lv_obj_t *coin = lv_image_create(parent);
       const lv_image_dsc_t *dsc = dscs[(h >> 16) % 3];
-      if (dsc == nullptr)
-        continue;
-      lv_image_set_src(coin, dsc);
-      lv_obj_set_pos(coin, x - 14, row.y + jy - 14);
-      created++;
+      if (dsc != nullptr)
+        coins.push_back({x - 14, row.y + jy - 14, dsc});
     }
+  }
+  if (coins.empty())
+    return;
+  const size_t live = std::min<size_t>(count % 10, coins.size());
+  const size_t composed = coins.size() - live;
+  size_t first_live = 0;  // coins from here on are separate objects
+  if (composed > 0) {
+    int x0 = INT_MAX, y0 = INT_MAX, x1 = INT_MIN, y1 = INT_MIN;
+    for (size_t i = 0; i < composed; i++) {
+      x0 = std::min(x0, coins[i].x);
+      y0 = std::min(y0, coins[i].y);
+      x1 = std::max(x1, coins[i].x + static_cast<int>(coins[i].dsc->header.w));
+      y1 = std::max(y1, coins[i].y + static_cast<int>(coins[i].dsc->header.h));
+    }
+    lv_draw_buf_t *canvas = lv_draw_buf_create(x1 - x0, y1 - y0, LV_COLOR_FORMAT_RGB565A8, LV_STRIDE_AUTO);
+    if (canvas != nullptr) {
+      memset(canvas->data + canvas->header.stride * canvas->header.h, 0,
+             (canvas->header.stride / 2) * canvas->header.h);
+      for (size_t i = 0; i < composed; i++)
+        blend_into(canvas, coins[i].dsc, coins[i].x - x0, coins[i].y - y0);
+      lv_obj_t *img = lv_image_create(parent);
+      lv_image_set_src(img, canvas);
+      lv_obj_set_pos(img, x0, y0);
+      lv_obj_add_event_cb(
+          img,
+          [](lv_event_t *e) {
+            auto *buf = static_cast<lv_draw_buf_t *>(lv_event_get_user_data(e));
+            lv_image_cache_drop(buf);
+            lv_image_header_cache_drop(buf);
+            lv_draw_buf_destroy(buf);
+          },
+          LV_EVENT_DELETE, canvas);
+      first_live = composed;
+    }
+    // Without memory for the picture every coin is an object (slower).
+  }
+  for (size_t i = first_live; i < coins.size(); i++) {
+    lv_obj_t *coin = lv_image_create(parent);
+    lv_image_set_src(coin, coins[i].dsc);
+    lv_obj_set_pos(coin, coins[i].x, coins[i].y);
   }
 }
 
@@ -1447,15 +1614,22 @@ void KisSegitoUI::do_rotate_(int dir) {
     return;
   switch (this->screen_) {
     case Screen::CHILDREN:
+      // The inner track belongs to the centred child: hidden while sliding,
+      // drawn for the new child when the slide ends.
+      if (this->inner_layer_ != nullptr)
+        lv_obj_add_flag(this->inner_layer_, LV_OBJ_FLAG_HIDDEN);
       this->carousel_.rotate(dir);
       this->select_child_(this->carousel_.selected());
-      this->build_inner_track_();  // the inner track belongs to the centred child
       break;
     case Screen::FUNCTIONS:
+      if (this->inner_layer_ != nullptr)
+        lv_obj_add_flag(this->inner_layer_, LV_OBJ_FLAG_HIDDEN);
       this->carousel_.rotate(dir);
       this->function_ = this->carousel_.selected();
       break;
     case Screen::REWARDS:
+      if (this->inner_layer_ != nullptr)
+        lv_obj_add_flag(this->inner_layer_, LV_OBJ_FLAG_HIDDEN);
       this->carousel_.rotate(dir);
       this->reward_ = this->shop_()[this->carousel_.selected()];
       break;
@@ -1651,8 +1825,10 @@ void KisSegitoUI::do_long_press_() {
   this->last_input_ms_ = millis();
   switch (this->screen_) {
     case Screen::CHILDREN:
-      // On the home screen: connect to Home Assistant again.
-      this->reconnect_();
+      // On the home screen, while Home Assistant is not connected: try to
+      // connect again.
+      if (!this->connected_)
+        this->reconnect_();
       break;
     case Screen::FUNCTIONS:
       this->show_(Screen::CHILDREN);
@@ -1753,7 +1929,7 @@ void KisSegitoUI::build_functions_() {
           icon = "fn_rewards";
         this->image_(slot, icon + "_160", 120, 120);
       },
-      this->anim_ms_(240));
+      this->anim_ms_(240), true);
   // Small child marker at the top centre: context only, not the focus.
   this->disc_(this->screen_obj_, CENTER, 96, 76, lv_color_hex(child.color));
   lv_obj_t *avatar = this->image_(this->screen_obj_, child.avatar + "_180", CENTER, 96);
@@ -1789,7 +1965,7 @@ void KisSegitoUI::build_rewards_() {
         this->pile_(slot, 130, 290, r.cost, fnv1_hash(r.id), 4, 9, 16, 9);
         this->number_pill_(slot, 130, 320, r.cost, false);
       },
-      this->anim_ms_(240));
+      this->anim_ms_(240), true);
   // Current wallet below the carousel.
   this->number_pill_(this->screen_obj_, CENTER, 420, child.wallet, true);
 }
@@ -2055,49 +2231,150 @@ Routine *KisSegitoUI::track_routine_() {
   return any;
 }
 
+// The static part of the time track (band, zones, elapsed time) is drawn once
+// into small tiles along the ring (TRACK_TILE px squares; fully transparent
+// ones are left out) and shown as pictures: drawing these arcs on every frame
+// is what made sliding slow. The tiles are redrawn only when the track
+// changes.
+static constexpr int TRACK_TILE = 48;
+struct TrackTile {
+  int x, y;  // cell origin
+  lv_draw_buf_t *buf;
+  int ox, oy;  // the cropped picture's offset in the cell
+  bool used;
+};
+static std::vector<TrackTile> g_track_tiles;
+static lv_draw_buf_t *g_tile_tmp = nullptr;
+static uint32_t g_track_key = 0;
+static bool g_track_tiles_ok = false;
+
+static bool track_tiles_alloc() {
+  if (g_track_tiles.empty()) {
+    for (int cy = 0; cy < SCREEN; cy += TRACK_TILE) {
+      for (int cx = 0; cx < SCREEN; cx += TRACK_TILE) {
+        float dmax = 0;
+        for (int x : {cx, cx + TRACK_TILE}) {
+          for (int y : {cy, cy + TRACK_TILE})
+            dmax = std::max(dmax, std::hypot(static_cast<float>(x - CENTER), static_cast<float>(y - CENTER)));
+        }
+        const int nx = std::min(std::max(CENTER, cx), cx + TRACK_TILE);
+        const int ny = std::min(std::max(CENTER, cy), cy + TRACK_TILE);
+        const float dmin = std::hypot(static_cast<float>(nx - CENTER), static_cast<float>(ny - CENTER));
+        if (dmax > BAND_R - FADE_W - 4 && dmin < CENTER + 8)
+          g_track_tiles.push_back({cx, cy, nullptr, 0, 0, false});
+      }
+    }
+  }
+  if (g_tile_tmp == nullptr)
+    g_tile_tmp = lv_draw_buf_create(TRACK_TILE, TRACK_TILE, LV_COLOR_FORMAT_ARGB8888, LV_STRIDE_AUTO);
+  if (g_tile_tmp == nullptr)
+    return false;
+  for (auto &t : g_track_tiles) {
+    if (t.buf == nullptr)
+      t.buf = lv_draw_buf_create(TRACK_TILE, TRACK_TILE, LV_COLOR_FORMAT_RGB565A8, LV_STRIDE_AUTO);
+    if (t.buf == nullptr)
+      return false;
+  }
+  return true;
+}
+
 void KisSegitoUI::build_track_() {
   lv_obj_clean(this->track_layer_);
   this->inner_layer_ = this->elapsed_arc_ = this->now_dot_ = this->top_gap_ = nullptr;
   this->shown_reward_ = -1;
   const lv_color_t bg = lv_obj_get_style_bg_color(this->root_, LV_PART_MAIN);
-
-  // Homogeneous band in the background colour behind the arcs, with a soft
-  // inner edge, so carousel content passing under it does not disturb them.
-  for (int i = 0; i < 4; i++) {
-    const int w = FADE_W / 4;
-    lv_obj_t *fade = this->track_arc_(this->track_layer_, BAND_R - FADE_W + (i + 1) * w, w, 0.0f, 1.0f, bg);
-    lv_arc_set_bg_angles(fade, 0, 360);
-    lv_obj_set_style_arc_rounded(fade, false, LV_PART_MAIN);
-    lv_obj_set_style_arc_opa(fade, static_cast<lv_opa_t>(50 + i * 50), LV_PART_MAIN);
-  }
-  // A little beyond the screen edge, so its anti-aliased outer edge never lets
-  // the background picture show through at the rim.
-  lv_obj_t *band = this->track_arc_(this->track_layer_, CENTER + 6, CENTER + 6 - BAND_R, 0.0f, 1.0f, bg);
-  lv_arc_set_bg_angles(band, 0, 360);
-  lv_obj_set_style_arc_rounded(band, false, LV_PART_MAIN);
-
-  // Outer, shared track. The whole future colour structure is visible from
-  // the start: the base colour, then each zone from its offset before the end.
   Routine *r = this->track_routine_();
   this->shown_routine_ = r;
-  if (r != nullptr) {
+  // Elapsed time, in steps of 1 % of the track (redrawn when idle).
+  const float elapsed = r != nullptr ? std::floor(track_p(*r, this->now_()) * 100.0f) / 100.0f : 0.0f;
+  this->baked_elapsed_ = elapsed;
+
+  auto draw_static = [this, bg, r, elapsed](lv_obj_t *parent) {
+    // Homogeneous band in the background colour behind the arcs, with a soft
+    // inner edge, so carousel content passing under it does not disturb them.
+    for (int i = 0; i < 4; i++) {
+      const int w = FADE_W / 4;
+      lv_obj_t *fade = this->track_arc_(parent, BAND_R - FADE_W + (i + 1) * w, w, 0.0f, 1.0f, bg);
+      lv_arc_set_bg_angles(fade, 0, 360);
+      lv_obj_set_style_arc_rounded(fade, false, LV_PART_MAIN);
+      lv_obj_set_style_arc_opa(fade, static_cast<lv_opa_t>(50 + i * 50), LV_PART_MAIN);
+    }
+    // A little beyond the screen edge, so its anti-aliased outer edge never
+    // lets the background picture show through at the rim.
+    lv_obj_t *band = this->track_arc_(parent, CENTER + 6, CENTER + 6 - BAND_R, 0.0f, 1.0f, bg);
+    lv_arc_set_bg_angles(band, 0, 360);
+    lv_obj_set_style_arc_rounded(band, false, LV_PART_MAIN);
+    if (r == nullptr) {
+      // No routine running: an empty track.
+      this->track_arc_(parent, OUTER_R, OUTER_W, 0.0f, 1.0f, lv_color_hex(TRACK_DIM));
+      return;
+    }
+    // Outer, shared track. The whole future colour structure is visible from
+    // the start: the base colour, then each zone from its offset before the end.
     float from = 0.0f;
     lv_color_t color = lv_color_hex(r->base_color);
     for (const auto &zone : r->zones) {
       const float p = track_p(*r, r->end - zone.offset_s);
       if (p > from)
-        this->track_arc_(this->track_layer_, OUTER_R, OUTER_W, from, p, color);
+        this->track_arc_(parent, OUTER_R, OUTER_W, from, p, color);
       from = std::max(from, p);
       color = lv_color_hex(zone.color);
     }
     if (from < 1.0f)
-      this->track_arc_(this->track_layer_, OUTER_R, OUTER_W, from, 1.0f, color);
-    // Elapsed time is dimmed; update_track_() moves it every second.
-    this->elapsed_arc_ = this->track_arc_(this->track_layer_, OUTER_R + 1, OUTER_W + 2, 0.0f, 0.001f,
-                                         lv_color_hex(TRACK_DIM));
+      this->track_arc_(parent, OUTER_R, OUTER_W, from, 1.0f, color);
+    // Elapsed time is dimmed.
+    if (elapsed > 0.0f)
+      this->track_arc_(parent, OUTER_R + 1, OUTER_W + 2, 0.0f, elapsed, lv_color_hex(TRACK_DIM));
+  };
+
+  uint32_t key = 2166136261u;
+  auto mix = [&key](uint32_t v) { key = (key ^ v) * 16777619u; };
+  mix(lv_color_to_u32(bg));
+  mix(static_cast<uint32_t>(elapsed * 1000));
+  if (r != nullptr) {
+    mix(r->base_color);
+    mix(static_cast<uint32_t>(r->start));
+    mix(static_cast<uint32_t>(r->end));
+    for (const auto &zone : r->zones) {
+      mix(static_cast<uint32_t>(zone.offset_s));
+      mix(zone.color);
+    }
+  }
+  if (!g_track_tiles_ok || key != g_track_key) {
+    g_track_tiles_ok = false;
+    if (track_tiles_alloc()) {
+      const uint32_t started = millis();
+      for (auto &t : g_track_tiles) {
+        lv_obj_t *holder = lv_obj_create(this->track_layer_);
+        remove_defaults(holder);
+        lv_obj_set_pos(holder, t.x, t.y);
+        lv_obj_set_size(holder, TRACK_TILE, TRACK_TILE);
+        lv_obj_t *inner = lv_obj_create(holder);
+        remove_defaults(inner);
+        lv_obj_set_pos(inner, -t.x, -t.y);
+        lv_obj_set_size(inner, SCREEN, SCREEN);
+        draw_static(inner);
+        lv_obj_update_layout(holder);
+        t.used = lv_snapshot_take_to_draw_buf(holder, LV_COLOR_FORMAT_ARGB8888, g_tile_tmp) == LV_RESULT_OK &&
+                 crop_to_rgb565a8(g_tile_tmp, t.buf, &t.ox, &t.oy);
+        lv_obj_delete(holder);
+      }
+      g_track_key = key;
+      g_track_tiles_ok = true;
+      ESP_LOGD(TAG, "Track drawn into %u tiles in %u ms", (unsigned) g_track_tiles.size(),
+               (unsigned) (millis() - started));
+    }
+  }
+  if (g_track_tiles_ok) {
+    for (const auto &t : g_track_tiles) {
+      if (!t.used)
+        continue;
+      lv_obj_t *img = lv_image_create(this->track_layer_);
+      lv_image_set_src(img, t.buf);
+      lv_obj_set_pos(img, t.x + t.ox, t.y + t.oy);
+    }
   } else {
-    // No routine running: an empty track.
-    this->track_arc_(this->track_layer_, OUTER_R, OUTER_W, 0.0f, 1.0f, lv_color_hex(TRACK_DIM));
+    draw_static(this->track_layer_);  // no memory for the tiles: live arcs
   }
 
   // The selected child's inner track, below the outer markers.
@@ -2170,13 +2447,15 @@ void KisSegitoUI::update_track_() {
     return;
   }
   const Routine *r = this->shown_routine_;
-  if (r != nullptr && this->elapsed_arc_ != nullptr) {
+  if (r != nullptr && this->now_dot_ != nullptr) {
     const float p = std::max(0.001f, track_p(*r, this->now_()));
-    float start = 240.0f - 300.0f * p;
-    if (start < 0)
-      start += 360;
-    lv_arc_set_bg_angles(this->elapsed_arc_, static_cast<lv_value_precise_t>(start),
-                         static_cast<lv_value_precise_t>(240));
+    // The dimmed elapsed part is drawn into the track tiles; it is redrawn
+    // when it is 1 % behind and nobody is using the knob.
+    if (p - this->baked_elapsed_ >= 0.01f && !this->busy_ && millis() - this->last_input_ms_ > 3000 &&
+        this->input_.empty()) {
+      this->build_track_();
+      return;
+    }
     int x, y;
     this->ring_point_(p, OUTER_MID, &x, &y);
     lv_obj_set_pos(this->now_dot_, x - 9, y - 9);
@@ -2295,54 +2574,109 @@ void KisSegitoUI::celebrate_(int tokens) {
 
 // ---------------------------------------------------------------- Screensaver
 
-// Continuous confetti over a black screen. Each piece falls on its own
-// swaying path at its own speed and flutters (its width follows a turning
-// motion). Now and then a gust catches a few pieces near each other and blows
-// them sideways, each a little differently; pieces blown off the screen come
-// back only when too few are left. One timer moves them all at a fixed rate.
+// Confetti or stars on their own black screen (so nothing else is drawn
+// under them). A fixed set of small objects is created once; on every frame
+// they only move, so each frame redraws just their old and new places. Each
+// piece falls on its own swaying path with its own speed and a sideways drift
+// that changes direction now and then. Now and then a gust catches a few
+// pieces near each other and blows them aside, each a little differently;
+// pieces blown off the screen come back only when too few are left.
 static constexpr uint32_t CONFETTI_COLORS[] = {0xFF6B6B, 0xFFC94A, 0x6BCB77, 0x6CB8FF, 0xA78BFA, 0xFF8FB1};
+static constexpr uint32_t STAR_COLORS[] = {0xFFE08A, 0xFFFFFF, 0xFFC94A, 0xBFE3FF, 0xFFD6F0, 0xFFF3B0};
+static constexpr int STAR_SIZES[] = {8, 10, 12};  // never bigger than a confetti piece
 
 static float frand(float lo, float hi) { return lo + (hi - lo) * static_cast<float>(random_uint32() % 10000) / 10000.0f; }
 
+// A five-pointed star of the given size and colour (RGB565A8, anti-aliased).
+static lv_draw_buf_t *make_star(int size, uint32_t color) {
+  lv_draw_buf_t *buf = lv_draw_buf_create(size, size, LV_COLOR_FORMAT_RGB565A8, LV_STRIDE_AUTO);
+  if (buf == nullptr)
+    return nullptr;
+  float vx[10], vy[10];
+  const float c = size / 2.0f, outer = size / 2.0f, inner = outer * 0.45f;
+  for (int i = 0; i < 10; i++) {
+    const float a = -static_cast<float>(M_PI) / 2 + i * static_cast<float>(M_PI) / 5;
+    const float rad = (i % 2 == 0) ? outer : inner;
+    vx[i] = c + rad * cosf(a);
+    vy[i] = c + rad * sinf(a);
+  }
+  auto inside = [&](float x, float y) {
+    bool in = false;
+    for (int i = 0, j = 9; i < 10; j = i++) {
+      if ((vy[i] > y) != (vy[j] > y) && x < (vx[j] - vx[i]) * (y - vy[i]) / (vy[j] - vy[i]) + vx[i])
+        in = !in;
+    }
+    return in;
+  };
+  const uint16_t rgb = static_cast<uint16_t>((((color >> 16) & 0xF8) << 8) | (((color >> 8) & 0xFC) << 3) |
+                                             ((color & 0xFF) >> 3));
+  auto *px = reinterpret_cast<uint16_t *>(buf->data);
+  uint8_t *alpha = buf->data + buf->header.stride * size;
+  for (int y = 0; y < size; y++) {
+    for (int x = 0; x < size; x++) {
+      int hits = 0;
+      for (int sy = 0; sy < 4; sy++) {
+        for (int sx = 0; sx < 4; sx++)
+          hits += inside(x + (sx + 0.5f) / 4, y + (sy + 0.5f) / 4) ? 1 : 0;
+      }
+      px[y * (buf->header.stride / 2) + x] = rgb;
+      alpha[y * (buf->header.stride / 2) + x] = static_cast<uint8_t>(hits * 255 / 16);
+    }
+  }
+  return buf;
+}
+
 void KisSegitoUI::spawn_piece_(Piece &p, bool anywhere) {
-  const float k = frand(0.8f, 1.2f);  // size within +/-20 %
-  const bool wide = random_uint32() & 1;
-  p.w = std::max(3, static_cast<int>(std::lround((wide ? 12 : 7) * k)));
-  p.h = std::max(3, static_cast<int>(std::lround((wide ? 7 : 12) * k)));
-  p.x = frand(30, SCREEN - 30);
-  p.y = anywhere ? frand(-SCREEN, SCREEN - 40) : frand(-60, -16);
-  p.vy = frand(150, 210);
-  p.vx = frand(-18, 18);
+  p.x = frand(10, SCREEN - 10 - p.w);
+  p.y = anywhere ? frand(-40, SCREEN - 20) : frand(-60, -p.h - 2.0f);
+  p.vy = frand(150, 215);
+  p.drift = frand(-45, 45);
+  p.drift_to = frand(-60, 60);
+  p.drift_ms = millis() + 500 + random_uint32() % 2000;
   p.gust = p.gust_vy = 0;
-  p.sway = frand(10, 26);
-  p.sway_hz = frand(0.35f, 0.8f);
+  p.sway = frand(14, 40);
+  p.sway_hz = frand(0.3f, 0.9f);
   p.phase = frand(0, 6.283f);
-  p.flip_hz = frand(0.8f, 2.2f);
-  p.flip = frand(0, 6.283f);
-  p.alive = true;
-  lv_obj_set_size(p.obj, p.w, p.h);
-  lv_obj_remove_flag(p.obj, LV_OBJ_FLAG_HIDDEN);
+  p.on_screen = true;
+  lv_obj_set_pos(p.obj, static_cast<int>(p.x), static_cast<int>(p.y));
 }
 
 void KisSegitoUI::start_confetti() {
-  if (this->confetti_layer_ != nullptr)
+  if (this->saver_screen_ != nullptr)
     return;
-  this->confetti_layer_ = lv_obj_create(lv_layer_top());
-  remove_defaults(this->confetti_layer_);
-  lv_obj_set_size(this->confetti_layer_, SCREEN, SCREEN);
-  lv_obj_set_style_bg_color(this->confetti_layer_, lv_color_black(), 0);
-  lv_obj_set_style_bg_opa(this->confetti_layer_, LV_OPA_COVER, 0);
+  const bool stars = this->saver_type_ == "stars";
+  this->saver_screen_ = lv_obj_create(nullptr);
+  remove_defaults(this->saver_screen_);
+  lv_obj_set_style_bg_color(this->saver_screen_, lv_color_black(), 0);
+  lv_obj_set_style_bg_opa(this->saver_screen_, LV_OPA_COVER, 0);
+  static lv_draw_buf_t *star_imgs[6][3] = {};
   for (int i = 0; i < CONFETTI; i++) {
     Piece &p = this->confetti_[i];
-    p.obj = lv_obj_create(this->confetti_layer_);
-    remove_defaults(p.obj);
-    lv_obj_set_style_radius(p.obj, 2, 0);
-    lv_obj_set_style_bg_color(p.obj, lv_color_hex(CONFETTI_COLORS[i % 6]), 0);
-    lv_obj_set_style_bg_opa(p.obj, LV_OPA_COVER, 0);
+    const float k = frand(0.8f, 1.2f);  // size within +/-20 %
+    if (stars) {
+      const int c = i % 6, sz = static_cast<int>(random_uint32() % 3);
+      if (star_imgs[c][sz] == nullptr)
+        star_imgs[c][sz] = make_star(STAR_SIZES[sz], STAR_COLORS[c]);
+      p.obj = lv_image_create(this->saver_screen_);
+      if (star_imgs[c][sz] != nullptr)
+        lv_image_set_src(p.obj, star_imgs[c][sz]);
+      p.w = p.h = STAR_SIZES[sz];
+    } else {
+      const bool wide = random_uint32() & 1;
+      p.w = std::max(3, static_cast<int>(std::lround((wide ? 12 : 7) * k)));
+      p.h = std::max(3, static_cast<int>(std::lround((wide ? 7 : 12) * k)));
+      p.obj = lv_obj_create(this->saver_screen_);
+      remove_defaults(p.obj);
+      lv_obj_set_size(p.obj, p.w, p.h);
+      lv_obj_set_style_radius(p.obj, 2, 0);
+      lv_obj_set_style_bg_color(p.obj, lv_color_hex(CONFETTI_COLORS[i % 6]), 0);
+      lv_obj_set_style_bg_opa(p.obj, LV_OPA_COVER, 0);
+    }
     this->spawn_piece_(p, true);  // already spread over the screen
   }
+  lv_screen_load(this->saver_screen_);
   this->confetti_ms_ = millis();
-  this->next_gust_ms_ = this->confetti_ms_ + 3000 + random_uint32() % 4000;
+  this->next_gust_ms_ = this->confetti_ms_ + 2500 + random_uint32() % 4000;
   this->confetti_timer_ = lv_timer_create(
       [](lv_timer_t *t) { static_cast<KisSegitoUI *>(lv_timer_get_user_data(t))->confetti_step_(); }, 33, this);
 }
@@ -2350,61 +2684,60 @@ void KisSegitoUI::start_confetti() {
 void KisSegitoUI::confetti_step_() {
   const uint32_t now = millis();
   // Real elapsed time, so a late frame does not slow the fall down.
-  const float dt = std::min(static_cast<float>(now - this->confetti_ms_), 60.0f) / 1000.0f;
+  const float dt = std::min(static_cast<float>(now - this->confetti_ms_), 70.0f) / 1000.0f;
   this->confetti_ms_ = now;
   if (static_cast<int32_t>(now - this->next_gust_ms_) >= 0) {
     // A gust: 5-7 pieces closest to a random point, in a random direction.
-    this->next_gust_ms_ = now + 4000 + random_uint32() % 6000;
-    const float gx = frand(60, SCREEN - 60), gy = frand(60, SCREEN - 140);
+    this->next_gust_ms_ = now + 3500 + random_uint32() % 6000;
+    const float gx = frand(60, SCREEN - 60), gy = frand(40, SCREEN - 160);
     const float dir = (random_uint32() & 1) ? 1.0f : -1.0f;
-    const float lift = frand(-60, 20);  // slightly up or down, varies per gust
+    const float lift = frand(-90, 30);  // a little up or down, different each gust
     std::vector<std::pair<float, int>> near;
     for (int i = 0; i < CONFETTI; i++) {
       const Piece &p = this->confetti_[i];
-      if (p.alive && p.y > 0)
+      if (p.on_screen && p.y > 0)
         near.emplace_back((p.x - gx) * (p.x - gx) + (p.y - gy) * (p.y - gy), i);
     }
     std::sort(near.begin(), near.end());
     const size_t n = std::min<size_t>(near.size(), 5 + random_uint32() % 3);
     for (size_t j = 0; j < n; j++) {
       Piece &p = this->confetti_[near[j].second];
-      p.gust = dir * frand(220, 520);  // each one blown a little differently
-      p.gust_vy = lift * frand(0.5f, 1.5f);
+      p.gust = dir * frand(200, 560);  // each one blown a little differently
+      p.gust_vy = lift * frand(0.4f, 1.6f);
     }
   }
-  int alive = 0;
+  int on_screen = 0;
   for (const auto &p : this->confetti_)
-    alive += p.alive ? 1 : 0;
+    on_screen += p.on_screen ? 1 : 0;
+  // A gust fades out over about a second (air drag).
+  const float drag = std::max(0.0f, 1.0f - 1.5f * dt);
   for (auto &p : this->confetti_) {
-    if (!p.alive) {
-      if (alive < CONFETTI_MIN) {
+    if (!p.on_screen) {
+      if (on_screen < CONFETTI_MIN) {
         this->spawn_piece_(p, false);
-        alive++;
+        on_screen++;
       }
       continue;
     }
+    if (static_cast<int32_t>(now - p.drift_ms) >= 0) {
+      p.drift_to = frand(-60, 60);  // the air around it turns
+      p.drift_ms = now + 700 + random_uint32() % 2200;
+    }
+    p.drift += (p.drift_to - p.drift) * std::min(1.0f, 1.2f * dt);
     p.phase += 6.283f * p.sway_hz * dt;
-    p.flip += 6.283f * p.flip_hz * dt;
-    // A gust fades out over about a second (air drag).
-    const float drag = std::max(0.0f, 1.0f - 1.6f * dt);
     p.gust *= drag;
     p.gust_vy *= drag;
-    p.x += (p.vx + p.gust + p.sway * 6.283f * p.sway_hz * cosf(p.phase)) * dt;
-    p.y += (p.vy + p.gust_vy) * dt;
-    if (p.x < -30 || p.x > SCREEN + 30) {
-      // Blown off the screen.
-      p.alive = false;
-      lv_obj_add_flag(p.obj, LV_OBJ_FLAG_HIDDEN);
+    p.x += (p.drift + p.gust + p.sway * 6.283f * p.sway_hz * cosf(p.phase)) * dt;
+    p.y += std::max(20.0f, p.vy + p.gust_vy) * dt;
+    if (p.x < -p.w - 4 || p.x > SCREEN + 4) {
+      p.on_screen = false;  // blown off the screen; it stays there for now
       continue;
     }
-    if (p.y > SCREEN + 16) {
+    if (p.y > SCREEN + 4) {
       this->spawn_piece_(p, false);  // fell out at the bottom: again from the top
       continue;
     }
-    // Fluttering: the piece turns, so its visible width changes.
-    const int w = std::max(2, static_cast<int>(std::lround(p.w * std::fabs(cosf(p.flip)))));
-    lv_obj_set_width(p.obj, w);
-    lv_obj_set_pos(p.obj, static_cast<int>(p.x) - w / 2, static_cast<int>(p.y) - p.h / 2);
+    lv_obj_set_pos(p.obj, static_cast<int>(p.x), static_cast<int>(p.y));
   }
 }
 
@@ -2413,9 +2746,11 @@ void KisSegitoUI::stop_confetti() {
     lv_timer_delete(this->confetti_timer_);
     this->confetti_timer_ = nullptr;
   }
-  if (this->confetti_layer_ != nullptr) {
-    lv_obj_delete(this->confetti_layer_);  // deletes the pieces too
-    this->confetti_layer_ = nullptr;
+  if (this->saver_screen_ != nullptr) {
+    if (lv_screen_active() == this->saver_screen_ && this->root_ != nullptr)
+      lv_screen_load(this->root_);
+    lv_obj_delete(this->saver_screen_);  // deletes the pieces too
+    this->saver_screen_ = nullptr;
   }
 }
 

@@ -261,11 +261,12 @@
   "screen.dim_level": "Halványított fényerő (%)",
   "screen.blank_after": "Rajzolás leállítása ennyi után (s)",
   "screen.off_after": "Háttérvilágítás ki ennyi után (s)",
-  "screen.hint": "Tétlenségi idők minden gombra; 0 = soha. A képernyővédő pattogó labdákat vagy konfettit mutat; a rajzolás leállításakor a képernyő fekete lesz, és a gomb nem rajzol. Bármilyen tekerés vagy nyomás felébreszti a gombot.",
+  "screen.hint": "Tétlenségi idők minden gombra; 0 = soha. A képernyővédő pattogó labdákat, konfettit vagy csillagokat mutat; a rajzolás leállításakor a képernyő fekete lesz, és a gomb nem rajzol. Bármilyen tekerés vagy nyomás felébreszti a gombot.",
   "screen.own": "Saját képernyő-beállítások",
   "screen.own_hint": "Az üres mezők a fenti általános értékeket használják.",
   "screen.saver_type": "Képernyővédő",
   "screen.saver_balls": "Pattogó labdák",
   "screen.saver_confetti": "Konfetti",
+  "screen.saver_stars": "Csillagok",
   "screen.general": "Általános"
 }

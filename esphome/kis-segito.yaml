@@ -10,7 +10,7 @@
 #     name: kis-segito
 #     friendly_name: Kis Segito
 #   packages:
-#     kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.7.7
+#     kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.7.8
 #   api:
 #     encryption:
 #       key: !secret kis_segito_api_key
@@ -39,8 +39,8 @@ substitutions:
   friendly_name: Kis Segito
   # Where the UI component and its images come from. They must match the
   # version of this package; CI and local builds point them at the repository.
-  kis_segito_components: github://bazsc20ne/kis-segito@v0.7.7
-  kis_segito_assets: https://raw.githubusercontent.com/bazsc20ne/kis-segito/v0.7.7/assets/device
+  kis_segito_components: github://bazsc20ne/kis-segito@v0.7.8
+  kis_segito_assets: https://raw.githubusercontent.com/bazsc20ne/kis-segito/v0.7.8/assets/device
   # Display tuning values are in hardware/board.yaml and can be overridden here.
   # Encoder counts per mechanical click at the finest resolution (4 counts per
   # quadrature cycle). The MD80E encoder makes half a cycle per click = 2.
@@ -66,7 +66,7 @@ esphome:
   name_add_mac_suffix: false
   project:
     name: bazsc20ne.kis-segito
-    version: "0.7.7"
+    version: "0.7.8"
 
 external_components:
   - source: ${kis_segito_components}
@@ -169,9 +169,12 @@ globals:
   - id: encoder_last_ms
     type: uint32_t
     initial_value: "0"
-  # Detent grid of the raw encoder count (count modulo counts per click),
-  # learnt where the knob rests.
-  - id: encoder_phase
+  # Encoder: direction of the last count (+1/-1) and the clicks counted since
+  # the last UI step in that direction.
+  - id: encoder_dir
+    type: int
+    initial_value: "0"
+  - id: encoder_clicks
     type: int
     initial_value: "0"
   # A press that woke the screen does not also act as a click.
@@ -400,13 +403,13 @@ script:
             call.perform();
           }
 
-  # Screensaver: the bouncing balls (without the brand mark and the text) or
-  # continuous confetti, as set in Home Assistant.
+  # Screensaver: the bouncing balls (without the brand mark and the text),
+  # confetti or stars, as set in Home Assistant.
   - id: start_screensaver
     then:
       - if:
           condition:
-            lambda: return id(ui).saver_type() == "confetti";
+            lambda: return id(ui).saver_type() == "confetti" || id(ui).saver_type() == "stars";
           then:
             - lambda: id(ui).start_confetti();
           else:
@@ -464,49 +467,54 @@ sensor:
     resolution: 4
     # Raw counts are only useful for debugging; UI steps go to the scripts.
     internal: true
-    # Detent-aware stepping: a step counts only when the knob has moved one
-    # full detent (counts_per_click raw counts) away from the last committed
-    # rest position. Partial moves, the detent's overshoot and its spring-back
-    # never step back. After a pause the rest position is re-aligned, so the
-    # first detent after it always counts. The steps are queued; the screen
-    # reacts to them in the UI's own loop.
+    # Detent-aware stepping. A detent is counts_per_click raw counts, but on a
+    # change of direction the first detent arrives one count early (the
+    # encoder's hysteresis), so the reference point moves by one count
+    # there: the first detent in the new direction always counts. The first
+    # click after a reversal or a rest makes a UI step at once; after that
+    # every "Encoder clicks per step" clicks do. Steps are queued; the screen
+    # handles them in the UI's own loop.
     on_value:
       - lambda: |-
           const int pos = (int) x;
           const uint32_t now = millis();
-          if (${encoder_debug})
-            ESP_LOGD("kis_segito", "Encoder raw %d (base %d)", pos, id(encoder_base));
           const int cpc = ${encoder_counts_per_click};
-          const int last = id(encoder_last_pos);
+          int &ref = id(encoder_base);
+          if (${encoder_debug})
+            ESP_LOGD("kis_segito", "Encoder raw %d (ref %d)", pos, ref);
           if (now - id(encoder_last_ms) > 1000)
-            id(encoder_phase) = ((last % cpc) + cpc) % cpc;  // resting in a detent
-          if (now - id(encoder_last_ms) > 300) {
-            // Re-align to the detent it rested in, on the detent grid: a pause
-            // seen in the middle of a detent (a busy moment) counts from the
-            // detent the knob came from.
-            int base = last - ((((last - id(encoder_phase)) % cpc) + cpc) % cpc);
-            if (pos < last && base != last)
-              base += cpc;
-            id(encoder_base) = base;
-          }
+            id(encoder_clicks) = 0;  // after a rest the first click steps at once
           id(encoder_last_ms) = now;
+          const int moved = pos > id(encoder_last_pos) ? 1 : (pos < id(encoder_last_pos) ? -1 : 0);
           id(encoder_last_pos) = pos;
           id(last_input_ms) = now;
           // Input while the screen is dimmed or off only wakes it, on the
           // first edge; the rest of that detent is not a step either.
           if (id(screen_state) != 0 || !id(backlight).current_values.is_on()) {
+            ESP_LOGI("kis_segito", "Woken by the knob");
             id(wake_screen).execute();
-            id(encoder_base) = pos;
+            ref = pos;
             return;
           }
-          const int per_step = ${encoder_counts_per_click} * (int) id(encoder_clicks_per_step).state;
-          while (pos - id(encoder_base) >= per_step) {
-            id(encoder_base) += per_step;
-            id(knob_step_up).execute();
+          if (moved != 0 && moved != id(encoder_dir)) {
+            if (id(encoder_dir) != 0)
+              ref -= moved;  // reversal: the first detent comes a count early
+            id(encoder_dir) = moved;
+            id(encoder_clicks) = 0;
           }
-          while (id(encoder_base) - pos >= per_step) {
-            id(encoder_base) -= per_step;
-            id(knob_step_down).execute();
+          const int per_step = std::max(1, (int) id(encoder_clicks_per_step).state);
+          auto click = [per_step](int dir) {
+            if (id(encoder_clicks) % per_step == 0)
+              dir > 0 ? id(knob_step_up).execute() : id(knob_step_down).execute();
+            id(encoder_clicks)++;
+          };
+          while (pos - ref >= cpc) {
+            ref += cpc;
+            click(1);
+          }
+          while (ref - pos >= cpc) {
+            ref -= cpc;
+            click(-1);
           }
   - platform: wifi_signal
     name: WiFi signal
@@ -578,6 +586,7 @@ binary_sensor:
       - lambda: |-
           id(last_input_ms) = millis();
           id(long_press_fired) = false;
+          ESP_LOGD("kis_segito", "Button pressed (screen state %d)", id(screen_state));
           if (id(screen_state) != 0 || !id(backlight).current_values.is_on()) {
             ESP_LOGI("kis_segito", "Woken by the button");
             id(swallow_click) = true;

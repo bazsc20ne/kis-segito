@@ -6,6 +6,75 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.7.8] - 2026-10-09
+
+### English
+
+- Faster sliding carousels (#10, #26):
+  - The time track's band and arcs are drawn once into small pictures along
+    the ring, instead of on every frame; these arcs took most of the time of a
+    frame. They are drawn again only when the track changes; the dimmed
+    elapsed part follows in steps of 1 %, while nobody uses the knob.
+  - The carousel items are drawn only inside the inner circle (everything
+    outside is under the track band), as compact pictures cut to their
+    content. The memory for them is reserved once and reused.
+  - The function and reward carousels slide as pictures too.
+  - The child's inner track is hidden while a carousel slides and comes back
+    when it stops.
+  - A token pile is one picture instead of hundreds of separate coins; the
+    newest few coins stay separate in front of it. This also removes the long
+    pauses (up to 3 s) after turning on the child screen.
+- Knob (#27): the first click after a change of direction now always counts.
+  The encoder reports that click one count early; this is taken into account.
+  With "Encoder clicks per step" above 1, the first click after a change of
+  direction or a rest makes a step at once.
+- A long press on the home screen connects to Home Assistant again only when
+  it is not connected; while connected it does nothing (#32).
+- Screensavers (#32):
+  - Confetti runs on its own screen, so nothing else is drawn under it, and
+    the pieces only move: no flicker. They fall faster, on swaying paths with
+    a sideways drift that changes direction now and then; gusts blow a few
+    pieces away, each differently.
+  - New screensaver: stars (falling small stars, at most the size of a
+    confetti piece). Choose it in the panel: Settings → Knob screen.
+- The knob logs button presses with the screen state (debug log), to find out
+  why a press does not wake it from the screensaver.
+
+### Magyar
+
+- Gyorsabban csúszó körhinták (#10, #26):
+  - Az időpálya sávja és ívei egyszer rajzolódnak meg, kis képekként a gyűrű
+    mentén, nem minden képkockánál újra; ezek az ívek vitték el egy képkocka
+    idejének nagy részét. Csak akkor rajzolódnak újra, ha a pálya változik; az
+    eltelt idő halványított része 1%-os lépésekben követi, amikor senki nem
+    használja a gombot.
+  - A körhinta elemei csak a belső körön belül rajzolódnak (ami kívül esik, az
+    a pálya sávja alatt van), a tartalmukra vágott, tömör képekként. A
+    memóriájuk egyszer foglalódik le, és újra felhasználódik.
+  - A funkció- és a jutalom-körhinta is képként csúszik.
+  - A gyermek belső pályája csúszás közben rejtve van, és megálláskor
+    visszajön.
+  - Egy zsetonkupac egyetlen kép több száz külön zseton helyett; a legújabb
+    néhány zseton külön marad előtte. Ez a gyermekképernyőn forgatás utáni
+    hosszú (akár 3 mp-es) szüneteket is megszünteti.
+- Forgatás (#27): irányváltás után az első kattintás mindig számít. A gomb ezt
+  a kattintást egy jellel korábban jelzi; ezt most figyelembe veszi. Ha a
+  „Encoder clicks per step” 1-nél nagyobb, irányváltás vagy pihenés után az
+  első kattintás azonnal lép.
+- Hosszú nyomás a kezdőképernyőn csak akkor csatlakoztat újra a Home
+  Assistanthez, ha nincs kapcsolat; kapcsolat közben nem csinál semmit (#32).
+- Képernyővédők (#32):
+  - A konfetti saját képernyőn fut, így semmi más nem rajzolódik alatta, és a
+    darabok csak mozognak: nincs villogás. Gyorsabban hullanak, lengő pályán,
+    időnként irányt váltó oldalirányú sodródással; a szélrohamok néhány darabot
+    elfújnak, mindegyiket másképp.
+  - Új képernyővédő: csillagok (hulló kis csillagok, legfeljebb akkorák, mint
+    egy konfettidarab). A panelen választható: Beállítások → Gomb
+    képernyője.
+- A gomb a hibakereső naplóban a képernyő állapotával együtt naplózza a
+  gombnyomásokat, hogy kiderüljön, miért nem ébreszt a nyomás a
+  képernyővédőből.
+
 ## [0.7.7] - 2026-10-08
 
 ### English

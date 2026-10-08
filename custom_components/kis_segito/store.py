@@ -48,7 +48,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
         "dim_level": 15,
         "blank_after": 0,
         "off_after": 120,
-        # Screensaver: "balls" or "confetti".
+        # Screensaver: "balls", "confetti" or "stars".
         "saver_type": "balls",
     },
 }

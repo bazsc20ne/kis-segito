@@ -118,6 +118,8 @@ class Carousel {
   void refill_key(const std::string &key);
   // Whether a slot shows (or waits for) this downloaded picture.
   bool uses(const std::string &key) const;
+  // Called when a slide has ended.
+  std::function<void()> on_settled;
 
  protected:
   void fill_slot_(int slot);
@@ -138,7 +140,8 @@ class Carousel {
   int spacing_{0};
   uint32_t anim_ms_{250};
   bool snapshot_{false};
-  lv_draw_buf_t *snap_[4]{};
+  lv_obj_t *window_{nullptr};
+  int win_y_{0};
   std::set<std::string> keys_[4];  // downloaded pictures each slot uses
   bool ready_[4]{};                // the slot holds item index_[i]
   int last_dir_{1};
@@ -170,7 +173,8 @@ class KisSegitoUI : public Component {
   uint32_t blank_after() const { return this->blank_after_; }
   uint32_t off_after() const { return this->off_after_; }
   bool started() const { return this->started_; }
-  // Screensaver: "balls" (the loading screen's) or "confetti".
+  // Screensaver: "balls" (the loading screen's), "confetti" or "stars"; the
+  // last two run on their own screen (start_confetti / stop_confetti).
   const std::string &saver_type() const { return this->saver_type_; }
   void start_confetti();
   void stop_confetti();
@@ -329,19 +333,18 @@ class KisSegitoUI : public Component {
   static constexpr int CONFETTI_MIN = 36;  // blown-away pieces come back below this
   struct Piece {
     lv_obj_t *obj{nullptr};
-    bool alive{false};
-    float x{0}, y{0};      // centre, px
-    float vy{0};           // falling speed, px/s
-    float vx{0};           // sideways drift, px/s
-    float gust{0};         // extra sideways speed from a gust, px/s
-    float gust_vy{0};      // extra vertical speed from a gust, px/s
+    bool on_screen{false};
+    float x{0}, y{0};             // top left, px
+    float vy{0};                  // falling speed, px/s
+    float drift{0}, drift_to{0};  // sideways speed now and where it heads, px/s
+    uint32_t drift_ms{0};         // when it picks a new direction
+    float gust{0}, gust_vy{0};    // extra speed from a gust, px/s
     float sway{0}, sway_hz{0}, phase{0};
-    float flip_hz{0}, flip{0};
     int w{0}, h{0};
   };
   void spawn_piece_(Piece &p, bool anywhere);
   Piece confetti_[CONFETTI];
-  lv_obj_t *confetti_layer_{nullptr};
+  lv_obj_t *saver_screen_{nullptr};
   lv_timer_t *confetti_timer_{nullptr};
   uint32_t confetti_ms_{0};
   uint32_t next_gust_ms_{0};
@@ -381,6 +384,7 @@ class KisSegitoUI : public Component {
   lv_obj_t *now_dot_{nullptr};
   lv_obj_t *top_gap_{nullptr};
   const Routine *shown_routine_{nullptr};
+  float baked_elapsed_{0};  // elapsed share drawn into the track tiles
   // Routine screen.
   lv_obj_t *task_big_{nullptr};
   lv_obj_t *timeline_{nullptr};
