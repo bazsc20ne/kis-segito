@@ -309,5 +309,11 @@
     "task_bed": "routine_nap",
     "task_play": "routine_play",
     "task_bag": "routine_prepare"
-  }
+  },
+  "_online": [
+    "routine_",
+    "task_",
+    "reward_",
+    "test_avatar_"
+  ]
 }

@@ -174,6 +174,8 @@ class KisSegitoUI : public Component {
   void request_photo_(const std::string &key);
   void log_reset_reason_();
   const lv_image_dsc_t *background_(const std::string &id);
+  void apply_background_(const std::string &id);
+  bool has_image_(const std::string &key) const;
   static void photo_task_(void *arg);
   uint32_t anim_ms_(uint32_t full_ms) const;
   lv_color_t tint_(uint32_t color, uint8_t amount) const;

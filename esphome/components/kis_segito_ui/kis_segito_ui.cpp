@@ -31,6 +31,21 @@ static size_t psram_largest_block() { return heap_caps_get_largest_free_block(MA
 
 static bool psram_can_spare(size_t bytes) { return psram_largest_block() >= bytes + PSRAM_RESERVE; }
 
+// Icons that are not compiled into the firmware (assets/device_assets.json,
+// "_online"): the knob downloads them from Home Assistant when it shows them.
+static bool is_online_icon(const std::string &key) {
+  static const char *const PREFIXES[] = {"routine_", "task_", "reward_", "test_avatar_"};
+  for (const char *prefix : PREFIXES) {
+    if (key.rfind(prefix, 0) == 0)
+      return true;
+  }
+  return false;
+}
+
+// Set while a carousel slot is filled without a snapshot: piles are drawn with
+// fewer coins then, so redrawing them while sliding stays quick.
+static bool g_light_drawing = false;
+
 static void log_psram(const char *when) {
   ESP_LOGI(TAG, "PSRAM %s: %u KB free, largest block %u KB", when,
            (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024), (unsigned) (psram_largest_block() / 1024));
@@ -123,12 +138,15 @@ void Carousel::fill_slot_(int i) {
     lv_draw_buf_destroy(this->snap_[i]);
     this->snap_[i] = nullptr;
   }
+  const size_t snap_bytes = static_cast<size_t>(this->slot_w_) * this->slot_h_ * 4;
+  g_light_drawing = !this->snapshot_ || !psram_can_spare(snap_bytes);
   this->fill_(slot, this->index_[i]);
+  g_light_drawing = false;
   if (!this->snapshot_)
     return;
   // Render the slot's content at full opacity into one image, unless PSRAM is
   // short: then the objects stay (slower to animate, but always drawn).
-  const size_t needed = static_cast<size_t>(this->slot_w_) * this->slot_h_ * 4;
+  const size_t needed = snap_bytes;
   if (!psram_can_spare(needed)) {
     static bool logged = false;
     if (!logged) {
@@ -404,7 +422,8 @@ void KisSegitoUI::set_state(const std::string &json) {
     child.background = c["bg"] | "";
     if (this->images_.count(child.avatar + "_180") == 0) {
       // Built-in avatars come from Home Assistant like uploaded pictures.
-      child.avatar = child.avatar.rfind("avatar_", 0) == 0 ? "@" + child.avatar : "placeholder_avatar";
+      const bool served = child.avatar.rfind("avatar_", 0) == 0 || is_online_icon(child.avatar);
+      child.avatar = served ? "@" + child.avatar : "placeholder_avatar";
     }
     if (c["ai"].is<const char *>() && strlen(c["ai"].as<const char *>()) > 0)
       child.avatar = std::string("@") + c["ai"].as<const char *>();
@@ -659,11 +678,13 @@ const lv_image_dsc_t *KisSegitoUI::img_(const std::string &key) {
       const size_t n = strlen(suffix);
       return key.size() > n && key.compare(key.size() - n, n, suffix) == 0;
     };
-    if (ends_with("_480"))
-      return nullptr;  // a background: none until it arrives
-    return this->img_(ends_with("_180") ? "placeholder_avatar_180" : "reward_gift_160");
+    if (ends_with("_180"))
+      return this->img_("placeholder_avatar_180");
+    return nullptr;  // an icon or background: nothing until it arrives
   }
   auto it = this->images_.find(key);
+  if (it == this->images_.end() && is_online_icon(key))
+    return this->img_("@" + key);  // downloaded from Home Assistant
   if (it == this->images_.end()) {
     // Not built in at this size: use the nearest size of the same icon.
     const size_t sep = key.rfind('_');
@@ -690,6 +711,18 @@ const lv_image_dsc_t *KisSegitoUI::img_(const std::string &key) {
     }
   }
   return it->second->get_lv_image_dsc();
+}
+
+void KisSegitoUI::apply_background_(const std::string &id) {
+  const std::string &use = id.empty() ? this->general_bg_ : id;
+  const lv_image_dsc_t *dsc = this->background_(id);
+  if (dsc == nullptr && !use.empty() && !this->photo_failed_.count("@" + use + "_480"))
+    return;  // still loading: keep what is shown
+  lv_obj_set_style_bg_image_src(this->root_, dsc, 0);
+}
+
+bool KisSegitoUI::has_image_(const std::string &key) const {
+  return this->images_.count(key) > 0 || is_online_icon(key);
 }
 
 const lv_image_dsc_t *KisSegitoUI::background_(const std::string &id) {
@@ -953,7 +986,8 @@ void KisSegitoUI::pile_(lv_obj_t *parent, int cx, int base_y, int count, uint32_
     const Row &row = rows[idx];
     if (row.y - 14 > SCREEN + 16)
       continue;  // below the screen: counted, not drawn
-    for (int i = 0; i < row.n && created < 320; i++) {
+    const int max_coins = g_light_drawing ? 30 : 320;
+    for (int i = 0; i < row.n && created < max_coins; i++) {
       const uint32_t h = hash32(seed * 7919u + idx * 131u + i);
       const int jx = static_cast<int>(h % 7) - 3;
       const int jy = static_cast<int>((h >> 8) % 5) - 2;
@@ -1050,7 +1084,7 @@ void KisSegitoUI::show_(Screen screen) {
     // No children configured yet: only the track and the brand mark.
     this->screen_ = Screen::CHILDREN;
     lv_obj_set_style_bg_color(this->root_, lv_color_hex(BASE_BG), 0);
-    lv_obj_set_style_bg_image_src(this->root_, this->background_(""), 0);
+    this->apply_background_("");
     this->build_track_();
     return;
   }
@@ -1063,8 +1097,9 @@ void KisSegitoUI::show_(Screen screen) {
   const lv_color_t bg = screen == Screen::CHILDREN ? lv_color_hex(BASE_BG) : this->tint_(child.color, 46);
   lv_obj_set_style_bg_color(this->root_, bg, 0);
   // The general background on the child selector, the child's own (or the
-  // general one) on that child's screens; none: the plain colour.
-  lv_obj_set_style_bg_image_src(this->root_, this->background_(screen == Screen::CHILDREN ? "" : child.background), 0);
+  // general one) on that child's screens; none: the plain colour. While a new
+  // background is still downloading, the previous one stays.
+  this->apply_background_(screen == Screen::CHILDREN ? "" : child.background);
   this->build_track_();
   switch (screen) {
     case Screen::CHILDREN:
@@ -1378,8 +1413,8 @@ void KisSegitoUI::build_functions_() {
             icon = "fn_tokens";
             break;
         }
-        if (this->images_.count(icon + "_160") == 0)
-          icon = "routine_generic";
+        if (!this->has_image_(icon + "_160"))
+          icon = "fn_rewards";
         this->image_(slot, icon + "_160", 120, 120);
       },
       this->anim_ms_(240));
@@ -1746,7 +1781,7 @@ void KisSegitoUI::build_track_() {
       int x, y;
       this->ring_point_(track_p(*r, cp.t), OUTER_MID, &x, &y);
       std::string key = cp.icon + "_32";
-      if (this->images_.count(key) == 0)
+      if (!this->has_image_(key))
         key = "checkpoint_flag_32";
       lv_obj_t *icon = this->image_(this->track_layer_, key, x, y);
       if (!this->children_.empty() && this->cp_done_(*r, cp.id)) {
@@ -1782,8 +1817,8 @@ void KisSegitoUI::build_inner_track_() {
     int x, y;
     this->ring_point_(track_p(*r, cp.t), INNER_MID, &x, &y);
     std::string key = cp.icon + "_28";
-    if (this->images_.count(key) == 0)
-      key = this->images_.count(cp.icon + "_32") ? cp.icon + "_32" : "checkpoint_flag_28";
+    if (!this->has_image_(key))
+      key = this->has_image_(cp.icon + "_32") ? cp.icon + "_32" : "checkpoint_flag_28";
     lv_obj_t *icon = this->image_(this->inner_layer_, key, x, y);
     if (this->cp_done_(*r, cp.id)) {
       lv_obj_set_style_image_recolor(icon, lv_color_hex(0x8C96A5), 0);

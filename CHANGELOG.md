@@ -6,6 +6,41 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.7.6] - 2026-10-08
+
+### English
+
+- Fix (#31): the knob restarted about every 40 seconds (task watchdog), and
+  avatars and backgrounds did not show because PSRAM ran out.
+  - Most icons (routines, tasks, rewards) are no longer part of the firmware:
+    the knob downloads the ones it shows from Home Assistant. The firmware
+    keeps only the few images it needs before Home Assistant answers (brand
+    mark, loading screen, coins and symbols), which frees about 3.7 MB of
+    PSRAM.
+  - The drawing buffer is a quarter of the screen instead of a full screen,
+    which frees another 340 KB.
+  - When memory is short, the carousels draw at most 30 coins per pile, so a
+    slide never takes long enough to trigger the watchdog.
+  - When the background changes, the old one stays until the new one has
+    arrived; if it cannot be loaded, the plain colour is shown.
+
+### Magyar
+
+- Javítás (#31): a gomb kb. 40 másodpercenként újraindult (task watchdog), és
+  az avatarok meg a hátterek nem jelentek meg, mert elfogyott a PSRAM.
+  - Az ikonok többsége (rutinok, feladatok, jutalmak) már nem része a
+    firmware-nek: a gomb a megjelenítetteket a Home Assistanttől tölti le. A
+    firmware csak azt a néhány képet tartja meg, amely a Home Assistant
+    válasza előtt kell (márkajel, betöltőképernyő, zsetonok, jelek), így kb.
+    3,7 MB PSRAM szabadul fel.
+  - A rajzolási puffer a teljes képernyő helyett negyed képernyőnyi, ez
+    további 340 KB.
+  - Kevés memória esetén a körhinták kupaconként legfeljebb 30 zsetont
+    rajzolnak, így egy csúszás soha nem tart olyan sokáig, hogy a watchdog
+    közbelépjen.
+  - Háttércserénél a régi háttér marad, amíg az új meg nem érkezik; ha nem
+    tölthető be, a sima szín látszik.
+
 ## [0.7.5] - 2026-10-08
 
 ### English

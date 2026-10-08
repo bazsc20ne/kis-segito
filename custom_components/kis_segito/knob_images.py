@@ -14,7 +14,8 @@ Backgrounds (size 480, the whole round screen) are opaque, without alpha:
     + width*height RGB565 pixels (LE)
 
 A background is a built-in preset (frontend/backgrounds/bg_<n>.jpg) or an
-uploaded picture. The built-in avatars (knob_avatars/avatar_<nn>.png) are served
+uploaded picture. The icons that are not compiled into the firmware
+(knob_icons/) and the built-in avatars (knob_avatars/avatar_<nn>.png) are served
 the same way, so they are not part of the firmware.
 
 The rendition holds pixels only, no metadata (EXIF, GPS) of the original.
@@ -48,6 +49,10 @@ BACKGROUND_SIZE = 480
 PRESETS_DIR = Path(__file__).parent / "frontend" / "backgrounds"
 PRESET_ID = re.compile(r"^bg_[1-6]$")
 AVATARS_DIR = Path(__file__).parent / "knob_avatars"
+# Icons not compiled into the firmware, rendered at the sizes the knob uses
+# (knob_icons/<id>_<size>.png); other sizes are made from the nearest one.
+ICONS_DIR = Path(__file__).parent / "knob_icons"
+ICON_SIZES = range(16, 241)
 AVATAR_ID = re.compile(r"^avatar_[0-9]{2}$")
 IMAGE_ID = re.compile(r"^[a-z0-9_]{1,64}$")
 # Limits checked before a picture is decoded (decompression bombs).
@@ -116,6 +121,24 @@ def _cached(path: str, mtime: float, size: int) -> bytes | None:
         return None
 
 
+def _icon_path(icon: str, size: int) -> Path | None:
+    """The rendered icon for ``icon`` at ``size``, else its nearest larger size."""
+    if size not in ICON_SIZES:
+        return None
+    exact = ICONS_DIR / f"{icon}_{size}.png"
+    if exact.is_file():
+        return exact
+    sizes = sorted(
+        int(p.stem.rsplit("_", 1)[1])
+        for p in ICONS_DIR.glob(f"{icon}_*.png")
+        if p.stem.rsplit("_", 1)[1].isdigit() and p.stem.rsplit("_", 1)[0] == icon
+    )
+    if not sizes:
+        return None
+    best = next((s for s in sizes if s >= size), sizes[-1])
+    return ICONS_DIR / f"{icon}_{best}.png"
+
+
 def _from_local_network(hass: HomeAssistant, request: web.Request) -> bool:
     if is_cloud_connection(hass) or not request.remote:
         return False
@@ -151,6 +174,12 @@ class KnobImageView(HomeAssistantView):
             )
         elif AVATAR_ID.match(image_id) and int(size) in SIZES:
             path = AVATARS_DIR / f"{image_id}.png"
+        elif (
+            icon := await self.hass.async_add_executor_job(
+                _icon_path, image_id, int(size)
+            )
+        ) is not None:
+            path = icon
         elif int(size) in SIZES:
             path = Path(self.hass.config.path("image", image_id, "original"))
         else:

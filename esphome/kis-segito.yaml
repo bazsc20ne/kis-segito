@@ -10,7 +10,7 @@
 #     name: kis-segito
 #     friendly_name: Kis Segito
 #   packages:
-#     kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.7.5
+#     kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.7.6
 #   api:
 #     encryption:
 #       key: !secret kis_segito_api_key
@@ -39,8 +39,8 @@ substitutions:
   friendly_name: Kis Segito
   # Where the UI component and its images come from. They must match the
   # version of this package; CI and local builds point them at the repository.
-  kis_segito_components: github://bazsc20ne/kis-segito@v0.7.5
-  kis_segito_assets: https://raw.githubusercontent.com/bazsc20ne/kis-segito/v0.7.5/assets/device
+  kis_segito_components: github://bazsc20ne/kis-segito@v0.7.6
+  kis_segito_assets: https://raw.githubusercontent.com/bazsc20ne/kis-segito/v0.7.6/assets/device
   # Display tuning values are in hardware/board.yaml and can be overridden here.
   # Encoder counts per mechanical click at the finest resolution (4 counts per
   # quadrature cycle). The MD80E encoder makes half a cycle per click = 2.
@@ -62,7 +62,7 @@ esphome:
   name_add_mac_suffix: false
   project:
     name: bazsc20ne.kis-segito
-    version: "0.7.5"
+    version: "0.7.6"
 
 external_components:
   - source: ${kis_segito_components}
@@ -586,7 +586,9 @@ font:
 lvgl:
   displays:
     - knob_display
-  buffer_size: 100%
+  # A quarter-screen draw buffer: LVGL draws in parts into the panel's own
+  # frame buffer, so PSRAM is not spent on a second full-screen buffer.
+  buffer_size: 25%
   bg_color: 0x000000
   default_font: montserrat_24
   on_boot:

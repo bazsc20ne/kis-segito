@@ -35,6 +35,7 @@ MANIFEST = ROOT / "assets" / "device_assets.json"
 SMALL_MAX = 44
 WEB_OUT = ROOT / "custom_components" / "kis_segito" / "frontend" / "icons"
 WEB_SIZE = 96
+ICONS_OUT = ROOT / "custom_components" / "kis_segito" / "knob_icons"
 AVATARS_OUT = ROOT / "custom_components" / "kis_segito" / "knob_avatars"
 AVATAR_SIZE = 180
 WEB_SMALL_SIZE = 88  # 44 px at 2x
@@ -104,6 +105,21 @@ def main() -> int:
             img.save(OUT / f"{icon}_{size}.png", optimize=True)
             count += 1
     print(f"wrote {count} images to {OUT.relative_to(ROOT)}")
+
+    # Icons the knob downloads from Home Assistant ("_online" prefixes): the
+    # integration serves these rendered sizes (knob_icons/<id>_<size>.png).
+    online = tuple(manifest.get("_online", []))
+    ICONS_OUT.mkdir(parents=True, exist_ok=True)
+    for old in ICONS_OUT.glob("*.png"):
+        old.unlink()
+    served = 0
+    for icon, sizes in manifest.items():
+        if icon.startswith("_") or not online or not icon.startswith(online):
+            continue
+        for size in sizes:
+            (ICONS_OUT / f"{icon}_{size}.png").write_bytes((OUT / f"{icon}_{size}.png").read_bytes())
+            served += 1
+    print(f"wrote {served} served icons to {ICONS_OUT.relative_to(ROOT)}")
 
     # Built-in avatars are not compiled into the firmware: the integration serves
     # them to the knob like uploaded pictures (they would use PSRAM otherwise).

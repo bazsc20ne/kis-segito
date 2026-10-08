@@ -4,7 +4,8 @@
 
 The generated package declares one ESPHome image per device asset (loaded from
 ${kis_segito_assets}, a local folder or a raw GitHub URL) and hands them to the
-kis_segito_ui component by key (<icon>_<size>).
+kis_segito_ui component by key (<icon>_<size>). Icons whose id starts with one
+of the "_online" prefixes are left out (served by the integration instead).
 
 Usage: gen_esphome_images.py
 """
@@ -21,10 +22,13 @@ OUT = ROOT / "esphome" / "ui-images.yaml"
 
 def main() -> int:
     manifest = json.loads(MANIFEST.read_text("utf-8"))
+    # Icons under "_online" prefixes are not compiled in: the knob downloads
+    # them from Home Assistant when it shows them.
+    online = tuple(manifest.get("_online", []))
     keys = [
         f"{icon}_{size}"
         for icon, sizes in manifest.items()
-        if not icon.startswith("_")
+        if not icon.startswith("_") and not icon.startswith(online or ("\0",))
         for size in sizes
     ]
     lines = [

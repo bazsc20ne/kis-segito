@@ -330,3 +330,23 @@ async def test_knob_screen_settings(hass: HomeAssistant) -> None:
     # None returns a value to the general one.
     await manager.async_set_device_screen("dev", {"dim_after": None})
     assert manager.snapshot("dev", "en")["scr"]["dim"] == 60
+
+
+async def test_knob_served_icons(hass: HomeAssistant, hass_client_no_auth) -> None:
+    entry = MockConfigEntry(
+        domain=DOMAIN, unique_id="dev", data={CONF_DEVICE_ID: "dev"}
+    )
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    token = hass.data[DOMAIN].manager.device_token("dev")
+    client = await hass_client_no_auth()
+    header = {"X-Kis-Segito-Token": token}
+    url = "/api/kis_segito/knob_image"
+    # A rendered size, and a size made from the nearest larger one.
+    for icon, size in (("task_shoes", 150), ("routine_bath", 150)):
+        ok = await client.get(f"{url}/{icon}/{size}", headers=header)
+        assert ok.status == 200, icon
+        raw = await ok.read()
+        assert raw[:4] == b"KSI1" and len(raw) == 8 + size * size * 3
+    assert (await client.get(f"{url}/no_such_icon/150", headers=header)).status == 404
