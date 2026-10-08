@@ -15,6 +15,7 @@
 #include <esp_http_client.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <misc/cache/instance/lv_image_cache.h>
 
 #include "esphome/components/json/json_util.h"
 #include "esphome/core/hal.h"
