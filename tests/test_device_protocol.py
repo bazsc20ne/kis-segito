@@ -293,3 +293,36 @@ async def test_knob_builtin_avatar(hass: HomeAssistant, hass_client_no_auth) -> 
     assert (
         await client.get("/api/kis_segito/knob_image/avatar_99/180", headers=header)
     ).status == 404
+
+
+async def test_knob_screen_settings(hass: HomeAssistant) -> None:
+    entry = MockConfigEntry(
+        domain=DOMAIN, unique_id="dev", data={CONF_DEVICE_ID: "dev"}
+    )
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    manager = hass.data[DOMAIN].manager
+
+    # Defaults, then a general change, then the knob's own values.
+    assert manager.snapshot("dev", "en")["scr"] == {
+        "saver": 0,
+        "dim": 60,
+        "lvl": 15,
+        "blank": 0,
+        "off": 120,
+    }
+    await manager.async_update_settings(
+        {"screen": manager.settings.get("screen", {}) | {"saver_after": 30}}
+    )
+    await manager.async_set_device_screen("dev", {"dim_after": 90, "off_after": 0})
+    assert manager.snapshot("dev", "en")["scr"] == {
+        "saver": 30,
+        "dim": 90,
+        "lvl": 15,
+        "blank": 0,
+        "off": 0,
+    }
+    # None returns a value to the general one.
+    await manager.async_set_device_screen("dev", {"dim_after": None})
+    assert manager.snapshot("dev", "en")["scr"]["dim"] == 60

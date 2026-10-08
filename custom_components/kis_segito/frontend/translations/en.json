@@ -254,5 +254,14 @@
   "background.upload": "Upload own picture",
   "background.hint": "Shown on every knob; a child can have their own on the child's page.",
   "background.child_hint": "Shown on this child's screens on the knob; \"General\" uses the background from the settings.",
-  "error.invalid_background": "Unknown background."
+  "error.invalid_background": "Unknown background.",
+  "screen.title": "Knob screen",
+  "screen.saver_after": "Screensaver after (s)",
+  "screen.dim_after": "Dim after (s)",
+  "screen.dim_level": "Dimmed brightness (%)",
+  "screen.blank_after": "Drawing off after (s)",
+  "screen.off_after": "Backlight off after (s)",
+  "screen.hint": "Idle times for every knob; 0 = never. The screensaver shows the bouncing balls; with drawing off the screen goes black and stops drawing. Any turn or press wakes the knob.",
+  "screen.own": "Own screen settings",
+  "screen.own_hint": "Empty fields use the general values above."
 }

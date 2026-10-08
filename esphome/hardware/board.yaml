@@ -81,10 +81,15 @@ esp32:
   framework:
     type: esp-idf
     sdkconfig_options:
-      # As in the vendor example: run code/rodata from PSRAM and use 64-byte
-      # cache lines, so flash access does not starve the RGB panel DMA.
+      # 64-byte cache lines: faster PSRAM access for the RGB panel's frame
+      # buffer. Code and rodata run from flash (not copied into PSRAM), which
+      # leaves several MB of PSRAM for drawing and pictures.
       CONFIG_ESP32S3_DATA_CACHE_LINE_64B: y
-      CONFIG_SPIRAM_XIP_FROM_PSRAM: y
+      # The panel is fed through small bounce buffers in internal RAM. Their
+      # interrupt stays usable while flash is written (settings, OTA), and the
+      # panel re-synchronises at the next VSYNC if a frame was disturbed.
+      CONFIG_LCD_RGB_ISR_IRAM_SAFE: y
+      CONFIG_LCD_RGB_RESTART_IN_VSYNC: y
       # Keep ESP-IDF's secondary console off the native USB port: with it on,
       # the display stays blank whenever no USB host (PC) is connected, e.g.
       # on a USB charger (#8).

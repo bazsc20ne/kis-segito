@@ -117,6 +117,7 @@ void Carousel::release() {
 void Carousel::fill_slot_(int i) {
   lv_obj_t *slot = this->slots_[i];
   lv_obj_clean(slot);  // before freeing the snapshot its image shows
+  lv_obj_remove_flag(slot, LV_OBJ_FLAG_USER_1);
   if (this->snap_[i] != nullptr) {
     lv_draw_buf_destroy(this->snap_[i]);
     this->snap_[i] = nullptr;
@@ -138,12 +139,9 @@ void Carousel::fill_slot_(int i) {
     return;
   }
   const bool hidden = lv_obj_has_flag(slot, LV_OBJ_FLAG_HIDDEN);
-  const lv_opa_t opa = lv_obj_get_style_opa(slot, LV_PART_MAIN);
   lv_obj_remove_flag(slot, LV_OBJ_FLAG_HIDDEN);
-  lv_obj_set_style_opa(slot, LV_OPA_COVER, 0);
   lv_obj_update_layout(slot);
   lv_draw_buf_t *buf = lv_snapshot_take(slot, LV_COLOR_FORMAT_ARGB8888);
-  lv_obj_set_style_opa(slot, opa, 0);
   if (hidden)
     lv_obj_add_flag(slot, LV_OBJ_FLAG_HIDDEN);
   if (buf == nullptr) {
@@ -154,6 +152,7 @@ void Carousel::fill_slot_(int i) {
   lv_obj_t *img = lv_image_create(slot);
   lv_image_set_src(img, buf);
   lv_obj_set_pos(img, 0, 0);
+  lv_obj_add_flag(slot, LV_OBJ_FLAG_USER_1);  // a snapshot: fades cheaply
   this->snap_[i] = buf;
 }
 
@@ -176,9 +175,14 @@ static void slot_x_cb(void *var, int32_t centre_x) {
   auto *slot = static_cast<lv_obj_t *>(var);
   const int half = static_cast<int>(reinterpret_cast<intptr_t>(lv_obj_get_user_data(slot))) / 2;
   lv_obj_set_x(slot, centre_x - half);
-  const int dist = std::abs(centre_x - CENTER);
-  const int opa = 255 - std::min(dist, 240) * 150 / 240;  // sides fade to ~105
-  lv_obj_set_style_opa(slot, static_cast<lv_opa_t>(std::max(opa, 0)), 0);
+  // Side slots fade (to ~105). Only a snapshot image fades: its image opacity is
+  // cheap, while an opacity on the slot itself makes LVGL render the whole slot
+  // into a layer on every frame, which makes the slide stutter or jump.
+  if (lv_obj_has_flag(slot, LV_OBJ_FLAG_USER_1) && lv_obj_get_child_count(slot) > 0) {
+    const int dist = std::abs(centre_x - CENTER);
+    const int opa = 255 - std::min(dist, 240) * 150 / 240;
+    lv_obj_set_style_image_opa(lv_obj_get_child(slot, 0), static_cast<lv_opa_t>(std::max(opa, 0)), 0);
+  }
 }
 
 void Carousel::place_(int slot, int offset, bool animate) {
@@ -411,6 +415,14 @@ void KisSegitoUI::set_state(const std::string &json) {
   this->routines_ = routines;
   this->have_state_ = true;
   this->inactivity_ms_ = static_cast<uint32_t>(std::max(10, root["idle"] | 60)) * 1000;
+  if (root["scr"].is<JsonObjectConst>()) {
+    JsonObjectConst scr = root["scr"].as<JsonObjectConst>();
+    this->saver_after_ = std::max(0, scr["saver"] | 0);
+    this->dim_after_ = std::max(0, scr["dim"] | 60);
+    this->dim_level_ = static_cast<uint8_t>(std::min(100, std::max(1, scr["lvl"] | 15)));
+    this->blank_after_ = std::max(0, scr["blank"] | 0);
+    this->off_after_ = std::max(0, scr["off"] | 120);
+  }
   if (root["anim"].is<const char *>())
     this->set_animation_mode(root["anim"].as<const char *>());
 
@@ -779,6 +791,11 @@ void KisSegitoUI::set_language(const std::string &language) {
   this->shown_reward_ = -1;
   if (this->started_)
     this->update_track_();
+}
+
+void KisSegitoUI::show_ui() {
+  if (this->root_ != nullptr)
+    lv_screen_load(this->root_);
 }
 
 void KisSegitoUI::set_connected(bool connected) {

@@ -10,7 +10,9 @@
 
 // Must equal the integration version (scripts/check_versions.py checks it):
 // a browser that still runs an older copy of this file shows a reload bar.
-const PANEL_VERSION = "0.7.3";
+// Knob screen power settings (seconds; dim_level in percent).
+const SCREEN_KEYS = ["saver_after", "dim_after", "dim_level", "blank_after", "off_after"];
+const PANEL_VERSION = "0.7.4";
 const FALLBACK_LANGUAGE = "en";
 const LANGUAGE_AUTO = "auto";
 const TABS = [
@@ -943,6 +945,22 @@ class KisSegitoPanel extends HTMLElement {
 
   async _onChange(ev) {
     const el = ev.target;
+    if (el.dataset.screen) {
+      if (el.value !== "") {
+        await this._ws({ type: "kis_segito/settings/update", screen: { [el.dataset.screen]: Number(el.value) } });
+      }
+      await this._load();
+      return;
+    }
+    if (el.dataset.deviceScreen) {
+      await this._ws({
+        type: "kis_segito/device/screen",
+        device_id: el.dataset.device,
+        screen: { [el.dataset.deviceScreen]: el.value === "" ? null : Number(el.value) },
+      });
+      await this._load();
+      return;
+    }
     if (el.dataset.setting) {
       const value =
         el.type === "number"
@@ -1909,7 +1927,14 @@ class KisSegitoPanel extends HTMLElement {
         const rotate = this._isAdmin
           ? `<button class="small" data-action="rotate-token" data-arg="${this._e(d.device_id)}">${this._e(this._t("settings.knob_new_key"))}</button>`
           : "";
-        return `<div class="row">${this._icon("nav_settings", 28)}<span class="grow">${this._e(d.name)}</span>${avatars}${rotate}</div>${warning}`;
+        const own = d.screen || {};
+        const screen = SCREEN_KEYS.map(
+          (k) => `<label>${this._e(this._t(`screen.${k}`))}<input type="number" min="${k === "dim_level" ? 1 : 0}" max="${k === "dim_level" ? 100 : 86400}"
+            data-device-screen="${k}" data-device="${this._e(d.device_id)}" value="${own[k] ?? ""}" placeholder="${this._e(String(s.screen?.[k] ?? ""))}" ${disabled}></label>`
+        ).join("");
+        return `<div class="row">${this._icon("nav_settings", 28)}<span class="grow">${this._e(d.name)}</span>${avatars}${rotate}</div>${warning}
+          <details class="knob-screen"><summary>${this._e(this._t("screen.own"))}</summary>
+            <div class="muted">${this._e(this._t("screen.own_hint"))}</div>${screen}</details>`;
       })
       .join("");
     const weekdays = WEEKDAYS.map(
@@ -1923,6 +1948,13 @@ class KisSegitoPanel extends HTMLElement {
           ${["full", "reduced", "off"].map((m) => `<option value="${m}" ${s.animation_mode === m ? "selected" : ""}>${this._e(this._t(`settings.animation_${m}`))}</option>`).join("")}
         </select></label>
         <label>${this._e(this._t("settings.inactivity"))}${num("inactivity_s", 10, 3600, 10)}</label>
+      </div>
+      <div class="card form">
+        <h2>${this._e(this._t("screen.title"))}</h2>
+        ${SCREEN_KEYS.map(
+          (k) => `<label>${this._e(this._t(`screen.${k}`))}<input type="number" min="${k === "dim_level" ? 1 : 0}" max="${k === "dim_level" ? 100 : 86400}" data-screen="${k}" value="${s.screen?.[k] ?? ""}" ${disabled}></label>`
+        ).join("")}
+        <div class="muted">${this._e(this._t("screen.hint"))}</div>
       </div>
       <div class="card form">
         <h2>${this._e(this._t("background.title"))}</h2>
@@ -2175,6 +2207,8 @@ const STYLE = `
   .grid .card { margin: 0; }
   .child-card { border-top: 4px solid var(--c); }
   .bg-tiles { gap: 8px; }
+  .knob-screen { margin: 0 0 12px 40px; }
+  .knob-screen summary { cursor: pointer; color: var(--primary-color, #03a9f4); }
   .bg-tile {
     width: 72px; height: 72px; border-radius: 12px; padding: 4px; font-size: 12px;
     background: var(--secondary-background-color, #eee) center / cover;

@@ -59,6 +59,7 @@ substitutions:
   display_colmod: "0x55"
   display_pclk_inverted: "true"
   encoder_counts_per_click: "4"  # encoder counts per click (default 2)
+  encoder_debug: "true"          # log every raw encoder count (checking detents)
 ```
 
 A fenti értékek fork nélkül, az eszközkonfig `substitutions` részében átírhatók.

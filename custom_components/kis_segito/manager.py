@@ -32,7 +32,7 @@ from .logic import (
     routine_with_override,
     selectable_children,
 )
-from .store import AUDIT_KEPT, KisSegitoStore
+from .store import AUDIT_KEPT, DEFAULT_SETTINGS, KisSegitoStore
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -44,6 +44,8 @@ DAYS_KEPT = 31
 
 COLLECTIONS = ("children", "routines", "rewards", "templates")
 # Built-in backgrounds (frontend/backgrounds/bg_<n>.jpg).
+# Knob screen power settings, in the order the knob protocol sends them.
+SCREEN_KEYS = ("saver_after", "dim_after", "dim_level", "blank_after", "off_after")
 BACKGROUND_PRESETS = tuple(f"bg_{n}" for n in range(1, 7))
 # "" (none or, for a child, the general one), a preset or an uploaded picture.
 BACKGROUND_VALUE = r"^(|bg_[1-6]|[a-z0-9]{1,64})$"
@@ -1099,6 +1101,27 @@ class KisSegitoManager:
         self._audit(who, f"device_token.{device_id}", None, None)
         await self._changed()
 
+    def screen_settings(self, device_id: str) -> dict[str, int]:
+        """A knob's screen power settings: its own values over the general ones."""
+        general = DEFAULT_SETTINGS["screen"] | (self.settings.get("screen") or {})
+        own = self.data["devices"].get(device_id, {}).get("screen") or {}
+        return general | {k: v for k, v in own.items() if v is not None}
+
+    async def async_set_device_screen(
+        self, device_id: str, values: dict[str, int | None], *, who: str = "parent"
+    ) -> None:
+        """Override (a number) or clear (None) a knob's screen power settings."""
+        device = self.data["devices"].setdefault(device_id, {})
+        old = dict(device.get("screen") or {})
+        new = {
+            k: v
+            for k, v in (old | values).items()
+            if v is not None and k in SCREEN_KEYS
+        }
+        device["screen"] = new
+        self._audit(who, f"device_screen.{device_id}", old, new)
+        await self._changed()
+
     def device_children(self, device_id: str) -> set[str]:
         """Ids of the children selectable on a knob."""
         children = self.children(active_only=True)
@@ -1218,6 +1241,14 @@ class KisSegitoManager:
             "now": int(now.timestamp()),
             "lang": language,
             "bg": self.settings.get("background") or "",
+            "scr": {
+                key: int(value)
+                for key, value in zip(
+                    ("saver", "dim", "lvl", "blank", "off"),
+                    (self.screen_settings(device_id)[k] for k in SCREEN_KEYS),
+                    strict=True,
+                )
+            },
             "anim": self.settings.get("animation_mode", "full"),
             "idle": int(self.settings.get("inactivity_s", 60)),
             "children": children,

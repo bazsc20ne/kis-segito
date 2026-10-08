@@ -254,5 +254,14 @@
   "background.upload": "Saját kép feltöltése",
   "background.hint": "Minden gombon látszik; egy gyereknek saját háttere is lehet a gyerek oldalán.",
   "background.child_hint": "A gombon ennek a gyereknek a képernyőin látszik; az „Általános” a beállításokban megadott hátteret használja.",
-  "error.invalid_background": "Ismeretlen háttér."
+  "error.invalid_background": "Ismeretlen háttér.",
+  "screen.title": "Gomb képernyője",
+  "screen.saver_after": "Képernyővédő ennyi után (s)",
+  "screen.dim_after": "Halványítás ennyi után (s)",
+  "screen.dim_level": "Halványított fényerő (%)",
+  "screen.blank_after": "Rajzolás leállítása ennyi után (s)",
+  "screen.off_after": "Háttérvilágítás ki ennyi után (s)",
+  "screen.hint": "Tétlenségi idők minden gombra; 0 = soha. A képernyővédő a pattogó labdákat mutatja; a rajzolás leállításakor a képernyő fekete lesz, és a gomb nem rajzol. Bármilyen tekerés vagy nyomás felébreszti a gombot.",
+  "screen.own": "Saját képernyő-beállítások",
+  "screen.own_hint": "Az üres mezők a fenti általános értékeket használják."
 }

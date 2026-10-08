@@ -146,6 +146,16 @@ class KisSegitoUI : public Component {
   void click();
   void long_press();
   void set_connected(bool connected);
+  // Screen power timers from Home Assistant, in seconds (0 = never), and the
+  // dimmed brightness in percent.
+  uint32_t saver_after() const { return this->saver_after_; }
+  uint32_t dim_after() const { return this->dim_after_; }
+  uint8_t dim_level() const { return this->dim_level_; }
+  uint32_t blank_after() const { return this->blank_after_; }
+  uint32_t off_after() const { return this->off_after_; }
+  bool started() const { return this->started_; }
+  // Shows the child UI again (after the screensaver).
+  void show_ui();
   void set_animation_mode(const std::string &mode);
   // Language code from Home Assistant; picks language-specific artwork.
   void set_language(const std::string &language);
@@ -247,6 +257,11 @@ class KisSegitoUI : public Component {
   bool photo_task_started_{false};
 
   bool started_{false};
+  uint32_t saver_after_{0};
+  uint32_t dim_after_{60};
+  uint8_t dim_level_{15};
+  uint32_t blank_after_{0};
+  uint32_t off_after_{120};
   Screen screen_{Screen::NONE};
   int child_{0};
   int function_{0};

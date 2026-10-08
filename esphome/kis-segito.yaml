@@ -10,7 +10,7 @@
 #     name: kis-segito
 #     friendly_name: Kis Segito
 #   packages:
-#     kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.7.3
+#     kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.7.4
 #   api:
 #     encryption:
 #       key: !secret kis_segito_api_key
@@ -39,14 +39,16 @@ substitutions:
   friendly_name: Kis Segito
   # Where the UI component and its images come from. They must match the
   # version of this package; CI and local builds point them at the repository.
-  kis_segito_components: github://bazsc20ne/kis-segito@v0.7.3
-  kis_segito_assets: https://raw.githubusercontent.com/bazsc20ne/kis-segito/v0.7.3/assets/device
+  kis_segito_components: github://bazsc20ne/kis-segito@v0.7.4
+  kis_segito_assets: https://raw.githubusercontent.com/bazsc20ne/kis-segito/v0.7.4/assets/device
   # Display tuning values are in hardware/board.yaml and can be overridden here.
   # Encoder counts per mechanical click at the finest resolution (4 counts per
   # quadrature cycle). The MD80E encoder makes half a cycle per click = 2.
   # How many clicks make one UI step is set at runtime from Home Assistant
   # ("Encoder clicks per step").
   encoder_counts_per_click: "2"
+  # "true": log every raw encoder count (to check the encoder's detents).
+  encoder_debug: "false"
   # Loading animation: highlight layer offset from the ball centre, in pixels
   # of the 48 px source image (negative = left / up). 0 keeps it where the
   # highlight image draws it.
@@ -60,7 +62,7 @@ esphome:
   name_add_mac_suffix: false
   project:
     name: bazsc20ne.kis-segito
-    version: "0.7.3"
+    version: "0.7.4"
 
 external_components:
   - source: ${kis_segito_components}
@@ -156,10 +158,21 @@ wifi:
 captive_portal:
 
 globals:
-  # Encoder counts since the last UI step (negative = anticlockwise).
-  - id: encoder_accum
+  # Encoder: raw count of the last committed step (a detent rest position),
+  # the last raw count and when it changed (see knob_encoder).
+  - id: encoder_base
     type: int
     initial_value: "0"
+  - id: encoder_last_pos
+    type: int
+    initial_value: "0"
+  - id: encoder_last_ms
+    type: uint32_t
+    initial_value: "0"
+  # A press that woke the screen does not also act as a click.
+  - id: swallow_click
+    type: bool
+    initial_value: "false"
   # Translated UI strings, filled by Home Assistant (key -> text).
   - id: ui_strings
     type: std::map<std::string, std::string>
@@ -175,7 +188,8 @@ globals:
   - id: loading_text
     type: std::array<char, 96>
     restore_value: true
-  # Screen saver: time of the last knob input, and 0 = on, 1 = dimmed, 2 = off.
+  # Screen power: time of the last knob input, and the stages reached since
+  # (bits: 1 screensaver, 2 dimmed, 4 drawing off, 8 backlight off; 0 = awake).
   - id: last_input_ms
     type: uint32_t
     initial_value: "0"
@@ -240,14 +254,150 @@ script:
           if (id(blank_overlay) != nullptr)
             lv_obj_add_flag(id(blank_overlay), LV_OBJ_FLAG_HIDDEN);
 
+  # The bouncing balls of the loading screen (also the screensaver).
+  # Layered balls (recoloured base + highlight layer)
+  # bounce off the round edge and off each other. On impact the base image is
+  # briefly swapped for the dented ball, rotated so the dent faces the contact
+  # point, then back to the round ball. The highlight never rotates or
+  # deforms; its position is set by ball_highlight_dx/dy. A 30 ms LVGL timer
+  # moves the balls.
+  - id: start_balls
+    then:
+      - lambda: |-
+          if (id(loading_anim) != nullptr)
+            return;  // already running
+          struct Ball {
+            lv_obj_t *base;
+            lv_obj_t *highlight;
+            float x, y, vx, vy;  // centre and speed in px per tick
+            int r;
+            int dent;        // ticks left showing the dented image
+            float nx, ny;    // direction of the last contact point
+          };
+          static Ball balls[] = {
+              {id(ball_1), id(ball_1_hl), 240, 170, 4.6f, 2.1f, 22, 0, 0, 1},
+              {id(ball_2), id(ball_2_hl), 190, 280, -3.2f, 3.9f, 18, 0, 0, 1},
+              {id(ball_3), id(ball_3_hl), 300, 260, 2.4f, -4.4f, 15, 0, 0, 1},
+              {id(ball_4), id(ball_4_hl), 250, 320, -4.1f, -2.7f, 20, 0, 0, 1},
+              {id(ball_5), id(ball_5_hl), 160, 200, 3.7f, 3.3f, 17, 0, 0, 1},
+          };
+          static const lv_image_dsc_t *round_img = id(ks_img_ball_base_48)->get_lv_image_dsc();
+          static const lv_image_dsc_t *dent_img = id(ks_img_ball_dent_48)->get_lv_image_dsc();
+          constexpr int IMG = 48;  // source image size of all layers
+          for (auto &b : balls) {
+            const int scale = 2 * b.r * 256 / IMG;
+            lv_image_set_scale(b.base, scale);
+            lv_image_set_scale(b.highlight, scale);
+          }
+          id(loading_anim) = lv_timer_create(
+              [](lv_timer_t *) {
+                constexpr float CX = 240, CY = 240, EDGE = 234;
+                constexpr int IMG = 48;
+                constexpr int DENT_TICKS = 4;
+                // Highlight offset from the ball centre, in source image pixels.
+                constexpr float HL_DX = ${ball_highlight_dx}, HL_DY = ${ball_highlight_dy};
+                constexpr size_t N = sizeof(balls) / sizeof(balls[0]);
+                auto hit = [](Ball &b, float nx, float ny) {
+                  b.dent = DENT_TICKS;
+                  b.nx = nx;
+                  b.ny = ny;
+                };
+                // Ball-to-ball bounces (elastic, mass ~ area).
+                for (size_t i = 0; i < N; i++) {
+                  for (size_t j = i + 1; j < N; j++) {
+                    Ball &a = balls[i], &c = balls[j];
+                    const float dx = c.x - a.x, dy = c.y - a.y;
+                    const float dist = sqrtf(dx * dx + dy * dy);
+                    const float min_dist = a.r + c.r;
+                    if (dist >= min_dist || dist <= 0)
+                      continue;
+                    const float nx = dx / dist, ny = dy / dist;
+                    const float rel = (a.vx - c.vx) * nx + (a.vy - c.vy) * ny;
+                    if (rel > 0) {  // approaching each other
+                      const float ma = a.r * a.r, mc = c.r * c.r;
+                      const float imp = 2 * rel / (ma + mc);
+                      a.vx -= imp * mc * nx;
+                      a.vy -= imp * mc * ny;
+                      c.vx += imp * ma * nx;
+                      c.vy += imp * ma * ny;
+                      hit(a, nx, ny);    // a touches c in direction n
+                      hit(c, -nx, -ny);  // c touches a in direction -n
+                    }
+                    const float push = (min_dist - dist) / 2;  // separate them
+                    a.x -= nx * push;
+                    a.y -= ny * push;
+                    c.x += nx * push;
+                    c.y += ny * push;
+                  }
+                }
+                for (auto &b : balls) {
+                  b.x += b.vx;
+                  b.y += b.vy;
+                  const float dx = b.x - CX, dy = b.y - CY;
+                  const float dist = sqrtf(dx * dx + dy * dy);
+                  const float max_dist = EDGE - b.r;
+                  if (dist > max_dist && dist > 0) {
+                    const float nx = dx / dist, ny = dy / dist;
+                    const float vn = b.vx * nx + b.vy * ny;
+                    if (vn > 0) {  // moving outwards: reflect off the circle
+                      b.vx -= 2 * vn * nx;
+                      b.vy -= 2 * vn * ny;
+                      hit(b, nx, ny);  // the wall is outwards
+                    }
+                    b.x = CX + nx * max_dist;
+                    b.y = CY + ny * max_dist;
+                  }
+                  if (b.dent == DENT_TICKS) {
+                    // The dent is drawn at the bottom (+90 degrees): turn it
+                    // towards the contact point. LVGL rotation is in 0.1 degrees.
+                    const float deg = atan2f(b.ny, b.nx) * 180.0f / (float) M_PI - 90.0f;
+                    lv_image_set_src(b.base, dent_img);
+                    lv_image_set_rotation(b.base, (int32_t) (deg * 10.0f));
+                  } else if (b.dent == 0 && lv_image_get_src(b.base) != round_img) {
+                    lv_image_set_src(b.base, round_img);
+                    lv_image_set_rotation(b.base, 0);
+                  }
+                  if (b.dent > 0)
+                    b.dent--;
+                  const int px = (int) b.x - IMG / 2, py = (int) b.y - IMG / 2;
+                  const float k = 2.0f * b.r / IMG;
+                  lv_obj_set_pos(b.base, px, py);
+                  lv_obj_set_pos(b.highlight, px + (int) (HL_DX * k), py + (int) (HL_DY * k));
+                }
+              },
+              30, nullptr);
+
   # Screen saver: back to full brightness after dimming or switching off.
+  # Back to normal after any screen power stage (see the interval below).
   - id: wake_screen
     mode: restart
     then:
-      - light.turn_on:
-          id: backlight
-          brightness: !lambda return id(awake_brightness);
-          transition_length: 200ms
+      - lambda: |-
+          const int was = id(screen_state);
+          id(screen_state) = 0;
+          if (was & 1) {
+            id(stop_loading_anim).execute();
+            lv_obj_remove_flag(id(boot_mark), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_remove_flag(id(lbl_loading), LV_OBJ_FLAG_HIDDEN);
+            id(ui).show_ui();
+          }
+          if (was & 4)
+            id(unblank_screen).execute();
+          if ((was & (2 | 8)) || !id(backlight).current_values.is_on()) {
+            auto call = id(backlight).turn_on();
+            call.set_brightness(id(awake_brightness));
+            call.set_transition_length(200);
+            call.perform();
+          }
+
+  # Screensaver: the bouncing balls, without the brand mark and the text.
+  - id: start_screensaver
+    then:
+      - lambda: |-
+          lv_obj_add_flag(id(boot_mark), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_add_flag(id(lbl_loading), LV_OBJ_FLAG_HIDDEN);
+      - lvgl.page.show: loading_page
+      - script.execute: start_balls
 
   # One UI step clockwise / anticlockwise.
   - id: knob_step_up
@@ -284,38 +434,36 @@ sensor:
     resolution: 4
     # Raw counts are only useful for debugging; UI steps go to the scripts.
     internal: true
-    on_clockwise:
+    # Detent-aware stepping: a step counts only when the knob has moved one
+    # full detent (counts_per_click raw counts) away from the last committed
+    # rest position. Partial moves, the detent's overshoot and its spring-back
+    # never step back. After a pause the rest position is re-aligned, so the
+    # first detent after it always counts.
+    on_value:
       - lambda: |-
-          // Input while the screen is dimmed or off only wakes it.
-          id(last_input_ms) = millis();
-          if (id(screen_state) != 0) {
-            id(screen_state) = 0;
+          const int pos = (int) x;
+          const uint32_t now = millis();
+          if (${encoder_debug})
+            ESP_LOGD("kis_segito", "Encoder raw %d (base %d)", pos, id(encoder_base));
+          if (now - id(encoder_last_ms) > 300)
+            id(encoder_base) = id(encoder_last_pos);  // the detent it rested in
+          id(encoder_last_ms) = now;
+          id(encoder_last_pos) = pos;
+          id(last_input_ms) = now;
+          // Input while the screen is dimmed or off only wakes it, on the
+          // first edge; the rest of that detent is not a step either.
+          if (id(screen_state) != 0 || !id(backlight).current_values.is_on()) {
             id(wake_screen).execute();
-            id(encoder_accum) = 0;
+            id(encoder_base) = pos;
             return;
           }
-          if (id(encoder_accum) < 0) id(encoder_accum) = 0;
-          id(encoder_accum) += 1;
-          const int need = ${encoder_counts_per_click} * (int) id(encoder_clicks_per_step).state;
-          if (id(encoder_accum) >= need) {
-            id(encoder_accum) = 0;
+          const int per_step = ${encoder_counts_per_click} * (int) id(encoder_clicks_per_step).state;
+          while (pos - id(encoder_base) >= per_step) {
+            id(encoder_base) += per_step;
             id(knob_step_up).execute();
           }
-    on_anticlockwise:
-      - lambda: |-
-          // Input while the screen is dimmed or off only wakes it.
-          id(last_input_ms) = millis();
-          if (id(screen_state) != 0) {
-            id(screen_state) = 0;
-            id(wake_screen).execute();
-            id(encoder_accum) = 0;
-            return;
-          }
-          if (id(encoder_accum) > 0) id(encoder_accum) = 0;
-          id(encoder_accum) -= 1;
-          const int need = ${encoder_counts_per_click} * (int) id(encoder_clicks_per_step).state;
-          if (-id(encoder_accum) >= need) {
-            id(encoder_accum) = 0;
+          while (id(encoder_base) - pos >= per_step) {
+            id(encoder_base) -= per_step;
             id(knob_step_down).execute();
           }
   - platform: wifi_signal
@@ -335,36 +483,6 @@ number:
     max_value: 5
     step: 1
     initial_value: 1
-    optimistic: true
-    restore_value: true
-
-  # Screen saver: dim, then switch the backlight off after this long without
-  # knob input (0 = never). Any input wakes the screen; that input is not
-  # passed to the UI.
-  - platform: template
-    id: screen_dim_after
-    name: Screen dim after
-    icon: mdi:brightness-4
-    entity_category: config
-    unit_of_measurement: s
-    mode: box
-    min_value: 0
-    max_value: 3600
-    step: 10
-    initial_value: 60
-    optimistic: true
-    restore_value: true
-  - platform: template
-    id: screen_off_after
-    name: Screen off after
-    icon: mdi:monitor-off
-    entity_category: config
-    unit_of_measurement: s
-    mode: box
-    min_value: 0
-    max_value: 86400
-    step: 10
-    initial_value: 120
     optimistic: true
     restore_value: true
 
@@ -395,17 +513,24 @@ binary_sensor:
     filters:
       - delayed_on: 10ms
       - delayed_off: 10ms
+    # Pressing while the screen is dimmed or off wakes it at once (on the
+    # press, not the release); that press is not a click or long press.
+    on_press:
+      - lambda: |-
+          id(last_input_ms) = millis();
+          if (id(screen_state) != 0 || !id(backlight).current_values.is_on()) {
+            id(wake_screen).execute();
+            id(swallow_click) = true;
+          }
     # Short press = select / confirm; long press = back one level.
     on_click:
       - min_length: 10ms
         max_length: 650ms
         then:
           - lambda: |-
-              // Input while the screen is dimmed or off only wakes it.
               id(last_input_ms) = millis();
-              if (id(screen_state) != 0) {
-                id(screen_state) = 0;
-                id(wake_screen).execute();
+              if (id(swallow_click)) {
+                id(swallow_click) = false;
                 return;
               }
               id(ui).click();
@@ -414,11 +539,9 @@ binary_sensor:
           - ON for at least 700ms
         then:
           - lambda: |-
-              // Input while the screen is dimmed or off only wakes it.
               id(last_input_ms) = millis();
-              if (id(screen_state) != 0) {
-                id(screen_state) = 0;
-                id(wake_screen).execute();
+              if (id(swallow_click)) {
+                id(swallow_click) = false;
                 return;
               }
               id(ui).long_press();
@@ -460,113 +583,7 @@ lvgl:
   default_font: montserrat_24
   on_boot:
     - script.execute: refresh_texts
-    # Loading animation: layered balls (recoloured base + highlight layer)
-    # bounce off the round edge and off each other. On impact the base image is
-    # briefly swapped for the dented ball, rotated so the dent faces the contact
-    # point, then back to the round ball. The highlight never rotates or
-    # deforms; its position is set by ball_highlight_dx/dy. A 30 ms LVGL timer
-    # moves the balls.
-    - lambda: |-
-        struct Ball {
-          lv_obj_t *base;
-          lv_obj_t *highlight;
-          float x, y, vx, vy;  // centre and speed in px per tick
-          int r;
-          int dent;        // ticks left showing the dented image
-          float nx, ny;    // direction of the last contact point
-        };
-        static Ball balls[] = {
-            {id(ball_1), id(ball_1_hl), 240, 170, 4.6f, 2.1f, 22, 0, 0, 1},
-            {id(ball_2), id(ball_2_hl), 190, 280, -3.2f, 3.9f, 18, 0, 0, 1},
-            {id(ball_3), id(ball_3_hl), 300, 260, 2.4f, -4.4f, 15, 0, 0, 1},
-            {id(ball_4), id(ball_4_hl), 250, 320, -4.1f, -2.7f, 20, 0, 0, 1},
-            {id(ball_5), id(ball_5_hl), 160, 200, 3.7f, 3.3f, 17, 0, 0, 1},
-        };
-        static const lv_image_dsc_t *round_img = id(ks_img_ball_base_48)->get_lv_image_dsc();
-        static const lv_image_dsc_t *dent_img = id(ks_img_ball_dent_48)->get_lv_image_dsc();
-        constexpr int IMG = 48;  // source image size of all layers
-        for (auto &b : balls) {
-          const int scale = 2 * b.r * 256 / IMG;
-          lv_image_set_scale(b.base, scale);
-          lv_image_set_scale(b.highlight, scale);
-        }
-        id(loading_anim) = lv_timer_create(
-            [](lv_timer_t *) {
-              constexpr float CX = 240, CY = 240, EDGE = 234;
-              constexpr int IMG = 48;
-              constexpr int DENT_TICKS = 4;
-              // Highlight offset from the ball centre, in source image pixels.
-              constexpr float HL_DX = ${ball_highlight_dx}, HL_DY = ${ball_highlight_dy};
-              constexpr size_t N = sizeof(balls) / sizeof(balls[0]);
-              auto hit = [](Ball &b, float nx, float ny) {
-                b.dent = DENT_TICKS;
-                b.nx = nx;
-                b.ny = ny;
-              };
-              // Ball-to-ball bounces (elastic, mass ~ area).
-              for (size_t i = 0; i < N; i++) {
-                for (size_t j = i + 1; j < N; j++) {
-                  Ball &a = balls[i], &c = balls[j];
-                  const float dx = c.x - a.x, dy = c.y - a.y;
-                  const float dist = sqrtf(dx * dx + dy * dy);
-                  const float min_dist = a.r + c.r;
-                  if (dist >= min_dist || dist <= 0)
-                    continue;
-                  const float nx = dx / dist, ny = dy / dist;
-                  const float rel = (a.vx - c.vx) * nx + (a.vy - c.vy) * ny;
-                  if (rel > 0) {  // approaching each other
-                    const float ma = a.r * a.r, mc = c.r * c.r;
-                    const float imp = 2 * rel / (ma + mc);
-                    a.vx -= imp * mc * nx;
-                    a.vy -= imp * mc * ny;
-                    c.vx += imp * ma * nx;
-                    c.vy += imp * ma * ny;
-                    hit(a, nx, ny);    // a touches c in direction n
-                    hit(c, -nx, -ny);  // c touches a in direction -n
-                  }
-                  const float push = (min_dist - dist) / 2;  // separate them
-                  a.x -= nx * push;
-                  a.y -= ny * push;
-                  c.x += nx * push;
-                  c.y += ny * push;
-                }
-              }
-              for (auto &b : balls) {
-                b.x += b.vx;
-                b.y += b.vy;
-                const float dx = b.x - CX, dy = b.y - CY;
-                const float dist = sqrtf(dx * dx + dy * dy);
-                const float max_dist = EDGE - b.r;
-                if (dist > max_dist && dist > 0) {
-                  const float nx = dx / dist, ny = dy / dist;
-                  const float vn = b.vx * nx + b.vy * ny;
-                  if (vn > 0) {  // moving outwards: reflect off the circle
-                    b.vx -= 2 * vn * nx;
-                    b.vy -= 2 * vn * ny;
-                    hit(b, nx, ny);  // the wall is outwards
-                  }
-                  b.x = CX + nx * max_dist;
-                  b.y = CY + ny * max_dist;
-                }
-                if (b.dent == DENT_TICKS) {
-                  // The dent is drawn at the bottom (+90 degrees): turn it
-                  // towards the contact point. LVGL rotation is in 0.1 degrees.
-                  const float deg = atan2f(b.ny, b.nx) * 180.0f / (float) M_PI - 90.0f;
-                  lv_image_set_src(b.base, dent_img);
-                  lv_image_set_rotation(b.base, (int32_t) (deg * 10.0f));
-                } else if (b.dent == 0 && lv_image_get_src(b.base) != round_img) {
-                  lv_image_set_src(b.base, round_img);
-                  lv_image_set_rotation(b.base, 0);
-                }
-                if (b.dent > 0)
-                  b.dent--;
-                const int px = (int) b.x - IMG / 2, py = (int) b.y - IMG / 2;
-                const float k = 2.0f * b.r / IMG;
-                lv_obj_set_pos(b.base, px, py);
-                lv_obj_set_pos(b.highlight, px + (int) (HL_DX * k), py + (int) (HL_DY * k));
-              }
-            },
-            30, nullptr);
+    - script.execute: start_balls
   pages:
     # Shown from boot until Home Assistant sends the content: the brand mark in
     # the middle with the loading text below it, balls bouncing behind them.
@@ -655,28 +672,41 @@ light:
     on_turn_on:
       - script.execute: unblank_screen
 
-# Screen saver: dim, then switch off the backlight when the knob is not used.
+# Screen power, with the times from Home Assistant (0 = never): screensaver,
+# dimming, drawing off (black content, LVGL paused) and backlight off, each
+# after its own idle time. Any knob input wakes everything (wake_screen).
 interval:
   - interval: 1s
     then:
       - lambda: |-
+          if (!id(ui).started())
+            return;  // still loading
           const uint32_t idle_s = (millis() - id(last_input_ms)) / 1000;
-          const float dim_after = id(screen_dim_after).state;
-          const float off_after = id(screen_off_after).state;
-          if (id(screen_state) < 2 && off_after > 0 && idle_s >= off_after) {
-            if (id(screen_state) == 0 && id(backlight).current_values.is_on())
-              id(awake_brightness) = id(backlight).current_values.get_brightness();
-            id(screen_state) = 2;
-            auto call = id(backlight).turn_off();
+          const bool lit = id(backlight).current_values.is_on();
+          auto due = [idle_s](uint32_t after) { return after > 0 && idle_s >= after; };
+          int &st = id(screen_state);
+          if (st == 0 && !lit)
+            return;  // switched off from Home Assistant: leave it alone
+          if (!(st & (2 | 8)) && lit && (due(id(ui).dim_after()) || due(id(ui).off_after())))
+            id(awake_brightness) = id(backlight).current_values.get_brightness();
+          if (!(st & 1) && due(id(ui).saver_after())) {
+            st |= 1;
+            id(start_screensaver).execute();
+          }
+          if (!(st & (2 | 8)) && due(id(ui).dim_after())) {
+            st |= 2;
+            auto call = id(backlight).turn_on();
+            call.set_brightness(std::min(id(awake_brightness), id(ui).dim_level() / 100.0f));
             call.set_transition_length(1000);
             call.perform();
-          } else if (id(screen_state) == 0 && dim_after > 0 && idle_s >= dim_after) {
-            if (!id(backlight).current_values.is_on())
-              return;  // switched off from Home Assistant: leave it alone
-            id(awake_brightness) = id(backlight).current_values.get_brightness();
-            id(screen_state) = 1;
-            auto call = id(backlight).turn_on();
-            call.set_brightness(std::min(id(awake_brightness), 0.15f));
+          }
+          if (!(st & 4) && due(id(ui).blank_after())) {
+            st |= 4;
+            id(blank_screen).execute();
+          }
+          if (!(st & 8) && due(id(ui).off_after())) {
+            st |= 8;
+            auto call = id(backlight).turn_off();
             call.set_transition_length(1000);
             call.perform();
           }

@@ -49,7 +49,7 @@ substitutions:
   friendly_name: Kis Segito
 
 packages:
-  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.7.3
+  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.7.4
 
 api:
   encryption:
@@ -74,11 +74,13 @@ step** beállítása (1–5, alapból 1 = egy kattanás egy lépés), és újrai
 megmarad. Más enkóderhez a `substitutions` részben az `encoder_counts_per_click`
 állítható (alapból `"2"`). A kijelző beállításai: [docs/hardware.md](docs/hardware.md).
 
-Képernyővédő: a kijelző a **Screen dim after** idő (alapból 60 s) után elhalványul, a
-**Screen off after** idő (alapból 120 s) után kikapcsol; bármelyik tekerés vagy
-gombnyomás felébreszti (ez a mozdulat még nem lép a menüben). A 0 érték az adott
-lépést kikapcsolja. Amíg a háttérvilágítás ki van kapcsolva (bármilyen módon), a
-kijelző tartalma fekete.
+Képernyő: a panel **Beállítások** oldalán a **Gomb képernyője** kártyán állítható, mennyi
+tétlenség után induljon a képernyővédő (pattogó labdák), halványuljon el a kijelző (és
+milyen fényerőre), álljon le a rajzolás (fekete képernyő), illetve kapcsoljon ki a
+háttérvilágítás; a 0 az adott lépést kikapcsolja. Gombonként saját értékek is
+megadhatók. Bármelyik tekerés vagy gombnyomás felébreszti a gombot (ez a mozdulat még nem
+lép a menüben). Amíg a háttérvilágítás ki van kapcsolva (bármilyen módon), a kijelző
+tartalma fekete.
 
 **B) Kész firmware.** Minden [release](https://github.com/bazsc20ne/kis-segito/releases)
 mellett ott van a lefordított firmware: a `*.factory.bin` USB-s első felíráshoz
@@ -137,7 +139,7 @@ választható; ez a knobokra és a panelre is érvényes. Új nyelv:
   át nem érhetők el. Ha egy gomb kapcsolata nem titkosított, a Home Assistant javítási
   értesítést mutat, és a gomb a képek helyett ikonokat jelenít meg. A gomb hozzáférése a
   képekhez megújítható: panel → **Beállítások → Gombok → Új képkulcs**.
-- **Frissítés:** a fenti mintában a package egy adott verzióra mutat (`@v0.7.3`), így a
+- **Frissítés:** a fenti mintában a package egy adott verzióra mutat (`@v0.7.4`), így a
   gomb firmware-e csak akkor változik, amikor ezt átírod egy újabb verzióra.
 - **Nem része a projektnek:** aki fizikailag hozzáfér a gombhoz, kiolvashatja a
   flash-memóriáját (és a benne lévő titkos adatokat). Ez egy otthoni, házilag épített
@@ -215,7 +217,7 @@ substitutions:
   friendly_name: Kis Segito
 
 packages:
-  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.7.3
+  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.7.4
 
 api:
   encryption:
@@ -240,10 +242,12 @@ step** setting (1–5, default 1 = one step per click), kept across reboots. For
 different encoder, set `encoder_counts_per_click` in `substitutions` (default `"2"`).
 Display settings: [docs/hardware.md](docs/hardware.md).
 
-Screen saver: the display dims after **Screen dim after** (default 60 s) and switches
-off after **Screen off after** (default 120 s); any turn or press wakes it (that input
-is not passed to the menu). 0 disables a step. While the backlight is off (however it
-was switched off), the screen content is black.
+Screen: on the panel's **Settings** page, the **Knob screen** card sets after how long
+without use the screensaver starts (bouncing balls), the display dims (and to which
+brightness), drawing stops (black screen) and the backlight switches off; 0 disables a
+step. Each knob can have its own values. Any turn or press wakes the knob (that input is
+not passed to the menu). While the backlight is off (however it was switched off), the
+screen content is black.
 
 **B) Prebuilt firmware.** Every [release](https://github.com/bazsc20ne/kis-segito/releases)
 includes the compiled firmware: `*.factory.bin` for the first USB flash (e.g. with
@@ -301,7 +305,7 @@ the panel's **Settings** card; it applies to the knobs and the panel. Adding a l
   Assistant shows a repair issue and the knob shows icons instead of the pictures. A
   knob's access to the pictures can be renewed: panel → **Settings → Knobs → New picture
   key**.
-- **Updates:** in the example above the package points to a given version (`@v0.7.3`), so
+- **Updates:** in the example above the package points to a given version (`@v0.7.4`), so
   the knob's firmware changes only when you change it to a newer version.
 - **Out of scope:** anyone with physical access to the knob can read its flash memory (and
   the secrets in it). This is a DIY device for the home, so flash encryption and secure

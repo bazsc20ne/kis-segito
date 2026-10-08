@@ -26,6 +26,17 @@ from .manager import (
 )
 from .notify import EVENT_TYPES
 from .panel import FRONTEND_DIR, panel_language_names
+from .store import DEFAULT_SETTINGS
+
+# Knob screen power settings: seconds (0 = never), the dim level in percent.
+SCREEN_FIELDS = {
+    "saver_after": vol.All(int, vol.Range(min=0, max=86400)),
+    "dim_after": vol.All(int, vol.Range(min=0, max=86400)),
+    "dim_level": vol.All(int, vol.Range(min=1, max=100)),
+    "blank_after": vol.All(int, vol.Range(min=0, max=86400)),
+    "off_after": vol.All(int, vol.Range(min=0, max=86400)),
+}
+SCREEN_SCHEMA = vol.Schema({vol.Optional(k): v for k, v in SCREEN_FIELDS.items()})
 
 
 @callback
@@ -55,6 +66,7 @@ def async_register_commands(hass: HomeAssistant) -> None:
         ws_notify_test,
         ws_day_routine,
         ws_rotate_device_token,
+        ws_device_screen,
     ):
         websocket_api.async_register_command(hass, command)
 
@@ -86,6 +98,8 @@ async def _settings(hass: HomeAssistant) -> dict[str, Any]:
     names = await hass.async_add_executor_job(panel_language_names)
     return {
         **data.store.settings,
+        "screen": DEFAULT_SETTINGS["screen"]
+        | (data.store.settings.get("screen") or {}),
         "language": data.store.language,
         "languages": [{"code": code, "name": names.get(code, code)} for code in codes],
     }
@@ -123,6 +137,7 @@ async def ws_settings(
         ),
         vol.Optional("notification_label"): str,
         vol.Optional("background"): vol.Match(BACKGROUND_VALUE),
+        vol.Optional("screen"): SCREEN_SCHEMA,
     }
 )
 @websocket_api.require_admin
@@ -156,6 +171,8 @@ async def ws_settings_update(
         )
         if key in msg
     }
+    if "screen" in msg:
+        changes["screen"] = data.manager.settings.get("screen", {}) | msg["screen"]
     if language is not None:
         changes["language"] = language
     await data.manager.async_update_settings(changes, who=_who(connection))
@@ -193,9 +210,41 @@ def _devices(hass: HomeAssistant) -> list[dict[str, Any]]:
                 "device_id": device_id,
                 "name": (device.name_by_user or device.name) if device else entry.title,
                 "encrypted": device is not None and api_encrypted(hass, device),
+                "screen": hass.data[DOMAIN]
+                .manager.data["devices"]
+                .get(device_id, {})
+                .get("screen", {}),
             }
         )
     return result
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/device/screen",
+        vol.Required("device_id"): str,
+        # A number overrides the general value for this knob; None clears it.
+        vol.Required("screen"): {
+            vol.Optional(key): vol.Any(None, validator)
+            for key, validator in SCREEN_FIELDS.items()
+        },
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_device_screen(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Set or clear a knob's own screen power settings."""
+    if msg["device_id"] not in {d["device_id"] for d in _devices(hass)}:
+        connection.send_error(msg["id"], "unknown_device", "Unknown knob")
+        return
+    await _manager(hass).async_set_device_screen(
+        msg["device_id"], msg["screen"], who=_who(connection)
+    )
+    connection.send_result(msg["id"])
 
 
 @websocket_api.websocket_command(

@@ -25,6 +25,7 @@ epoch seconds, colours `#RRGGBB`):
   "now": 1791360000,
   "lang": "hu",
   "bg": "bg_2",
+  "scr": {"saver": 0, "dim": 60, "lvl": 15, "blank": 0, "off": 120},
   "anim": "full",
   "idle": 60,
   "children": [
@@ -56,6 +57,9 @@ epoch seconds, colours `#RRGGBB`):
   Assistant Cloud). `img` is empty (`u` and `t` are `""`) while the knob's API
   connection is not encrypted. A new key (panel → Settings → Knobs) replaces
   the old one at once; the knob gets it in the next snapshot.
+- `scr`: screen power of this knob, idle seconds until the screensaver, dimming,
+  drawing off (black, LVGL paused) and backlight off (0 = never); `lvl` is the
+  dimmed brightness in percent.
 - `bg`, `children[].bg`: background of the screen: `""` (none), a built-in
   preset (`bg_1` … `bg_6`) or an uploaded picture id. The general `bg` is used
   on the child selector and for children without their own `bg`. The knob

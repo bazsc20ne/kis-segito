@@ -6,6 +6,50 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.7.4] - 2026-10-08
+
+### English
+
+- More memory on the knob (#26): the firmware now runs from flash instead of
+  being copied into PSRAM, which leaves several MB of PSRAM for drawing, the
+  carousels' pre-rendered slots and backgrounds. The display keeps working
+  while the knob writes to its flash, and recovers at the next frame if a
+  frame was disturbed (against the horizontal flicker line while animating).
+- Smoother carousels (#10): the side items no longer fade through an extra
+  rendering pass on every frame, which made the child carousel jump instead
+  of sliding.
+- Encoder (#27): a step counts only after a full detent, so the knob no
+  longer snaps back when released; after a pause the first detent always
+  counts; the first turn or press wakes a dimmed or dark screen at once (a
+  press wakes it on pressing, not on releasing). `encoder_debug: "true"` logs
+  the raw encoder counts.
+- Screen power in the panel (#28): Settings → Knob screen sets the idle times
+  of the screensaver (the bouncing balls), dimming (with its brightness),
+  drawing off (black screen) and backlight off, 0 = never; each knob can have
+  its own values. The "Screen dim after" and "Screen off after" device
+  settings of the knob are replaced by these.
+
+### Magyar
+
+- Több memória a gombon (#26): a firmware most a flashből fut, nem másolódik
+  a PSRAM-ba, így több MB PSRAM marad a rajzolásra, a körhinták előre
+  kirajzolt elemeire és a hátterekre. A kijelző akkor is működik, amikor a
+  gomb a flashbe ír, és ha egy képkocka megzavarodik, a következővel helyreáll
+  (a mozgás közbeni vízszintes villanó csík ellen).
+- Simább körhinták (#10): a szélső elemek halványítása már nem jár minden
+  képkockánál egy külön rajzolási menettel, ami miatt a gyerek-körhinta
+  csúszás helyett ugrált.
+- Enkóder (#27): egy lépés csak egy teljes kattanás után számít, így
+  elengedéskor nem ugrik vissza; szünet után az első kattanás is mindig
+  számít; az első tekerés vagy nyomás azonnal felébreszti a halványított vagy
+  sötét képernyőt (nyomásnál már a lenyomáskor, nem az elengedéskor). Az
+  `encoder_debug: "true"` naplózza az enkóder nyers számlálását.
+- Képernyő-beállítások a panelen (#28): Beállítások → Gomb képernyője: a
+  képernyővédő (pattogó labdák), a halványítás (és annak fényereje), a rajzolás
+  leállítása (fekete képernyő) és a háttérvilágítás kikapcsolása tétlenségi
+  ideje, 0 = soha; gombonként saját értékek is megadhatók. Ezek váltják a gomb
+  „Screen dim after” és „Screen off after” eszközbeállításait.
+
 ## [0.7.3] - 2026-10-08
 
 ### English

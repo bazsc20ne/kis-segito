@@ -40,6 +40,15 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     # Background of the knob and the panel: "" (none), a preset ("bg_1" …) or
     # an uploaded picture id; a child's own background overrides it.
     "background": "",
+    # Knob screen power (seconds, 0 = never; dim_level in percent); each knob
+    # can override any of them.
+    "screen": {
+        "saver_after": 0,
+        "dim_after": 60,
+        "dim_level": 15,
+        "blank_after": 0,
+        "off_after": 120,
+    },
 }
 
 # Configuration audit entries kept (token history is in the ledger).
