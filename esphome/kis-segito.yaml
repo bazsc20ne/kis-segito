@@ -24,7 +24,7 @@
 #       password: !secret ap_password
 #
 # See esphome/example.yaml and docs/security.md. Use a separate API key for each
-# knob. Secrets never belong in this repository.
+# knob.
 #
 # The child UI is drawn by the kis_segito_ui external component (esphome/components)
 # with the icons from assets/device. On-screen texts are not hard-coded: Home

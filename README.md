@@ -122,8 +122,8 @@ hozzáadásával lehet felvenni.
 
 ## Biztonság
 
-- **Kötelező titkos adatok** gombonként, az ESPHome `secrets.yaml`-ban (soha ne kerüljenek
-  repóba): `kis_segito_api_key` – az API titkosítási kulcsa, **minden gombnak külön**;
+- **Kötelező titkos adatok** gombonként, a saját ESPHome `secrets.yaml`-odban:
+  `kis_segito_api_key` – az API titkosítási kulcsa, **minden gombnak külön**;
   `ota_password` – a hálózati firmware-frissítés jelszava; `ap_password` – a tartalék
   hozzáférési pont jelszava. A tartalék hozzáférési pont csak akkor indul el, ha a gomb
   nem tud csatlakozni a WiFi-hez; a beállítóoldala firmware-feltöltést is fogad, ezért kell
@@ -284,8 +284,8 @@ needs new translation files.
 
 ### Security
 
-- **Required secrets** for each knob, in the ESPHome `secrets.yaml` (never in a
-  repository): `kis_segito_api_key` – the API encryption key, **a separate one for each
+- **Required secrets** for each knob, in your own ESPHome `secrets.yaml`:
+  `kis_segito_api_key` – the API encryption key, **a separate one for each
   knob**; `ota_password` – the password for firmware updates over the network;
   `ap_password` – the password of the fallback access point. The fallback access point
   opens only when the knob cannot join Wi-Fi; its setup page also accepts a firmware

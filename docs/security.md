@@ -7,8 +7,7 @@ that link and what you have to set up yourself.
 
 ## Required secrets for each knob
 
-Put these in the ESPHome `secrets.yaml` next to your device config (never in a
-repository); see [esphome/example.yaml](../esphome/example.yaml):
+Put these in the ESPHome `secrets.yaml` next to your device config; see [esphome/example.yaml](../esphome/example.yaml):
 
 | Secret | Used for |
 |---|---|
