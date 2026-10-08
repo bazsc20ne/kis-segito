@@ -6,6 +6,23 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.7.2] - 2026-10-08
+
+### English
+
+- Fix (#22): the summary and child sensors refreshed their state every minute
+  from a worker thread instead of Home Assistant's event loop. Home Assistant
+  warned about it at every start, and it could have led to a crash or
+  corrupted state. They now refresh from the event loop.
+
+### Magyar
+
+- Javítás (#22): az összesítő és a gyerekenkénti szenzorok percenkénti
+  frissítése a Home Assistant eseményhurka helyett egy mellékszálon futott. A
+  Home Assistant minden induláskor figyelmeztetett erre, és ez összeomláshoz
+  vagy sérült állapothoz vezethetett volna. Most az eseményhurokból
+  frissülnek.
+
 ## [0.7.1] - 2026-10-08
 
 ### English

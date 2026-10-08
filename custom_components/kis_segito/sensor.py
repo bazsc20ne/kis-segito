@@ -7,7 +7,7 @@ details through its own API.
 
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any
 
 from homeassistant.components.sensor import SensorEntity, SensorStateClass
@@ -58,12 +58,13 @@ class _Base(SensorEntity):
         self.async_on_remove(self.manager.async_add_listener(self.async_write_ha_state))
         # Time moves routines along even without data changes.
         self.async_on_remove(
-            async_track_time_interval(
-                self.hass,
-                lambda _now: self.async_write_ha_state(),
-                timedelta(minutes=1),
-            )
+            async_track_time_interval(self.hass, self._async_tick, timedelta(minutes=1))
         )
+
+    @callback
+    def _async_tick(self, _now: datetime) -> None:
+        """Refresh the time-dependent state (runs in the event loop)."""
+        self.async_write_ha_state()
 
 
 class SummarySensor(_Base):

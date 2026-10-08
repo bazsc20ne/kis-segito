@@ -264,3 +264,13 @@ async def test_knob_background(hass: HomeAssistant, hass_client_no_auth) -> None
         await manager.async_save_item(
             "children", {"id": child["id"], "background": "../etc"}
         )
+
+
+def test_summary_refresh_runs_in_event_loop() -> None:
+    from homeassistant.core import is_callback
+
+    from custom_components.kis_segito.sensor import _Base
+
+    # The minute timer must write the state from the event loop: a timer target
+    # that is not a callback (or coroutine) runs in a worker thread.
+    assert is_callback(_Base._async_tick)
