@@ -75,7 +75,7 @@ megmarad. Más enkóderhez a `substitutions` részben az `encoder_counts_per_cli
 állítható (alapból `"2"`). A kijelző beállításai: [docs/hardware.md](docs/hardware.md).
 
 Képernyő: a panel **Beállítások** oldalán a **Gomb képernyője** kártyán állítható, mennyi
-tétlenség után induljon a képernyővédő (pattogó labdák), halványuljon el a kijelző (és
+tétlenség után induljon a képernyővédő (pattogó labdák vagy folyamatos konfetti), halványuljon el a kijelző (és
 milyen fényerőre), álljon le a rajzolás (fekete képernyő), illetve kapcsoljon ki a
 háttérvilágítás; a 0 az adott lépést kikapcsolja. Gombonként saját értékek is
 megadhatók. Bármelyik tekerés vagy gombnyomás felébreszti a gombot (ez a mozdulat még nem
@@ -243,7 +243,7 @@ different encoder, set `encoder_counts_per_click` in `substitutions` (default `"
 Display settings: [docs/hardware.md](docs/hardware.md).
 
 Screen: on the panel's **Settings** page, the **Knob screen** card sets after how long
-without use the screensaver starts (bouncing balls), the display dims (and to which
+without use the screensaver starts (bouncing balls or continuous confetti), the display dims (and to which
 brightness), drawing stops (black screen) and the backlight switches off; 0 disables a
 step. Each knob can have its own values. Any turn or press wakes the knob (that input is
 not passed to the menu). While the backlight is off (however it was switched off), the

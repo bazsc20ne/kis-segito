@@ -15,6 +15,8 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   again, as in 0.7.3 (running it from flash is now an experimental option,
   `psram_xip: "n"`). Everything else from 0.7.4 stays: smoother carousels,
   the detent-based encoder and the screen settings in the panel.
+- A second screensaver: continuous confetti, next to the bouncing balls
+  (Settings → Knob screen, also per knob).
 - After a restart the knob logs why its previous run ended (for example a
   crash or a power dip), also to Home Assistant.
 - Hardware notes: how to read the knob's serial log with a USB-UART adapter.
@@ -26,6 +28,8 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   PSRAM-ból fut, mint a 0.7.3-ban (a flashből futtatás most kísérleti
   beállítás: `psram_xip: "n"`). A 0.7.4 többi része megmarad: simább
   körhinták, kattanás alapú enkóder és a képernyő-beállítások a panelen.
+- Második képernyővédő: folyamatos konfetti a pattogó labdák mellett
+  (Beállítások → Gomb képernyője, gombonként is).
 - Újraindulás után a gomb naplózza, miért ért véget az előző futása (például
   összeomlás vagy feszültségesés), a Home Assistant felé is.
 - Hardverleírás: a gomb soros naplójának kiolvasása USB-UART adapterrel.

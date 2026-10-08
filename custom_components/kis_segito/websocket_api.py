@@ -35,6 +35,7 @@ SCREEN_FIELDS = {
     "dim_level": vol.All(int, vol.Range(min=1, max=100)),
     "blank_after": vol.All(int, vol.Range(min=0, max=86400)),
     "off_after": vol.All(int, vol.Range(min=0, max=86400)),
+    "saver_type": vol.In(["balls", "confetti"]),
 }
 SCREEN_SCHEMA = vol.Schema({vol.Optional(k): v for k, v in SCREEN_FIELDS.items()})
 

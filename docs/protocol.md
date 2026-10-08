@@ -25,7 +25,7 @@ epoch seconds, colours `#RRGGBB`):
   "now": 1791360000,
   "lang": "hu",
   "bg": "bg_2",
-  "scr": {"saver": 0, "dim": 60, "lvl": 15, "blank": 0, "off": 120},
+  "scr": {"saver": 0, "dim": 60, "lvl": 15, "blank": 0, "off": 120, "ss": "balls"},
   "anim": "full",
   "idle": 60,
   "children": [
@@ -59,7 +59,7 @@ epoch seconds, colours `#RRGGBB`):
   the old one at once; the knob gets it in the next snapshot.
 - `scr`: screen power of this knob, idle seconds until the screensaver, dimming,
   drawing off (black, LVGL paused) and backlight off (0 = never); `lvl` is the
-  dimmed brightness in percent.
+  dimmed brightness in percent, `ss` the screensaver (`balls` or `confetti`).
 - `bg`, `children[].bg`: background of the screen: `""` (none), a built-in
   preset (`bg_1` … `bg_6`) or an uploaded picture id. The general `bg` is used
   on the child selector and for children without their own `bg`. The knob

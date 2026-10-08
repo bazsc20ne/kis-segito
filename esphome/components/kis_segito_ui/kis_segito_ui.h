@@ -154,6 +154,10 @@ class KisSegitoUI : public Component {
   uint32_t blank_after() const { return this->blank_after_; }
   uint32_t off_after() const { return this->off_after_; }
   bool started() const { return this->started_; }
+  // Screensaver: "balls" (the loading screen's) or "confetti".
+  const std::string &saver_type() const { return this->saver_type_; }
+  void start_confetti();
+  void stop_confetti();
   // Shows the child UI again (after the screensaver).
   void show_ui();
   void set_animation_mode(const std::string &mode);
@@ -264,6 +268,15 @@ class KisSegitoUI : public Component {
   uint8_t dim_level_{15};
   uint32_t blank_after_{0};
   uint32_t off_after_{120};
+  std::string saver_type_{"balls"};
+  static constexpr int CONFETTI = 40;
+  struct Piece {
+    lv_obj_t *obj{nullptr};
+    float x{0}, y{0}, speed{1}, phase{0};
+  };
+  Piece confetti_[CONFETTI];
+  lv_obj_t *confetti_layer_{nullptr};
+  lv_timer_t *confetti_timer_{nullptr};
   Screen screen_{Screen::NONE};
   int child_{0};
   int function_{0};

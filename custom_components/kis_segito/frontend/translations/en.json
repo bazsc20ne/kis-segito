@@ -261,7 +261,11 @@
   "screen.dim_level": "Dimmed brightness (%)",
   "screen.blank_after": "Drawing off after (s)",
   "screen.off_after": "Backlight off after (s)",
-  "screen.hint": "Idle times for every knob; 0 = never. The screensaver shows the bouncing balls; with drawing off the screen goes black and stops drawing. Any turn or press wakes the knob.",
+  "screen.hint": "Idle times for every knob; 0 = never. The screensaver shows bouncing balls or confetti; with drawing off the screen goes black and stops drawing. Any turn or press wakes the knob.",
   "screen.own": "Own screen settings",
-  "screen.own_hint": "Empty fields use the general values above."
+  "screen.own_hint": "Empty fields use the general values above.",
+  "screen.saver_type": "Screensaver",
+  "screen.saver_balls": "Bouncing balls",
+  "screen.saver_confetti": "Confetti",
+  "screen.general": "General"
 }

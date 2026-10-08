@@ -311,17 +311,21 @@ async def test_knob_screen_settings(hass: HomeAssistant) -> None:
         "lvl": 15,
         "blank": 0,
         "off": 120,
+        "ss": "balls",
     }
     await manager.async_update_settings(
         {"screen": manager.settings.get("screen", {}) | {"saver_after": 30}}
     )
-    await manager.async_set_device_screen("dev", {"dim_after": 90, "off_after": 0})
+    await manager.async_set_device_screen(
+        "dev", {"dim_after": 90, "off_after": 0, "saver_type": "confetti"}
+    )
     assert manager.snapshot("dev", "en")["scr"] == {
         "saver": 30,
         "dim": 90,
         "lvl": 15,
         "blank": 0,
         "off": 0,
+        "ss": "confetti",
     }
     # None returns a value to the general one.
     await manager.async_set_device_screen("dev", {"dim_after": None})

@@ -12,6 +12,7 @@
 // a browser that still runs an older copy of this file shows a reload bar.
 // Knob screen power settings (seconds; dim_level in percent).
 const SCREEN_KEYS = ["saver_after", "dim_after", "dim_level", "blank_after", "off_after"];
+const SAVER_TYPES = ["balls", "confetti"];
 const PANEL_VERSION = "0.7.5";
 const FALLBACK_LANGUAGE = "en";
 const LANGUAGE_AUTO = "auto";
@@ -949,6 +950,20 @@ class KisSegitoPanel extends HTMLElement {
       if (el.value !== "") {
         await this._ws({ type: "kis_segito/settings/update", screen: { [el.dataset.screen]: Number(el.value) } });
       }
+      await this._load();
+      return;
+    }
+    if (el.dataset.screenType !== undefined) {
+      await this._ws({ type: "kis_segito/settings/update", screen: { saver_type: el.value } });
+      await this._load();
+      return;
+    }
+    if (el.dataset.deviceScreenType !== undefined) {
+      await this._ws({
+        type: "kis_segito/device/screen",
+        device_id: el.dataset.device,
+        screen: { saver_type: el.value || null },
+      });
       await this._load();
       return;
     }
@@ -1934,7 +1949,11 @@ class KisSegitoPanel extends HTMLElement {
         ).join("");
         return `<div class="row">${this._icon("nav_settings", 28)}<span class="grow">${this._e(d.name)}</span>${avatars}${rotate}</div>${warning}
           <details class="knob-screen"><summary>${this._e(this._t("screen.own"))}</summary>
-            <div class="muted">${this._e(this._t("screen.own_hint"))}</div>${screen}</details>`;
+            <div class="muted">${this._e(this._t("screen.own_hint"))}</div>${screen}
+            <label>${this._e(this._t("screen.saver_type"))}<select data-device-screen-type data-device="${this._e(d.device_id)}" ${disabled}>
+              <option value="">${this._e(this._t("screen.general"))}</option>
+              ${SAVER_TYPES.map((t) => `<option value="${t}" ${own.saver_type === t ? "selected" : ""}>${this._e(this._t(`screen.saver_${t}`))}</option>`).join("")}
+            </select></label></details>`;
       })
       .join("");
     const weekdays = WEEKDAYS.map(
@@ -1954,6 +1973,9 @@ class KisSegitoPanel extends HTMLElement {
         ${SCREEN_KEYS.map(
           (k) => `<label>${this._e(this._t(`screen.${k}`))}<input type="number" min="${k === "dim_level" ? 1 : 0}" max="${k === "dim_level" ? 100 : 86400}" data-screen="${k}" value="${s.screen?.[k] ?? ""}" ${disabled}></label>`
         ).join("")}
+        <label>${this._e(this._t("screen.saver_type"))}<select data-screen-type ${disabled}>
+          ${SAVER_TYPES.map((t) => `<option value="${t}" ${(s.screen?.saver_type || "balls") === t ? "selected" : ""}>${this._e(this._t(`screen.saver_${t}`))}</option>`).join("")}
+        </select></label>
         <div class="muted">${this._e(this._t("screen.hint"))}</div>
       </div>
       <div class="card form">

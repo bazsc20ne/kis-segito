@@ -464,6 +464,7 @@ void KisSegitoUI::set_state(const std::string &json) {
     this->dim_level_ = static_cast<uint8_t>(std::min(100, std::max(1, scr["lvl"] | 15)));
     this->blank_after_ = std::max(0, scr["blank"] | 0);
     this->off_after_ = std::max(0, scr["off"] | 120);
+    this->saver_type_ = scr["ss"] | "balls";
   }
   if (root["anim"].is<const char *>())
     this->set_animation_mode(root["anim"].as<const char *>());
@@ -1921,6 +1922,61 @@ void KisSegitoUI::celebrate_(int tokens) {
     lv_anim_set_path_cb(&a, lv_anim_path_ease_in);
     lv_anim_set_completed_cb(&a, [](lv_anim_t *anim) { lv_obj_delete(static_cast<lv_obj_t *>(anim->var)); });
     lv_anim_start(&a);
+  }
+}
+
+// ---------------------------------------------------------------- Screensaver
+
+// Continuous confetti: small pieces fall over a black screen, sway a little and
+// start again at the top. One timer moves them all.
+void KisSegitoUI::start_confetti() {
+  if (this->confetti_layer_ != nullptr)
+    return;
+  static const uint32_t COLORS[] = {0xFF6B6B, 0xFFC94A, 0x6BCB77, 0x6CB8FF, 0xA78BFA, 0xFF8FB1};
+  this->confetti_layer_ = lv_obj_create(lv_layer_top());
+  remove_defaults(this->confetti_layer_);
+  lv_obj_set_size(this->confetti_layer_, SCREEN, SCREEN);
+  lv_obj_set_style_bg_color(this->confetti_layer_, lv_color_black(), 0);
+  lv_obj_set_style_bg_opa(this->confetti_layer_, LV_OPA_COVER, 0);
+  for (int i = 0; i < CONFETTI; i++) {
+    const uint32_t h = hash32(i + 301);
+    Piece &p = this->confetti_[i];
+    p.obj = lv_obj_create(this->confetti_layer_);
+    remove_defaults(p.obj);
+    const bool wide = (h >> 3) & 1;
+    lv_obj_set_size(p.obj, wide ? 12 : 7, wide ? 7 : 12);
+    lv_obj_set_style_radius(p.obj, 2, 0);
+    lv_obj_set_style_bg_color(p.obj, lv_color_hex(COLORS[i % 6]), 0);
+    lv_obj_set_style_bg_opa(p.obj, LV_OPA_COVER, 0);
+    p.x = 40.0f + static_cast<float>(h % 400);
+    p.y = -static_cast<float>((h >> 8) % SCREEN);  // spread over the first fall
+    p.speed = 1.2f + static_cast<float>((h >> 16) % 20) / 10.0f;
+    p.phase = static_cast<float>((h >> 4) % 628) / 100.0f;
+  }
+  this->confetti_timer_ = lv_timer_create(
+      [](lv_timer_t *t) {
+        auto *self = static_cast<KisSegitoUI *>(lv_timer_get_user_data(t));
+        for (auto &p : self->confetti_) {
+          p.y += p.speed;
+          p.phase += 0.08f;
+          if (p.y > SCREEN + 10) {
+            p.y = -14;
+            p.x = 40.0f + static_cast<float>(random_uint32() % 400);
+          }
+          lv_obj_set_pos(p.obj, static_cast<int>(p.x + 10.0f * sinf(p.phase)), static_cast<int>(p.y));
+        }
+      },
+      40, this);
+}
+
+void KisSegitoUI::stop_confetti() {
+  if (this->confetti_timer_ != nullptr) {
+    lv_timer_delete(this->confetti_timer_);
+    this->confetti_timer_ = nullptr;
+  }
+  if (this->confetti_layer_ != nullptr) {
+    lv_obj_delete(this->confetti_layer_);  // deletes the pieces too
+    this->confetti_layer_ = nullptr;
   }
 }
 

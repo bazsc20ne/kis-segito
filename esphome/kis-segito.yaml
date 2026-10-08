@@ -376,6 +376,7 @@ script:
           const int was = id(screen_state);
           id(screen_state) = 0;
           if (was & 1) {
+            id(ui).stop_confetti();
             id(stop_loading_anim).execute();
             lv_obj_remove_flag(id(boot_mark), LV_OBJ_FLAG_HIDDEN);
             lv_obj_remove_flag(id(lbl_loading), LV_OBJ_FLAG_HIDDEN);
@@ -390,14 +391,21 @@ script:
             call.perform();
           }
 
-  # Screensaver: the bouncing balls, without the brand mark and the text.
+  # Screensaver: the bouncing balls (without the brand mark and the text) or
+  # continuous confetti, as set in Home Assistant.
   - id: start_screensaver
     then:
-      - lambda: |-
-          lv_obj_add_flag(id(boot_mark), LV_OBJ_FLAG_HIDDEN);
-          lv_obj_add_flag(id(lbl_loading), LV_OBJ_FLAG_HIDDEN);
-      - lvgl.page.show: loading_page
-      - script.execute: start_balls
+      - if:
+          condition:
+            lambda: return id(ui).saver_type() == "confetti";
+          then:
+            - lambda: id(ui).start_confetti();
+          else:
+            - lambda: |-
+                lv_obj_add_flag(id(boot_mark), LV_OBJ_FLAG_HIDDEN);
+                lv_obj_add_flag(id(lbl_loading), LV_OBJ_FLAG_HIDDEN);
+            - lvgl.page.show: loading_page
+            - script.execute: start_balls
 
   # One UI step clockwise / anticlockwise.
   - id: knob_step_up

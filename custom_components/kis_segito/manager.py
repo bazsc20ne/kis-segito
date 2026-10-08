@@ -1101,14 +1101,14 @@ class KisSegitoManager:
         self._audit(who, f"device_token.{device_id}", None, None)
         await self._changed()
 
-    def screen_settings(self, device_id: str) -> dict[str, int]:
+    def screen_settings(self, device_id: str) -> dict[str, Any]:
         """A knob's screen power settings: its own values over the general ones."""
         general = DEFAULT_SETTINGS["screen"] | (self.settings.get("screen") or {})
         own = self.data["devices"].get(device_id, {}).get("screen") or {}
         return general | {k: v for k, v in own.items() if v is not None}
 
     async def async_set_device_screen(
-        self, device_id: str, values: dict[str, int | None], *, who: str = "parent"
+        self, device_id: str, values: dict[str, Any], *, who: str = "parent"
     ) -> None:
         """Override (a number) or clear (None) a knob's screen power settings."""
         device = self.data["devices"].setdefault(device_id, {})
@@ -1116,7 +1116,7 @@ class KisSegitoManager:
         new = {
             k: v
             for k, v in (old | values).items()
-            if v is not None and k in SCREEN_KEYS
+            if v is not None and (k in SCREEN_KEYS or k == "saver_type")
         }
         device["screen"] = new
         self._audit(who, f"device_screen.{device_id}", old, new)
@@ -1248,7 +1248,8 @@ class KisSegitoManager:
                     (self.screen_settings(device_id)[k] for k in SCREEN_KEYS),
                     strict=True,
                 )
-            },
+            }
+            | {"ss": str(self.screen_settings(device_id).get("saver_type", "balls"))},
             "anim": self.settings.get("animation_mode", "full"),
             "idle": int(self.settings.get("inactivity_s", 60)),
             "children": children,
