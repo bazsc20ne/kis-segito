@@ -6,6 +6,64 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.7.10] - 2026-10-09
+
+### English
+
+- Fix: waking the knob after a long idle time could restart it (task
+  watchdog during the first, large redraw). The watchdog is now fed during
+  long redraws and while the screen is built (#32).
+- Time track (#32, #33):
+  - The ring is computed several times faster and in small parts between
+    other work, so turning and pressing are no longer held up (before: about
+    0.6 s after every child change). The child's inner track is a separate
+    layer; a new child only changes its colour.
+  - The background picture behind the rings is shaded darker, so the smooth
+    fade from the rings inwards is visible again.
+- Carousels (#10, #26): the moving picture repeats the background sideways,
+  so no black area appears while sliding. The sharp items are shown before the
+  next slide is prepared, without a hitch.
+- Knob (#27): the detent that wakes the screen is not a step, and the
+  direction is kept, so the next detent counts in either direction.
+- The default long press time is 0.4 s (a value you set yourself stays).
+- Screensavers (#32):
+  - Confetti pieces are small pictures like the bouncing balls, at the same
+    frame rate.
+  - Stars: they no longer fall. Stars of different sizes appear at random
+    places, brighten and dim slowly, and vanish; now and then a shooting star
+    crosses from top right to bottom left on a curve.
+  - The log shows when the screensaver starts and after how many seconds
+    without input.
+
+### Magyar
+
+- Javítás: hosszú tétlenség után az ébresztés újraindíthatta a gombot (task
+  watchdog az első, nagy újrarajzolás közben). A watchdog most hosszú
+  újrarajzolás és a képernyő felépítése közben is táplálva van (#32).
+- Időpálya (#32, #33):
+  - A gyűrű többszörösen gyorsabban és kis részletekben, más munka között
+    számolódik ki, így a forgatás és a nyomás már nem akad meg (eddig minden
+    gyermekváltás után kb. 0,6 mp-re). A gyermek belső pályája külön réteg; új
+    gyermeknél csak a színe változik.
+  - A gyűrűk mögötti háttérkép sötétebb árnyalatot kap, így a gyűrűktől befelé
+    tartó sima átmenet újra látszik.
+- Körhinták (#10, #26): a mozgó kép oldalirányban ismétli a hátteret, így
+  csúszás közben nem jelenik meg fekete terület. Az éles elemek a következő
+  csúszás előkészítése előtt megjelennek, akadás nélkül.
+- Forgatás (#27): a képernyőt felébresztő rovátka nem lépés, és az irány
+  megmarad, így a következő rovátka bármelyik irányba számít.
+- A hosszú nyomás alapértelmezett ideje 0,4 mp (a saját beállított érték
+  megmarad).
+- Képernyővédők (#32):
+  - A konfettidarabok kis képek, mint a pattogó labdák, ugyanazzal a
+    képkockasebességgel.
+  - Csillagok: már nem hullanak. Különböző méretű csillagok jelennek meg
+    véletlen helyeken, lassan fényesednek és halványulnak, majd eltűnnek;
+    időnként egy hullócsillag szeli át a képernyőt jobbról fentről balra le,
+    ívben.
+  - A naplóban látszik, mikor indul a képernyővédő, és hány másodperc
+    tétlenség után.
+
 ## [0.7.9] - 2026-10-09
 
 ### English

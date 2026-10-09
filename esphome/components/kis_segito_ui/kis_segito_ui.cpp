@@ -22,6 +22,7 @@
 #include "esphome/core/hal.h"
 #include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
+#include "esphome/core/application.h"
 #include "esphome/core/defines.h"
 #ifdef USE_API
 #include "esphome/components/api/api_server.h"
@@ -284,6 +285,7 @@ void Carousel::refill_key(const std::string &key) {
 }
 
 void Carousel::fill_slot_(int i) {
+  App.feed_wdt();  // several of these can follow each other (screen build)
   this->strip_ok_ = false;
   lv_obj_t *slot = this->slots_[i];
   lv_obj_clean(slot);  // its snapshot image goes before the buffer is reused
@@ -393,6 +395,7 @@ void Carousel::place_(int slot, int offset, bool animate) {
 // position: the background as it is now and every item that is visible at
 // the start or the end, at their start positions, blurred sideways.
 bool Carousel::build_strip_(int dir) {
+  App.feed_wdt();
   this->strip_ok_ = false;
   if (!this->snapshot_ || this->window_ == nullptr || this->strip_img_ == nullptr || this->backdrop == nullptr)
     return false;
@@ -412,9 +415,14 @@ bool Carousel::build_strip_(int dir) {
   lv_obj_set_style_bg_opa(holder, LV_OPA_COVER, 0);
   const void *bg = lv_obj_get_style_bg_image_src(this->backdrop, LV_PART_MAIN);
   if (bg != nullptr) {
-    lv_obj_t *img = lv_image_create(holder);
-    lv_image_set_src(img, bg);
-    lv_obj_set_pos(img, shift - WIN_X, -this->win_y_);
+    // The background picture, repeated sideways so the whole strip is covered.
+    for (int x = shift - WIN_X - SCREEN; x < sw; x += SCREEN) {
+      if (x + SCREEN <= 0)
+        continue;
+      lv_obj_t *img = lv_image_create(holder);
+      lv_image_set_src(img, bg);
+      lv_obj_set_pos(img, x, -this->win_y_);
+    }
   }
   for (int i = 0; i < 4; i++) {
     const int off = this->offset_[i];
@@ -440,6 +448,7 @@ bool Carousel::build_strip_(int dir) {
   lv_obj_delete(holder);
   if (res != LV_RESULT_OK)
     return false;
+  App.feed_wdt();
   blur_rows(g_strip_buf);
   this->strip_ok_ = true;
   this->strip_dir_ = dir;
@@ -546,12 +555,21 @@ void Carousel::rotate(int dir, bool animate) {
         if (self->on_settled)
           self->on_settled();
         self->prepare_spare_();
-        // The motion picture for the next turn the same way.
-        const uint32_t started = millis();
-        if (self->build_strip_(self->last_dir_))
-          ESP_LOGV(TAG, "Slide picture ready in %u ms", (unsigned) (millis() - started));
+        // The motion picture for the next turn the same way, a little later,
+        // so the sharp items are on screen first.
+        self->prepare_timer_ = lv_timer_create(
+            [](lv_timer_t *t2) {
+              auto *me = static_cast<Carousel *>(lv_timer_get_user_data(t2));
+              me->prepare_timer_ = nullptr;
+              lv_timer_delete(t2);
+              const uint32_t started = millis();
+              if (me->build_strip_(me->last_dir_))
+                ESP_LOGV(TAG, "Slide picture ready in %u ms", (unsigned) (millis() - started));
+            },
+            80, self);
       },
-      this->anim_ms_ + 40, this);
+      // After the frame with the sharp items has been drawn.
+      this->anim_ms_ + 100, this);
 }
 
 void Carousel::prepare_spare_() {
@@ -973,10 +991,17 @@ void KisSegitoUI::start() {
   this->ring_layer_ = lv_obj_create(this->root_);
   remove_defaults(this->ring_layer_);
   lv_obj_set_size(this->ring_layer_, SCREEN, SCREEN);
+  this->inner_ring_layer_ = lv_obj_create(this->root_);
+  remove_defaults(this->inner_ring_layer_);
+  lv_obj_set_size(this->inner_ring_layer_, SCREEN, SCREEN);
   this->track_layer_ = lv_obj_create(this->root_);
   remove_defaults(this->track_layer_);
   lv_obj_set_size(this->track_layer_, SCREEN, SCREEN);
   lv_screen_load(this->root_);
+  // A long redraw (many areas, e.g. after waking) must not trip the task
+  // watchdog: it is fed with every area sent to the panel.
+  lv_display_add_event_cb(
+      lv_display_get_default(), [](lv_event_t *) { App.feed_wdt(); }, LV_EVENT_FLUSH_START, nullptr);
   // How long drawing a frame takes while a carousel slides (debug log).
   lv_display_add_event_cb(
       lv_display_get_default(), [](lv_event_t *) { g_refr_start = millis(); }, LV_EVENT_REFR_START, nullptr);
@@ -1295,6 +1320,7 @@ void KisSegitoUI::photo_task_(void *arg) {
 
 void KisSegitoUI::loop() {
   this->handle_input_();
+  this->ring_step_();
   const uint32_t now = millis();
   if (now - this->last_poll_ms_ >= 1000) {
     this->last_poll_ms_ = now;
@@ -2400,128 +2426,172 @@ struct TrackTile {
   lv_obj_t *img;
 };
 static std::vector<TrackTile> g_track_tiles;
+static constexpr int INNER_TILE = 16;
+static std::vector<lv_draw_buf_t *> g_inner_tiles;
+// The ring is the background shaded towards this colour.
+static constexpr uint32_t RING_SHADE = 0x0F1330;
+static constexpr int RING_SHADE_AMOUNT = 150;  // of 256
 
 static float smooth01(float x) {
   x = std::max(0.0f, std::min(1.0f, x));
   return x * x * (3 - 2 * x);
 }
 
+// atan2 to about 0.3 degrees, much quicker than atan2f.
+static float fast_atan2(float y, float x) {
+  const float ax = std::fabs(x), ay = std::fabs(y);
+  const float mx = std::max(ax, ay);
+  if (mx == 0)
+    return 0;
+  const float a = std::min(ax, ay) / mx;
+  const float s = a * a;
+  float r = ((-0.0464964749f * s + 0.15931422f) * s - 0.327622764f) * s * a + a;
+  if (ay > ax)
+    r = 1.57079637f - r;
+  if (x < 0)
+    r = 3.14159274f - r;
+  return y < 0 ? -r : r;
+}
+
 // Position along the track (0 = start at 11 o'clock, 1 = end at 1 o'clock;
 // above 1: the top gap) of a pixel offset from the centre.
 static float ring_pos(float dx, float dy) {
-  float deg = atan2f(dy, dx) * (180.0f / static_cast<float>(M_PI));
-  float t = 240.0f - deg;
-  while (t < 0)
+  float t = 240.0f - fast_atan2(dy, dx) * (180.0f / static_cast<float>(M_PI));
+  if (t < 0)
     t += 360.0f;
-  while (t >= 360.0f)
+  if (t >= 360.0f)
     t -= 360.0f;
   return t / 300.0f;
 }
 
-void KisSegitoUI::render_ring_(const RingSpec &spec) {
-  const uint32_t started = millis();
-  // A band of the track from p = 0 to p_end, with round ends.
-  struct Band {
-    float r_in, r_out, p_end;
-    float cap_x[2], cap_y[2];  // centres of the round ends
-    Band(float r_in, float r_out, float p_end) : r_in(r_in), r_out(r_out), p_end(p_end) {
-      const float mid = (r_in + r_out) / 2;
-      const float ends[2] = {0.0f, p_end};
-      for (int i = 0; i < 2; i++) {
-        const float rad = (240.0f - 300.0f * ends[i]) * static_cast<float>(M_PI) / 180.0f;
-        cap_x[i] = mid * cosf(rad);
-        cap_y[i] = mid * sinf(rad);
-      }
+static uint16_t to565(uint32_t c) {
+  return static_cast<uint16_t>((((c >> 16) & 0xF8) << 8) | (((c >> 8) & 0xFC) << 3) | ((c & 0xFF) >> 3));
+}
+
+// k/256 of b over a.
+static uint16_t mix565(uint16_t a, uint16_t b, int k) {
+  const int ra = a >> 11, ga = (a >> 5) & 0x3F, ba = a & 0x1F;
+  const int r = ra + (((b >> 11) - ra) * k >> 8);
+  const int g = ga + ((((b >> 5) & 0x3F) - ga) * k >> 8);
+  const int bl = ba + (((b & 0x1F) - ba) * k >> 8);
+  return static_cast<uint16_t>((r << 11) | (g << 5) | bl);
+}
+
+// A band of the track from p = 0 to p_end, with round ends.
+struct RingBand {
+  float r_in, r_out, p_end;
+  float cap_x[2], cap_y[2];  // centres of the round ends
+  RingBand(float r_in, float r_out, float p_end) : r_in(r_in), r_out(r_out), p_end(p_end) {
+    const float mid = (r_in + r_out) / 2;
+    const float ends[2] = {0.0f, p_end};
+    for (int i = 0; i < 2; i++) {
+      const float rad = (240.0f - 300.0f * ends[i]) * static_cast<float>(M_PI) / 180.0f;
+      cap_x[i] = mid * cosf(rad);
+      cap_y[i] = mid * sinf(rad);
     }
-    // Coverage (0..1) of a pixel at radius r, track position p.
-    float cover(float r, float p, float dx, float dy) const {
-      if (p <= this->p_end) {
-        return std::min(std::max(this->r_out - r + 0.5f, 0.0f), 1.0f) *
-               std::min(std::max(r - this->r_in + 0.5f, 0.0f), 1.0f);
-      }
+  }
+  // Coverage (0..256) of a pixel at radius r, track position p.
+  int cover(float r, float p, float dx, float dy) const {
+    float c;
+    if (p <= this->p_end) {
+      c = std::min(std::max(this->r_out - r + 0.5f, 0.0f), 1.0f) * std::min(std::max(r - this->r_in + 0.5f, 0.0f), 1.0f);
+    } else {
       const float half = (this->r_out - this->r_in) / 2;
-      float best = 0;
+      c = 0;
       for (int i = 0; i < 2; i++) {
         const float d = std::sqrt((dx - cap_x[i]) * (dx - cap_x[i]) + (dy - cap_y[i]) * (dy - cap_y[i]));
-        best = std::max(best, std::min(std::max(half + 0.5f - d, 0.0f), 1.0f));
+        c = std::max(c, std::min(std::max(half + 0.5f - d, 0.0f), 1.0f));
       }
-      return best;
     }
-  };
-  const Band outer(OUTER_R - OUTER_W, OUTER_R, 1.0f);
-  const Band dim(OUTER_R - OUTER_W - 1, OUTER_R + 1, spec.elapsed);
-  const Band inner(INNER_R - INNER_W, INNER_R, 1.0f);
+    return static_cast<int>(c * 256.0f);
+  }
+};
+
+// The ring behind the track: the background (picture or colour) shaded
+// darker, so the ring stands out and carousel content under it is hidden,
+// with a smooth fade inwards; then the shared track with its zones and the
+// dimmed elapsed part.
+void KisSegitoUI::render_ring_tile_(int index) {
+  TrackTile &t = g_track_tiles[index];
+  const RingSpec &spec = this->ring_spec_;
+  const RingBand outer(OUTER_R - OUTER_W, OUTER_R, 1.0f);
+  const RingBand dim(OUTER_R - OUTER_W - 1, OUTER_R + 1, spec.elapsed);
   const lv_image_dsc_t *bg = spec.bg_image;
   const bool bg_ok = bg != nullptr && bg->header.w == SCREEN && bg->header.h == SCREEN &&
                      bg->header.cf == LV_COLOR_FORMAT_RGB565;
-  const float fade_from = BAND_R - FADE_W;
-  auto to565 = [](uint32_t c) {
-    return static_cast<uint16_t>((((c >> 16) & 0xF8) << 8) | (((c >> 8) & 0xFC) << 3) | ((c & 0xFF) >> 3));
-  };
-  auto mix565 = [](uint16_t a, uint16_t b, float k) {  // k of b over a
-    const int ra = a >> 11, ga = (a >> 5) & 0x3F, ba = a & 0x1F;
-    const int rb = b >> 11, gb = (b >> 5) & 0x3F, bb = b & 0x1F;
-    const int r = ra + static_cast<int>((rb - ra) * k + 0.5f);
-    const int g = ga + static_cast<int>((gb - ga) * k + 0.5f);
-    const int bl = ba + static_cast<int>((bb - ba) * k + 0.5f);
-    return static_cast<uint16_t>((r << 11) | (g << 5) | bl);
-  };
-  const uint16_t bg_color = to565(spec.bg_color);
-  const uint16_t dim_color = to565(TRACK_DIM);
-  const uint16_t inner_color = to565(spec.inner_color);
-  for (auto &t : g_track_tiles) {
-    lv_image_cache_drop(t.buf);
-    auto *px = reinterpret_cast<uint16_t *>(t.buf->data);
-    const uint32_t stride = t.buf->header.stride / 2;
-    uint8_t *alpha = t.buf->data + t.buf->header.stride * TRACK_TILE;
-    for (int y = 0; y < TRACK_TILE; y++) {
-      for (int x = 0; x < TRACK_TILE; x++) {
-        const int sx = t.x + x, sy = t.y + y;
-        const float dx = sx + 0.5f - CENTER, dy = sy + 0.5f - CENTER;
-        const float r = std::sqrt(dx * dx + dy * dy);
-        const size_t i = y * stride + x;
-        if (r < fade_from) {
-          alpha[i] = 0;
-          continue;
-        }
-        // The band: the background (picture or colour) again, so carousel
-        // content under the ring is hidden, fading in smoothly inwards.
-        uint16_t c = bg_ok ? reinterpret_cast<const uint16_t *>(bg->data)[sy * SCREEN + sx] : bg_color;
-        float a = smooth01((r - fade_from) / FADE_W);
-        if (r >= inner.r_in - 1) {
-          const float p = ring_pos(dx, dy);
-          const float ci = inner.cover(r, p, dx, dy);
-          if (ci > 0)
-            c = mix565(c, inner_color, ci);
-          if (spec.has_routine) {
-            const float co = outer.cover(r, p, dx, dy);
-            if (co > 0) {
-              uint32_t zc = spec.zone_colors[0];
-              for (int z = 1; z < spec.zone_count; z++) {
-                if (p >= spec.zone_from[z])
-                  zc = spec.zone_colors[z];
-              }
-              c = mix565(c, to565(zc), co);
-            }
-            if (spec.elapsed > 0) {
-              const float cd = dim.cover(r, p, dx, dy);
-              if (cd > 0)
-                c = mix565(c, dim_color, cd);
-            }
-          } else {
-            const float co = outer.cover(r, p, dx, dy);
-            if (co > 0)
-              c = mix565(c, dim_color, co);  // no routine running: an empty track
-          }
-        }
-        px[i] = c;
-        alpha[i] = static_cast<uint8_t>(a * 255.0f + 0.5f);
+  constexpr float FADE_FROM = BAND_R - FADE_W;
+  constexpr float ARC_IN = OUTER_R - OUTER_W - 2, ARC_OUT = OUTER_R + 2;
+  const uint16_t bg_color = to565(spec.bg_color), shade = to565(RING_SHADE), dim_color = to565(TRACK_DIM);
+  uint16_t zone565[RingSpec::MAX_ZONES];
+  for (int z = 0; z < spec.zone_count; z++)
+    zone565[z] = to565(spec.zone_colors[z]);
+  lv_image_cache_drop(t.buf);
+  auto *px = reinterpret_cast<uint16_t *>(t.buf->data);
+  const uint32_t stride = t.buf->header.stride / 2;
+  uint8_t *alpha = t.buf->data + t.buf->header.stride * TRACK_TILE;
+  for (int y = 0; y < TRACK_TILE; y++) {
+    const int sy = t.y + y;
+    const float dy = sy + 0.5f - CENTER;
+    for (int x = 0; x < TRACK_TILE; x++) {
+      const int sx = t.x + x;
+      const float dx = sx + 0.5f - CENTER;
+      const float r2 = dx * dx + dy * dy;
+      const size_t i = y * stride + x;
+      if (r2 < FADE_FROM * FADE_FROM || sx >= SCREEN || sy >= SCREEN) {
+        alpha[i] = 0;
+        continue;
       }
+      uint16_t c = bg_ok ? reinterpret_cast<const uint16_t *>(bg->data)[sy * SCREEN + sx] : bg_color;
+      c = mix565(c, shade, RING_SHADE_AMOUNT);
+      int a = 255;
+      float r = -1;
+      if (r2 < BAND_R * BAND_R) {
+        r = std::sqrt(r2);
+        a = static_cast<int>(smooth01((r - FADE_FROM) / FADE_W) * 255.0f + 0.5f);
+      } else if (r2 >= ARC_IN * ARC_IN && r2 <= ARC_OUT * ARC_OUT) {
+        r = std::sqrt(r2);
+        const float p = ring_pos(dx, dy);
+        if (spec.has_routine) {
+          int co = outer.cover(r, p, dx, dy);
+          if (co > 0) {
+            uint16_t zc = zone565[0];
+            for (int z = 1; z < spec.zone_count; z++) {
+              if (p >= spec.zone_from[z])
+                zc = zone565[z];
+            }
+            c = mix565(c, zc, co);
+          }
+          if (spec.elapsed > 0) {
+            const int cd = dim.cover(r, p, dx, dy);
+            if (cd > 0)
+              c = mix565(c, dim_color, cd);
+          }
+        } else {
+          const int co = outer.cover(r, p, dx, dy);
+          if (co > 0)
+            c = mix565(c, dim_color, co);  // no routine running: an empty track
+        }
+      }
+      px[i] = c;
+      alpha[i] = static_cast<uint8_t>(a);
     }
-    if (t.img != nullptr)
-      lv_obj_invalidate(t.img);
   }
-  ESP_LOGD(TAG, "Track ring drawn in %u ms", (unsigned) (millis() - started));
+  if (t.img != nullptr)
+    lv_obj_invalidate(t.img);
+}
+
+// Draws the ring a few tiles at a time, so input is not held up; the old
+// tiles stay on screen until they are replaced.
+void KisSegitoUI::ring_step_() {
+  if (this->ring_job_ < 0)
+    return;
+  const uint32_t start = millis();
+  while (this->ring_job_ < static_cast<int>(g_track_tiles.size()) && millis() - start < 15)
+    this->render_ring_tile_(this->ring_job_++);
+  if (this->ring_job_ >= static_cast<int>(g_track_tiles.size())) {
+    ESP_LOGD(TAG, "Track ring drawn in %u ms", (unsigned) (millis() - this->ring_job_ms_));
+    this->ring_job_ = -1;
+  }
 }
 
 bool KisSegitoUI::ring_ready_() {
@@ -2551,17 +2621,71 @@ bool KisSegitoUI::ring_ready_() {
     lv_image_set_src(t.img, t.buf);
     lv_obj_set_pos(t.img, t.x, t.y);
   }
+  // The child's inner track: small tiles along a thin ring; their shape is
+  // computed once, a new child only changes their colour.
+  constexpr int IT = INNER_TILE;
+  const float r_in = INNER_R - INNER_W, r_out = INNER_R;
+  const RingBand band(r_in, r_out, 1.0f);
+  for (int cy = 0; cy < SCREEN; cy += IT) {
+    for (int cx = 0; cx < SCREEN; cx += IT) {
+      lv_draw_buf_t *buf = nullptr;
+      for (int y = 0; y < IT; y++) {
+        for (int x = 0; x < IT; x++) {
+          const float dx = cx + x + 0.5f - CENTER, dy = cy + y + 0.5f - CENTER;
+          const float r = std::sqrt(dx * dx + dy * dy);
+          if (r < r_in - 1 || r > r_out + 1)
+            continue;
+          const int c = band.cover(r, ring_pos(dx, dy), dx, dy);
+          if (c <= 0)
+            continue;
+          if (buf == nullptr) {
+            buf = lv_draw_buf_create(IT, IT, LV_COLOR_FORMAT_RGB565A8, LV_STRIDE_AUTO);
+            if (buf == nullptr)
+              return true;  // the inner track is left out
+            memset(buf->data + buf->header.stride * IT, 0, IT * IT);
+          }
+          buf->data[buf->header.stride * IT + y * (buf->header.stride / 2) + x] =
+              static_cast<uint8_t>(std::min(255, c));
+        }
+      }
+      if (buf != nullptr) {
+        lv_obj_t *img = lv_image_create(this->inner_ring_layer_);
+        lv_image_set_src(img, buf);
+        lv_obj_set_pos(img, cx, cy);
+        g_inner_tiles.push_back(buf);
+      }
+    }
+  }
   return true;
 }
 
-// Computes the ring again when anything on it changed.
+void KisSegitoUI::set_inner_ring_color_(uint32_t color) {
+  if (color == this->inner_ring_color_)
+    return;
+  this->inner_ring_color_ = color;
+  const uint16_t c = to565(color);
+  for (lv_draw_buf_t *buf : g_inner_tiles) {
+    lv_image_cache_drop(buf);
+    auto *px = reinterpret_cast<uint16_t *>(buf->data);
+    for (int i = 0; i < INNER_TILE * INNER_TILE; i++)
+      px[i] = c;
+  }
+  lv_obj_invalidate(this->inner_ring_layer_);
+}
+
+// Computes the ring again when anything on it changed (spread over the next
+// loops, see ring_step_).
 void KisSegitoUI::update_ring_() {
   if (this->ring_layer_ == nullptr || !this->ring_ready_())
     return;
+  if (!this->children_.empty()) {
+    this->set_inner_ring_color_(
+        lv_color_to_u32(lv_color_mix(lv_color_hex(this->children_[this->child_].color), lv_color_hex(BASE_BG), 200)) &
+        0xFFFFFF);
+  }
   RingSpec spec;
   spec.bg_color = lv_color_to_u32(lv_obj_get_style_bg_color(this->root_, LV_PART_MAIN)) & 0xFFFFFF;
   spec.bg_image = static_cast<const lv_image_dsc_t *>(lv_obj_get_style_bg_image_src(this->root_, LV_PART_MAIN));
-  spec.inner_color = this->children_.empty() ? TRACK_DIM : lv_color_to_u32(lv_color_mix(lv_color_hex(this->children_[this->child_].color), lv_color_hex(BASE_BG), 200)) & 0xFFFFFF;
   const Routine *r = this->shown_routine_;
   spec.has_routine = r != nullptr;
   if (r != nullptr) {
@@ -2582,7 +2706,8 @@ void KisSegitoUI::update_ring_() {
     return;
   this->ring_drawn_ = true;
   this->ring_spec_ = spec;
-  this->render_ring_(spec);
+  this->ring_job_ = 0;
+  this->ring_job_ms_ = millis();
 }
 
 void KisSegitoUI::build_track_() {
@@ -2786,13 +2911,19 @@ void KisSegitoUI::celebrate_(int tokens) {
 
 // ---------------------------------------------------------------- Screensaver
 
-// Confetti or stars on their own black screen (so nothing else is drawn
-// under them). A fixed set of small objects is created once; on every frame
-// they only move, so each frame redraws just their old and new places. Each
-// piece falls on its own swaying path with its own speed and a sideways drift
-// that changes direction now and then. Now and then a gust catches a few
-// pieces near each other and blows them aside, each a little differently;
-// pieces blown off the screen come back only when too few are left.
+// Confetti and stars run on their own black screen (so nothing else is drawn
+// under them), with a fixed set of small pictures created once, like the
+// bouncing balls.
+//
+// Confetti: on every frame the pieces only move. Each piece falls on its own
+// swaying path with its own speed and a sideways drift that changes direction
+// now and then. Now and then a gust catches a few pieces near each other and
+// blows them aside, each a little differently; pieces blown off the screen
+// come back only when too few are left.
+//
+// Stars: they stand still. Each one appears at a random place, brightens and
+// dims slowly like breathing, and vanishes, then appears elsewhere. Now and
+// then a shooting star crosses from top right to bottom left on a curve.
 static constexpr uint32_t CONFETTI_COLORS[] = {0xFF6B6B, 0xFFC94A, 0x6BCB77, 0x6CB8FF, 0xA78BFA, 0xFF8FB1};
 static constexpr uint32_t STAR_COLORS[] = {0xFFE08A, 0xFFFFFF, 0xFFC94A, 0xBFE3FF, 0xFFD6F0, 0xFFF3B0};
 static constexpr int STAR_SIZES[] = {8, 10, 12};  // never bigger than a confetti piece
@@ -2849,10 +2980,26 @@ void KisSegitoUI::spawn_piece_(Piece &p, bool anywhere) {
   p.sway = frand(14, 40);
   p.sway_hz = frand(0.3f, 0.9f);
   p.phase = frand(0, 6.283f);
-  p.glow = frand(0, 6.283f);
-  p.glow_hz = frand(0.18f, 0.35f);  // one breath in about 3-5 s
   p.on_screen = true;
   lv_obj_set_pos(p.obj, static_cast<int>(p.x), static_cast<int>(p.y));
+}
+
+// A confetti piece: a small rounded rectangle (RGB565A8, soft corners).
+static lv_draw_buf_t *make_piece(int w, int h, uint32_t color) {
+  lv_draw_buf_t *buf = lv_draw_buf_create(w, h, LV_COLOR_FORMAT_RGB565A8, LV_STRIDE_AUTO);
+  if (buf == nullptr)
+    return nullptr;
+  auto *px = reinterpret_cast<uint16_t *>(buf->data);
+  uint8_t *alpha = buf->data + buf->header.stride * h;
+  const uint32_t stride = buf->header.stride / 2;
+  for (int y = 0; y < h; y++) {
+    for (int x = 0; x < w; x++) {
+      const bool corner = (x == 0 || x == w - 1) && (y == 0 || y == h - 1);
+      px[y * stride + x] = to565(color);
+      alpha[y * stride + x] = corner ? 90 : 255;
+    }
+  }
+  return buf;
 }
 
 void KisSegitoUI::start_confetti() {
@@ -2864,38 +3011,136 @@ void KisSegitoUI::start_confetti() {
   remove_defaults(this->saver_screen_);
   lv_obj_set_style_bg_color(this->saver_screen_, lv_color_black(), 0);
   lv_obj_set_style_bg_opa(this->saver_screen_, LV_OPA_COVER, 0);
-  static lv_draw_buf_t *star_imgs[6][3] = {};
-  for (int i = 0; i < CONFETTI; i++) {
-    Piece &p = this->confetti_[i];
-    const float k = frand(0.8f, 1.2f);  // size within +/-20 %
-    if (stars) {
-      const int c = i % 6, sz = static_cast<int>(random_uint32() % 3);
-      if (star_imgs[c][sz] == nullptr)
-        star_imgs[c][sz] = make_star(STAR_SIZES[sz], STAR_COLORS[c]);
-      p.obj = lv_image_create(this->saver_screen_);
-      if (star_imgs[c][sz] != nullptr)
-        lv_image_set_src(p.obj, star_imgs[c][sz]);
-      p.w = p.h = STAR_SIZES[sz];
-    } else {
-      const bool wide = random_uint32() & 1;
-      p.w = std::max(3, static_cast<int>(std::lround((wide ? 12 : 7) * k)));
-      p.h = std::max(3, static_cast<int>(std::lround((wide ? 7 : 12) * k)));
-      p.obj = lv_obj_create(this->saver_screen_);
-      remove_defaults(p.obj);
-      lv_obj_set_size(p.obj, p.w, p.h);
-      lv_obj_set_style_radius(p.obj, 2, 0);
-      lv_obj_set_style_bg_color(p.obj, lv_color_hex(CONFETTI_COLORS[i % 6]), 0);
-      lv_obj_set_style_bg_opa(p.obj, LV_OPA_COVER, 0);
+  if (stars) {
+    for (auto &st : this->stars_list_) {
+      st.obj = lv_image_create(this->saver_screen_);
+      this->spawn_star_(st, true);
     }
-    this->spawn_piece_(p, true);  // already spread over the screen
+    // The shooting star: a head and a fading tail of smaller stars.
+    for (int k = 0; k < SHOOT_PARTS; k++) {
+      this->shoot_[k] = lv_image_create(this->saver_screen_);
+      lv_image_set_src(this->shoot_[k], star_image(1, k == 0 ? 2 : (k < 3 ? 1 : 0)));
+      lv_obj_set_style_image_opa(this->shoot_[k], static_cast<lv_opa_t>(255 - k * 40), 0);
+      lv_obj_set_pos(this->shoot_[k], -40, -40);  // off the screen until it flies
+    }
+    this->shoot_start_ms_ = 0;
+    this->next_shoot_ms_ = millis() + 4000 + random_uint32() % 8000;
+  } else {
+    static lv_draw_buf_t *pieces[6][2][3] = {};
+    for (int i = 0; i < CONFETTI; i++) {
+      Piece &p = this->confetti_[i];
+      const int c = i % 6, wide = random_uint32() & 1, sz = random_uint32() % 3;
+      const float k = 0.85f + 0.15f * sz;  // size within about +/-15-20 %
+      p.w = static_cast<int>(std::lround((wide ? 12 : 7) * k));
+      p.h = static_cast<int>(std::lround((wide ? 7 : 12) * k));
+      if (pieces[c][wide][sz] == nullptr)
+        pieces[c][wide][sz] = make_piece(p.w, p.h, CONFETTI_COLORS[c]);
+      p.obj = lv_image_create(this->saver_screen_);
+      if (pieces[c][wide][sz] != nullptr)
+        lv_image_set_src(p.obj, pieces[c][wide][sz]);
+      this->spawn_piece_(p, true);  // already spread over the screen
+    }
+    this->next_gust_ms_ = millis() + 2500 + random_uint32() % 4000;
   }
   lv_screen_load(this->saver_screen_);
   this->confetti_ms_ = millis();
-  this->next_gust_ms_ = this->confetti_ms_ + 2500 + random_uint32() % 4000;
   this->confetti_timer_ = lv_timer_create(
-      // About 50 frames a second: a frame redraws only the pieces' small areas, and
-      // small steps keep the fall smooth.
-      [](lv_timer_t *t) { static_cast<KisSegitoUI *>(lv_timer_get_user_data(t))->confetti_step_(); }, 20, this);
+      // About 33 frames a second, like the bouncing balls; a frame redraws only
+      // the small areas that changed.
+      [](lv_timer_t *t) {
+        auto *self = static_cast<KisSegitoUI *>(lv_timer_get_user_data(t));
+        if (self->stars_)
+          self->stars_step_();
+        else
+          self->confetti_step_();
+      },
+      30, this);
+}
+
+// A star picture: colour index, size index (cached).
+lv_draw_buf_t *KisSegitoUI::star_image(int color, int size) {
+  static lv_draw_buf_t *cache[6][3] = {};
+  if (cache[color][size] == nullptr)
+    cache[color][size] = make_star(STAR_SIZES[size], STAR_COLORS[color]);
+  return cache[color][size];
+}
+
+void KisSegitoUI::spawn_star_(Star &st, bool first) {
+  const int sz = static_cast<int>(random_uint32() % 3);
+  lv_draw_buf_t *img = star_image(static_cast<int>(random_uint32() % 6), sz);
+  if (img != nullptr)
+    lv_image_set_src(st.obj, img);
+  // Anywhere inside the round screen.
+  const float a = frand(0, 6.283f), rad = 205.0f * std::sqrt(frand(0, 1));
+  lv_obj_set_pos(st.obj, static_cast<int>(CENTER + rad * cosf(a)) - STAR_SIZES[sz] / 2,
+                 static_cast<int>(CENTER + rad * sinf(a)) - STAR_SIZES[sz] / 2);
+  st.fade_in = frand(1.5f, 3.0f);
+  st.hold = frand(0.3f, 1.5f);
+  st.fade_out = frand(1.5f, 3.0f);
+  st.gap = frand(0.3f, 2.5f);
+  st.peak = static_cast<uint8_t>(frand(170, 255));
+  st.t = first ? frand(0, st.fade_in + st.hold + st.fade_out + st.gap) : 0.0f;
+  st.opa = 0;
+  lv_obj_set_style_image_opa(st.obj, 0, 0);
+}
+
+void KisSegitoUI::stars_step_() {
+  const uint32_t now = millis();
+  const float dt = std::min(static_cast<float>(now - this->confetti_ms_), 70.0f) / 1000.0f;
+  this->confetti_ms_ = now;
+  for (auto &st : this->stars_list_) {
+    st.t += dt;
+    float k;
+    if (st.t < st.fade_in) {
+      k = smooth01(st.t / st.fade_in);
+    } else if (st.t < st.fade_in + st.hold) {
+      k = 1;
+    } else if (st.t < st.fade_in + st.hold + st.fade_out) {
+      k = 1 - smooth01((st.t - st.fade_in - st.hold) / st.fade_out);
+    } else if (st.t < st.fade_in + st.hold + st.fade_out + st.gap) {
+      k = 0;
+    } else {
+      this->spawn_star_(st, false);  // invisible now: appears elsewhere next
+      continue;
+    }
+    const auto opa = static_cast<uint8_t>(st.peak * k);
+    if (std::abs(opa - st.opa) >= 3 || (opa == 0) != (st.opa == 0)) {
+      st.opa = opa;
+      lv_obj_set_style_image_opa(st.obj, opa, 0);
+    }
+  }
+  // The shooting star: from top right to bottom left along a curve, its start
+  // 50-80 px higher or lower each time.
+  if (this->shoot_start_ms_ == 0 && static_cast<int32_t>(now - this->next_shoot_ms_) >= 0) {
+    this->shoot_start_ms_ = now;
+    this->shoot_ms_ = 1300 + random_uint32() % 600;
+    const float off = ((random_uint32() & 1) ? 1.0f : -1.0f) * frand(50, 80);
+    this->shoot_p_[0] = 400;
+    this->shoot_p_[1] = 110 + off;
+    this->shoot_p_[4] = 80;
+    this->shoot_p_[5] = 370 + off * 0.5f;
+    const float bend = ((random_uint32() & 1) ? 1.0f : -1.0f) * frand(40, 90);
+    this->shoot_p_[2] = (this->shoot_p_[0] + this->shoot_p_[4]) / 2 + bend;
+    this->shoot_p_[3] = (this->shoot_p_[1] + this->shoot_p_[5]) / 2 + bend;
+  }
+  if (this->shoot_start_ms_ != 0) {
+    const float t = static_cast<float>(now - this->shoot_start_ms_) / this->shoot_ms_;
+    for (int k = 0; k < SHOOT_PARTS; k++) {
+      const float u = t - k * 0.035f;  // the tail follows the head
+      if (u < 0 || u > 1) {
+        lv_obj_set_pos(this->shoot_[k], -40, -40);
+        continue;
+      }
+      const float a = (1 - u) * (1 - u), b = 2 * (1 - u) * u, c = u * u;
+      const float x = a * this->shoot_p_[0] + b * this->shoot_p_[2] + c * this->shoot_p_[4];
+      const float y = a * this->shoot_p_[1] + b * this->shoot_p_[3] + c * this->shoot_p_[5];
+      lv_obj_set_pos(this->shoot_[k], static_cast<int>(x) - 6, static_cast<int>(y) - 6);
+    }
+    if (t > 1 + SHOOT_PARTS * 0.035f) {
+      this->shoot_start_ms_ = 0;
+      this->next_shoot_ms_ = now + 8000 + random_uint32() % 12000;
+    }
+  }
 }
 
 void KisSegitoUI::confetti_step_() {
@@ -2955,15 +3200,6 @@ void KisSegitoUI::confetti_step_() {
       continue;
     }
     lv_obj_set_pos(p.obj, static_cast<int>(p.x), static_cast<int>(p.y));
-    if (this->stars_) {
-      // A star brightens and dims slowly, like breathing.
-      p.glow += 6.283f * p.glow_hz * dt;
-      const auto opa = static_cast<uint8_t>(150 + 105 * sinf(p.glow));
-      if (std::abs(opa - p.opa) >= 3) {
-        p.opa = opa;
-        lv_obj_set_style_image_opa(p.obj, opa, 0);
-      }
-    }
   }
 }
 

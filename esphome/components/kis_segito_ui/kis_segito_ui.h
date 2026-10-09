@@ -221,14 +221,13 @@ class KisSegitoUI : public Component {
     static constexpr int MAX_ZONES = 8;
     uint32_t bg_color{0};
     const lv_image_dsc_t *bg_image{nullptr};
-    uint32_t inner_color{0};
     bool has_routine{false};
     int zone_count{0};
     float zone_from[MAX_ZONES]{};
     uint32_t zone_colors[MAX_ZONES]{};
     float elapsed{0};
     bool operator==(const RingSpec &o) const {
-      if (bg_color != o.bg_color || bg_image != o.bg_image || inner_color != o.inner_color ||
+      if (bg_color != o.bg_color || bg_image != o.bg_image ||
           has_routine != o.has_routine || zone_count != o.zone_count || elapsed != o.elapsed)
         return false;
       for (int i = 0; i < zone_count; i++) {
@@ -238,11 +237,16 @@ class KisSegitoUI : public Component {
       return true;
     }
   };
-  void render_ring_(const RingSpec &spec);
+  void render_ring_tile_(int index);
+  void ring_step_();
   bool ring_ready_();
   void update_ring_();
+  void set_inner_ring_color_(uint32_t color);
   RingSpec ring_spec_;
   bool ring_drawn_{false};
+  int ring_job_{-1};  // next ring tile to draw, -1: none
+  uint32_t ring_job_ms_{0};
+  uint32_t inner_ring_color_{0xFFFFFFFF};
   // Uploaded pictures ("@<id>_<size>" keys), downloaded in the background.
   void request_photo_(const std::string &key);
   void log_reset_reason_();
@@ -376,11 +380,24 @@ class KisSegitoUI : public Component {
     uint32_t drift_ms{0};         // when it picks a new direction
     float gust{0}, gust_vy{0};    // extra speed from a gust, px/s
     float sway{0}, sway_hz{0}, phase{0};
-    float glow{0}, glow_hz{0};  // stars: slow brightening and dimming
-    uint8_t opa{255};
     int w{0}, h{0};
   };
   void spawn_piece_(Piece &p, bool anywhere);
+  struct Star {
+    lv_obj_t *obj{nullptr};
+    float t{0};  // time in its cycle, s
+    float fade_in{2}, hold{1}, fade_out{2}, gap{1};
+    uint8_t peak{255}, opa{0};
+  };
+  static constexpr int STARS = 28;
+  static constexpr int SHOOT_PARTS = 6;
+  void spawn_star_(Star &st, bool first);
+  void stars_step_();
+  static lv_draw_buf_t *star_image(int color, int size);
+  Star stars_list_[STARS];
+  lv_obj_t *shoot_[SHOOT_PARTS]{};
+  float shoot_p_[6]{};  // start, curve and end point
+  uint32_t shoot_start_ms_{0}, shoot_ms_{1500}, next_shoot_ms_{0};
   Piece confetti_[CONFETTI];
   lv_obj_t *saver_screen_{nullptr};
   bool stars_{false};
@@ -408,6 +425,7 @@ class KisSegitoUI : public Component {
 
   lv_obj_t *root_{nullptr};        // the LVGL screen
   lv_obj_t *ring_layer_{nullptr};   // the track ring's pictures
+  lv_obj_t *inner_ring_layer_{nullptr};  // the child's inner track (pictures)
   lv_obj_t *track_layer_{nullptr};  // time track, kept across screens
   lv_obj_t *inner_layer_{nullptr};  // the selected child's part of the track
   lv_obj_t *screen_obj_{nullptr};   // content of the current screen
