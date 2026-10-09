@@ -6,6 +6,48 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.7.12] - 2026-10-09
+
+### English
+
+- Memory (#32): 0.7.11 could run out of PSRAM within minutes, and then
+  backgrounds and pictures failed to load or came and went.
+  - The separate moving picture for slides (about 740 KB) is gone: as the
+    background stays in place anyway, the sharp items themselves slide, at the
+    same cost per frame and without blur.
+  - The four fixed buffers for carousel items (about 1.4 MB) are gone: a slot
+    shows the item's picture straight from the item store, at its real size.
+    Items you turn back to are now really shown from the store instead of
+    being drawn again.
+  - Downloaded pictures come first: when one needs memory, unused item
+    pictures and pictures not on screen are dropped and the download is tried
+    again, instead of failing.
+- After a restart the track ring is drawn at once, not piece by piece.
+- Time track (#33): the glow around the shared track no longer leaves a thin
+  gap next to it.
+- Stars (#32): shooting stars always follow an arc bending up and left: they
+  start almost level and curve down to the left.
+
+### Magyar
+
+- Memória (#32): a 0.7.11 percek alatt kifuthatott a PSRAM-ból, és ilyenkor a
+  hátterek és képek nem töltődtek be, vagy eltűntek és visszajöttek.
+  - Megszűnt a csúszáshoz használt külön mozgó kép (kb. 740 KB): mivel a háttér
+    úgyis a helyén marad, maguk az éles elemek csúsznak, képkockánként
+    ugyanakkora költséggel, elmosás nélkül.
+  - Megszűnt a körhinta-elemek négy fix puffere (kb. 1,4 MB): egy hely az elem
+    képét közvetlenül az elemtárból mutatja, valódi méretében. A visszaforgatott
+    elemek most tényleg a tárból jelennek meg, nem rajzolódnak újra.
+  - A letöltött képek az elsők: ha egynek memória kell, a nem használt
+    elemképek és a nem látható képek felszabadulnak, és a letöltés újra
+    próbálkozik ahelyett, hogy feladná.
+- Újraindulás után az időpálya gyűrűje egyszerre rajzolódik ki, nem
+  darabonként.
+- Időpálya (#33): a közös pálya körüli ragyogás már nem hagy vékony rést
+  mellette.
+- Csillagok (#32): a hullócsillagok mindig fent-balra ívelő pályán haladnak:
+  szinte vízszintesen indulnak, és balra lefelé kanyarodnak.
+
 ## [0.7.11] - 2026-10-09
 
 ### English

@@ -8,6 +8,7 @@
 #include <deque>
 #include <functional>
 #include <map>
+#include <memory>
 #include <mutex>
 #include <set>
 #include <string>
@@ -97,6 +98,8 @@ struct FnItem {
   int routine;  // index into routines_ for FnType::ROUTINE
 };
 
+struct ItemPic;  // a drawn carousel item (kis_segito_ui.cpp)
+
 // Infinite horizontal carousel with four slots (left, centre, right, spare).
 class Carousel {
  public:
@@ -126,8 +129,6 @@ class Carousel {
   // Optional: what an item's picture depends on; items with the same value
   // are drawn once and then copied (see fill_slot_).
   std::function<std::string(int index)> sig;
-  // The object whose background (colour, picture) is behind the carousel.
-  lv_obj_t *backdrop{nullptr};
 
  protected:
   void fill_slot_(int slot);
@@ -136,8 +137,7 @@ class Carousel {
   // After a slide, fills the spare slot with the next item in the same
   // direction, so the next turn starts at once.
   void prepare_spare_();
-  bool build_strip_(int dir);
-  void finish_slide_();
+  void show_pic_(int i, const std::shared_ptr<ItemPic> &pic);
 
   lv_obj_t *slots_[4]{};
   int index_[4]{};
@@ -151,10 +151,7 @@ class Carousel {
   uint32_t anim_ms_{250};
   bool snapshot_{false};
   lv_obj_t *window_{nullptr};
-  lv_obj_t *strip_img_{nullptr};
-  bool strip_ok_{false};  // the motion picture is ready for strip_dir_ from strip_sel_
-  int strip_dir_{0};
-  int strip_sel_{-1};
+  std::shared_ptr<ItemPic> pic_[4];  // the picture each slot shows
   int win_y_{0};
   std::set<std::string> keys_[4];  // downloaded pictures each slot uses
   bool ready_[4]{};                // the slot holds item index_[i]
@@ -329,6 +326,7 @@ class KisSegitoUI : public Component {
     std::string key;
     std::string url;
     std::string token;
+    int tries{0};  // waits for memory so far
   };
   struct Download {
     std::string key;
@@ -359,6 +357,9 @@ class KisSegitoUI : public Component {
   std::vector<Download> photo_done_;
   std::mutex photo_mutex_;
   bool photo_task_started_{false};
+  // Set by the download task when a picture needs memory; the main loop
+  // makes room (unused carousel pictures, unused downloaded pictures).
+  volatile size_t need_memory_{0};
   // Download task only: the flash cache and the pictures checked with Home
   // Assistant since the start.
   PictureCache cache_;
