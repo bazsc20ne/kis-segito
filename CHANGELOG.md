@@ -16,6 +16,11 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   streak (#32).
 - Panel: where a photo is uploaded (child avatar, reward), the edit form shows
   only the photo; the icon choice appears again when the photo is removed.
+- A new background could fail to load (`Not enough PSRAM`) when memory was
+  fragmented. The knob now first tries again with less room kept free; if
+  there is still no room, it stores the background in its flash cache and
+  restarts once to load it into empty memory. It restarts only after the
+  picture is stored, and never twice in a row for this reason.
 
 ### Magyar
 
@@ -26,6 +31,11 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
 - Panel: ahol fénykép van feltöltve (gyermek avatarja, jutalom), a
   szerkesztőlap csak a fényképet mutatja; az ikonválasztó a fénykép
   eltávolítása után jelenik meg újra.
+- Töredezett memóriánál egy új háttér betöltése meghiúsulhatott
+  (`Not enough PSRAM`). A gomb most először kisebb tartalékkal próbálja újra;
+  ha így sincs hely, a hátteret a flash-tárába menti, és egyszer újraindul,
+  hogy üres memóriába töltse be. Csak a sikeres mentés után indul újra, és
+  emiatt sosem kétszer egymás után.
 
 ## [0.7.16] - 2026-10-10
 

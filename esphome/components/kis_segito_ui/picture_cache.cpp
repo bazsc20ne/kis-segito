@@ -2,6 +2,7 @@
 
 #include "picture_cache.h"
 
+#include <algorithm>
 #include <cstring>
 
 #include <esp_heap_caps.h>
@@ -111,10 +112,7 @@ uint8_t *PictureCache::read(const std::string &key, size_t *size, std::string *e
   return buf;
 }
 
-bool PictureCache::write(const std::string &key, const std::string &etag, const uint8_t *data, size_t size) {
-  if (this->part_ == nullptr || size == 0 || key.size() >= sizeof(Header::key) ||
-      etag.size() >= sizeof(Header::etag))
-    return false;
+bool PictureCache::reserve_(size_t size, uint32_t *from, uint32_t *to) {
   const uint32_t total = this->part_->size / SECTOR;
   const uint32_t n = this->sectors_(size);
   if (n > total / 2)
@@ -122,25 +120,69 @@ bool PictureCache::write(const std::string &key, const std::string &etag, const 
   uint32_t start = this->head_;
   if (start + n > total)
     start = 0;  // entries never wrap around the end
-  const uint32_t from = start * SECTOR, to = (start + n) * SECTOR;
-  this->drop_range_(from, to);
-  if (esp_partition_erase_range(this->part_, from, to - from) != ESP_OK ||
-      esp_partition_write(this->part_, from + sizeof(Header), data, size) != ESP_OK) {
-    ESP_LOGW(TAG, "Writing picture %s to the cache failed", key.c_str());
-    return false;
-  }
+  *from = start * SECTOR;
+  *to = (start + n) * SECTOR;
+  this->drop_range_(*from, *to);
+  return esp_partition_erase_range(this->part_, *from, *to - *from) == ESP_OK;
+}
+
+// The header goes last: an entry cut short is never read.
+void PictureCache::commit_(const std::string &key, const std::string &etag, uint32_t from, uint32_t to, size_t size,
+                           uint32_t crc) {
   Header h{};
   memcpy(h.magic, MAGIC, 4);
   h.seq = this->next_seq_++;
   h.size = size;
-  h.data_crc = esp_rom_crc32_le(0, data, size);
+  h.data_crc = crc;
   strncpy(h.key, key.c_str(), sizeof(h.key) - 1);
   strncpy(h.etag, etag.c_str(), sizeof(h.etag) - 1);
   h.header_crc = header_crc(h);
   if (esp_partition_write(this->part_, from, &h, sizeof(h)) != ESP_OK)
-    return false;
+    return;
   this->index_[key] = {from, static_cast<uint32_t>(size), h.seq, h.data_crc, etag};
-  this->head_ = (start + n) % total;
+  this->head_ = (to / SECTOR) % (this->part_->size / SECTOR);
+}
+
+static bool fits(const std::string &key, const std::string &etag, size_t size) {
+  return size > 0 && key.size() < sizeof(Header::key) && etag.size() < sizeof(Header::etag);
+}
+
+bool PictureCache::write(const std::string &key, const std::string &etag, const uint8_t *data, size_t size) {
+  uint32_t from, to;
+  if (this->part_ == nullptr || !fits(key, etag, size) || !this->reserve_(size, &from, &to))
+    return false;
+  if (esp_partition_write(this->part_, from + sizeof(Header), data, size) != ESP_OK) {
+    ESP_LOGW(TAG, "Writing picture %s to the cache failed", key.c_str());
+    return false;
+  }
+  this->commit_(key, etag, from, to, size, esp_rom_crc32_le(0, data, size));
+  return this->index_.count(key) > 0 && this->index_[key].offset == from;
+}
+
+bool PictureCache::write_stream(const std::string &key, const std::string &etag, size_t size,
+                                const std::function<int(uint8_t *, int)> &read) {
+  uint32_t from, to;
+  if (this->part_ == nullptr || !fits(key, etag, size) || !this->reserve_(size, &from, &to))
+    return false;
+  constexpr int CHUNK = 4096;
+  auto *buf = static_cast<uint8_t *>(heap_caps_malloc(CHUNK, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
+  if (buf == nullptr)
+    return false;
+  size_t done = 0;
+  uint32_t crc = 0;
+  while (done < size) {
+    const int r = read(buf, static_cast<int>(std::min<size_t>(CHUNK, size - done)));
+    if (r <= 0 || esp_partition_write(this->part_, from + sizeof(Header) + done, buf, r) != ESP_OK)
+      break;
+    crc = esp_rom_crc32_le(crc, buf, r);
+    done += r;
+  }
+  heap_caps_free(buf);
+  if (done != size) {
+    ESP_LOGW(TAG, "Writing picture %s to the cache failed", key.c_str());
+    return false;
+  }
+  this->commit_(key, etag, from, to, size, crc);
   return true;
 }
 

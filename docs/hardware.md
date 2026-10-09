@@ -40,6 +40,10 @@ and are not downloaded again; once after each start the knob only checks with
 Home Assistant whether they changed. When the area is full, the pictures not
 used for the longest time make room.
 
+If a new background has no room in memory (memory broken up after long use),
+the knob stores it in this area and restarts once to load it; a knob without
+the cache area shows the plain colour instead.
+
 The area is a partition of its own. An update over the network keeps the
 partition table, so a knob first installed with version 0.7.6 or older gets the
 cache only after flashing the factory firmware (`*.factory.bin`) over USB once.
@@ -52,6 +56,10 @@ flash egy 4 MB-os részében tárolja, így újraindulás után azonnal megjelen
 nem kell újra letölteni őket; indulásonként egyszer csak azt kérdezi meg a Home
 Assistanttől, változtak-e. Ha a terület megtelik, a legrégebben nem használt
 képek adnak helyet.
+
+Ha egy új háttérnek nincs hely a memóriában (hosszú használat után feldarabolódott
+memória), a knob ebbe a területbe menti, és egyszer újraindul, hogy betöltse; a
+gyorsítótár nélküli knob ilyenkor az egyszínű hátteret mutatja.
 
 A terület külön partíció. A hálózati frissítés a partíciótáblát nem cseréli,
 ezért a 0.7.6-os vagy régebbi verzióval telepített knob csak akkor kapja meg a

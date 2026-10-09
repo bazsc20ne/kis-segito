@@ -16,6 +16,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <map>
 #include <string>
 
@@ -36,6 +37,11 @@ class PictureCache {
   // nullptr. `etag` receives the ETag it was stored with.
   uint8_t *read(const std::string &key, size_t *size, std::string *etag);
   bool write(const std::string &key, const std::string &etag, const uint8_t *data, size_t size);
+  // Writes a picture of `size` bytes that `read` delivers in pieces (it
+  // returns the number of bytes put into the buffer, <= 0 on failure), using
+  // only a small buffer: for pictures there is no room for in PSRAM.
+  bool write_stream(const std::string &key, const std::string &etag, size_t size,
+                    const std::function<int(uint8_t *, int)> &read);
 
  protected:
   struct Entry {
@@ -46,6 +52,11 @@ class PictureCache {
     std::string etag;
   };
   uint32_t sectors_(uint32_t size) const;
+  // Room for an entry of `size` bytes at the head: its offset, its erased
+  // area forgotten; false when it does not fit.
+  bool reserve_(size_t size, uint32_t *from, uint32_t *to);
+  void commit_(const std::string &key, const std::string &etag, uint32_t from, uint32_t to, size_t size,
+               uint32_t crc);
   void drop_range_(uint32_t from, uint32_t to);
 
   const esp_partition_t *part_{nullptr};
