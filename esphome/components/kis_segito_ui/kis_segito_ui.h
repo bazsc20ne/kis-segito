@@ -388,11 +388,13 @@ class KisSegitoUI : public Component {
   // Set by the download task when a picture needs memory; the main loop
   // makes room (unused carousel pictures, unused downloaded pictures).
   volatile size_t need_memory_{0};
-  // Set by the download task when a picture with no room in PSRAM was stored
-  // in the flash cache: the main loop restarts the knob to load it.
+  // Set by the download task when a new background was stored in the flash
+  // cache: the main loop restarts the knob to show it.
   volatile bool restart_for_picture_{false};
-  // This start followed such a restart: no second one.
-  bool restarted_for_picture_{false};
+  volatile uint32_t restart_key_{0};
+  // The picture the restart before this start was made for (0: none).
+  uint32_t restarted_for_{0};
+  bool picture_restart_allowed_(const std::string &key) const;
   volatile bool stopping_{false};
   volatile bool worker_idle_{true};
   // Download task only: the flash cache and the pictures checked with Home

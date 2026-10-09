@@ -6,6 +6,28 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.7.18] - 2026-10-10
+
+### English
+
+- Background change: a new or changed background now always shows the same
+  way. The knob downloads it straight into its flash cache, which needs no
+  free picture memory, and then restarts and shows it from there. It restarts
+  only after the picture is stored. When several new backgrounds arrive
+  together, it restarts once. It never restarts twice in a row for the same
+  picture, and when the download fails (e.g. no network) it does not restart.
+  A knob without the cache area loads backgrounds as before.
+
+### Magyar
+
+- Háttércsere: az új vagy megváltozott háttér most mindig ugyanúgy jelenik
+  meg. A gomb közvetlenül a flash-tárába tölti le, amihez nem kell szabad
+  képmemória, aztán újraindul, és onnan mutatja. Csak a kép mentése után
+  indul újra. Ha egyszerre több új háttér érkezik, egyszer indul újra.
+  Ugyanazért a képért sosem indul újra kétszer egymás után, és sikertelen
+  letöltésnél (pl. nincs hálózat) nem indul újra. A gyorsítótár nélküli gomb
+  a hátteret a korábbi módon tölti be.
+
 ## [0.7.17] - 2026-10-10
 
 ### English

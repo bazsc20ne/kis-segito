@@ -588,16 +588,25 @@ void KisSegitoUI::log_reset_reason_() {
   }
 }
 
-// Survives a software restart: marks the restart made to load a picture.
-static RTC_NOINIT_ATTR uint32_t g_picture_restart;
+// Survive a software restart: which picture the last restart was made for.
+static RTC_NOINIT_ATTR uint32_t g_picture_restart_magic;
+static RTC_NOINIT_ATTR uint32_t g_picture_restart_key;
 static constexpr uint32_t PICTURE_RESTART_MAGIC = 0x4B535052;  // "KSPR"
-// Pictures at least this big (backgrounds) are stored in flash and loaded
-// after a restart when PSRAM has no room for them.
+// Pictures at least this big (backgrounds), when new or changed, are stored
+// in flash and shown after a restart.
 static constexpr int64_t RESTART_PICTURE_BYTES = 200 * 1024;
 
+static uint32_t picture_restart_key(const std::string &key) { return fnv1_hash(key) | 1; }
+
+// Never a second restart in a row for the same picture (e.g. when it still
+// cannot be loaded after the restart): then it is loaded the usual way.
+bool KisSegitoUI::picture_restart_allowed_(const std::string &key) const {
+  return this->restarted_for_ != picture_restart_key(key);
+}
+
 void KisSegitoUI::setup() {
-  this->restarted_for_picture_ = g_picture_restart == PICTURE_RESTART_MAGIC;
-  g_picture_restart = 0;
+  this->restarted_for_ = g_picture_restart_magic == PICTURE_RESTART_MAGIC ? g_picture_restart_key : 0;
+  g_picture_restart_magic = 0;
   this->log_reset_reason_();
   log_psram("at boot");
   this->load_test_data_();
@@ -1268,10 +1277,27 @@ void KisSegitoUI::photo_task_(void *arg) {
     uint8_t *buf = nullptr;
     int got = 0;
     int status = 0;
+    bool stored_large = false;
     if (client != nullptr && esp_http_client_open(client, 0) == ESP_OK) {
       const int64_t len = esp_http_client_fetch_headers(client);
       status = esp_http_client_get_status_code(client);
-      if (status == 200 && len > 8 && len < 600 * 1024) {
+      if (status == 200 && len >= RESTART_PICTURE_BYTES && len < 600 * 1024 && self->cache_.ready() &&
+          !etag.empty() && self->picture_restart_allowed_(job.key)) {
+        // A new or changed background: stored straight into the flash cache
+        // (no room in PSRAM needed) and loaded from there after a restart, so
+        // a changed background always appears the same way.
+        uint32_t crc = 0;
+        auto read = [client](uint8_t *b, int n) { return esp_http_client_read(client, reinterpret_cast<char *>(b), n); };
+        stored_large = self->cache_.write_stream(job.key, etag, len, read, &crc);
+        if (!stored_large) {
+          ESP_LOGE(TAG, "Picture %s could not be stored", job.key.c_str());
+        } else if (cached == nullptr || static_cast<size_t>(len) != cached_size || crc != cached_crc) {
+          ESP_LOGI(TAG, "New picture %s stored: restarting to show it", job.key.c_str());
+          self->restart_key_ = picture_restart_key(job.key);
+          self->restart_for_picture_ = true;
+        }
+        status = 0;  // handled here
+      } else if (status == 200 && len > 8 && len < 600 * 1024) {
         if (psram_can_spare(len)) {
           buf = static_cast<uint8_t *>(heap_caps_malloc(len, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
         } else if (job.tries < 30) {
@@ -1289,20 +1315,8 @@ void KisSegitoUI::photo_task_(void *arg) {
         } else if (psram_has(len)) {
           // Last try: without the usual reserve.
           buf = static_cast<uint8_t *>(heap_caps_malloc(len, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
-        } else if (len >= RESTART_PICTURE_BYTES && self->cache_.ready() && !etag.empty() &&
-                   !self->restarted_for_picture_) {
-          // No room now, but after a restart there is: stored in flash and
-          // loaded from there at the start.
-          const bool stored = self->cache_.write_stream(job.key, etag, len, [client](uint8_t *b, int n) {
-            return esp_http_client_read(client, reinterpret_cast<char *>(b), n);
-          });
-          if (stored) {
-            ESP_LOGW(TAG, "Not enough PSRAM for picture %s (%u KB): restarting to load it", job.key.c_str(),
-                     (unsigned) (len / 1024));
-            self->restart_for_picture_ = true;
-          }
         }
-        if (buf == nullptr && !self->restart_for_picture_)
+        if (buf == nullptr)
           ESP_LOGE(TAG, "Not enough PSRAM for picture %s (%u KB)", job.key.c_str(), (unsigned) (len / 1024));
         while (buf != nullptr && got < len) {
           const int r = esp_http_client_read(client, reinterpret_cast<char *>(buf) + got, len - got);
@@ -1319,7 +1333,7 @@ void KisSegitoUI::photo_task_(void *arg) {
     }
     if (client != nullptr)
       esp_http_client_cleanup(client);
-    if (status == 304 || (status == 200 && buf != nullptr))
+    if (status == 304 || (status == 200 && buf != nullptr) || stored_large)
       self->validated_.insert(job.key);
     if (buf != nullptr) {
       if (self->cache_.ready() && !etag.empty())
@@ -1330,7 +1344,7 @@ void KisSegitoUI::photo_task_(void *arg) {
         continue;
       }
       deliver(job.key, buf, got, true);
-    } else if (cached == nullptr && !self->restart_for_picture_) {
+    } else if (cached == nullptr && !stored_large) {
       deliver(job.key, nullptr, 0, false);  // could not be loaded
     }
     // With a cached copy and Home Assistant out of reach, the cached one stays.
@@ -1358,8 +1372,10 @@ void KisSegitoUI::loop() {
   // Downloaded pictures come before carousel pictures: room is made for them,
   // only when one is waiting for it. (Measuring the free memory walks the whole
   // PSRAM heap, so it is not done on every loop.)
-  if (this->restart_for_picture_ && !this->stopping_) {
-    g_picture_restart = PICTURE_RESTART_MAGIC;
+  // Once the queued pictures are done (several new backgrounds: one restart).
+  if (this->restart_for_picture_ && this->worker_idle_ && !this->stopping_) {
+    g_picture_restart_key = this->restart_key_;
+    g_picture_restart_magic = PICTURE_RESTART_MAGIC;
     App.safe_reboot();
   }
   const size_t need = this->need_memory_;

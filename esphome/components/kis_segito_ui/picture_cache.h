@@ -39,9 +39,10 @@ class PictureCache {
   bool write(const std::string &key, const std::string &etag, const uint8_t *data, size_t size);
   // Writes a picture of `size` bytes that `read` delivers in pieces (it
   // returns the number of bytes put into the buffer, <= 0 on failure), using
-  // only a small buffer: for pictures there is no room for in PSRAM.
+  // only a small buffer instead of the whole picture in PSRAM. `crc_out`
+  // receives the picture's checksum.
   bool write_stream(const std::string &key, const std::string &etag, size_t size,
-                    const std::function<int(uint8_t *, int)> &read);
+                    const std::function<int(uint8_t *, int)> &read, uint32_t *crc_out = nullptr);
 
  protected:
   struct Entry {

@@ -160,7 +160,7 @@ bool PictureCache::write(const std::string &key, const std::string &etag, const 
 }
 
 bool PictureCache::write_stream(const std::string &key, const std::string &etag, size_t size,
-                                const std::function<int(uint8_t *, int)> &read) {
+                                const std::function<int(uint8_t *, int)> &read, uint32_t *crc_out) {
   uint32_t from, to;
   if (this->part_ == nullptr || !fits(key, etag, size) || !this->reserve_(size, &from, &to))
     return false;
@@ -183,6 +183,8 @@ bool PictureCache::write_stream(const std::string &key, const std::string &etag,
     return false;
   }
   this->commit_(key, etag, from, to, size, crc);
+  if (crc_out != nullptr)
+    *crc_out = crc;
   return true;
 }
 
