@@ -226,6 +226,8 @@ class KisSegitoUI : public Component {
   struct RingSpec {
     static constexpr int MAX_ZONES = 8;
     uint32_t bg_color{0};
+    bool has_inner{false};
+    uint32_t inner_color{0};
     const lv_image_dsc_t *bg_image{nullptr};
     bool has_routine{false};
     int zone_count{0};
@@ -236,7 +238,7 @@ class KisSegitoUI : public Component {
     // Equal apart from the elapsed part.
     bool same_but_elapsed(const RingSpec &o) const {
       if (bg_color != o.bg_color || bg_key != o.bg_key || has_routine != o.has_routine ||
-          zone_count != o.zone_count)
+          zone_count != o.zone_count || has_inner != o.has_inner || inner_color != o.inner_color)
         return false;
       for (int i = 0; i < zone_count; i++) {
         if (zone_from[i] != o.zone_from[i] || zone_colors[i] != o.zone_colors[i])
@@ -255,16 +257,10 @@ class KisSegitoUI : public Component {
     }
   };
   void render_ring_tile_(int index);
-  void ring_step_();
   bool ring_ready_();
   void update_ring_();
-  void set_inner_ring_color_(uint32_t color);
   RingSpec ring_spec_;
   bool ring_drawn_{false};
-  int ring_job_{-1};  // next ring tile to draw, -1: none
-  std::vector<bool> ring_dirty_;  // tiles the current job draws
-  uint32_t ring_job_ms_{0};
-  uint32_t inner_ring_color_{0xFFFFFFFF};
   // Uploaded pictures ("@<id>_<size>" keys), downloaded in the background.
   void request_photo_(const std::string &key);
   void log_reset_reason_();
@@ -453,7 +449,6 @@ class KisSegitoUI : public Component {
 
   lv_obj_t *root_{nullptr};        // the LVGL screen
   lv_obj_t *ring_layer_{nullptr};   // the track ring's pictures
-  lv_obj_t *inner_ring_layer_{nullptr};  // the child's inner track (pictures)
   lv_obj_t *track_layer_{nullptr};  // time track, kept across screens
   lv_obj_t *inner_layer_{nullptr};  // the selected child's part of the track
   lv_obj_t *screen_obj_{nullptr};   // content of the current screen
@@ -470,7 +465,6 @@ class KisSegitoUI : public Component {
   lv_obj_t *now_dot_{nullptr};
   lv_obj_t *top_gap_{nullptr};
   const Routine *shown_routine_{nullptr};
-  float baked_elapsed_{0};  // elapsed share drawn into the track tiles
   // Routine screen.
   lv_obj_t *task_big_{nullptr};
   lv_obj_t *timeline_{nullptr};

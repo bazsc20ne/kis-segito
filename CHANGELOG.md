@@ -6,6 +6,42 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.7.14] - 2026-10-10
+
+### English
+
+- Faster drawing (#10, #26, #32): the time track was made of about 260 small
+  pictures (the inner track and its glow alone in about 200 tiles), and every
+  frame had to handle each of them. It is now 20 larger pictures with
+  everything in them, so a moving frame has much less to do.
+- The track ring is drawn again only when something on it changes (the
+  background, the screen colour, the selected child, the routine) and the
+  elapsed part once a minute, in one go instead of piece by piece over a few
+  seconds. The band that ran down the screen came from the piecewise drawing.
+- Item store: it no longer empties itself before drawing a new item when
+  memory is fragmented, and all item pictures use blocks of the same size, so
+  freed memory is reused. The function carousel is stored too. Items you turn
+  back to are shown from the store.
+- A background picture that does not fit at first is tried again for longer
+  (memory is made free meanwhile) instead of being left out.
+
+### Magyar
+
+- Gyorsabb rajzolás (#10, #26, #32): az időpálya kb. 260 kis képből állt (a
+  belső pálya és a ragyogása egyedül kb. 200 csempéből), és minden
+  képkockának mindegyikkel foglalkoznia kellett. Most 20 nagyobb kép
+  tartalmaz mindent, így egy mozgó képkockának jóval kevesebb a dolga.
+- Az időpálya gyűrűje csak akkor rajzolódik újra, ha valami változik rajta (a
+  háttér, a képernyő színe, a kiválasztott gyermek, a rutin), az eltelt rész
+  percenként, egyben, nem pár másodperc alatt darabonként. A képernyőn
+  lefelé futó sávot a darabonkénti rajzolás okozta.
+- Elemtár: már nem ürül ki új elem rajzolása előtt, ha a memória töredezett,
+  és minden elemkép egyforma méretű blokkot kap, így a felszabadult memória
+  újra felhasználódik. A funkció-körhinta is tárolódik. A visszaforgatott
+  elemek a tárból jelennek meg.
+- Egy háttérkép, amely elsőre nem fér el, tovább próbálkozik (közben memória
+  szabadul fel), nem marad el.
+
 ## [0.7.13] - 2026-10-10
 
 ### English

@@ -43,6 +43,9 @@ static size_t psram_largest_block() { return heap_caps_get_largest_free_block(MA
 
 static bool psram_can_spare(size_t bytes) { return psram_largest_block() >= bytes + PSRAM_RESERVE; }
 
+// Whether a block of this size can be allocated now (with a little room left).
+static bool psram_has(size_t bytes) { return psram_largest_block() >= bytes + 64 * 1024; }
+
 // Icons that are not compiled into the firmware (assets/device_assets.json,
 // "_online"): the knob downloads them from Home Assistant when it shows them.
 static bool is_online_icon(const std::string &key) {
@@ -65,6 +68,8 @@ static constexpr int WIN_X = 44, WIN_Y = 44, WIN_END = 436;
 static constexpr int SNAP_MAX_W = 300, SNAP_MAX_H = 410;
 static lv_draw_buf_t *g_snap_tmp = nullptr;
 
+static constexpr int ITEM_BLOCK_W = 300, ITEM_BLOCK_H = 290;  // fits every carousel item
+
 static bool snapshot_tmp_ready() {
   if (g_snap_tmp == nullptr)
     g_snap_tmp = lv_draw_buf_create(SNAP_MAX_W, SNAP_MAX_H, LV_COLOR_FORMAT_ARGB8888, LV_STRIDE_AUTO);
@@ -77,7 +82,7 @@ struct ItemPic {
   lv_draw_buf_t *buf{nullptr};
   int x0{0}, y0{0};  // position of the crop in the slot
   std::set<std::string> keys;  // downloaded pictures it shows
-  size_t bytes() const { return this->buf == nullptr ? 0 : this->buf->header.w * this->buf->header.h * 3; }
+  size_t bytes() const { return this->buf == nullptr ? 0 : this->buf->data_size; }
   ~ItemPic() {
     if (this->buf != nullptr) {
       lv_image_cache_drop(this->buf);
@@ -109,7 +114,15 @@ static std::shared_ptr<ItemPic> crop_item(const lv_draw_buf_t *src) {
     return nullptr;
   const int cw = maxx - minx + 1, ch = maxy - miny + 1;
   auto pic = std::make_shared<ItemPic>();
-  pic->buf = lv_draw_buf_create(cw, ch, LV_COLOR_FORMAT_RGB565A8, cw * 2);
+  // Item pictures all get blocks of the same size, so a freed one is reused
+  // by the next and the memory does not break up into small pieces.
+  if (cw * ch <= ITEM_BLOCK_W * ITEM_BLOCK_H) {
+    pic->buf = lv_draw_buf_create(ITEM_BLOCK_W, ITEM_BLOCK_H, LV_COLOR_FORMAT_RGB565A8, ITEM_BLOCK_W * 2);
+    if (pic->buf != nullptr)
+      lv_draw_buf_reshape(pic->buf, LV_COLOR_FORMAT_RGB565A8, cw, ch, cw * 2);
+  } else {
+    pic->buf = lv_draw_buf_create(cw, ch, LV_COLOR_FORMAT_RGB565A8, cw * 2);
+  }
   if (pic->buf == nullptr)
     return nullptr;
   uint8_t *alpha = pic->buf->data + cw * 2 * ch;
@@ -158,7 +171,7 @@ static void pic_cache_trim(size_t free_bytes) {
     size_t total = 0;
     for (const auto &c : g_pic_cache)
       total += c.pic->bytes();
-    if (total <= PIC_CACHE_BYTES && psram_can_spare(free_bytes))
+    if (total <= PIC_CACHE_BYTES && psram_has(free_bytes))
       return;
     auto oldest = g_pic_cache.end();
     for (auto it = g_pic_cache.begin(); it != g_pic_cache.end(); ++it) {
@@ -925,9 +938,6 @@ void KisSegitoUI::start() {
   this->ring_layer_ = lv_obj_create(this->root_);
   remove_defaults(this->ring_layer_);
   lv_obj_set_size(this->ring_layer_, SCREEN, SCREEN);
-  this->inner_ring_layer_ = lv_obj_create(this->root_);
-  remove_defaults(this->inner_ring_layer_);
-  lv_obj_set_size(this->inner_ring_layer_, SCREEN, SCREEN);
   this->track_layer_ = lv_obj_create(this->root_);
   remove_defaults(this->track_layer_);
   lv_obj_set_size(this->track_layer_, SCREEN, SCREEN);
@@ -1236,7 +1246,7 @@ void KisSegitoUI::photo_task_(void *arg) {
       if (status == 200 && len > 8 && len < 600 * 1024) {
         if (psram_can_spare(len)) {
           buf = static_cast<uint8_t *>(heap_caps_malloc(len, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
-        } else if (job.tries < 10) {
+        } else if (job.tries < 30) {
           // Ask the main loop for room and try again shortly.
           self->need_memory_ = len;
           esp_http_client_close(client);
@@ -1290,7 +1300,6 @@ void KisSegitoUI::on_shutdown() {
 
 void KisSegitoUI::loop() {
   this->handle_input_();
-  this->ring_step_();
   const uint32_t now = millis();
   if (now - this->last_poll_ms_ >= 1000) {
     this->last_poll_ms_ = now;
@@ -2114,7 +2123,11 @@ void KisSegitoUI::build_functions_() {
   const Child &child = this->children_[this->child_];
   const auto fns = this->functions_for_(child);
   this->function_ %= static_cast<int>(fns.size());
-  this->carousel_.sig = nullptr;
+  this->carousel_.sig = [this, fns](int index) {
+    const FnItem &fn = fns[index];
+    std::string icon = fn.type == FnType::ROUTINE ? this->routines_[fn.routine].icon : std::to_string(static_cast<int>(fn.type));
+    return "f|" + this->pic_state_(icon + "_160") + "|" + std::to_string(this->children_[this->child_].color);
+  };
   this->carousel_.create(
       this->screen_obj_, static_cast<int>(fns.size()), this->function_, 240, 240, 145, 230,
       [this, fns](lv_obj_t *slot, int index) {
@@ -2455,15 +2468,13 @@ Routine *KisSegitoUI::track_routine_() {
 // what made sliding slow; computing them takes a few tens of ms and happens
 // only when something on the ring changes. The tiles stay on screen while new
 // content is computed into them.
-static constexpr int TRACK_TILE = 48;
+static constexpr int TRACK_TILE = 96;  // few large tiles: little work per frame
 struct TrackTile {
   int x, y;  // cell origin
   lv_draw_buf_t *buf;
   lv_obj_t *img;
 };
 static std::vector<TrackTile> g_track_tiles;
-static constexpr int INNER_TILE = 16;
-static std::vector<lv_draw_buf_t *> g_inner_tiles;
 // A glow in the selected child's colour around the inner track and the
 // shared track: this wide on each side, at most this opaque.
 static constexpr int GLOW_W = INNER_W;
@@ -2554,28 +2565,30 @@ struct RingBand {
   }
 };
 
-// The ring behind the track: the background (picture or colour) shaded
-// darker, so the ring stands out and carousel content under it is hidden,
-// with a smooth fade inwards; then the shared track with its zones and the
-// dimmed elapsed part.
+// The ring: the background picture (or colour) again, so carousel content
+// under it is hidden, with a narrow soft edge inwards; the shared track with
+// its zones and the dimmed elapsed part; the selected child's inner track;
+// and a glow in the child's colour around both tracks.
 void KisSegitoUI::render_ring_tile_(int index) {
   TrackTile &t = g_track_tiles[index];
   const RingSpec &spec = this->ring_spec_;
   const RingBand outer(OUTER_R - OUTER_W, OUTER_R, 1.0f);
   const RingBand dim(OUTER_R - OUTER_W - 1, OUTER_R + 1, spec.elapsed);
+  const RingBand inner(INNER_R - INNER_W, INNER_R, 1.0f);
   const lv_image_dsc_t *bg = spec.bg_image;
   const bool bg_ok = bg != nullptr && bg->header.w == SCREEN && bg->header.h == SCREEN &&
                      bg->header.cf == LV_COLOR_FORMAT_RGB565;
   constexpr float FADE_FROM = BAND_R - FADE_W;
-  constexpr float ARC_IN = OUTER_R - OUTER_W - 2, ARC_OUT = OUTER_R + 2;
-  const uint16_t bg_color = to565(spec.bg_color), dim_color = to565(TRACK_DIM);
+  constexpr float ARC_IN = INNER_R - INNER_W - GLOW_W - 2, ARC_OUT = OUTER_R + GLOW_W + 2;
+  const uint16_t bg_color = to565(spec.bg_color), dim_color = to565(TRACK_DIM), inner_color = to565(spec.inner_color);
   uint16_t zone565[RingSpec::MAX_ZONES];
   for (int z = 0; z < spec.zone_count; z++)
     zone565[z] = to565(spec.zone_colors[z]);
+  auto glow = [](float d) { return d >= GLOW_W ? 0 : static_cast<int>(GLOW_MAX * (1 - smooth01(d / GLOW_W))); };
   lv_image_cache_drop(t.buf);
   auto *px = reinterpret_cast<uint16_t *>(t.buf->data);
-  const uint32_t stride = t.buf->header.stride / 2;
-  uint8_t *alpha = t.buf->data + t.buf->header.stride * TRACK_TILE;
+  const uint32_t stride = TRACK_TILE;
+  uint8_t *alpha = t.buf->data + TRACK_TILE * 2 * TRACK_TILE;
   bool opaque = true;
   for (int y = 0; y < TRACK_TILE; y++) {
     const int sy = t.y + y;
@@ -2592,32 +2605,42 @@ void KisSegitoUI::render_ring_tile_(int index) {
       }
       uint16_t c = bg_ok ? reinterpret_cast<const uint16_t *>(bg->data)[sy * SCREEN + sx] : bg_color;
       int a = 255;
-      float r = -1;
       if (r2 < BAND_R * BAND_R) {
-        r = std::sqrt(r2);
+        const float r = std::sqrt(r2);
         a = static_cast<int>(smooth01((r - FADE_FROM) / FADE_W) * 255.0f + 0.5f);
-      } else if (r2 >= ARC_IN * ARC_IN && r2 <= ARC_OUT * ARC_OUT) {
-        r = std::sqrt(r2);
+      }
+      if (r2 >= ARC_IN * ARC_IN && r2 <= ARC_OUT * ARC_OUT) {
+        const float r = std::sqrt(r2);
         const float p = ring_pos(dx, dy);
-        if (spec.has_routine) {
-          int co = outer.cover(r, p, dx, dy);
-          if (co > 0) {
-            uint16_t zc = zone565[0];
+        const int co = outer.cover(r, p, dx, dy);
+        // The glow (under the tracks), then the inner track, then the shared one.
+        if (spec.has_inner) {
+          const int g = std::max(glow(inner.dist(r, p, dx, dy)), glow(std::max(0.0f, outer.dist(r, p, dx, dy) - 1.0f)));
+          if (g > 0) {
+            c = mix565(c, inner_color, g);
+            a = std::max(a, g);
+          }
+          const int ci = inner.cover(r, p, dx, dy);
+          if (ci > 0) {
+            c = mix565(c, inner_color, ci);
+            a = std::max(a, std::min(255, ci));
+          }
+        }
+        if (co > 0) {
+          uint16_t zc = dim_color;  // no routine running: an empty track
+          if (spec.has_routine) {
+            zc = zone565[0];
             for (int z = 1; z < spec.zone_count; z++) {
               if (p >= spec.zone_from[z])
                 zc = zone565[z];
             }
-            c = mix565(c, zc, co);
           }
-          if (spec.elapsed > 0) {
-            const int cd = dim.cover(r, p, dx, dy);
-            if (cd > 0)
-              c = mix565(c, dim_color, cd);
-          }
-        } else {
-          const int co = outer.cover(r, p, dx, dy);
-          if (co > 0)
-            c = mix565(c, dim_color, co);  // no routine running: an empty track
+          c = mix565(c, zc, co);
+        }
+        if (spec.has_routine && spec.elapsed > 0) {
+          const int cd = dim.cover(r, p, dx, dy);
+          if (cd > 0)
+            c = mix565(c, dim_color, cd);
         }
       }
       px[i] = c;
@@ -2632,23 +2655,6 @@ void KisSegitoUI::render_ring_tile_(int index) {
   if (t.img != nullptr) {
     lv_image_set_src(t.img, t.buf);
     lv_obj_invalidate(t.img);
-  }
-}
-
-// Draws the ring a few tiles at a time, so input is not held up; the old
-// tiles stay on screen until they are replaced.
-void KisSegitoUI::ring_step_() {
-  if (this->ring_job_ < 0)
-    return;
-  const uint32_t start = millis();
-  while (this->ring_job_ < static_cast<int>(g_track_tiles.size()) && millis() - start < 15) {
-    if (this->ring_dirty_[this->ring_job_])
-      this->render_ring_tile_(this->ring_job_);
-    this->ring_job_++;
-  }
-  if (this->ring_job_ >= static_cast<int>(g_track_tiles.size())) {
-    ESP_LOGD(TAG, "Track ring drawn in %u ms", (unsigned) (millis() - this->ring_job_ms_));
-    this->ring_job_ = -1;
   }
 }
 
@@ -2667,94 +2673,38 @@ bool KisSegitoUI::ring_ready_() {
     }
   }
   for (auto &t : g_track_tiles) {
-    t.buf = lv_draw_buf_create(TRACK_TILE, TRACK_TILE, LV_COLOR_FORMAT_RGB565A8, LV_STRIDE_AUTO);
+    t.buf = lv_draw_buf_create(TRACK_TILE, TRACK_TILE, LV_COLOR_FORMAT_RGB565A8, TRACK_TILE * 2);
     if (t.buf == nullptr) {
       ESP_LOGE(TAG, "No memory for the track ring");
       return false;
     }
-    memset(t.buf->data + t.buf->header.stride * TRACK_TILE, 0, TRACK_TILE * TRACK_TILE);
+    memset(t.buf->data + TRACK_TILE * 2 * TRACK_TILE, 0, TRACK_TILE * TRACK_TILE);
   }
   for (auto &t : g_track_tiles) {
     t.img = lv_image_create(this->ring_layer_);
     lv_image_set_src(t.img, t.buf);
     lv_obj_set_pos(t.img, t.x, t.y);
   }
-  // The child's inner track and the glow in the child's colour around it and
-  // around the shared track: small tiles along the ring; their shape is
-  // computed once, a new child only changes their colour.
-  constexpr int IT = INNER_TILE;
-  const RingBand inner(INNER_R - INNER_W, INNER_R, 1.0f);
-  const RingBand outer(OUTER_R - OUTER_W, OUTER_R, 1.0f);
-  const float from = INNER_R - INNER_W - GLOW_W - 1, to = OUTER_R + GLOW_W + 1;
-  auto glow = [](float d) { return d >= GLOW_W ? 0 : static_cast<int>(GLOW_MAX * (1 - smooth01(d / GLOW_W))); };
-  for (int cy = 0; cy < SCREEN; cy += IT) {
-    for (int cx = 0; cx < SCREEN; cx += IT) {
-      lv_draw_buf_t *buf = nullptr;
-      for (int y = 0; y < IT; y++) {
-        for (int x = 0; x < IT; x++) {
-          const float dx = cx + x + 0.5f - CENTER, dy = cy + y + 0.5f - CENTER;
-          const float r = std::sqrt(dx * dx + dy * dy);
-          if (r < from || r > to)
-            continue;
-          const float p = ring_pos(dx, dy);
-          int a = std::min(255, inner.cover(r, p, dx, dy));
-          // The glow reaches into the shared track's soft edge, so there is no
-          // gap between them, but not over the track itself.
-          const int oc = outer.cover(r, p, dx, dy);
-          if (oc < 256) {
-            const int g = std::max(glow(inner.dist(r, p, dx, dy)), glow(std::max(0.0f, outer.dist(r, p, dx, dy) - 1.0f)));
-            a = std::max(a, g * (256 - oc) / 256);
-          }
-          if (a <= 0)
-            continue;
-          if (buf == nullptr) {
-            buf = lv_draw_buf_create(IT, IT, LV_COLOR_FORMAT_RGB565A8, LV_STRIDE_AUTO);
-            if (buf == nullptr)
-              return true;  // the inner track is left out
-            memset(buf->data + buf->header.stride * IT, 0, IT * IT);
-          }
-          buf->data[buf->header.stride * IT + y * (buf->header.stride / 2) + x] = static_cast<uint8_t>(a);
-        }
-      }
-      if (buf != nullptr) {
-        lv_obj_t *img = lv_image_create(this->inner_ring_layer_);
-        lv_image_set_src(img, buf);
-        lv_obj_set_pos(img, cx, cy);
-        g_inner_tiles.push_back(buf);
-      }
-    }
-  }
   return true;
 }
 
-void KisSegitoUI::set_inner_ring_color_(uint32_t color) {
-  if (color == this->inner_ring_color_)
-    return;
-  this->inner_ring_color_ = color;
-  const uint16_t c = to565(color);
-  for (lv_draw_buf_t *buf : g_inner_tiles) {
-    lv_image_cache_drop(buf);
-    auto *px = reinterpret_cast<uint16_t *>(buf->data);
-    for (int i = 0; i < INNER_TILE * INNER_TILE; i++)
-      px[i] = c;
-  }
-  lv_obj_invalidate(this->inner_ring_layer_);
-}
-
-// Computes the ring again when anything on it changed (spread over the next
-// loops, see ring_step_).
+// Computes the ring again, all at once, when anything on it changed: the
+// background, the screen colour, the selected child, the routine or the
+// elapsed time (to the minute).
 void KisSegitoUI::update_ring_() {
   if (this->ring_layer_ == nullptr || !this->ring_ready_())
     return;
-  if (!this->children_.empty()) {
-    this->set_inner_ring_color_(
-        lv_color_to_u32(lv_color_mix(lv_color_hex(this->children_[this->child_].color), lv_color_hex(BASE_BG), 200)) &
-        0xFFFFFF);
-  }
   RingSpec spec;
-  spec.bg_color = lv_color_to_u32(lv_obj_get_style_bg_color(this->root_, LV_PART_MAIN)) & 0xFFFFFF;
   spec.bg_image = static_cast<const lv_image_dsc_t *>(lv_obj_get_style_bg_image_src(this->root_, LV_PART_MAIN));
   spec.bg_key = spec.bg_image != nullptr ? this->shown_bg_ : std::string();
+  // The colour only shows where there is no picture.
+  spec.bg_color = spec.bg_image != nullptr ? 0 : lv_color_to_u32(lv_obj_get_style_bg_color(this->root_, LV_PART_MAIN)) & 0xFFFFFF;
+  spec.has_inner = !this->children_.empty();
+  if (spec.has_inner) {
+    spec.inner_color =
+        lv_color_to_u32(lv_color_mix(lv_color_hex(this->children_[this->child_].color), lv_color_hex(BASE_BG), 200)) &
+        0xFFFFFF;
+  }
   const Routine *r = this->shown_routine_;
   spec.has_routine = r != nullptr;
   if (r != nullptr) {
@@ -2768,43 +2718,19 @@ void KisSegitoUI::update_ring_() {
       spec.zone_colors[spec.zone_count] = zone.color;
       spec.zone_count++;
     }
-    spec.elapsed = std::floor(track_p(*r, this->now_()) * 100.0f) / 100.0f;
+    const int64_t now = this->now_();
+    spec.elapsed = track_p(*r, now - now % 60);  // moves on once a minute
   }
-  this->baked_elapsed_ = spec.elapsed;
   // The same background loaded again: only its address changed.
   this->ring_spec_.bg_image = spec.bg_image;
   if (this->ring_drawn_ && spec == this->ring_spec_)
     return;
-  const bool first = !this->ring_drawn_;
-  // Only the elapsed part moved on: just the tiles where it changed.
-  const bool partial = !first && spec.same_but_elapsed(this->ring_spec_);
-  const float e0 = std::min(spec.elapsed, this->ring_spec_.elapsed) - 0.01f;
-  const float e1 = std::max(spec.elapsed, this->ring_spec_.elapsed) + 0.01f;
-  this->ring_dirty_.assign(g_track_tiles.size(), !partial);
-  if (partial) {
-    for (size_t k = 0; k < g_track_tiles.size(); k++) {
-      const TrackTile &t = g_track_tiles[k];
-      bool hit = false;
-      for (int y = 0; y <= TRACK_TILE && !hit; y += TRACK_TILE / 8) {
-        for (int x = 0; x <= TRACK_TILE && !hit; x += TRACK_TILE / 8) {
-          const float dx = t.x + x - CENTER, dy = t.y + y - CENTER;
-          const float rr = std::sqrt(dx * dx + dy * dy);
-          const float p = ring_pos(dx, dy);
-          hit = rr > OUTER_R - OUTER_W - 12 && rr < OUTER_R + 12 && p >= e0 && p <= e1;
-        }
-      }
-      this->ring_dirty_[k] = hit;
-    }
-  }
   this->ring_drawn_ = true;
   this->ring_spec_ = spec;
-  this->ring_job_ = 0;
-  this->ring_job_ms_ = millis();
-  if (first) {
-    // The first ring is drawn at once, before the screen is first shown.
-    while (this->ring_job_ >= 0)
-      this->ring_step_();
-  }
+  const uint32_t started = millis();
+  for (size_t k = 0; k < g_track_tiles.size(); k++)
+    this->render_ring_tile_(static_cast<int>(k));
+  ESP_LOGD(TAG, "Track ring drawn in %u ms", (unsigned) (millis() - started));
 }
 
 void KisSegitoUI::build_track_() {
@@ -2885,10 +2811,10 @@ void KisSegitoUI::update_track_() {
   const Routine *r = this->shown_routine_;
   if (r != nullptr && this->now_dot_ != nullptr) {
     const float p = std::max(0.001f, track_p(*r, this->now_()));
-    // The dimmed elapsed part is drawn into the track tiles; it is redrawn
-    // when it is 1 % behind and nobody is using the knob.
-    if (p - this->baked_elapsed_ >= 0.01f && !this->busy_ && millis() - this->last_input_ms_ > 3000 &&
-        this->input_.empty() && lv_screen_active() == this->root_)
+    // The dimmed elapsed part is drawn into the ring; it moves on once a
+    // minute, while nobody is using the knob.
+    if (!this->busy_ && millis() - this->last_input_ms_ > 3000 && this->input_.empty() &&
+        lv_screen_active() == this->root_)
       this->update_ring_();
     int x, y;
     this->ring_point_(p, OUTER_MID, &x, &y);
