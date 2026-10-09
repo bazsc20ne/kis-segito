@@ -34,6 +34,10 @@ substitutions:
   # Drive strength of the RGB bus pins (data, PCLK, HSYNC, VSYNC, DE): -1 keeps
   # the ESP-IDF default, 0..3 = ~5/10/20/40 mA. Lower values reduce crosstalk.
   display_drive_strength: "-1"
+  # "y": the RGB transfer restarts at every vertical sync. When drawing keeps
+  # the memory busy and the panel briefly gets no data, the picture would
+  # otherwise stay shifted (it jumps up or down) until the next restart.
+  display_restart_in_vsync: "y"
   # Serial log on UART0 (GPIO43/44). "0" turns the serial log off and frees
   # UART0 for other hardware; logs stay available over the network.
   logger_baud_rate: "115200"
@@ -91,6 +95,8 @@ esp32:
       # access never stalls the RGB panel. "n" runs them from flash instead,
       # which frees several MB of PSRAM; experimental, see psram_xip.
       CONFIG_SPIRAM_XIP_FROM_PSRAM: ${psram_xip}
+      # See display_restart_in_vsync above.
+      CONFIG_LCD_RGB_RESTART_IN_VSYNC: ${display_restart_in_vsync}
       # Keep ESP-IDF's secondary console off the native USB port: with it on,
       # the display stays blank whenever no USB host (PC) is connected, e.g.
       # on a USB charger (#8).

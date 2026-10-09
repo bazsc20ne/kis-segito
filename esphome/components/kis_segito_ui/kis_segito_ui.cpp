@@ -181,6 +181,7 @@ static std::set<std::string> *g_fill_keys = nullptr;
 
 // Frame statistics while a carousel slides (debug log).
 static uint32_t g_slide_frames = 0, g_slide_render_ms = 0, g_refr_start = 0;
+static uint32_t g_slide_px = 0, g_slide_flush_us = 0, g_flush_start_us = 0;
 static bool g_slide_measure = false;
 
 static void log_psram(const char *when) {
@@ -472,7 +473,7 @@ void Carousel::rotate(int dir, bool animate) {
   }
   if (!animate)
     return;
-  g_slide_frames = g_slide_render_ms = 0;
+  g_slide_frames = g_slide_render_ms = g_slide_px = g_slide_flush_us = 0;
   g_slide_measure = true;
   this->prepare_timer_ = lv_timer_create(
       [](lv_timer_t *t) {
@@ -480,8 +481,9 @@ void Carousel::rotate(int dir, bool animate) {
         self->prepare_timer_ = nullptr;
         lv_timer_delete(t);
         if (g_slide_measure && g_slide_frames > 0) {
-          ESP_LOGD(TAG, "Slide: %u frames, %u ms drawing per frame", (unsigned) g_slide_frames,
-                   (unsigned) (g_slide_render_ms / g_slide_frames));
+          ESP_LOGD(TAG, "Slide: %u frames, %u ms drawing per frame (%u ms of it sending to the panel), %u kpx per frame",
+                   (unsigned) g_slide_frames, (unsigned) (g_slide_render_ms / g_slide_frames),
+                   (unsigned) (g_slide_flush_us / 1000 / g_slide_frames), (unsigned) (g_slide_px / 1000 / g_slide_frames));
         }
         g_slide_measure = false;
         if (self->on_settled)
@@ -933,7 +935,24 @@ void KisSegitoUI::start() {
   // A long redraw (many areas, e.g. after waking) must not trip the task
   // watchdog: it is fed with every area sent to the panel.
   lv_display_add_event_cb(
-      lv_display_get_default(), [](lv_event_t *) { App.feed_wdt(); }, LV_EVENT_FLUSH_START, nullptr);
+      lv_display_get_default(),
+      [](lv_event_t *e) {
+        App.feed_wdt();
+        if (g_slide_measure) {
+          const auto *area = static_cast<const lv_area_t *>(lv_event_get_param(e));
+          if (area != nullptr)
+            g_slide_px += lv_area_get_size(area);
+          g_flush_start_us = micros();
+        }
+      },
+      LV_EVENT_FLUSH_START, nullptr);
+  lv_display_add_event_cb(
+      lv_display_get_default(),
+      [](lv_event_t *) {
+        if (g_slide_measure)
+          g_slide_flush_us += micros() - g_flush_start_us;
+      },
+      LV_EVENT_FLUSH_FINISH, nullptr);
   // How long drawing a frame takes while a carousel slides (debug log).
   lv_display_add_event_cb(
       lv_display_get_default(), [](lv_event_t *) { g_refr_start = millis(); }, LV_EVENT_REFR_START, nullptr);
@@ -963,17 +982,6 @@ void KisSegitoUI::start() {
           return;
         }
         self->update_track_();
-        // Now and then, while nobody touches the knob, the pile comes alive.
-        const uint32_t now = millis();
-        if (self->screen_ == Screen::CHILDREN && self->anim_mode_ == 2 && !self->busy_ &&
-            !self->children_.empty() && now - self->last_input_ms_ > 15000) {
-          if (self->next_idle_anim_ms_ == 0)
-            self->next_idle_anim_ms_ = now + 30000 + random_uint32() % 60000;
-          if (static_cast<int32_t>(now - self->next_idle_anim_ms_) >= 0) {
-            self->next_idle_anim_ms_ = 0;
-            self->idle_pile_anim_();
-          }
-        }
         if (self->screen_ != Screen::CHILDREN && !self->busy_ && millis() - self->last_input_ms_ > self->inactivity_ms_)
           self->show_(Screen::CHILDREN);
       },
@@ -1170,11 +1178,16 @@ static esp_err_t http_event(esp_http_client_event_t *evt) {
 void KisSegitoUI::photo_task_(void *arg) {
   auto *self = static_cast<KisSegitoUI *>(arg);
   self->cache_.begin();
-  auto deliver = [self](const std::string &key, uint8_t *buf, size_t size) {
+  auto deliver = [self](const std::string &key, uint8_t *buf, size_t size, bool fresh) {
     std::lock_guard<std::mutex> lock(self->photo_mutex_);
-    self->photo_done_.push_back({key, buf, size});
+    self->photo_done_.push_back({key, buf, size, fresh});
   };
   while (true) {
+    if (self->stopping_) {
+      self->worker_idle_ = true;
+      vTaskDelay(pdMS_TO_TICKS(1000));  // stopped until the restart
+      continue;
+    }
     PhotoJob job;
     {
       std::lock_guard<std::mutex> lock(self->photo_mutex_);
@@ -1184,9 +1197,11 @@ void KisSegitoUI::photo_task_(void *arg) {
       }
     }
     if (job.key.empty()) {
+      self->worker_idle_ = true;
       vTaskDelay(pdMS_TO_TICKS(100));
       continue;
     }
+    self->worker_idle_ = false;
     std::string cached_etag;
     size_t cached_size = 0;
     uint8_t *cached = nullptr;
@@ -1196,7 +1211,7 @@ void KisSegitoUI::photo_task_(void *arg) {
       cached = self->cache_.read(job.key, &cached_size, &cached_etag);
     }
     if (cached != nullptr) {
-      deliver(job.key, cached, cached_size);
+      deliver(job.key, cached, cached_size, false);
       if (self->validated_.count(job.key))
         continue;
     }
@@ -1256,12 +1271,21 @@ void KisSegitoUI::photo_task_(void *arg) {
     if (buf != nullptr) {
       if (self->cache_.ready() && !etag.empty())
         self->cache_.write(job.key, etag, buf, got);
-      deliver(job.key, buf, got);
+      deliver(job.key, buf, got, true);
     } else if (cached == nullptr) {
-      deliver(job.key, nullptr, 0);  // could not be loaded
+      deliver(job.key, nullptr, 0, false);  // could not be loaded
     }
     // With a cached copy and Home Assistant out of reach, the cached one stays.
   }
+}
+
+void KisSegitoUI::on_shutdown() {
+  this->stopping_ = true;
+  if (!this->photo_task_started_)
+    return;
+  // Let a download or flash write in progress finish (at most about 1.5 s).
+  for (int i = 0; i < 150 && !this->worker_idle_; i++)
+    delay(10);
 }
 
 void KisSegitoUI::loop() {
@@ -1322,6 +1346,8 @@ void KisSegitoUI::loop() {
     auto it = this->photos_.find(d.key);
     if (it != this->photos_.end())
       old = it->second;  // a newer version: replaced once it is shown
+    if (d.fresh && old.dsc != nullptr)
+      this->photo_version_[d.key]++;
     this->photos_[d.key] = {dsc, d.data, d.size, millis()};
     this->photo_failed_.erase(d.key);
     this->photo_requested_.insert(d.key);
@@ -2045,9 +2071,10 @@ std::string KisSegitoUI::pic_state_(const std::string &key) const {
   const std::string pk = this->photo_key_(key);
   if (pk.empty())
     return key;
-  auto it = this->photos_.find(pk);
+  auto ver = this->photo_version_.find(pk);
   char buf[24];
-  snprintf(buf, sizeof(buf), "@%p", it != this->photos_.end() ? static_cast<const void *>(it->second.dsc) : nullptr);
+  snprintf(buf, sizeof(buf), "@%d.%u", this->photos_.count(pk) ? 1 : 0,
+           ver != this->photo_version_.end() ? (unsigned) ver->second : 0u);
   return key + buf;
 }
 
@@ -2059,9 +2086,9 @@ void KisSegitoUI::build_children_() {
            (c.pending_interest > 0 && c.piggy_unlocked ? "i" : "");
   };
   this->carousel_.create(
-      // Slot from y = 60 to 470: avatar, token pile and number. Each slot is
-      // rendered into one image (snapshot) so the pile slides smoothly (#10).
-      this->screen_obj_, static_cast<int>(this->children_.size()), this->child_, 300, 410, 60, 250,
+      // Slot from y = 60 to 340: avatar and the token count. Each slot is
+      // drawn once into a picture, so it slides smoothly (#10).
+      this->screen_obj_, static_cast<int>(this->children_.size()), this->child_, 300, 280, 60, 250,
       [this](lv_obj_t *slot, int index) {
         const Child &c = this->children_[index];
         const int cx = 150;  // slot centre
@@ -2069,8 +2096,9 @@ void KisSegitoUI::build_children_() {
         const lv_color_t disc = c.selectable ? lv_color_hex(c.color) : lv_color_hex(0x4A4F6A);
         this->disc_(slot, cx, 105, 190, disc);
         lv_obj_t *avatar = this->image_(slot, c.avatar + "_180", cx, 105);
-        this->pile_(slot, cx, 300, c.wallet, fnv1_hash(c.id), 12, 15, 19, 10);
-        this->number_pill_(slot, cx, 342, c.wallet, true);
+        // The tokens as one coin and the number (the full pile is on the
+        // token screen).
+        this->number_pill_(slot, cx, 236, c.wallet, true);
         if (c.pending_interest > 0 && c.piggy_unlocked)
           this->image_(slot, "badge_piggy_plus_48", cx - 72, 40);  // interest waiting
         if (!c.selectable) {
@@ -2136,7 +2164,7 @@ void KisSegitoUI::build_rewards_() {
            (r.cost > c.wallet ? "l" : "") + "|" + std::to_string(c.color);
   };
   this->carousel_.create(
-      this->screen_obj_, static_cast<int>(shop.size()), position, 260, 340, 60, 240,
+      this->screen_obj_, static_cast<int>(shop.size()), position, 260, 290, 60, 240,
       [this, shop](lv_obj_t *slot, int index) {
         const Reward &r = this->rewards_[shop[index]];
         const Child &c = this->children_[this->child_];
@@ -2151,8 +2179,8 @@ void KisSegitoUI::build_rewards_() {
           this->image_(slot, "status_lock_64", 205, 190);
         }
         // The price as a small pile of exactly that many tokens.
-        this->pile_(slot, 130, 290, r.cost, fnv1_hash(r.id), 4, 9, 16, 9);
-        this->number_pill_(slot, 130, 320, r.cost, false);
+        // The price as one coin and the number.
+        this->number_pill_(slot, 130, 252, r.cost, true);
       },
       this->anim_ms_(240), true);
   // Current wallet below the carousel.
@@ -2613,8 +2641,11 @@ void KisSegitoUI::ring_step_() {
   if (this->ring_job_ < 0)
     return;
   const uint32_t start = millis();
-  while (this->ring_job_ < static_cast<int>(g_track_tiles.size()) && millis() - start < 15)
-    this->render_ring_tile_(this->ring_job_++);
+  while (this->ring_job_ < static_cast<int>(g_track_tiles.size()) && millis() - start < 15) {
+    if (this->ring_dirty_[this->ring_job_])
+      this->render_ring_tile_(this->ring_job_);
+    this->ring_job_++;
+  }
   if (this->ring_job_ >= static_cast<int>(g_track_tiles.size())) {
     ESP_LOGD(TAG, "Track ring drawn in %u ms", (unsigned) (millis() - this->ring_job_ms_));
     this->ring_job_ = -1;
@@ -2723,6 +2754,7 @@ void KisSegitoUI::update_ring_() {
   RingSpec spec;
   spec.bg_color = lv_color_to_u32(lv_obj_get_style_bg_color(this->root_, LV_PART_MAIN)) & 0xFFFFFF;
   spec.bg_image = static_cast<const lv_image_dsc_t *>(lv_obj_get_style_bg_image_src(this->root_, LV_PART_MAIN));
+  spec.bg_key = spec.bg_image != nullptr ? this->shown_bg_ : std::string();
   const Routine *r = this->shown_routine_;
   spec.has_routine = r != nullptr;
   if (r != nullptr) {
@@ -2739,9 +2771,31 @@ void KisSegitoUI::update_ring_() {
     spec.elapsed = std::floor(track_p(*r, this->now_()) * 100.0f) / 100.0f;
   }
   this->baked_elapsed_ = spec.elapsed;
+  // The same background loaded again: only its address changed.
+  this->ring_spec_.bg_image = spec.bg_image;
   if (this->ring_drawn_ && spec == this->ring_spec_)
     return;
   const bool first = !this->ring_drawn_;
+  // Only the elapsed part moved on: just the tiles where it changed.
+  const bool partial = !first && spec.same_but_elapsed(this->ring_spec_);
+  const float e0 = std::min(spec.elapsed, this->ring_spec_.elapsed) - 0.01f;
+  const float e1 = std::max(spec.elapsed, this->ring_spec_.elapsed) + 0.01f;
+  this->ring_dirty_.assign(g_track_tiles.size(), !partial);
+  if (partial) {
+    for (size_t k = 0; k < g_track_tiles.size(); k++) {
+      const TrackTile &t = g_track_tiles[k];
+      bool hit = false;
+      for (int y = 0; y <= TRACK_TILE && !hit; y += TRACK_TILE / 8) {
+        for (int x = 0; x <= TRACK_TILE && !hit; x += TRACK_TILE / 8) {
+          const float dx = t.x + x - CENTER, dy = t.y + y - CENTER;
+          const float rr = std::sqrt(dx * dx + dy * dy);
+          const float p = ring_pos(dx, dy);
+          hit = rr > OUTER_R - OUTER_W - 12 && rr < OUTER_R + 12 && p >= e0 && p <= e1;
+        }
+      }
+      this->ring_dirty_[k] = hit;
+    }
+  }
   this->ring_drawn_ = true;
   this->ring_spec_ = spec;
   this->ring_job_ = 0;

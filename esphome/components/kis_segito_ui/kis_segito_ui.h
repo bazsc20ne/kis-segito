@@ -164,6 +164,9 @@ class KisSegitoUI : public Component {
  public:
   void setup() override;
   void loop() override;
+  // Before a restart (e.g. after an update): the download task stops, so it
+  // is not writing the flash cache while the knob restarts.
+  void on_shutdown() override;
   float get_setup_priority() const override { return setup_priority::PROCESSOR; }
 
   void add_image(const std::string &key, image::Image *img) { this->images_[key] = img; }
@@ -229,9 +232,20 @@ class KisSegitoUI : public Component {
     float zone_from[MAX_ZONES]{};
     uint32_t zone_colors[MAX_ZONES]{};
     float elapsed{0};
+    std::string bg_key;  // which background picture (the same one loaded again is equal)
+    // Equal apart from the elapsed part.
+    bool same_but_elapsed(const RingSpec &o) const {
+      if (bg_color != o.bg_color || bg_key != o.bg_key || has_routine != o.has_routine ||
+          zone_count != o.zone_count)
+        return false;
+      for (int i = 0; i < zone_count; i++) {
+        if (zone_from[i] != o.zone_from[i] || zone_colors[i] != o.zone_colors[i])
+          return false;
+      }
+      return true;
+    }
     bool operator==(const RingSpec &o) const {
-      if (bg_color != o.bg_color || bg_image != o.bg_image ||
-          has_routine != o.has_routine || zone_count != o.zone_count || elapsed != o.elapsed)
+      if (!this->same_but_elapsed(o) || elapsed != o.elapsed)
         return false;
       for (int i = 0; i < zone_count; i++) {
         if (zone_from[i] != o.zone_from[i] || zone_colors[i] != o.zone_colors[i])
@@ -248,6 +262,7 @@ class KisSegitoUI : public Component {
   RingSpec ring_spec_;
   bool ring_drawn_{false};
   int ring_job_{-1};  // next ring tile to draw, -1: none
+  std::vector<bool> ring_dirty_;  // tiles the current job draws
   uint32_t ring_job_ms_{0};
   uint32_t inner_ring_color_{0xFFFFFFFF};
   // Uploaded pictures ("@<id>_<size>" keys), downloaded in the background.
@@ -332,6 +347,7 @@ class KisSegitoUI : public Component {
     std::string key;
     uint8_t *data{nullptr};
     size_t size{0};
+    bool fresh{false};  // downloaded now, not read from the flash cache
   };
   struct Photo {
     lv_image_dsc_t *dsc{nullptr};
@@ -350,6 +366,9 @@ class KisSegitoUI : public Component {
   std::string wanted_bg_;   // background id the current screen asks for
   std::string shown_bg_;    // picture key of the background on screen
   std::map<std::string, Photo> photos_;
+  // Bumped when a picture's content changes (a new version downloaded), not
+  // when the same picture is loaded again.
+  std::map<std::string, uint32_t> photo_version_;
   std::vector<Binding> bindings_;
   std::set<std::string> photo_requested_;
   std::set<std::string> photo_failed_;  // retried with the next picture key
@@ -360,6 +379,8 @@ class KisSegitoUI : public Component {
   // Set by the download task when a picture needs memory; the main loop
   // makes room (unused carousel pictures, unused downloaded pictures).
   volatile size_t need_memory_{0};
+  volatile bool stopping_{false};
+  volatile bool worker_idle_{true};
   // Download task only: the flash cache and the pictures checked with Home
   // Assistant since the start.
   PictureCache cache_;

@@ -6,6 +6,51 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.7.13] - 2026-10-10
+
+### English
+
+- Child selector and shop (#32): instead of a token pile, one coin and the
+  number show the tokens (the full pile stays on the token screen). The
+  pictures of these items are much smaller, so they are drawn and moved
+  faster.
+- The item store keeps its pictures when the same avatar or icon is loaded
+  again; an item is drawn again only when its content really changes. Before,
+  reloading a picture made every item that used it count as new.
+- Time track (#26, #34): when only the dimmed elapsed part moves on, just the
+  few tiles where it changed are drawn again, not the whole ring; loading the
+  same background picture again no longer redraws the ring. This removes the
+  band that moved down the home screen every minute or so.
+- Display: the RGB transfer restarts at every vertical sync (substitution
+  `display_restart_in_vsync`), so a picture shifted by a moment without data
+  (the whole screen jumping up or down) is put right at the next frame.
+- Before a restart (e.g. after an update) the picture download stops, so it
+  is not writing the flash cache while the knob restarts.
+- The debug log of a slide also shows how much of the frame time goes to
+  sending to the panel and how many pixels are drawn per frame.
+
+### Magyar
+
+- Gyermekválasztó és bolt (#32): zsetonkupac helyett egy zseton és a szám
+  mutatja a zsetonokat (a teljes kupac a zseton-képernyőn marad). Ezeknek az
+  elemeknek a képe jóval kisebb, így gyorsabban rajzolódnak és mozognak.
+- Az elemtár megtartja a képeit, ha ugyanaz az avatar vagy ikon újra
+  betöltődik; egy elem csak akkor rajzolódik újra, ha a tartalma valóban
+  változik. Eddig egy kép újratöltése miatt minden azt használó elem újnak
+  számított.
+- Időpálya (#26, #34): ha csak az eltelt idő halványított része lép tovább,
+  csak az a néhány csempe rajzolódik újra, ahol változott, nem az egész
+  gyűrű; ugyanannak a háttérképnek az újratöltése nem rajzolja újra a gyűrűt.
+  Ez megszünteti a kezdőképernyőn kb. percenként lefelé futó sávot.
+- Kijelző: az RGB-átvitel minden függőleges szinkronnál újraindul
+  (`display_restart_in_vsync` helyettesítés), így ha egy pillanatra nem
+  érkezik adat és a kép elcsúszik (az egész képernyő fel-le ugrik), a
+  következő képkockánál helyreáll.
+- Újraindulás előtt (pl. frissítés után) a képletöltés leáll, így nem ír a
+  flash-gyorsítótárba, miközben a gomb újraindul.
+- A csúszás hibakereső naplója azt is mutatja, a képkocka idejéből mennyi a
+  panelre küldés, és hány pixel rajzolódik képkockánként.
+
 ## [0.7.12] - 2026-10-09
 
 ### English

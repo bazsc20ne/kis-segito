@@ -20,6 +20,7 @@ Tuning below).
 | COLMOD after the table | none | `display_colmod` (`"0"`, `"0x55"`, `"0x66"`, `"0x77"`) |
 | Serial log on UART0 (GPIO43/44) | 115200 baud | `logger_baud_rate` (`"0"` = off, frees UART0) |
 | RGB bus drive strength | ESP-IDF default | `display_drive_strength` (`"-1"` = default, `"0"`…`"3"` ≈ 5/10/20/40 mA) |
+| Restart the RGB transfer at every vertical sync (no shifted picture when memory is busy) | on | `display_restart_in_vsync` (`"y"` / `"n"`) |
 
 ## USB
 
