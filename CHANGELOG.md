@@ -23,6 +23,12 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   draws less again.
 - Time track: the ring is computed faster (pixels away from a track are
   skipped sooner).
+- Pictures were loaded twice after every update of the integration: Home
+  Assistant identified them by the file time, which an update changes, so the
+  knob showed its stored copy and then downloaded the same picture again
+  (redrawing everything showing it). Pictures are now identified by their
+  content, and a downloaded picture identical to the stored one is not shown
+  again.
 
 ### Magyar
 
@@ -39,6 +45,12 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   kész, és visszaforgatáskor kevesebbet kell újrarajzolni.
 - Időpálya: a gyűrű gyorsabban számolódik (a pályáktól távoli képpontokat
   hamarabb átugorja).
+- Az integráció minden frissítése után minden kép kétszer töltődött be: a
+  Home Assistant a fájl idejével azonosította őket, ami frissítéskor
+  megváltozik, így a gomb megmutatta a tárolt példányt, aztán ugyanazt a képet
+  újra letöltötte (és újrarajzolt mindent, ami mutatta). A képeket most a
+  tartalmuk azonosítja, és a tárolttal azonos letöltött kép nem jelenik meg
+  újra.
 
 ## [0.7.15] - 2026-10-10
 

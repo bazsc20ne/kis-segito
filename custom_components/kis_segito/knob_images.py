@@ -194,7 +194,9 @@ class KnobImageView(HomeAssistantView):
         if not path.is_file():
             return web.Response(status=404)
         mtime = path.stat().st_mtime
-        etag = _etag(path, mtime, int(size))
+        etag = await self.hass.async_add_executor_job(
+            _etag, str(path), mtime, int(size)
+        )
         headers = {"ETag": etag, "Cache-Control": "no-cache"}
         if request.headers.get("If-None-Match") == etag:
             return web.Response(status=304, headers=headers)
@@ -208,9 +210,16 @@ class KnobImageView(HomeAssistantView):
         )
 
 
-def _etag(path: Path, mtime: float, size: int) -> str:
-    """Identifies one rendition: the source file, its version and the size."""
-    digest = hashlib.sha256(
-        f"{RENDER_VERSION}|{path}|{mtime}|{size}".encode()
-    ).hexdigest()
-    return f'"{digest[:24]}"'
+@lru_cache(maxsize=256)
+def _etag(path: str, mtime: float, size: int) -> str:
+    """Identifies one rendition: the source file's content and the size.
+
+    Taken from the content, not the file's time, so reinstalling or restoring
+    the same files does not make the knob load every picture again. ``mtime``
+    only keys the memo, so a changed file is read again.
+    """
+    digest = hashlib.sha256(f"{RENDER_VERSION}|{size}|".encode())
+    with open(path, "rb") as file:
+        for chunk in iter(lambda: file.read(1 << 20), b""):
+            digest.update(chunk)
+    return f'"{digest.hexdigest()[:24]}"'

@@ -13,6 +13,7 @@
 #include <esp_heap_caps.h>
 #include <esp_system.h>
 #include <esp_http_client.h>
+#include <esp_rom_crc.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <misc/cache/instance/lv_image_cache.h>
@@ -1235,7 +1236,9 @@ void KisSegitoUI::photo_task_(void *arg) {
         self->need_memory_ = size;
       cached = self->cache_.read(job.key, &cached_size, &cached_etag);
     }
+    uint32_t cached_crc = 0;
     if (cached != nullptr) {
+      cached_crc = esp_rom_crc32_le(0, cached, cached_size);
       deliver(job.key, cached, cached_size, false);
       if (self->validated_.count(job.key))
         continue;
@@ -1296,6 +1299,11 @@ void KisSegitoUI::photo_task_(void *arg) {
     if (buf != nullptr) {
       if (self->cache_.ready() && !etag.empty())
         self->cache_.write(job.key, etag, buf, got);
+      if (cached != nullptr && static_cast<size_t>(got) == cached_size &&
+          esp_rom_crc32_le(0, buf, got) == cached_crc) {
+        heap_caps_free(buf);  // the same picture as the cached one already shown
+        continue;
+      }
       deliver(job.key, buf, got, true);
     } else if (cached == nullptr) {
       deliver(job.key, nullptr, 0, false);  // could not be loaded
