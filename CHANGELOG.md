@@ -6,6 +6,70 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.7.9] - 2026-10-09
+
+### English
+
+- Sliding carousels (#10, #26):
+  - While a carousel slides, one prepared picture of the whole strip moves,
+    blurred sideways like a fast movement; when it stops, the sharp items are
+    shown again. Each frame is a plain copy, so the slide gets many frames. The
+    picture for the next turn in the same direction is prepared while the
+    knob rests.
+  - Starting a slide no longer redraws the whole screen (the child's inner
+    track is no longer hidden during the slide).
+  - Turns that pile up while the screen is busy are done at once, all but the
+    last without animation, so the carousel stops when the knob stops.
+- Time track (#32, #33):
+  - The ring (band, zones, elapsed part, the child's inner track) is computed
+    pixel by pixel in a fraction of the time, only when something on it
+    changes, and the old ring stays on screen meanwhile. Before, it took up to
+    2 s, also during the screensaver, and the knob did not react in that time,
+    which is why a press sometimes did not wake it.
+  - The background picture now reaches the outer edge of the screen, behind
+    the rings too.
+  - The fade from the rings inwards is smooth, without visible steps.
+- Knob (#27): turning is followed detent by detent. The first detent after a
+  change of direction arrives one count early, and now always counts.
+- Screensavers (#32):
+  - Stars brighten and dim slowly, like breathing, instead of flickering.
+  - Confetti and stars move at about 50 frames a second, in smaller steps.
+- Panel: number and text settings (e.g. the screensaver time) are saved 2 s
+  after you stop typing, or when you leave the field; pressing Enter is no
+  longer needed. The field keeps the focus while it is saved.
+
+### Magyar
+
+- Csúszó körhinták (#10, #26):
+  - Csúszás közben az egész sáv egyetlen előkészített képe mozog, oldalirányban
+    elmosva, mint egy gyors mozdulat; megálláskor újra az éles elemek
+    látszanak. Minden képkocka egy egyszerű másolás, így a csúszás sok
+    képkockából áll. Az ugyanarra következő forgatás képe akkor készül el,
+    amikor a gomb pihen.
+  - A csúszás kezdete már nem rajzolja újra az egész képernyőt (a gyermek
+    belső pályája csúszás közben nem tűnik el).
+  - A forgatások, amelyek sorba álltak, amíg a képernyő dolgozott, egyszerre
+    hajtódnak végre, az utolsó kivételével animáció nélkül, így a körhinta
+    megáll, amikor a gomb megáll.
+- Időpálya (#32, #33):
+  - A gyűrű (sáv, zónák, eltelt rész, a gyermek belső pályája) pixelenként,
+    töredék idő alatt számolódik ki, csak ha valami változik rajta, és
+    közben a régi gyűrű látszik. Eddig akár 2 mp-ig tartott, képernyővédő
+    közben is, és a gomb addig nem reagált, ezért nem ébresztett néha a
+    nyomás.
+  - A háttérkép most a képernyő külső széléig ér, a gyűrűk mögött is.
+  - A gyűrűktől befelé az átmenet sima, látható lépcsők nélkül.
+- Forgatás (#27): a gomb rovátkánként követi a forgatást. Irányváltás után az
+  első rovátka egy jellel korábban érkezik, és most mindig számít.
+- Képernyővédők (#32):
+  - A csillagok villogás helyett lassan, lélegzésszerűen fényesednek és
+    halványulnak.
+  - A konfetti és a csillagok kb. 50 képkocka/mp sebességgel, kisebb
+    lépésekben mozognak.
+- Panel: a szám- és szövegbeállítások (pl. a képernyővédő ideje) 2 mp-cel az
+  utolsó gépelés után, vagy a mező elhagyásakor mentődnek; Entert nyomni már
+  nem kell. Mentés közben a mező megtartja a fókuszt.
+
 ## [0.7.8] - 2026-10-09
 
 ### English

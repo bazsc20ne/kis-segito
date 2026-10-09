@@ -13,7 +13,7 @@
 // Knob screen power settings (seconds; dim_level in percent).
 const SCREEN_KEYS = ["saver_after", "dim_after", "dim_level", "blank_after", "off_after"];
 const SAVER_TYPES = ["balls", "confetti", "stars"];
-const PANEL_VERSION = "0.7.8";
+const PANEL_VERSION = "0.7.9";
 const FALLBACK_LANGUAGE = "en";
 const LANGUAGE_AUTO = "auto";
 const TABS = [
@@ -2042,6 +2042,16 @@ class KisSegitoPanel extends HTMLElement {
 
   // ------------------------------------------------------------ render
 
+  // Identifies a form field across redraws (its data attributes or id).
+  _fieldKey(el) {
+    const data = Object.entries(el.dataset || {})
+      .filter(([k]) => k !== "saved")
+      .map(([k, v]) => `${k}=${v}`)
+      .sort()
+      .join("&");
+    return data || el.id ? `${el.tagName}|${el.id}|${data}` : null;
+  }
+
   _render() {
     if (!this.shadowRoot) {
       return;
@@ -2071,6 +2081,13 @@ class KisSegitoPanel extends HTMLElement {
       (tab) => `<button class="tab ${tab === this._tab ? "sel" : ""}" data-action="tab" data-arg="${tab}">${this._icon(TAB_ICONS[tab], 28)}<span>${this._e(this._t(`tab.${tab}`))}</span></button>`
     ).join("");
     const scroll = this.shadowRoot.querySelector(".content")?.scrollTop ?? 0;
+    // The field being edited keeps the focus and the cursor across a redraw
+    // (settings are saved while you type, see the "input" listener).
+    const focused = this.shadowRoot.activeElement;
+    const focusKey = focused?.matches?.("input, textarea, select") ? this._fieldKey(focused) : null;
+    const selection = focusKey && typeof focused.selectionStart === "number"
+      ? [focused.selectionStart, focused.selectionEnd]
+      : null;
     this.shadowRoot.innerHTML = `
       <style>${STYLE}</style>
       <div class="toolbar">
@@ -2092,6 +2109,21 @@ class KisSegitoPanel extends HTMLElement {
     if (content) {
       content.scrollTop = scroll;
     }
+    if (focusKey) {
+      const field = [...this.shadowRoot.querySelectorAll("input, textarea, select")].find(
+        (el) => this._fieldKey(el) === focusKey
+      );
+      if (field) {
+        field.focus({ preventScroll: true });
+        if (selection) {
+          try {
+            field.setSelectionRange(...selection);
+          } catch (_err) {
+            // number fields have no cursor position
+          }
+        }
+      }
+    }
     const menuButton = this.shadowRoot.querySelector("ha-menu-button");
     if (menuButton) {
       menuButton.hass = this._hass;
@@ -2107,7 +2139,29 @@ class KisSegitoPanel extends HTMLElement {
         }
         this._onClick(ev).catch(() => {});
       });
-      this.shadowRoot.addEventListener("change", (ev) => this._onChange(ev).catch(() => {}));
+      this.shadowRoot.addEventListener("change", (ev) => {
+        // Already saved while typing (see below): nothing new.
+        if (ev.target.dataset?.saved !== undefined && ev.target.dataset.saved === ev.target.value) {
+          return;
+        }
+        this._onChange(ev).catch(() => {});
+      });
+      // Settings fields are saved 2 s after the last keystroke, and when the
+      // field is left (the "change" event above); no Enter or button needed.
+      this.shadowRoot.addEventListener("input", (ev) => {
+        const el = ev.target;
+        if (!el.matches?.("input, textarea") || ["checkbox", "radio", "file", "range"].includes(el.type)) {
+          return;
+        }
+        clearTimeout(this._inputTimer);
+        this._inputTimer = setTimeout(() => {
+          if (!el.isConnected || el.dataset.saved === el.value) {
+            return;
+          }
+          el.dataset.saved = el.value;
+          this._onChange({ target: el }).catch(() => {});
+        }, 2000);
+      });
       // Calendar: drag blocks (mouse at once, touch after a long press).
       this.shadowRoot.addEventListener("pointerdown", (ev) => {
         const block = ev.target.closest?.("[data-block]");

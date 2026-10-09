@@ -106,7 +106,8 @@ class Carousel {
   // slot with many objects (token piles) still slides smoothly.
   void create(lv_obj_t *parent, int count, int selected, int slot_w, int slot_h, int y, int spacing, FillFn fill,
               uint32_t anim_ms, bool snapshot = false);
-  void rotate(int dir);
+  // One step; animate = false moves at once (several queued steps).
+  void rotate(int dir, bool animate = true);
   int selected() const { return this->selected_; }
   lv_obj_t *center_slot() const;
   void refill();
@@ -120,6 +121,8 @@ class Carousel {
   bool uses(const std::string &key) const;
   // Called when a slide has ended.
   std::function<void()> on_settled;
+  // The object whose background (colour, picture) is behind the carousel.
+  lv_obj_t *backdrop{nullptr};
 
  protected:
   void fill_slot_(int slot);
@@ -128,6 +131,8 @@ class Carousel {
   // After a slide, fills the spare slot with the next item in the same
   // direction, so the next turn starts at once.
   void prepare_spare_();
+  bool build_strip_(int dir);
+  void finish_slide_();
 
   lv_obj_t *slots_[4]{};
   int index_[4]{};
@@ -141,6 +146,10 @@ class Carousel {
   uint32_t anim_ms_{250};
   bool snapshot_{false};
   lv_obj_t *window_{nullptr};
+  lv_obj_t *strip_img_{nullptr};
+  bool strip_ok_{false};  // the motion picture is ready for strip_dir_ from strip_sel_
+  int strip_dir_{0};
+  int strip_sel_{-1};
   int win_y_{0};
   std::set<std::string> keys_[4];  // downloaded pictures each slot uses
   bool ready_[4]{};                // the slot holds item index_[i]
@@ -201,12 +210,39 @@ class KisSegitoUI : public Component {
   // Frees downloaded pictures nothing shows (the least recently used last).
   void release_photos_(bool all_unused);
   void handle_input_();
-  void do_rotate_(int dir);
+  void do_rotate_(int dir, bool animate = true);
   void do_click_();
   void do_long_press_();
   void poll_connection_();
   void reconnect_();
   void confetti_step_();
+  // The time track's ring, computed into pictures (see render_ring_).
+  struct RingSpec {
+    static constexpr int MAX_ZONES = 8;
+    uint32_t bg_color{0};
+    const lv_image_dsc_t *bg_image{nullptr};
+    uint32_t inner_color{0};
+    bool has_routine{false};
+    int zone_count{0};
+    float zone_from[MAX_ZONES]{};
+    uint32_t zone_colors[MAX_ZONES]{};
+    float elapsed{0};
+    bool operator==(const RingSpec &o) const {
+      if (bg_color != o.bg_color || bg_image != o.bg_image || inner_color != o.inner_color ||
+          has_routine != o.has_routine || zone_count != o.zone_count || elapsed != o.elapsed)
+        return false;
+      for (int i = 0; i < zone_count; i++) {
+        if (zone_from[i] != o.zone_from[i] || zone_colors[i] != o.zone_colors[i])
+          return false;
+      }
+      return true;
+    }
+  };
+  void render_ring_(const RingSpec &spec);
+  bool ring_ready_();
+  void update_ring_();
+  RingSpec ring_spec_;
+  bool ring_drawn_{false};
   // Uploaded pictures ("@<id>_<size>" keys), downloaded in the background.
   void request_photo_(const std::string &key);
   void log_reset_reason_();
@@ -340,11 +376,14 @@ class KisSegitoUI : public Component {
     uint32_t drift_ms{0};         // when it picks a new direction
     float gust{0}, gust_vy{0};    // extra speed from a gust, px/s
     float sway{0}, sway_hz{0}, phase{0};
+    float glow{0}, glow_hz{0};  // stars: slow brightening and dimming
+    uint8_t opa{255};
     int w{0}, h{0};
   };
   void spawn_piece_(Piece &p, bool anywhere);
   Piece confetti_[CONFETTI];
   lv_obj_t *saver_screen_{nullptr};
+  bool stars_{false};
   lv_timer_t *confetti_timer_{nullptr};
   uint32_t confetti_ms_{0};
   uint32_t next_gust_ms_{0};
@@ -368,6 +407,7 @@ class KisSegitoUI : public Component {
   ESPPreferenceObject child_pref_;  // hash of the last selected child id
 
   lv_obj_t *root_{nullptr};        // the LVGL screen
+  lv_obj_t *ring_layer_{nullptr};   // the track ring's pictures
   lv_obj_t *track_layer_{nullptr};  // time track, kept across screens
   lv_obj_t *inner_layer_{nullptr};  // the selected child's part of the track
   lv_obj_t *screen_obj_{nullptr};   // content of the current screen
