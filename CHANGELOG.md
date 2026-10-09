@@ -6,6 +6,27 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.7.17] - 2026-10-10
+
+### English
+
+- Display: the pixel clock is now 16 MHz (was 18 MHz). At the higher clock
+  the panel showed short bright lines on the left half of the picture, seen
+  as stepped edges on the left of the time track and an occasional flashing
+  streak (#32).
+- Panel: where a photo is uploaded (child avatar, reward), the edit form shows
+  only the photo; the icon choice appears again when the photo is removed.
+
+### Magyar
+
+- Kijelző: a képpont-órajel most 16 MHz (eddig 18 MHz). A magasabb órajelen
+  a panel rövid világos vonalkákat mutatott a kép bal felén; ez lépcsős
+  élekként látszott az időpálya bal oldalán, és néha felvillanó csíkként
+  (#32).
+- Panel: ahol fénykép van feltöltve (gyermek avatarja, jutalom), a
+  szerkesztőlap csak a fényképet mutatja; az ikonválasztó a fénykép
+  eltávolítása után jelenik meg újra.
+
 ## [0.7.16] - 2026-10-10
 
 ### English

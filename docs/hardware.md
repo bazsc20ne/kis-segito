@@ -14,7 +14,7 @@ Tuning below).
 | Setting | Value | Substitution |
 |---|---|---|
 | Init sequence | GC9503 table | `display_controller` (`gc9503` or `st7701`) |
-| PCLK | 18 MHz, not inverted | `display_pclk_frequency`, `display_pclk_inverted` |
+| PCLK | 16 MHz, not inverted (higher clocks: short bright lines on the left half) | `display_pclk_frequency`, `display_pclk_inverted` |
 | HSYNC pulse / back / front | 8 / 20 / 40 | `display_hsync_pulse_width`, `display_hsync_back_porch`, `display_hsync_front_porch` |
 | VSYNC pulse / back / front | 8 / 20 / 50 | `display_vsync_pulse_width`, `display_vsync_back_porch`, `display_vsync_front_porch` |
 | COLMOD after the table | none | `display_colmod` (`"0"`, `"0x55"`, `"0x66"`, `"0x77"`) |

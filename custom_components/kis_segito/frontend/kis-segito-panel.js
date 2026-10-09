@@ -13,7 +13,7 @@
 // Knob screen power settings (seconds; dim_level in percent).
 const SCREEN_KEYS = ["saver_after", "dim_after", "dim_level", "blank_after", "off_after"];
 const SAVER_TYPES = ["balls", "confetti", "stars"];
-const PANEL_VERSION = "0.7.16";
+const PANEL_VERSION = "0.7.17";
 const FALLBACK_LANGUAGE = "en";
 const LANGUAGE_AUTO = "auto";
 const TABS = [
@@ -575,7 +575,7 @@ class KisSegitoPanel extends HTMLElement {
     const preview = id ? this._photo(id, 56, field === "avatar_image") : this._icon(iconName, 56);
     return `<div class="field"><span>${this._e(this._t("picture.title"))}</span>
       <div class="row wrap">
-        <button class="pick" data-action="pick" data-path="${iconPath}" data-arg="${filter}" title="${this._e(this._t("picture.icon"))}">${preview}</button>
+        ${id ? preview : `<button class="pick" data-action="pick" data-path="${iconPath}" data-arg="${filter}" title="${this._e(this._t("picture.icon"))}">${preview}</button>`}
         <label class="upload">${this._e(this._t(id ? "picture.replace" : "picture.upload"))}<input type="file" accept="image/*" data-upload="${field}" hidden></label>
         ${id ? `<button class="small" data-action="clear-picture" data-arg="${field}">${this._e(this._t("picture.remove"))}</button>` : ""}
       </div>
@@ -1620,8 +1620,8 @@ class KisSegitoPanel extends HTMLElement {
       <div class="field"><span>${this._e(this._t("children.color"))}</span>
         <div class="row">${swatches}<input type="color" data-path="color" data-rerender value="${this._e(c.color)}"></div>
         ${close ? `<div class="warn">${this._e(this._t("children.color_warning"))}</div>` : ""}</div>
-      <div class="field"><span>${this._e(this._t("children.avatar"))}</span>
-        <button class="pick" data-action="pick" data-path="avatar" data-arg="avatar">${this._icon(c.avatar, 56)}</button></div>
+      ${c.avatar_image ? "" : `<div class="field"><span>${this._e(this._t("children.avatar"))}</span>
+        <button class="pick" data-action="pick" data-path="avatar" data-arg="avatar">${this._icon(c.avatar, 56)}</button></div>`}
       ${this._pictureField("avatar_image", "avatar", "avatar", c.avatar)}
       ${this._backgroundField("child", c.background || "")}
       <label>${this._e(this._t("children.knob"))}<select data-path="device_id">${knobs}</select></label>
@@ -1813,7 +1813,7 @@ class KisSegitoPanel extends HTMLElement {
     return `<div class="card form">
       <h2>${this._e(this._t(r.id ? "rewards.edit" : "rewards.add"))}</h2>
       ${this._pictureField("image", "icon", "reward", r.icon)}
-      <div class="row"><button class="pick" data-action="pick" data-path="icon" data-arg="reward">${this._icon(r.icon, 56)}</button>
+      <div class="row">${r.image ? "" : `<button class="pick" data-action="pick" data-path="icon" data-arg="reward">${this._icon(r.icon, 56)}</button>`}
         <label class="grow">${this._e(this._t("common.name"))}<input data-path="name" value="${this._e(r.name)}"></label></div>
       <label>${this._e(this._t("rewards.cost"))}<input type="number" min="0" data-path="cost" data-rerender value="${r.cost}"></label>
       <div class="balance left">${this._pile(Number(r.cost) || 0, 40)}</div>

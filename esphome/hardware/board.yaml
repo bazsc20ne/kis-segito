@@ -19,7 +19,9 @@ substitutions:
   # "y": firmware code and rodata run from PSRAM (default, as in the vendor
   # example). "n": they run from flash, leaving more PSRAM free (experimental).
   psram_xip: "y"
-  display_pclk_frequency: 18MHz
+  # 16 MHz: at higher clocks this panel shows short bright lines on the left
+  # half of the picture (stepped edges on the time track).
+  display_pclk_frequency: 16MHz
   display_pclk_inverted: "false"
   display_hsync_pulse_width: "8"
   display_hsync_back_porch: "20"
