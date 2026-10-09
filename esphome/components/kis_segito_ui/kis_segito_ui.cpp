@@ -68,7 +68,9 @@ static constexpr int WIN_X = 44, WIN_Y = 44, WIN_END = 436;
 static constexpr int SNAP_MAX_W = 300, SNAP_MAX_H = 410;
 static lv_draw_buf_t *g_snap_tmp = nullptr;
 
-static constexpr int ITEM_BLOCK_W = 300, ITEM_BLOCK_H = 290;  // fits every carousel item
+// Item pictures get blocks in steps of this size, so a freed block is reused
+// by a later picture and the memory does not break up into small pieces.
+static constexpr size_t ITEM_BLOCK_STEP = 32 * 1024;
 
 static bool snapshot_tmp_ready() {
   if (g_snap_tmp == nullptr)
@@ -114,16 +116,14 @@ static std::shared_ptr<ItemPic> crop_item(const lv_draw_buf_t *src) {
     return nullptr;
   const int cw = maxx - minx + 1, ch = maxy - miny + 1;
   auto pic = std::make_shared<ItemPic>();
-  // Item pictures all get blocks of the same size, so a freed one is reused
-  // by the next and the memory does not break up into small pieces.
-  if (cw * ch <= ITEM_BLOCK_W * ITEM_BLOCK_H) {
-    pic->buf = lv_draw_buf_create(ITEM_BLOCK_W, ITEM_BLOCK_H, LV_COLOR_FORMAT_RGB565A8, ITEM_BLOCK_W * 2);
-    if (pic->buf != nullptr)
-      lv_draw_buf_reshape(pic->buf, LV_COLOR_FORMAT_RGB565A8, cw, ch, cw * 2);
-  } else {
-    pic->buf = lv_draw_buf_create(cw, ch, LV_COLOR_FORMAT_RGB565A8, cw * 2);
-  }
+  // The block: the picture's size rounded up to ITEM_BLOCK_STEP, as rows of
+  // the full snapshot width.
+  const size_t block = (static_cast<size_t>(cw) * ch * 3 + ITEM_BLOCK_STEP - 1) / ITEM_BLOCK_STEP * ITEM_BLOCK_STEP;
+  const uint32_t rows = (block + SNAP_MAX_W * 3 - 1) / (SNAP_MAX_W * 3);
+  pic->buf = lv_draw_buf_create(SNAP_MAX_W, rows, LV_COLOR_FORMAT_RGB565A8, SNAP_MAX_W * 2);
   if (pic->buf == nullptr)
+    return nullptr;
+  if (lv_draw_buf_reshape(pic->buf, LV_COLOR_FORMAT_RGB565A8, cw, ch, cw * 2) == nullptr)
     return nullptr;
   uint8_t *alpha = pic->buf->data + cw * 2 * ch;
   for (int y = 0; y < ch; y++) {
@@ -1107,7 +1107,10 @@ void KisSegitoUI::picture_ready_(const std::string &key) {
   this->apply_background_(this->wanted_bg_);
 }
 
-void KisSegitoUI::release_photos_(bool all_unused) {
+// Frees downloaded pictures nothing shows, least recently used first: those
+// over PHOTO_KEEP_UNUSED, and with `need` as many more as it takes to make a
+// block of that size available.
+void KisSegitoUI::release_photos_(size_t need) {
   std::vector<std::pair<uint32_t, std::string>> unused;
   size_t unused_bytes = 0;
   for (const auto &kv : this->photos_) {
@@ -1129,7 +1132,7 @@ void KisSegitoUI::release_photos_(bool all_unused) {
   for (const auto &u : unused) {
     // Only as many as needed: freeing pictures that are needed again soon
     // means loading and drawing them again.
-    if (!all_unused && unused_bytes <= PHOTO_KEEP_UNUSED && psram_has(512 * 1024))
+    if (unused_bytes <= PHOTO_KEEP_UNUSED && (need == 0 || psram_can_spare(need)))
       break;
     Photo &p = this->photos_[u.second];
     lv_image_cache_drop(p.dsc);
@@ -1227,8 +1230,9 @@ void KisSegitoUI::photo_task_(void *arg) {
     size_t cached_size = 0;
     uint8_t *cached = nullptr;
     if (self->cache_.ready()) {
-      if (!psram_can_spare(600 * 1024))
-        self->need_memory_ = 600 * 1024;
+      const size_t size = self->cache_.size(job.key);
+      if (size > 0 && !psram_can_spare(size))
+        self->need_memory_ = size;
       cached = self->cache_.read(job.key, &cached_size, &cached_etag);
     }
     if (cached != nullptr) {
@@ -1316,14 +1320,16 @@ void KisSegitoUI::loop() {
     this->last_poll_ms_ = now;
     this->poll_connection_();
     if (this->started_)
-      this->release_photos_(false);
+      this->release_photos_(0);
   }
-  // Downloaded pictures come before carousel pictures: room is made for them.
+  // Downloaded pictures come before carousel pictures: room is made for them,
+  // only when one is waiting for it. (Measuring the free memory walks the whole
+  // PSRAM heap, so it is not done on every loop.)
   const size_t need = this->need_memory_;
-  if (need > 0 || !psram_has(512 * 1024)) {
-    pic_cache_trim(std::max<size_t>(need, 512 * 1024));
-    if (need > 0 && !psram_can_spare(need) && this->started_)
-      this->release_photos_(true);
+  if (need > 0) {
+    pic_cache_trim(need);
+    if (!psram_can_spare(need) && this->started_)
+      this->release_photos_(need);
     this->need_memory_ = 0;
   }
   std::vector<Download> done;
@@ -2551,10 +2557,12 @@ struct RingBand {
       cap_y[i] = mid * sinf(rad);
     }
   }
-  // Distance (px) of a pixel outside the band, 0 inside.
-  float dist(float r, float p, float dx, float dy) const {
-    if (p <= this->p_end)
-      return std::max(std::max(this->r_in - r, r - this->r_out), 0.0f);
+  // Distance (px) of a pixel outside the band, 0 inside. Distances of at
+  // least `limit` may be returned as any value of at least `limit`.
+  float dist(float r, float p, float dx, float dy, float limit = 1e9f) const {
+    const float radial = std::max(std::max(this->r_in - r, r - this->r_out), 0.0f);
+    if (p <= this->p_end || radial >= limit)
+      return radial;  // the round ends are never closer than the band's edges
     const float half = (this->r_out - this->r_in) / 2;
     float d = 1e9f;
     for (int i = 0; i < 2; i++)
@@ -2563,6 +2571,8 @@ struct RingBand {
   }
   // Coverage (0..256) of a pixel at radius r, track position p.
   int cover(float r, float p, float dx, float dy) const {
+    if (r < this->r_in - 0.5f || r > this->r_out + 0.5f)
+      return 0;  // the round ends lie within the band's radii too
     float c;
     if (p <= this->p_end) {
       c = std::min(std::max(this->r_out - r + 0.5f, 0.0f), 1.0f) * std::min(std::max(r - this->r_in + 0.5f, 0.0f), 1.0f);
@@ -2597,7 +2607,9 @@ void KisSegitoUI::render_ring_tile_(int index, float r_min, float r_max) {
   uint16_t zone565[RingSpec::MAX_ZONES];
   for (int z = 0; z < spec.zone_count; z++)
     zone565[z] = to565(spec.zone_colors[z]);
-  auto glow = [](float d) { return d >= GLOW_W ? 0 : static_cast<int>(GLOW_MAX * (1 - smooth01(d / GLOW_W))); };
+  auto glow = [](float d) {
+    return d >= GLOW_W ? 0 : static_cast<int>(GLOW_MAX * (1 - smooth01(d * (1.0f / GLOW_W))));
+  };
   lv_image_cache_drop(t.buf);
   auto *px = reinterpret_cast<uint16_t *>(t.buf->data);
   const uint32_t stride = TRACK_TILE;
@@ -2632,7 +2644,8 @@ void KisSegitoUI::render_ring_tile_(int index, float r_min, float r_max) {
         const int co = outer.cover(r, p, dx, dy);
         // The glow (under the tracks), then the inner track, then the shared one.
         if (spec.has_inner) {
-          const int g = std::max(glow(inner.dist(r, p, dx, dy)), glow(std::max(0.0f, outer.dist(r, p, dx, dy) - 1.0f)));
+          const int g = std::max(glow(inner.dist(r, p, dx, dy, GLOW_W)),
+                                 glow(std::max(0.0f, outer.dist(r, p, dx, dy, GLOW_W + 1.0f) - 1.0f)));
           if (g > 0) {
             c = mix565(c, inner_color, g);
             a = std::max(a, g);

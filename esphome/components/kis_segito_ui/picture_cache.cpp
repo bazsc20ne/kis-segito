@@ -79,6 +79,11 @@ void PictureCache::drop_range_(uint32_t from, uint32_t to) {
   }
 }
 
+size_t PictureCache::size(const std::string &key) const {
+  auto it = this->index_.find(key);
+  return it == this->index_.end() ? 0 : it->second.size;
+}
+
 uint8_t *PictureCache::read(const std::string &key, size_t *size, std::string *etag) {
   if (this->part_ == nullptr)
     return nullptr;

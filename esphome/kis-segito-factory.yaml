@@ -13,5 +13,5 @@ packages:
   kis_segito: !include kis-segito.yaml
 
 dashboard_import:
-  package_import_url: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.7.15
+  package_import_url: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.7.16
   import_full_config: false

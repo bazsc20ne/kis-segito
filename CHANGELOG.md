@@ -6,6 +6,40 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.7.16] - 2026-10-10
+
+### English
+
+- Stripes, the moving band and steps on the track after opening the shop
+  (#26, #32): the knob measured its free memory on every pass of its main
+  loop, which walks through the whole picture memory, and once the memory was
+  fragmented (as after the shop) every picture it loaded made it free all
+  pictures and drawn items not on screen, which were then loaded and drawn
+  again. This kept the memory busy, and the panel briefly got no data. Free
+  memory is now checked only when a picture actually needs room, and only as
+  much is freed as that picture needs.
+- Drawn carousel items take memory blocks close to their real size (in 32 KB
+  steps) instead of 254 KB each, so more items stay ready and turning back
+  draws less again.
+- Time track: the ring is computed faster (pixels away from a track are
+  skipped sooner).
+
+### Magyar
+
+- Csíkok, úszó sáv és lépcsők a pályán a bolt megnyitása után (#26, #32): a
+  gomb a fő ciklusa minden körében megmérte a szabad memóriát, ami végigjárja a
+  teljes képmemóriát, és töredezett memóriánál (mint a bolt után) minden
+  betöltött kép miatt felszabadított minden nem látható képet és megrajzolt
+  elemet, amelyeket aztán újra betöltött és megrajzolt. Ez lefoglalta a
+  memóriát, és a panel egy pillanatra nem kapott adatot. A szabad memóriát
+  most csak akkor méri, amikor egy képnek tényleg hely kell, és csak annyit
+  szabadít fel, amennyi annak kell.
+- A megrajzolt körhinta-elemek a valódi méretükhöz közeli memóriablokkot
+  kapnak (32 KB-os lépcsőkben) elemenként 254 KB helyett, így több elem marad
+  kész, és visszaforgatáskor kevesebbet kell újrarajzolni.
+- Időpálya: a gyűrű gyorsabban számolódik (a pályáktól távoli képpontokat
+  hamarabb átugorja).
+
 ## [0.7.15] - 2026-10-10
 
 ### English
