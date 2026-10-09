@@ -6,6 +6,65 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.7.11] - 2026-10-09
+
+### English
+
+- Carousels (#10, #26, #32):
+  - An item that was drawn once (a child with avatar, token pile and number,
+    a reward) is kept as a picture and copied when it comes back, until its
+    content changes (tokens, picture, colour). Before, every turn drew the
+    next item again, token by token.
+  - Turns that pile up while the knob is busy are added up: one jump and one
+    slide, however many turns. Before, every turn was drawn one by one, which
+    could block the knob for many seconds after waking.
+  - While sliding, only the items move, blurred sideways; the background stays
+    sharp and still, and there are no hard edges.
+  - The parts of the time track that cover their area completely are copied
+    instead of blended, which makes every frame cheaper.
+- Display: the default pixel clock is 18 MHz (was 26 MHz). The panel is
+  refreshed a little less often, which leaves more memory bandwidth for
+  drawing: smoother movement and no flicker. A device config can still set
+  `display_pclk_frequency`.
+- Time track (#33): a glow in the selected child's colour around the inner
+  track and the shared track (at most as wide as the inner track, under half
+  as strong as the colour), and a narrow, soft edge between the ring and the
+  screen content, instead of the dark shading.
+- Knob (#27): after a rest the detent the knob sits in is taken as the
+  reference again, so counts lost while the knob was busy do not shift it.
+- Screensavers (#32): shooting stars always travel down and to the left; a
+  confetti piece is redrawn in one go at its old and new place, so it never
+  disappears for a moment.
+
+### Magyar
+
+- Körhinták (#10, #26, #32):
+  - Egy egyszer már megrajzolt elem (gyermek avatarral, zsetonkupaccal és
+    számmal, illetve jutalom) képként megmarad, és visszatéréskor csak
+    másolódik, amíg a tartalma nem változik (zsetonok, kép, szín). Eddig
+    minden forgatás újrarajzolta a következő elemet, zsetonról zsetonra.
+  - A forgatások, amelyek a gomb elfoglaltsága alatt gyűltek össze,
+    összeadódnak: egy ugrás és egy csúszás, akárhány forgatásról is van szó.
+    Eddig mindegyik külön rajzolódott, ami ébredés után sok másodpercre
+    megakaszthatta a gombot.
+  - Csúszás közben csak az elemek mozognak, oldalirányban elmosva; a háttér
+    éles marad és áll, és nincsenek éles szélek.
+  - Az időpálya azon részei, amelyek a területüket teljesen fedik, másolódnak,
+    nem keverednek, így minden képkocka olcsóbb.
+- Kijelző: az alapértelmezett pixelórajel 18 MHz (eddig 26 MHz). A panel kicsit
+  ritkábban frissül, így több memória-sávszélesség marad a rajzolásra:
+  simább mozgás, villogás nélkül. Az eszközkonfigban a
+  `display_pclk_frequency` továbbra is beállítható.
+- Időpálya (#33): a kiválasztott gyermek színében halvány ragyogás a belső és a
+  közös pálya körül (legfeljebb a belső pálya szélességében, a szín felénél
+  halványabban), és keskeny, puha átmenet a gyűrű és a képernyő tartalma
+  között a sötét árnyalás helyett.
+- Forgatás (#27): pihenés után a rovátka, amelyben a gomb áll, újra a
+  kiindulópont, így az elfoglaltság alatt elveszett jelek nem tolják el.
+- Képernyővédők (#32): a hullócsillagok mindig lefelé és balra haladnak; egy
+  konfettidarab régi és új helye egyszerre rajzolódik újra, így egy
+  pillanatra sem tűnik el.
+
 ## [0.7.10] - 2026-10-09
 
 ### English

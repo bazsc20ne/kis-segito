@@ -108,6 +108,8 @@ class Carousel {
               uint32_t anim_ms, bool snapshot = false);
   // One step; animate = false moves at once (several queued steps).
   void rotate(int dir, bool animate = true);
+  // Moves several items at once, without animation (one redraw).
+  void jump(int steps);
   int selected() const { return this->selected_; }
   lv_obj_t *center_slot() const;
   void refill();
@@ -121,6 +123,9 @@ class Carousel {
   bool uses(const std::string &key) const;
   // Called when a slide has ended.
   std::function<void()> on_settled;
+  // Optional: what an item's picture depends on; items with the same value
+  // are drawn once and then copied (see fill_slot_).
+  std::function<std::string(int index)> sig;
   // The object whose background (colour, picture) is behind the carousel.
   lv_obj_t *backdrop{nullptr};
 
@@ -202,6 +207,7 @@ class KisSegitoUI : public Component {
   // The downloaded-picture key ("@<id>_<size>") an image key is shown with,
   // or "" for a built-in image.
   std::string photo_key_(const std::string &key) const;
+  std::string pic_state_(const std::string &key) const;
   // Remembers an image object that shows a downloaded picture, so it can be
   // updated when the picture arrives or changes.
   void bind_(lv_obj_t *obj, const std::string &key, int cx, int cy);
