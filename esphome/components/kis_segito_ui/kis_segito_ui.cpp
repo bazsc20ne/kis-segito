@@ -189,6 +189,10 @@ static void pic_cache_put(const std::string &sig, const std::shared_ptr<ItemPic>
   pic_cache_trim(0);
 }
 
+// While a carousel slot is filled: how many downloaded pictures it needed
+// that are not here yet (such an item is not stored).
+static int g_fill_missing = 0;
+
 // While a carousel slot is filled: collects the downloaded pictures it uses.
 static std::set<std::string> *g_fill_keys = nullptr;
 
@@ -346,6 +350,7 @@ void Carousel::fill_slot_(int i) {
     }
   }
   const uint32_t started = millis();
+  g_fill_missing = 0;
   g_fill_keys = &this->keys_[i];
   this->fill_(slot, this->index_[i]);
   g_fill_keys = nullptr;
@@ -379,7 +384,9 @@ void Carousel::fill_slot_(int i) {
   pic->keys = this->keys_[i];
   lv_obj_clean(slot);
   this->show_pic_(i, pic);
-  if (!sig.empty())
+  // Drawn with a stand-in for a picture still on its way: not stored, it is
+  // drawn again when the picture arrives.
+  if (!sig.empty() && g_fill_missing == 0)
     pic_cache_put(sig, pic);
   ESP_LOGD(TAG, "Carousel item drawn in %u ms (%ux%u, %u KB)", (unsigned) (millis() - started),
            (unsigned) pic->buf->header.w, (unsigned) pic->buf->header.h, (unsigned) (pic->bytes() / 1024));
@@ -1033,6 +1040,8 @@ const lv_image_dsc_t *KisSegitoUI::img_(const std::string &key) {
       return photo->second.dsc;
     }
     this->request_photo_(pk);
+    if (g_fill_keys != nullptr)
+      g_fill_missing++;
     const size_t n = 4;
     if (pk.size() > n && pk.compare(pk.size() - n, n, "_180") == 0)
       return this->img_("placeholder_avatar_180");
@@ -1118,7 +1127,9 @@ void KisSegitoUI::release_photos_(bool all_unused) {
   }
   std::sort(unused.begin(), unused.end());  // least recently used first
   for (const auto &u : unused) {
-    if (!all_unused && unused_bytes <= PHOTO_KEEP_UNUSED && psram_can_spare(512 * 1024))
+    // Only as many as needed: freeing pictures that are needed again soon
+    // means loading and drawing them again.
+    if (!all_unused && unused_bytes <= PHOTO_KEEP_UNUSED && psram_has(512 * 1024))
       break;
     Photo &p = this->photos_[u.second];
     lv_image_cache_drop(p.dsc);
@@ -1309,7 +1320,7 @@ void KisSegitoUI::loop() {
   }
   // Downloaded pictures come before carousel pictures: room is made for them.
   const size_t need = this->need_memory_;
-  if (need > 0 || !psram_can_spare(512 * 1024)) {
+  if (need > 0 || !psram_has(512 * 1024)) {
     pic_cache_trim(std::max<size_t>(need, 512 * 1024));
     if (need > 0 && !psram_can_spare(need) && this->started_)
       this->release_photos_(true);
@@ -1357,6 +1368,7 @@ void KisSegitoUI::loop() {
       old = it->second;  // a newer version: replaced once it is shown
     if (d.fresh && old.dsc != nullptr)
       this->photo_version_[d.key]++;
+    this->photo_seen_.insert(d.key);
     this->photos_[d.key] = {dsc, d.data, d.size, millis()};
     this->photo_failed_.erase(d.key);
     this->photo_requested_.insert(d.key);
@@ -2080,11 +2092,12 @@ std::string KisSegitoUI::pic_state_(const std::string &key) const {
   const std::string pk = this->photo_key_(key);
   if (pk.empty())
     return key;
+  // Which version of the picture an item shows; whether it is in memory right
+  // now does not matter (a stored item has it drawn in already).
+  if (!this->photo_seen_.count(pk))
+    return key + "@-";
   auto ver = this->photo_version_.find(pk);
-  char buf[24];
-  snprintf(buf, sizeof(buf), "@%d.%u", this->photos_.count(pk) ? 1 : 0,
-           ver != this->photo_version_.end() ? (unsigned) ver->second : 0u);
-  return key + buf;
+  return key + "@" + std::to_string(ver != this->photo_version_.end() ? ver->second : 0u);
 }
 
 void KisSegitoUI::build_children_() {
@@ -2569,7 +2582,7 @@ struct RingBand {
 // under it is hidden, with a narrow soft edge inwards; the shared track with
 // its zones and the dimmed elapsed part; the selected child's inner track;
 // and a glow in the child's colour around both tracks.
-void KisSegitoUI::render_ring_tile_(int index) {
+void KisSegitoUI::render_ring_tile_(int index, float r_min, float r_max) {
   TrackTile &t = g_track_tiles[index];
   const RingSpec &spec = this->ring_spec_;
   const RingBand outer(OUTER_R - OUTER_W, OUTER_R, 1.0f);
@@ -2598,6 +2611,10 @@ void KisSegitoUI::render_ring_tile_(int index) {
       const float dx = sx + 0.5f - CENTER;
       const float r2 = dx * dx + dy * dy;
       const size_t i = y * stride + x;
+      if (r2 < r_min * r_min || r2 > r_max * r_max) {
+        opaque = opaque && alpha[i] == 255;  // kept as it is
+        continue;
+      }
       if (r2 < FADE_FROM * FADE_FROM || sx >= SCREEN || sy >= SCREEN) {
         alpha[i] = 0;
         opaque = false;
@@ -2725,11 +2742,29 @@ void KisSegitoUI::update_ring_() {
   this->ring_spec_.bg_image = spec.bg_image;
   if (this->ring_drawn_ && spec == this->ring_spec_)
     return;
+  // Only the child or the elapsed time changed: just the band of the tracks
+  // and their glow is computed again.
+  const bool tracks_only = this->ring_drawn_ && spec.same_but_tracks(this->ring_spec_);
+  const float r_min = tracks_only ? INNER_R - INNER_W - GLOW_W - 2 : 0.0f;
+  const float r_max = tracks_only ? OUTER_R + GLOW_W + 2 : 1e6f;
   this->ring_drawn_ = true;
   this->ring_spec_ = spec;
   const uint32_t started = millis();
-  for (size_t k = 0; k < g_track_tiles.size(); k++)
-    this->render_ring_tile_(static_cast<int>(k));
+  for (size_t k = 0; k < g_track_tiles.size(); k++) {
+    const TrackTile &t = g_track_tiles[k];
+    // Tiles entirely inside or outside that band are left alone.
+    float dmin = 1e9f, dmax = 0;
+    for (int x : {t.x, t.x + TRACK_TILE}) {
+      for (int y : {t.y, t.y + TRACK_TILE})
+        dmax = std::max(dmax, std::hypot(static_cast<float>(x - CENTER), static_cast<float>(y - CENTER)));
+    }
+    const int nx = std::min(std::max(CENTER, t.x), t.x + TRACK_TILE);
+    const int ny = std::min(std::max(CENTER, t.y), t.y + TRACK_TILE);
+    dmin = std::hypot(static_cast<float>(nx - CENTER), static_cast<float>(ny - CENTER));
+    if (dmax < r_min || dmin > r_max)
+      continue;
+    this->render_ring_tile_(static_cast<int>(k), r_min, r_max);
+  }
   ESP_LOGD(TAG, "Track ring drawn in %u ms", (unsigned) (millis() - started));
 }
 

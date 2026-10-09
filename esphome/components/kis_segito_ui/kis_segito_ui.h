@@ -235,6 +235,18 @@ class KisSegitoUI : public Component {
     uint32_t zone_colors[MAX_ZONES]{};
     float elapsed{0};
     std::string bg_key;  // which background picture (the same one loaded again is equal)
+    // Equal apart from the parts on the tracks (the child's colour, the
+    // elapsed time).
+    bool same_but_tracks(const RingSpec &o) const {
+      if (bg_color != o.bg_color || bg_key != o.bg_key || has_routine != o.has_routine ||
+          zone_count != o.zone_count || has_inner != o.has_inner)
+        return false;
+      for (int i = 0; i < zone_count; i++) {
+        if (zone_from[i] != o.zone_from[i] || zone_colors[i] != o.zone_colors[i])
+          return false;
+      }
+      return true;
+    }
     // Equal apart from the elapsed part.
     bool same_but_elapsed(const RingSpec &o) const {
       if (bg_color != o.bg_color || bg_key != o.bg_key || has_routine != o.has_routine ||
@@ -256,7 +268,7 @@ class KisSegitoUI : public Component {
       return true;
     }
   };
-  void render_ring_tile_(int index);
+  void render_ring_tile_(int index, float r_min, float r_max);
   bool ring_ready_();
   void update_ring_();
   RingSpec ring_spec_;
@@ -365,6 +377,7 @@ class KisSegitoUI : public Component {
   // Bumped when a picture's content changes (a new version downloaded), not
   // when the same picture is loaded again.
   std::map<std::string, uint32_t> photo_version_;
+  std::set<std::string> photo_seen_;  // pictures loaded at least once
   std::vector<Binding> bindings_;
   std::set<std::string> photo_requested_;
   std::set<std::string> photo_failed_;  // retried with the next picture key

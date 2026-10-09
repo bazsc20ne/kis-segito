@@ -6,6 +6,40 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.7.15] - 2026-10-10
+
+### English
+
+- Stripes and the slowly moving band (#26, #32): the knob kept freeing
+  pictures it needed again a moment later (shop icons, avatars, backgrounds)
+  whenever memory was a little fragmented, then loaded and drew them again,
+  every few seconds. This constant work kept the memory busy, and the panel
+  then briefly got no data (rows shifted sideways, a band moving down, steps
+  on the track). Pictures are now freed only when memory is really short, and
+  the item store is no longer emptied in that case.
+- Item store: an item drawn once with its picture stays valid even when the
+  picture itself has left the memory; an item drawn with a stand-in (picture
+  still on its way) is not stored and is drawn again when the picture
+  arrives.
+- Time track: on a child change and once a minute (elapsed time) only the
+  band of the tracks and their glow is computed again, not the whole ring.
+
+### Magyar
+
+- Csíkok és a lassan lefelé úszó sáv (#26, #32): a gomb enyhén töredezett
+  memóriánál folyton felszabadította azokat a képeket, amelyekre egy pillanat
+  múlva újra szüksége volt (bolti ikonok, avatarok, hátterek), aztán
+  újratöltötte és újrarajzolta őket, pár másodpercenként. Ez az állandó munka
+  lefoglalta a memóriát, és a panel ilyenkor egy pillanatra nem kapott adatot
+  (oldalra csúszott sorok, lefelé úszó sáv, lépcsők a pályán). A képek most
+  csak valódi memóriahiánynál szabadulnak fel, és ilyenkor az elemtár sem
+  ürül ki.
+- Elemtár: egy képpel együtt megrajzolt elem akkor is érvényes marad, ha maga
+  a kép már nincs a memóriában; a helyettesítővel rajzolt elem (a kép még úton
+  van) nem tárolódik, és a kép megérkezésekor újra rajzolódik.
+- Időpálya: gyermekváltáskor és percenként (eltelt idő) csak a pályák és a
+  ragyogásuk sávja számolódik újra, nem az egész gyűrű.
+
 ## [0.7.14] - 2026-10-10
 
 ### English
