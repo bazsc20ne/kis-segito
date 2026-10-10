@@ -266,5 +266,12 @@
   "screen.saver_balls": "Bouncing balls",
   "screen.saver_confetti": "Confetti",
   "screen.saver_stars": "Stars",
-  "screen.general": "General"
+  "screen.general": "General",
+  "rtemplates.title": "Saved routines (templates)",
+  "rtemplates.create": "New routine from this",
+  "rtemplates.save_title": "Save as template",
+  "rtemplates.name": "Template name",
+  "rtemplates.save": "Save as template",
+  "rtemplates.saved": "Saved as template",
+  "rtemplates.hint": "Saves this routine as it is in the form (tasks, order, icons, times, checkpoints) under its own name. A new routine can be created from it later in the routine list, for any children."
 }

@@ -382,3 +382,15 @@ async def test_processed_action_ids_are_bounded(
     for i in range(5):
         await manager.async_device_action({"a": "nothing", "id": f"id{i}"})
     assert list(manager.store.ledger["actions"]) == ["id2", "id3", "id4"]
+
+
+async def test_routine_template_round_trip(
+    hass: HomeAssistant, manager: KisSegitoManager
+) -> None:
+    template = await manager.async_save_item(
+        "routine_templates",
+        {"name": "Our morning", "routine": {"name": "Morning", "tasks": []}},
+    )
+    assert manager.data["routine_templates"] == [template]
+    await manager.async_delete_item("routine_templates", template["id"])
+    assert manager.data["routine_templates"] == []

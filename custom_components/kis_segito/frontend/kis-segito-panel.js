@@ -13,7 +13,7 @@
 // Knob screen power settings (seconds; dim_level in percent).
 const SCREEN_KEYS = ["saver_after", "dim_after", "dim_level", "blank_after", "off_after"];
 const SAVER_TYPES = ["balls", "confetti", "stars"];
-const PANEL_VERSION = "0.7.20";
+const PANEL_VERSION = "0.7.21";
 const FALLBACK_LANGUAGE = "en";
 const LANGUAGE_AUTO = "auto";
 const TABS = [
@@ -620,9 +620,40 @@ class KisSegitoPanel extends HTMLElement {
         }
         break;
       case "new":
+        this._rtplSaved = null;
         this._edit = { collection: arg, item: this._newItem(arg) };
         break;
+      case "from-rtemplate":
+        this._rtplSaved = null;
+        this._edit = { collection: "routines", item: this._fromRoutineTemplate(arg) };
+        break;
+      case "save-rtemplate": {
+        const name =
+          (this.shadowRoot.querySelector("#rtpl-name")?.value || "").trim() ||
+          this._edit.item.name ||
+          this._t("routines.unnamed");
+        const routine = clone(this._edit.item);
+        for (const key of ["id", "sort_order", "children"]) {
+          delete routine[key];
+        }
+        await this._ws({
+          type: "kis_segito/save",
+          collection: "routine_templates",
+          item: { name, routine },
+        });
+        this._rtplSaved = name;
+        await this._load();
+        return;
+      }
+      case "delete-rtemplate":
+        if (!confirm(this._t("common.confirm_delete"))) {
+          return;
+        }
+        await this._ws({ type: "kis_segito/delete", collection: "routine_templates", item_id: arg });
+        await this._load();
+        return;
       case "edit": {
+        this._rtplSaved = null;
         const item = this._data[el.dataset.collection].find((i) => i.id === arg);
         this._edit = { collection: el.dataset.collection, item: clone(item) };
         delete this._edit.item.balances;
@@ -630,6 +661,7 @@ class KisSegitoPanel extends HTMLElement {
         break;
       }
       case "cancel":
+        this._rtplSaved = null;
         this._edit = null;
         this._picker = null;
         break;
@@ -1168,6 +1200,24 @@ class KisSegitoPanel extends HTMLElement {
     }
   }
 
+  // A new routine from a saved routine template: its own ids, no children.
+  _fromRoutineTemplate(id) {
+    const template = (this._data.routine_templates || []).find((t) => t.id === id);
+    const item = { ...this._newItem("routines"), ...clone(template?.routine || {}), children: [] };
+    const cpIds = {};
+    item.checkpoints = (item.checkpoints || []).map((cp) => {
+      const copy = { ...cp, id: uid(), children: [] };
+      cpIds[cp.id] = copy.id;
+      return copy;
+    });
+    item.tasks = (item.tasks || []).map((t) => ({
+      ...t,
+      id: uid(),
+      checkpoint_id: t.checkpoint_id ? cpIds[t.checkpoint_id] || "" : "",
+    }));
+    return item;
+  }
+
   _newRow(kind) {
     switch (kind) {
       case "zone":
@@ -1645,8 +1695,21 @@ class KisSegitoPanel extends HTMLElement {
       !this._data.routines.length && this._isAdmin
         ? `<button data-action="defaults" data-arg="routines">${this._e(this._t("routines.add_defaults"))}</button>`
         : "";
+    const templates = (this._data.routine_templates || [])
+      .map(
+        (t) => `<div class="row">${this._icon(t.routine?.icon || "routine_generic", 32)}
+          <span class="grow">${this._e(t.name)}</span>
+          ${this._isAdmin ? `<button data-action="from-rtemplate" data-arg="${t.id}">+ ${this._e(this._t("rtemplates.create"))}</button>
+          <button class="small" data-action="delete-rtemplate" data-arg="${t.id}">${this._e(this._t("common.delete"))}</button>` : ""}
+        </div>`
+      )
+      .join("");
+    const templateCard = templates
+      ? `<div class="card form"><h2>${this._e(this._t("rtemplates.title"))}</h2>${templates}</div>`
+      : "";
     return `${rows || `<div class="card empty">${this._e(this._t("routines.none"))}</div>`}
-      ${this._isAdmin ? `<button class="primary" data-action="new" data-arg="routines">+ ${this._e(this._t("routines.add"))}</button> ${defaults}` : ""}`;
+      ${this._isAdmin ? `<button class="primary" data-action="new" data-arg="routines">+ ${this._e(this._t("routines.add"))}</button> ${defaults}` : ""}
+      ${templateCard}`;
   }
 
   _childChips(path) {
@@ -1761,8 +1824,20 @@ class KisSegitoPanel extends HTMLElement {
       <button data-action="add" data-path="tasks" data-arg="task">+ ${this._e(this._t("routines.add_task"))}</button>
       ${r.id && !dayMode ? `<div class="muted small">ID: ${this._e(r.id)}</div>` : ""}
       </fieldset>
+      ${dayMode ? "" : this._routineTemplateField(r)}
       ${dayMode ? this._dayButtons() : this._formButtons(Boolean(r.id))}
     </div>`;
+  }
+
+  // Saves the routine as it is in the form as a template of its own name.
+  _routineTemplateField(r) {
+    const saved = this._rtplSaved
+      ? `<div class="muted">${this._e(this._t("rtemplates.saved"))}: ${this._e(this._rtplSaved)}</div>`
+      : "";
+    return `<div class="field"><span>${this._e(this._t("rtemplates.save_title"))}</span>
+      <div class="row wrap"><input id="rtpl-name" value="${this._e(r.name || "")}" placeholder="${this._e(this._t("rtemplates.name"))}">
+        <button data-action="save-rtemplate">${this._e(this._t("rtemplates.save"))}</button></div>
+      <div class="muted">${this._e(this._t("rtemplates.hint"))}</div>${saved}</div>`;
   }
 
   _dayButtons() {

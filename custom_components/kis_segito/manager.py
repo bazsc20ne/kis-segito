@@ -42,7 +42,7 @@ ACTION_KEPT = 2000
 # Daily progress is kept this long.
 DAYS_KEPT = 31
 
-COLLECTIONS = ("children", "routines", "rewards", "templates")
+COLLECTIONS = ("children", "routines", "rewards", "templates", "routine_templates")
 # Built-in backgrounds (frontend/backgrounds/bg_<n>.jpg).
 # Knob screen power settings, in the order the knob protocol sends them.
 SCREEN_KEYS = ("saver_after", "dim_after", "dim_level", "blank_after", "off_after")

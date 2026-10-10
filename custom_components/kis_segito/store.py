@@ -71,6 +71,9 @@ def _empty_config() -> dict[str, Any]:
         # Day templates: [{"id", "name", "icon", "routines": [ids]}]; weekday
         # defaults (0 = Monday) and per-date choices refer to template ids.
         "templates": [],
+        # Routines saved as templates: [{"id", "name", "routine": {...}}]; a new
+        # routine can be created from one.
+        "routine_templates": [],
         "weekday_templates": {},
         "date_templates": {},
         "notifications": [],

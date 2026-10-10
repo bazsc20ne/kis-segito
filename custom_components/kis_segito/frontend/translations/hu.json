@@ -266,5 +266,12 @@
   "screen.saver_balls": "Pattogó labdák",
   "screen.saver_confetti": "Konfetti",
   "screen.saver_stars": "Csillagok",
-  "screen.general": "Általános"
+  "screen.general": "Általános",
+  "rtemplates.title": "Mentett rutinok (sablonok)",
+  "rtemplates.create": "Új rutin ebből",
+  "rtemplates.save_title": "Mentés sablonként",
+  "rtemplates.name": "Sablon neve",
+  "rtemplates.save": "Mentés sablonként",
+  "rtemplates.saved": "Sablonként mentve",
+  "rtemplates.hint": "A rutint úgy menti el saját néven, ahogy az űrlapon van (feladatok, sorrend, ikonok, időzítés, checkpointok). Később a rutinlistában új rutin hozható létre belőle, bármelyik gyereknek."
 }

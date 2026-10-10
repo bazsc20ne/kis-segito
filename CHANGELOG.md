@@ -6,6 +6,26 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.7.21] - 2026-10-10
+
+### English
+
+- Routine templates: a routine can be saved as a template under its own name
+  (**Save as template** at the bottom of the routine form), with its tasks,
+  their order, icons, times and checkpoints. The routine list shows the saved
+  templates; **New routine from this** opens a new routine filled from the
+  template, for any children (no children are preselected). Templates can be
+  deleted there.
+
+### Magyar
+
+- Rutinsablonok: egy rutin saját néven sablonként menthető (**Mentés
+  sablonként** a rutin űrlapjának alján), a feladataival, azok sorrendjével,
+  ikonjaival, időzítésével és checkpointjaival. A rutinlista mutatja a mentett
+  sablonokat; az **Új rutin ebből** a sablon tartalmával nyit meg egy új
+  rutint, bármelyik gyereknek (gyerek nincs előre kiválasztva). A sablonok
+  ugyanott törölhetők.
+
 ## [0.7.20] - 2026-10-10
 
 ### English

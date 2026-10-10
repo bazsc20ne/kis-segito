@@ -303,6 +303,7 @@ async def ws_data(
                 manager.data["rewards"], key=lambda r: r.get("sort_order", 0)
             ),
             "templates": manager.data["templates"],
+            "routine_templates": manager.data["routine_templates"],
             "weekday_templates": manager.data["weekday_templates"],
             "date_templates": manager.data["date_templates"],
             "devices": _devices(hass),
