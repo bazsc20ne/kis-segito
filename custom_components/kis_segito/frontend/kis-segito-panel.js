@@ -19,7 +19,7 @@ const secondsToMinutes = (seconds) => (seconds === null || seconds === undefined
 const minuteInput = (attrs, seconds, disabled, placeholder = "", min = 0) =>
   `<input type="number" min="${min}" max="1440" step="0.5" data-minutes ${attrs} value="${secondsToMinutes(seconds)}" placeholder="${placeholder === "" ? "" : secondsToMinutes(placeholder)}" ${disabled}>`;
 
-const PANEL_VERSION = "0.7.26";
+const PANEL_VERSION = "0.7.27";
 const FALLBACK_LANGUAGE = "en";
 const LANGUAGE_AUTO = "auto";
 const TABS = [

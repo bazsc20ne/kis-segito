@@ -217,7 +217,7 @@ class KisSegitoUI : public Component {
   static void unbind_cb_(lv_event_t *e);
   void picture_ready_(const std::string &key);
   // Frees downloaded pictures nothing shows (the least recently used last).
-  void release_photos_(size_t need);
+  void release_photos_(size_t need, size_t keep);
   void handle_input_();
   void do_rotate_(int dir, bool animate = true);
   void do_click_();

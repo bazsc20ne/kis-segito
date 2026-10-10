@@ -38,9 +38,10 @@ static const char *const TAG = "kis_segito_ui";
 // fixed large reserve made every small picture "not fit" once the memory was
 // broken up, and making room for them again and again disturbed the display.)
 static constexpr size_t PSRAM_RESERVE = 384 * 1024;
-// Downloaded pictures nothing shows are kept in PSRAM up to this size (the
-// least recently used go first); the flash cache brings the others back.
-static constexpr size_t PHOTO_KEEP_UNUSED = 1024 * 1024;
+// Downloaded pictures nothing shows are kept in PSRAM up to this size while a
+// screen is open (the least recently used go first), and freed when another
+// screen opens; the flash cache brings them back.
+static constexpr size_t PHOTO_KEEP_UNUSED = 256 * 1024;
 
 static size_t psram_largest_block() { return heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT); }
 
@@ -189,6 +190,16 @@ static void pic_cache_trim(size_t free_bytes) {
   }
 }
 
+// Drops the stored items whose signature starts with `prefix` and that are
+// not on screen.
+static void pic_cache_drop(const char *prefix) {
+  g_pic_cache.erase(std::remove_if(g_pic_cache.begin(), g_pic_cache.end(),
+                                   [prefix](const CacheEntry &c) {
+                                     return c.pic.use_count() == 1 && c.sig.rfind(prefix, 0) == 0;
+                                   }),
+                    g_pic_cache.end());
+}
+
 static void pic_cache_put(const std::string &sig, const std::shared_ptr<ItemPic> &pic) {
   g_pic_cache.push_back({sig, pic, millis()});
   pic_cache_trim(0);
@@ -321,9 +332,12 @@ void Carousel::forget() {
   this->count_ = 0;
 }
 
+// Whether a slot still draws a downloaded picture live (a slot shown as its
+// drawn item picture no longer needs the downloaded one).
 bool Carousel::uses(const std::string &key) const {
-  for (const auto &keys : this->keys_) {
-    if (keys.count(key))
+  for (int i = 0; i < 4; i++) {
+    if (this->keys_[i].count(key) &&
+        !(this->pic_[i] != nullptr && this->slots_[i] != nullptr && lv_obj_has_flag(this->slots_[i], LV_OBJ_FLAG_USER_1)))
       return true;
   }
   return false;
@@ -1125,9 +1139,9 @@ void KisSegitoUI::picture_ready_(const std::string &key) {
 }
 
 // Frees downloaded pictures nothing shows, least recently used first: those
-// over PHOTO_KEEP_UNUSED, and with `need` as many more as it takes to make a
-// block of that size available.
-void KisSegitoUI::release_photos_(size_t need) {
+// over `keep` bytes, and with `need` as many more as it takes to make a block
+// of that size available.
+void KisSegitoUI::release_photos_(size_t need, size_t keep) {
   std::vector<std::pair<uint32_t, std::string>> unused;
   size_t unused_bytes = 0;
   for (const auto &kv : this->photos_) {
@@ -1149,7 +1163,7 @@ void KisSegitoUI::release_photos_(size_t need) {
   for (const auto &u : unused) {
     // Only as many as needed: freeing pictures that are needed again soon
     // means loading and drawing them again.
-    if (unused_bytes <= PHOTO_KEEP_UNUSED && (need == 0 || psram_can_spare(need)))
+    if (unused_bytes <= keep && (need == 0 || psram_can_spare(need)))
       break;
     Photo &p = this->photos_[u.second];
     lv_image_cache_drop(p.dsc);
@@ -1467,7 +1481,7 @@ void KisSegitoUI::loop() {
     this->last_poll_ms_ = now;
     this->poll_connection_();
     if (this->started_)
-      this->release_photos_(0);
+      this->release_photos_(0, PHOTO_KEEP_UNUSED);
     if (now - this->last_memory_log_ms_ >= MEMORY_LOG_MS) {
       this->last_memory_log_ms_ = now;
       log_memory();
@@ -1486,7 +1500,7 @@ void KisSegitoUI::loop() {
     }
     pic_cache_trim(need);
     if (!psram_can_spare(need) && this->started_)
-      this->release_photos_(need);
+      this->release_photos_(need, PHOTO_KEEP_UNUSED);
     this->need_memory_ = 0;
   }
   std::vector<Download> done;
@@ -1875,6 +1889,7 @@ std::vector<FnItem> KisSegitoUI::functions_for_(const Child &child) const {
 void KisSegitoUI::show_(Screen screen) {
   if (this->screen_obj_ == nullptr)
     return;
+  const Screen previous = this->screen_;
   // Deleting the screen's objects also deletes their animations.
   this->busy_ = false;
   this->cancel_idle_anim_();
@@ -1930,6 +1945,14 @@ void KisSegitoUI::show_(Screen screen) {
     case Screen::NONE:
       break;
   }
+  // Pictures the new screen does not show are freed at once, so the memory
+  // does not break up: the downloaded ones (from the flash cache when needed
+  // again), and the shop's drawn items when the shop is left.
+  const auto in_shop = [](Screen s) { return s == Screen::REWARDS || s == Screen::CONFIRM; };
+  if (in_shop(previous) && !in_shop(screen))
+    pic_cache_drop("r|");
+  if (this->started_)
+    this->release_photos_(0, 0);
 }
 
 void KisSegitoUI::rotate(int dir) {

@@ -6,6 +6,25 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.7.27] - 2026-10-10
+
+### English
+
+- Less picture memory, less breaking up: downloaded pictures the new screen
+  does not show are freed as soon as another screen opens (they come back
+  from the flash cache when needed); while a screen is open at most 256 KB of
+  unused pictures are kept (was 1 MB). Leaving the shop also frees its drawn
+  items. A downloaded picture is no longer held once its item has been drawn.
+
+### Magyar
+
+- Kevesebb képmemória, kevesebb feldarabolódás: az új képernyőn nem látható
+  letöltött képek egy másik képernyő megnyitásakor azonnal felszabadulnak
+  (szükség esetén a flash-tárból jönnek vissza); egy képernyőn belül legfeljebb
+  256 KB nem használt kép marad meg (eddig 1 MB). A bolt elhagyása a
+  megrajzolt bolti elemeket is felszabadítja. Egy letöltött képet a gomb nem
+  tart meg, ha az eleme már megrajzolódott.
+
 ## [0.7.26] - 2026-10-10
 
 ### English
