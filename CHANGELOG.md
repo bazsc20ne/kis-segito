@@ -10,6 +10,10 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
 
 ### English
 
+- Fixed: version 0.7.19 could crash at every start, so the knob went back to
+  the previous firmware (#35). The cause was ESP-IDF's handling of the small
+  unused piece of picture memory after the firmware's data; that piece is now
+  left unused (at most 64 KB).
 - New neutral avatar (neither a boy nor a girl). It is preselected for a new
   child and replaces the removed sample avatars.
 - A new installation starts with the second built-in background; the choice
@@ -19,6 +23,10 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
 
 ### Magyar
 
+- Javítva: a 0.7.19 minden induláskor összeomolhatott, ezért a gomb
+  visszaállt az előző firmware-re (#35). Az oka az ESP-IDF kezelése volt a
+  firmware adatai utáni kis, kihasználatlan képmemória-darabra; ez a darab
+  most kihasználatlan marad (legfeljebb 64 KB).
 - Új semleges avatar (se nem fiú, se nem lány). Új gyereknél ez van előre
   kiválasztva, és ez lép a megszűnt minta-avatarok helyére.
 - Új telepítés a második beépített háttérrel indul; a **Beállítások** oldalon

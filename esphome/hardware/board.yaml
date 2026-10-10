@@ -97,6 +97,10 @@ esp32:
       # access never stalls the RGB panel. "n" runs them from flash instead,
       # which frees several MB of PSRAM; experimental, see psram_xip.
       CONFIG_SPIRAM_XIP_FROM_PSRAM: ${psram_xip}
+      # The unused end of the last PSRAM page holding rodata is not added to
+      # the heap: for some firmware sizes ESP-IDF's heap cannot take that
+      # small piece and the knob crashes at boot. At most 64 KB stay unused.
+      CONFIG_SPIRAM_PRE_CONFIGURE_MEMORY_PROTECTION: n
       # See display_restart_in_vsync above.
       CONFIG_LCD_RGB_RESTART_IN_VSYNC: ${display_restart_in_vsync}
       # Keep ESP-IDF's secondary console off the native USB port: with it on,
