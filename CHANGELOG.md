@@ -23,8 +23,9 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   thin border in the child's colour.
 - Routine templates: filling a routine from a template keeps the children
   chosen in the form.
-- Diagnostics: the knob logs its free memory every 10 minutes (picture memory
-  and the memory the display transfer uses).
+- Diagnostics: the knob logs its free memory every 10 minutes and when a new
+  uploaded picture (photo, background) is loaded (picture memory and the
+  memory the display transfer uses).
 
 ### Magyar
 
@@ -41,8 +42,9 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   színével megegyező szegéllyel.
 - Rutinsablonok: sablonból kitöltéskor az űrlapon kiválasztott gyerekek
   megmaradnak.
-- Diagnosztika: a gomb 10 percenként naplózza a szabad memóriáját (a
-  képmemóriát és a kijelző adatátviteléhez használt memóriát).
+- Diagnosztika: a gomb 10 percenként és minden új feltöltött kép (fénykép,
+  háttér) betöltésekor naplózza a szabad memóriáját (a képmemóriát és a
+  kijelző adatátviteléhez használt memóriát).
 
 ## [0.7.24] - 2026-10-10
 

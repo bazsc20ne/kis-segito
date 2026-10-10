@@ -210,9 +210,9 @@ static void log_psram(const char *when) {
 // Memory state every 10 minutes (each check walks the heaps once): PSRAM, and
 // the internal DMA memory the display transfer uses.
 static constexpr uint32_t MEMORY_LOG_MS = 10 * 60 * 1000;
-static void log_memory() {
-  ESP_LOGI(TAG, "Memory after %u min: PSRAM %u KB free, largest %u KB; internal DMA %u KB free, largest %u KB",
-           (unsigned) (millis() / 60000), (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
+static void log_memory(const char *when = "") {
+  ESP_LOGI(TAG, "Memory%s after %u min: PSRAM %u KB free, largest %u KB; internal DMA %u KB free, largest %u KB",
+           when, (unsigned) (millis() / 60000), (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
            (unsigned) (psram_largest_block() / 1024),
            (unsigned) (heap_caps_get_free_size(MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL) / 1024),
            (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL) / 1024));
@@ -1522,6 +1522,10 @@ void KisSegitoUI::loop() {
       old = it->second;  // a newer version: replaced once it is shown
     if (d.fresh && old.dsc != nullptr)
       this->photo_version_[d.key]++;
+    // A new uploaded picture (photo, background), not a built-in icon.
+    const bool uploaded = d.fresh && !is_online_icon(d.key.substr(1));
+    if (uploaded)
+      log_memory(" (new picture loaded)");
     this->photo_seen_.insert(d.key);
     this->photos_[d.key] = {dsc, d.data, d.size, millis()};
     this->photo_failed_.erase(d.key);
@@ -1532,6 +1536,8 @@ void KisSegitoUI::loop() {
       lv_image_cache_drop(old.dsc);
       heap_caps_free(old.raw);
       delete old.dsc;
+      if (uploaded)
+        log_memory(" (its old version freed)");
     }
   }
 }
