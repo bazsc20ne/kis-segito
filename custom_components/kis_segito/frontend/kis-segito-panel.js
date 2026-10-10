@@ -13,7 +13,7 @@
 // Knob screen power settings (seconds; dim_level in percent).
 const SCREEN_KEYS = ["saver_after", "dim_after", "dim_level", "blank_after", "off_after"];
 const SAVER_TYPES = ["balls", "confetti", "stars"];
-const PANEL_VERSION = "0.7.18";
+const PANEL_VERSION = "0.7.19";
 const FALLBACK_LANGUAGE = "en";
 const LANGUAGE_AUTO = "auto";
 const TABS = [
@@ -506,35 +506,30 @@ class KisSegitoPanel extends HTMLElement {
       : `/api/image/serve/${this._e(value)}/512x512`;
   }
 
-  // Background chooser; scope "settings" (the general one) or "child" (edit buffer).
-  _backgroundField(scope, value) {
+  // Background chooser (one background for all children).
+  _backgroundField(value) {
     const presets = this._data.backgrounds || [];
     const uploaded = value && !value.startsWith("bg_") ? value : "";
     const tile = (v, label) => {
       const url = this._backgroundUrl(v);
       const style = url ? `background-image:url('${url}')` : "";
-      return `<button class="bg-tile ${v === (value || "") ? "sel" : ""}" style="${style}" data-action="bg-set" data-scope="${scope}" data-arg="${this._e(v)}" title="${this._e(label)}">${url ? "" : this._e(label)}</button>`;
+      return `<button class="bg-tile ${v === (value || "") ? "sel" : ""}" style="${style}" data-action="bg-set" data-arg="${this._e(v)}" title="${this._e(label)}">${url ? "" : this._e(label)}</button>`;
     };
-    const none = this._t(scope === "child" ? "background.general" : "background.none");
+    const none = this._t("background.none");
     const tiles = [tile("", none), ...presets.map((p, i) => tile(p, `${this._t("background.preset")} ${i + 1}`))];
     if (uploaded) {
       tiles.push(tile(uploaded, this._t("background.own")));
     }
     const upload = this._isAdmin
-      ? `<label class="upload">${this._e(this._t("background.upload"))}<input type="file" accept="image/*" data-upload-bg="${scope}" hidden></label>`
+      ? `<label class="upload">${this._e(this._t("background.upload"))}<input type="file" accept="image/*" data-upload-bg="1" hidden></label>`
       : "";
     return `<div class="field"><span>${this._e(this._t("background.title"))}</span>
       <div class="row wrap bg-tiles">${tiles.join("")}</div>
       <div class="row wrap">${upload}</div>
-      <div class="muted">${this._e(this._t(scope === "child" ? "background.child_hint" : "background.hint"))}</div></div>`;
+      <div class="muted">${this._e(this._t("background.hint"))}</div></div>`;
   }
 
-  async _setBackground(scope, value) {
-    if (scope === "child") {
-      this._edit.item.background = value;
-      this._render();
-      return;
-    }
+  async _setBackground(value) {
     await this._ws({ type: "kis_segito/settings/update", background: value });
     await this._load();
   }
@@ -561,7 +556,7 @@ class KisSegitoPanel extends HTMLElement {
   _avatar(child, size = 48) {
     const inner = child.avatar_image
       ? this._photo(child.avatar_image, size - 6, true)
-      : this._icon(child.avatar || "placeholder_avatar", size - 6);
+      : this._icon(child.avatar || "avatar_01", size - 6);
     return `<span class="avatar" style="--c:${this._e(child.color || "#6CB8FF")};width:${size}px;height:${size}px">${inner}</span>`;
   }
 
@@ -904,7 +899,7 @@ class KisSegitoPanel extends HTMLElement {
         return;
       }
       case "bg-set":
-        await this._setBackground(el.dataset.scope, arg);
+        await this._setBackground(arg);
         return;
       case "rotate-token":
         if (!confirm(this._t("settings.knob_new_key_confirm"))) {
@@ -1019,7 +1014,7 @@ class KisSegitoPanel extends HTMLElement {
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}`);
         }
-        await this._setBackground(el.dataset.uploadBg, (await response.json()).id);
+        await this._setBackground((await response.json()).id);
       } catch (err) {
         this._error = this._t("picture.failed");
         console.warn("Kis Segito: upload failed", err);
@@ -1137,7 +1132,7 @@ class KisSegitoPanel extends HTMLElement {
         return {
           name: "",
           color: PRESET_COLORS[(this._data.children.length || 0) % PRESET_COLORS.length],
-          avatar: "placeholder_avatar",
+          avatar: "avatar_01",
           birth_date: "",
           active: true,
           // Locked when a reward can unlock it, open otherwise (#11).
@@ -1623,7 +1618,6 @@ class KisSegitoPanel extends HTMLElement {
       ${c.avatar_image ? "" : `<div class="field"><span>${this._e(this._t("children.avatar"))}</span>
         <button class="pick" data-action="pick" data-path="avatar" data-arg="avatar">${this._icon(c.avatar, 56)}</button></div>`}
       ${this._pictureField("avatar_image", "avatar", "avatar", c.avatar)}
-      ${this._backgroundField("child", c.background || "")}
       <label>${this._e(this._t("children.knob"))}<select data-path="device_id">${knobs}</select></label>
       <div class="muted">${this._e(this._t("children.knob_hint"))}</div>
       <label class="check"><input type="checkbox" data-path="piggy_unlocked" ${c.piggy_unlocked ? "checked" : ""}>${this._e(this._t("children.piggy_unlocked"))}</label>
@@ -1982,7 +1976,7 @@ class KisSegitoPanel extends HTMLElement {
       </div>
       <div class="card form">
         <h2>${this._e(this._t("background.title"))}</h2>
-        ${this._backgroundField("settings", s.background || "")}
+        ${this._backgroundField(s.background || "")}
       </div>
       <div class="card form">
         <h2>${this._e(this._t("settings.knobs"))}</h2>
@@ -2023,7 +2017,7 @@ class KisSegitoPanel extends HTMLElement {
       return "";
     }
     const filters = {
-      avatar: (n) => n.startsWith("avatar_") || n.startsWith("test_avatar") || n === "placeholder_avatar",
+      avatar: (n) => n.startsWith("avatar_"),
       task: (n) => n.startsWith("task_") || n.startsWith("routine_"),
       checkpoint: (n) => n.startsWith("task_") || n.startsWith("routine_") || n === "checkpoint_flag",
       routine: (n) => n.startsWith("routine_") || n.startsWith("task_"),

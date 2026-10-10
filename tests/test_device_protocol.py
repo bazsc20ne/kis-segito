@@ -228,8 +228,6 @@ async def test_knob_image_limits(hass: HomeAssistant, tmp_path) -> None:
 
 
 async def test_knob_background(hass: HomeAssistant, hass_client_no_auth) -> None:
-    from custom_components.kis_segito.manager import KisSegitoError
-
     entry = MockConfigEntry(
         domain=DOMAIN, unique_id="dev", data={CONF_DEVICE_ID: "dev"}
     )
@@ -250,20 +248,12 @@ async def test_knob_background(hass: HomeAssistant, hass_client_no_auth) -> None
         await client.get("/api/kis_segito/knob_image/bg_9/480", headers=header)
     ).status == 404
 
-    # The general background and a child's own one reach the snapshot.
+    # The one background reaches the snapshot; a child has no own one.
     await manager.async_update_settings({"background": "bg_2"})
-    child = await manager.async_save_item(
-        "children", {"name": "Kid", "background": "bg_5"}
-    )
+    await manager.async_save_item("children", {"name": "Kid", "background": "bg_5"})
     snapshot = manager.snapshot("dev", "en")
     assert snapshot["bg"] == "bg_2"
-    assert snapshot["children"][0]["bg"] == "bg_5"
-    import pytest
-
-    with pytest.raises(KisSegitoError):
-        await manager.async_save_item(
-            "children", {"id": child["id"], "background": "../etc"}
-        )
+    assert "bg" not in snapshot["children"][0]
 
 
 def test_summary_refresh_runs_in_event_loop() -> None:

@@ -3,15 +3,6 @@
   "_fallbacks": {
     "brand_mark_en": "brand_mark"
   },
-  "test_avatar_1": [
-    180
-  ],
-  "test_avatar_2": [
-    180
-  ],
-  "test_avatar_3": [
-    180
-  ],
   "brand_mark": [
     48,
     240
@@ -182,9 +173,6 @@
     40,
     32
   ],
-  "placeholder_avatar": [
-    180
-  ],
   "hand_cartoon": [
     64
   ],
@@ -314,6 +302,6 @@
     "routine_",
     "task_",
     "reward_",
-    "test_avatar_"
+    "avatar_"
   ]
 }

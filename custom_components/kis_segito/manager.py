@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import hmac
 import logging
-import re
 import secrets
 from collections.abc import Callable
 from datetime import date, datetime, timedelta
@@ -33,7 +32,7 @@ from .logic import (
     routine_with_override,
     selectable_children,
 )
-from .store import AUDIT_KEPT, DEFAULT_SETTINGS, KisSegitoStore
+from .store import AUDIT_KEPT, DEFAULT_AVATAR, DEFAULT_SETTINGS, KisSegitoStore
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -48,7 +47,7 @@ COLLECTIONS = ("children", "routines", "rewards", "templates")
 # Knob screen power settings, in the order the knob protocol sends them.
 SCREEN_KEYS = ("saver_after", "dim_after", "dim_level", "blank_after", "off_after")
 BACKGROUND_PRESETS = tuple(f"bg_{n}" for n in range(1, 7))
-# "" (none or, for a child, the general one), a preset or an uploaded picture.
+# The background: "" (none), a preset or an uploaded picture.
 BACKGROUND_VALUE = r"^(|bg_[1-6]|[a-z0-9]{1,64})$"
 
 
@@ -251,10 +250,8 @@ class KisSegitoManager:
             raise KisSegitoError("unknown_collection")
         items: list[dict[str, Any]] = self.data[collection]
         item = dict(item)
-        if collection == "children" and not re.match(
-            BACKGROUND_VALUE, str(item.get("background", ""))
-        ):
-            raise KisSegitoError("invalid_background")
+        if collection == "children":
+            item.pop("background", None)  # one background for all children
         if not item.get("id"):
             item["id"] = lg.new_id()
             item.setdefault("sort_order", len(items))
@@ -1143,7 +1140,7 @@ class KisSegitoManager:
             children.append(
                 {
                     "id": child["id"],
-                    "a": child.get("avatar", "test_avatar_1"),
+                    "a": child.get("avatar", DEFAULT_AVATAR),
                     "ai": child.get("avatar_image") or "",
                     "c": child.get("color", "#6CB8FF"),
                     "w": bal[lg.WALLET],
@@ -1153,7 +1150,6 @@ class KisSegitoManager:
                     "s": self.streak(child["id"]),
                     "st": int(self.settings.get("streak_target", 7)),
                     "sel": child["id"] in selectable,
-                    "bg": child.get("background") or "",
                 }
             )
         rewards = [

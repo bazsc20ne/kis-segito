@@ -51,7 +51,7 @@ static bool psram_has(size_t bytes) { return psram_largest_block() >= bytes + 64
 // Icons that are not compiled into the firmware (assets/device_assets.json,
 // "_online"): the knob downloads them from Home Assistant when it shows them.
 static bool is_online_icon(const std::string &key) {
-  static const char *const PREFIXES[] = {"routine_", "task_", "reward_", "test_avatar_"};
+  static const char *const PREFIXES[] = {"routine_", "task_", "reward_", "avatar_"};
   for (const char *prefix : PREFIXES) {
     if (key.rfind(prefix, 0) == 0)
       return true;
@@ -627,9 +627,9 @@ void KisSegitoUI::load_test_data_() {
   this->state_ms_ = millis();
   const int64_t now = this->state_now_;
   this->children_ = {
-      {"test1", "test_avatar_1", 0x6CB8FF, 7, 12, true, 5, 7, true},
-      {"test2", "test_avatar_2", 0xFF8FB1, 24, 3, true, 2, 7, true},
-      {"test3", "test_avatar_3", 0x6BCB77, 260, 0, false, 6, 7, true},
+      {"test1", "avatar_07", 0x6CB8FF, 7, 12, true, 5, 7, true},
+      {"test2", "avatar_01", 0xFF8FB1, 24, 3, true, 2, 7, true},
+      {"test3", "avatar_09", 0x6BCB77, 260, 0, false, 6, 7, true},
   };
   this->rewards_ = {
       {"r1", "reward_toy_car", 8, false}, {"r2", "reward_doll", 12, false},  {"r3", "reward_bricks", 20, false},
@@ -732,7 +732,7 @@ void KisSegitoUI::set_state(const std::string &json) {
   for (JsonObjectConst c : root["children"].as<JsonArrayConst>()) {
     Child child;
     child.id = c["id"].as<const char *>() ? c["id"].as<const char *>() : "";
-    child.avatar = c["a"] | "placeholder_avatar";
+    child.avatar = c["a"] | "avatar_01";
     child.color = parse_color(c["c"].as<const char *>(), 0x6CB8FF);
     child.wallet = c["w"] | 0;
     child.piggy = c["p"] | 0;
@@ -741,12 +741,8 @@ void KisSegitoUI::set_state(const std::string &json) {
     child.streak_target = c["st"] | 7;
     child.selectable = c["sel"] | true;
     child.pending_interest = c["pi"] | 0;
-    child.background = c["bg"] | "";
-    if (this->images_.count(child.avatar + "_180") == 0) {
-      // Built-in avatars come from Home Assistant like uploaded pictures.
-      const bool served = child.avatar.rfind("avatar_", 0) == 0 || is_online_icon(child.avatar);
-      child.avatar = served ? "@" + child.avatar : "placeholder_avatar";
-    }
+    // Built-in avatars come from Home Assistant like uploaded pictures.
+    child.avatar = "@" + (is_online_icon(child.avatar) ? child.avatar : std::string("avatar_01"));
     if (c["ai"].is<const char *>() && strlen(c["ai"].as<const char *>()) > 0)
       child.avatar = std::string("@") + c["ai"].as<const char *>();
     children.push_back(child);
@@ -1050,8 +1046,8 @@ std::string KisSegitoUI::photo_key_(const std::string &key) const {
 const lv_image_dsc_t *KisSegitoUI::img_(const std::string &key) {
   const std::string pk = this->photo_key_(key);
   if (!pk.empty()) {
-    // A downloaded picture: shown once it is here; until then a placeholder
-    // for avatars, nothing for icons and backgrounds.
+    // A downloaded picture: shown once it is here; until then nothing (an
+    // avatar's coloured disc stays empty).
     if (g_fill_keys != nullptr)
       g_fill_keys->insert(pk);
     auto photo = this->photos_.find(pk);
@@ -1062,9 +1058,6 @@ const lv_image_dsc_t *KisSegitoUI::img_(const std::string &key) {
     this->request_photo_(pk);
     if (g_fill_keys != nullptr)
       g_fill_missing++;
-    const size_t n = 4;
-    if (pk.size() > n && pk.compare(pk.size() - n, n, "_180") == 0)
-      return this->img_("placeholder_avatar_180");
     return nullptr;
   }
   auto it = this->images_.find(key);
@@ -1376,6 +1369,7 @@ void KisSegitoUI::loop() {
   if (this->restart_for_picture_ && this->worker_idle_ && !this->stopping_) {
     g_picture_restart_key = this->restart_key_;
     g_picture_restart_magic = PICTURE_RESTART_MAGIC;
+    ESP_LOGW(TAG, "Restarting to show the new background");
     App.safe_reboot();
   }
   const size_t need = this->need_memory_;
@@ -1788,10 +1782,9 @@ void KisSegitoUI::show_(Screen screen) {
   const Child &child = this->children_[this->child_];
   const lv_color_t bg = screen == Screen::CHILDREN ? lv_color_hex(BASE_BG) : this->tint_(child.color, 46);
   lv_obj_set_style_bg_color(this->root_, bg, 0);
-  // The general background on the child selector, the child's own (or the
-  // general one) on that child's screens; none: the plain colour. While a new
+  // The one background on every screen; none: the plain colour. While a new
   // background is still downloading, the previous one stays.
-  this->apply_background_(screen == Screen::CHILDREN ? "" : child.background);
+  this->apply_background_("");
   this->build_track_();
   switch (screen) {
     case Screen::CHILDREN:

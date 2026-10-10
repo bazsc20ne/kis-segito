@@ -163,6 +163,35 @@ def test_migrate_schema_1() -> None:
     assert data["children"] == []
 
 
+def test_migrate_children_background_and_sample_avatars() -> None:
+    data = _migrate_config(
+        {
+            "children": [
+                {"id": "a", "avatar": "test_avatar_2", "background": "bg_3"},
+                {"id": "b", "avatar": "avatar_05", "background": ""},
+                {"id": "c", "avatar": "placeholder_avatar"},
+            ]
+        }
+    )
+    assert [c["avatar"] for c in data["children"]] == [
+        "avatar_01",
+        "avatar_05",
+        "avatar_01",
+    ]
+    assert all("background" not in c for c in data["children"])
+
+
+async def test_child_background_is_not_stored(
+    hass: HomeAssistant, manager: KisSegitoManager
+) -> None:
+    child = await manager.async_save_item(
+        "children", {"name": "A", "color": "#123456", "background": "bg_2"}
+    )
+    assert "background" not in child
+    snapshot = manager.snapshot("knob", "en")
+    assert all("bg" not in c for c in snapshot["children"])
+
+
 async def test_override_and_history_filters(
     hass: HomeAssistant, manager: KisSegitoManager
 ) -> None:

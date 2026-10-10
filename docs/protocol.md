@@ -29,8 +29,8 @@ epoch seconds, colours `#RRGGBB`):
   "anim": "full",
   "idle": 60,
   "children": [
-    {"id": "…", "a": "test_avatar_1", "c": "#6CB8FF", "w": 17, "p": 23,
-     "pu": true, "pi": 0, "s": 5, "st": 7, "sel": true, "bg": ""}
+    {"id": "…", "a": "avatar_01", "c": "#6CB8FF", "w": 17, "p": 23,
+     "pu": true, "pi": 0, "s": 5, "st": 7, "sel": true}
   ],
   "rewards": [
     {"id": "…", "i": "reward_long_story", "c": 8, "k": "normal"}
@@ -60,9 +60,8 @@ epoch seconds, colours `#RRGGBB`):
 - `scr`: screen power of this knob, idle seconds until the screensaver, dimming,
   drawing off (black, LVGL paused) and backlight off (0 = never); `lvl` is the
   dimmed brightness in percent, `ss` the screensaver (`balls`, `confetti` or `stars`).
-- `bg`, `children[].bg`: background of the screen: `""` (none), a built-in
-  preset (`bg_1` … `bg_6`) or an uploaded picture id. The general `bg` is used
-  on the child selector and for children without their own `bg`. The knob
+- `bg`: background of every screen: `""` (none), a built-in preset
+  (`bg_1` … `bg_6`) or an uploaded picture id. The knob
   downloads it like a picture, at size 480, as `KSI2` (RGB565 without alpha,
   the whole screen).
 - `children[].pi`: piggy-bank interest paid but not shown to the child yet; the

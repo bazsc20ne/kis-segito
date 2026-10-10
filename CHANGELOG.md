@@ -6,6 +6,32 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.7.19] - 2026-10-10
+
+### English
+
+- One background for all children: a child can no longer have a background of
+  their own. The child's page no longer has a background choice, and the knob
+  keeps the same background when the selected child changes (it no longer
+  restarts for a child's background). Backgrounds already set for a child
+  are dropped; the background on the **Settings** page is used everywhere.
+- Sample avatars removed: the grey silhouette and the three simple faces are
+  gone from the avatar choice, the panel and the knob. Children that still
+  used one get the first drawn avatar. While an avatar is still downloading,
+  the knob shows the child's coloured circle without a placeholder.
+
+### Magyar
+
+- Egy háttér minden gyereknek: a gyereknek nem lehet többé saját háttere. A
+  gyerek oldalán nincs háttérválasztás, és a gomb gyermekváltáskor nem cseréli
+  a hátteret (a gyerek háttere miatt sem indul újra). A gyerekeknél már
+  beállított hátterek megszűnnek; mindenhol a **Beállítások** oldalon
+  választott háttér látszik.
+- A minta-avatarok kikerültek: a szürke sziluett és a három egyszerű arc
+  eltűnt az avatarválasztóból, a panelből és a gombról. Az ezeket használó
+  gyerekek az első rajzolt avatart kapják. Amíg egy avatar letöltődik, a gomb
+  a gyerek színes körét mutatja helyettesítő kép nélkül.
+
 ## [0.7.18] - 2026-10-10
 
 ### English

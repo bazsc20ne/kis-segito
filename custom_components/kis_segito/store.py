@@ -78,6 +78,15 @@ def _empty_config() -> dict[str, Any]:
     }
 
 
+DEFAULT_AVATAR = "avatar_01"
+RETIRED_AVATARS = {
+    "test_avatar_1",
+    "test_avatar_2",
+    "test_avatar_3",
+    "placeholder_avatar",
+}
+
+
 def _migrate_config(data: dict[str, Any]) -> dict[str, Any]:
     """Bring a stored document to the current schema without losing data."""
     result = _empty_config()
@@ -87,6 +96,13 @@ def _migrate_config(data: dict[str, Any]) -> dict[str, Any]:
             result["settings"].update(value)
         elif key in result and key != "schema":
             result[key] = value
+    for child in result["children"]:
+        if isinstance(child, dict):
+            # One background for all children (a child's own one is gone).
+            child.pop("background", None)
+            # The early sample avatars are gone; their children get a drawn one.
+            if child.get("avatar") in RETIRED_AVATARS:
+                child["avatar"] = DEFAULT_AVATAR
     result["schema"] = SCHEMA
     return result
 

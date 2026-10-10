@@ -41,7 +41,6 @@ struct Child {
   int streak_target{7};
   bool selectable{true};  // false: shown locked on this knob
   int pending_interest{0};  // interest not shown to the child yet
-  std::string background;   // picture id; empty: the general background
 };
 
 struct Reward {
