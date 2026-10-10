@@ -1362,16 +1362,22 @@ void KisSegitoUI::loop() {
     if (this->started_)
       this->release_photos_(0);
   }
+  // A new background: restart once the queued pictures are done (several new
+  // backgrounds: one restart), 2 s after the log line, so the log reaches
+  // Home Assistant before the connection goes down.
+  if (this->restart_for_picture_ && this->worker_idle_ && !this->stopping_) {
+    if (this->restart_at_ms_ == 0) {
+      ESP_LOGW(TAG, "Restarting in 2 s to show the new background");
+      this->restart_at_ms_ = (now + 2000) | 1;  // never 0
+    } else if (static_cast<int32_t>(now - this->restart_at_ms_) >= 0) {
+      g_picture_restart_key = this->restart_key_;
+      g_picture_restart_magic = PICTURE_RESTART_MAGIC;
+      App.safe_reboot();
+    }
+  }
   // Downloaded pictures come before carousel pictures: room is made for them,
   // only when one is waiting for it. (Measuring the free memory walks the whole
   // PSRAM heap, so it is not done on every loop.)
-  // Once the queued pictures are done (several new backgrounds: one restart).
-  if (this->restart_for_picture_ && this->worker_idle_ && !this->stopping_) {
-    g_picture_restart_key = this->restart_key_;
-    g_picture_restart_magic = PICTURE_RESTART_MAGIC;
-    ESP_LOGW(TAG, "Restarting to show the new background");
-    App.safe_reboot();
-  }
   const size_t need = this->need_memory_;
   if (need > 0) {
     pic_cache_trim(need);

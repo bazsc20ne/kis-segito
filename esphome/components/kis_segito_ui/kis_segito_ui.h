@@ -391,6 +391,7 @@ class KisSegitoUI : public Component {
   // cache: the main loop restarts the knob to show it.
   volatile bool restart_for_picture_{false};
   volatile uint32_t restart_key_{0};
+  uint32_t restart_at_ms_{0};  // main loop: when the restart happens (0: not yet)
   // The picture the restart before this start was made for (0: none).
   uint32_t restarted_for_{0};
   bool picture_restart_allowed_(const std::string &key) const;
