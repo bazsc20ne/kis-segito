@@ -394,3 +394,18 @@ async def test_routine_template_round_trip(
     assert manager.data["routine_templates"] == [template]
     await manager.async_delete_item("routine_templates", template["id"])
     assert manager.data["routine_templates"] == []
+
+
+async def test_set_background_counts_every_choice(
+    hass: HomeAssistant, manager: KisSegitoManager
+) -> None:
+    from custom_components.kis_segito.manager import KisSegitoError
+
+    first = manager.snapshot("knob", "en")["bgs"]
+    await manager.async_set_background("bg_3")
+    await manager.async_set_background("bg_3")  # the same picture again
+    snapshot = manager.snapshot("knob", "en")
+    assert snapshot["bg"] == "bg_3"
+    assert snapshot["bgs"] == first + 2
+    with pytest.raises(KisSegitoError):
+        await manager.async_set_background("../etc")

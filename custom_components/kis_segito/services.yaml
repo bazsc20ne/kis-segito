@@ -100,3 +100,9 @@ set_today_template:
     template_id:
       selector:
         text:
+set_background:
+  fields:
+    background:
+      example: bg_2
+      selector:
+        text:

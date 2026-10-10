@@ -134,6 +134,16 @@
           "description": "Shown in the panel (Calendar)."
         }
       }
+    },
+    "set_background": {
+      "name": "Set background",
+      "description": "Chooses the background of every knob, like the Settings page. After the change each knob restarts once, after 1 minute without use, to show the new picture.",
+      "fields": {
+        "background": {
+          "name": "Background",
+          "description": "A built-in background (bg_1 … bg_6), the id of an uploaded picture, or empty for no picture."
+        }
+      }
     }
   },
   "selector": {
@@ -204,6 +214,9 @@
     },
     "past_day": {
       "message": "Past days cannot be changed."
+    },
+    "invalid_background": {
+      "message": "Unknown background. Use bg_1 … bg_6, the id of an uploaded picture, or leave it empty."
     }
   },
   "issues": {

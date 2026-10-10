@@ -53,6 +53,7 @@ SCHEMAS = {
         }
     ),
     "reverse_transaction": vol.Schema({vol.Required("transaction_id"): cv.string}),
+    "set_background": vol.Schema({vol.Required("background", default=""): cv.string}),
     "set_today_template": vol.Schema(
         {vol.Optional("template_id"): vol.Any(None, cv.string)}
     ),
@@ -110,6 +111,10 @@ def async_register_services(hass: HomeAssistant, manager: KisSegitoManager) -> N
                         day=manager.today(),
                         template_id=data.get("template_id") or None,
                         who="automation",
+                    )
+                case "set_background":
+                    await manager.async_set_background(
+                        data["background"].strip(), who="automation"
                     )
                 case "reverse_transaction":
                     await manager.async_reverse(

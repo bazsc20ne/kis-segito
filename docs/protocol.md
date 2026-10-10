@@ -25,6 +25,7 @@ epoch seconds, colours `#RRGGBB`):
   "now": 1791360000,
   "lang": "hu",
   "bg": "bg_2",
+  "bgs": 3,
   "scr": {"saver": 0, "dim": 60, "lvl": 15, "blank": 0, "off": 120, "ss": "balls"},
   "anim": "full",
   "idle": 60,
@@ -64,6 +65,9 @@ epoch seconds, colours `#RRGGBB`):
   (`bg_1` … `bg_6`) or an uploaded picture id. The knob
   downloads it like a picture, at size 480, as `KSI2` (RGB565 without alpha,
   the whole screen).
+- `bgs`: counts the background choices, also of the same picture. When `bg` or
+  `bgs` changes while the knob runs, it stores the new background in its flash
+  cache and restarts after 1 minute without input, then shows it from there.
 - `children[].pi`: piggy-bank interest paid but not shown to the child yet; the
   knob shows a badge and plays it when the piggy bank is opened.
 - `children[].sel`: whether the child can be selected on this knob (device

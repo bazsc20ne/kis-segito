@@ -6,6 +6,37 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.7.23] - 2026-10-10
+
+### English
+
+- Background change: after every background change each knob restarts once,
+  also when the same picture is chosen again. It first stores the new
+  picture in its flash cache and restarts only after it has not been used for
+  1 minute (no turn, no press), so it never restarts in the middle of use. If
+  the picture cannot be stored (e.g. no network), it does not restart.
+- New action `kis_segito.set_background` to change the background from
+  automations (for example a night background at sunset), with the same
+  restart rule; see docs/automations.md.
+- Settings: all times (back to the child selector, screensaver, dimming,
+  drawing off, backlight off, also per knob) are set in minutes. The values
+  already set are kept and shown in minutes.
+
+### Magyar
+
+- Háttércsere: minden háttércsere után minden gomb egyszer újraindul, akkor
+  is, ha ugyanazt a képet választod újra. Előbb a flash-tárába menti az új
+  képet, és csak akkor indul újra, ha 1 percig nem használták (se tekerés, se
+  nyomás), így használat közben sosem. Ha a képet nem sikerül elmenteni (pl.
+  nincs hálózat), nem indul újra.
+- Új `kis_segito.set_background` művelet, amellyel automatizálásból lehet
+  hátteret váltani (például napnyugtakor éjszakai háttérre), ugyanezzel az
+  újraindítási szabállyal; lásd docs/automations.md.
+- Beállítások: minden időérték (vissza a gyerekválasztóhoz, képernyővédő,
+  halványítás, rajzolás leállítása, háttérvilágítás kikapcsolása, gombonként
+  is) percben állítható. A már beállított értékek megmaradnak, percben
+  jelennek meg.
+
 ## [0.7.22] - 2026-10-10
 
 ### English

@@ -10,10 +10,16 @@
 
 // Must equal the integration version (scripts/check_versions.py checks it):
 // a browser that still runs an older copy of this file shows a reload bar.
-// Knob screen power settings (seconds; dim_level in percent).
+// Knob screen power settings (stored in seconds, edited in minutes;
+// dim_level in percent).
 const SCREEN_KEYS = ["saver_after", "dim_after", "dim_level", "blank_after", "off_after"];
 const SAVER_TYPES = ["balls", "confetti", "stars"];
-const PANEL_VERSION = "0.7.22";
+// Times are stored in seconds and shown in minutes.
+const secondsToMinutes = (seconds) => (seconds === null || seconds === undefined || seconds === "" ? "" : Math.round((seconds / 60) * 100) / 100);
+const minuteInput = (attrs, seconds, disabled, placeholder = "", min = 0) =>
+  `<input type="number" min="${min}" max="1440" step="0.5" data-minutes ${attrs} value="${secondsToMinutes(seconds)}" placeholder="${placeholder === "" ? "" : secondsToMinutes(placeholder)}" ${disabled}>`;
+
+const PANEL_VERSION = "0.7.23";
 const FALLBACK_LANGUAGE = "en";
 const LANGUAGE_AUTO = "auto";
 const TABS = [
@@ -1001,9 +1007,11 @@ class KisSegitoPanel extends HTMLElement {
 
   async _onChange(ev) {
     const el = ev.target;
+    // Minutes in the field, seconds in the settings.
+    const number = (v) => (el.dataset.minutes !== undefined ? Math.round(Number(v) * 60) : Number(v));
     if (el.dataset.screen) {
       if (el.value !== "") {
-        await this._ws({ type: "kis_segito/settings/update", screen: { [el.dataset.screen]: Number(el.value) } });
+        await this._ws({ type: "kis_segito/settings/update", screen: { [el.dataset.screen]: number(el.value) } });
       }
       await this._load();
       return;
@@ -1026,7 +1034,7 @@ class KisSegitoPanel extends HTMLElement {
       await this._ws({
         type: "kis_segito/device/screen",
         device_id: el.dataset.device,
-        screen: { [el.dataset.deviceScreen]: el.value === "" ? null : Number(el.value) },
+        screen: { [el.dataset.deviceScreen]: el.value === "" ? null : number(el.value) },
       });
       await this._load();
       return;
@@ -1036,7 +1044,7 @@ class KisSegitoPanel extends HTMLElement {
         el.type === "number"
           ? el.value === ""
             ? null
-            : Number(el.value)
+            : number(el.value)
           : el.value;
       const msg = { type: "kis_segito/settings/update", [el.dataset.setting]: value };
       if (el.dataset.setting === "piggy_interest_weekday") {
@@ -2042,9 +2050,11 @@ class KisSegitoPanel extends HTMLElement {
           ? `<button class="small" data-action="rotate-token" data-arg="${this._e(d.device_id)}">${this._e(this._t("settings.knob_new_key"))}</button>`
           : "";
         const own = d.screen || {};
-        const screen = SCREEN_KEYS.map(
-          (k) => `<label>${this._e(this._t(`screen.${k}`))}<input type="number" min="${k === "dim_level" ? 1 : 0}" max="${k === "dim_level" ? 100 : 86400}"
+        const screen = SCREEN_KEYS.map((k) =>
+          k === "dim_level"
+            ? `<label>${this._e(this._t(`screen.${k}`))}<input type="number" min="1" max="100"
             data-device-screen="${k}" data-device="${this._e(d.device_id)}" value="${own[k] ?? ""}" placeholder="${this._e(String(s.screen?.[k] ?? ""))}" ${disabled}></label>`
+            : `<label>${this._e(this._t(`screen.${k}`))}${minuteInput(`data-device-screen="${k}" data-device="${this._e(d.device_id)}"`, own[k], disabled, s.screen?.[k] ?? "")}</label>`
         ).join("");
         return `<div class="row">${this._icon("nav_settings", 28)}<span class="grow">${this._e(d.name)}</span>${avatars}${rotate}</div>${warning}
           <details class="knob-screen"><summary>${this._e(this._t("screen.own"))}</summary>
@@ -2065,12 +2075,15 @@ class KisSegitoPanel extends HTMLElement {
         <label>${this._e(this._t("settings.animation"))}<select data-setting="animation_mode" ${disabled}>
           ${["full", "reduced", "off"].map((m) => `<option value="${m}" ${s.animation_mode === m ? "selected" : ""}>${this._e(this._t(`settings.animation_${m}`))}</option>`).join("")}
         </select></label>
-        <label>${this._e(this._t("settings.inactivity"))}${num("inactivity_s", 10, 3600, 10)}</label>
+        <label>${this._e(this._t("settings.inactivity"))}${minuteInput(`data-setting="inactivity_s"`, s.inactivity_s, disabled, "", 0.5)}</label>
       </div>
       <div class="card form">
         <h2>${this._e(this._t("screen.title"))}</h2>
         ${SCREEN_KEYS.map(
-          (k) => `<label>${this._e(this._t(`screen.${k}`))}<input type="number" min="${k === "dim_level" ? 1 : 0}" max="${k === "dim_level" ? 100 : 86400}" data-screen="${k}" value="${s.screen?.[k] ?? ""}" ${disabled}></label>`
+          (k) =>
+            k === "dim_level"
+              ? `<label>${this._e(this._t(`screen.${k}`))}<input type="number" min="1" max="100" data-screen="${k}" value="${s.screen?.[k] ?? ""}" ${disabled}></label>`
+              : `<label>${this._e(this._t(`screen.${k}`))}${minuteInput(`data-screen="${k}"`, s.screen?.[k], disabled)}</label>`
         ).join("")}
         <label>${this._e(this._t("screen.saver_type"))}<select data-screen-type ${disabled}>
           ${SAVER_TYPES.map((t) => `<option value="${t}" ${(s.screen?.saver_type || "balls") === t ? "selected" : ""}>${this._e(this._t(`screen.saver_${t}`))}</option>`).join("")}

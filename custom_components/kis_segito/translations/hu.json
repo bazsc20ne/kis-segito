@@ -134,6 +134,16 @@
           "description": "A panelen (Naptár) látható."
         }
       }
+    },
+    "set_background": {
+      "name": "Háttér beállítása",
+      "description": "Kiválasztja minden gomb hátterét, mint a Beállítások oldal. A csere után minden gomb 1 perc használaton kívüli idő után egyszer újraindul, hogy az új képet mutassa.",
+      "fields": {
+        "background": {
+          "name": "Háttér",
+          "description": "Beépített háttér (bg_1 … bg_6), egy feltöltött kép azonosítója, vagy üresen: nincs kép."
+        }
+      }
     }
   },
   "selector": {
@@ -204,6 +214,9 @@
     },
     "past_day": {
       "message": "Múltbeli nap nem módosítható."
+    },
+    "invalid_background": {
+      "message": "Ismeretlen háttér. Adj meg bg_1 … bg_6 értéket, egy feltöltött kép azonosítóját, vagy hagyd üresen."
     }
   },
   "issues": {

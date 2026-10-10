@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import hmac
 import logging
+import re
 import secrets
 from collections.abc import Callable
 from datetime import date, datetime, timedelta
@@ -305,8 +306,22 @@ class KisSegitoManager:
         for key, value in changes.items():
             if self.settings.get(key) != value:
                 self._audit(who, f"settings.{key}", self.settings.get(key), value)
+        if "background" in changes:
+            # Counts every choice, also of the same picture: the knobs restart
+            # to show the background after each one.
+            changes = changes | {
+                "background_seq": int(self.settings.get("background_seq", 0)) + 1
+            }
         self.settings.update(changes)
         await self._changed()
+
+    async def async_set_background(
+        self, background: str, *, who: str = "automation"
+    ) -> None:
+        """Choose the background of every knob (as on the Settings page)."""
+        if not re.match(BACKGROUND_VALUE, background):
+            raise KisSegitoError("invalid_background")
+        await self.async_update_settings({"background": background}, who=who)
 
     async def async_set_override(
         self,
@@ -1238,6 +1253,7 @@ class KisSegitoManager:
             "now": int(now.timestamp()),
             "lang": language,
             "bg": self.settings.get("background") or "",
+            "bgs": int(self.settings.get("background_seq", 0)),
             "scr": {
                 key: int(value)
                 for key, value in zip(

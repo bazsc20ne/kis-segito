@@ -186,6 +186,9 @@ class KisSegitoUI : public Component {
   uint32_t blank_after() const { return this->blank_after_; }
   uint32_t off_after() const { return this->off_after_; }
   bool started() const { return this->started_; }
+  // Time since the knob was last turned or pressed (any input, also one that
+  // only woke the screen).
+  void set_idle_ms(uint32_t ms) { this->idle_ms_ = ms; }
   // Screensaver: "balls" (the loading screen's), "confetti" or "stars"; the
   // last two run on their own screen (start_confetti / stop_confetti).
   const std::string &saver_type() const { return this->saver_type_; }
@@ -349,6 +352,8 @@ class KisSegitoUI : public Component {
     std::string url;
     std::string token;
     int tries{0};  // waits for memory so far
+    bool store{false};  // only store it in the flash cache (a new background)
+    uint32_t gen{0};    // which background change it belongs to
   };
   struct Download {
     std::string key;
@@ -387,14 +392,21 @@ class KisSegitoUI : public Component {
   // Set by the download task when a picture needs memory; the main loop
   // makes room (unused carousel pictures, unused downloaded pictures).
   volatile size_t need_memory_{0};
-  // Set by the download task when a new background was stored in the flash
-  // cache: the main loop restarts the knob to show it.
-  volatile bool restart_for_picture_{false};
-  volatile uint32_t restart_key_{0};
-  uint32_t restart_at_ms_{0};  // main loop: when the restart happens (0: not yet)
-  // The picture the restart before this start was made for (0: none).
-  uint32_t restarted_for_{0};
-  bool picture_restart_allowed_(const std::string &key) const;
+  // A background change: stored in the flash cache by the download task,
+  // then shown after a restart once the knob has not been used for a while.
+  static constexpr uint32_t BG_RESTART_IDLE_MS = 60000;
+  enum { BG_PENDING, BG_STORED, BG_FAILED, BG_NO_CACHE };
+  void start_background_change_(const std::string &bg);
+  void check_background_restart_(uint32_t now);
+  bool store_picture_(const PhotoJob &job);
+  void start_photo_task_();
+  bool bg_change_{false};
+  std::string bg_target_;        // the new background
+  uint32_t bg_seq_{0};           // Home Assistant's count of background choices
+  volatile uint32_t bg_gen_{0};  // current change (older store results are ignored)
+  volatile int bg_store_{BG_PENDING};
+  uint32_t restart_at_ms_{0};  // when the restart happens (0: not yet)
+  uint32_t idle_ms_{0};        // time since the knob was last used
   volatile bool stopping_{false};
   volatile bool worker_idle_{true};
   // Download task only: the flash cache and the pictures checked with Home

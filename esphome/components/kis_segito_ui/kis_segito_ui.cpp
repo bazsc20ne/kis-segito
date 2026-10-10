@@ -10,7 +10,6 @@
 #include <cstring>
 #include <strings.h>
 
-#include <esp_attr.h>
 #include <esp_heap_caps.h>
 #include <esp_system.h>
 #include <esp_http_client.h>
@@ -588,25 +587,7 @@ void KisSegitoUI::log_reset_reason_() {
   }
 }
 
-// Survive a software restart: which picture the last restart was made for.
-static RTC_NOINIT_ATTR uint32_t g_picture_restart_magic;
-static RTC_NOINIT_ATTR uint32_t g_picture_restart_key;
-static constexpr uint32_t PICTURE_RESTART_MAGIC = 0x4B535052;  // "KSPR"
-// Pictures at least this big (backgrounds), when new or changed, are stored
-// in flash and shown after a restart.
-static constexpr int64_t RESTART_PICTURE_BYTES = 200 * 1024;
-
-static uint32_t picture_restart_key(const std::string &key) { return fnv1_hash(key) | 1; }
-
-// Never a second restart in a row for the same picture (e.g. when it still
-// cannot be loaded after the restart): then it is loaded the usual way.
-bool KisSegitoUI::picture_restart_allowed_(const std::string &key) const {
-  return this->restarted_for_ != picture_restart_key(key);
-}
-
 void KisSegitoUI::setup() {
-  this->restarted_for_ = g_picture_restart_magic == PICTURE_RESTART_MAGIC ? g_picture_restart_key : 0;
-  g_picture_restart_magic = 0;
   this->log_reset_reason_();
   log_psram("at boot");
   this->load_test_data_();
@@ -718,7 +699,15 @@ void KisSegitoUI::set_state(const std::string &json) {
 
   this->state_now_ = root["now"].as<int64_t>();
   this->img_base_ = root["img"]["u"] | "";
-  this->general_bg_ = root["bg"] | "";
+  const std::string bg = root["bg"] | "";
+  const uint32_t bg_seq = root["bgs"] | 0;
+  if (first_state) {
+    this->general_bg_ = bg;
+    this->bg_seq_ = bg_seq;
+  } else if (bg_seq != this->bg_seq_ || bg != (this->bg_change_ ? this->bg_target_ : this->general_bg_)) {
+    this->bg_seq_ = bg_seq;
+    this->start_background_change_(bg);
+  }
   const std::string token = root["img"]["t"] | "";
   if (token != this->img_token_) {
     // A new picture key: retry the pictures the old one could not fetch.
@@ -1196,6 +1185,10 @@ void KisSegitoUI::request_photo_(const std::string &key) {
     std::lock_guard<std::mutex> lock(this->photo_mutex_);
     this->photo_queue_.push_back({key, url, this->img_token_});
   }
+  this->start_photo_task_();
+}
+
+void KisSegitoUI::start_photo_task_() {
   if (!this->photo_task_started_) {
     this->photo_task_started_ = true;
     xTaskCreate(&KisSegitoUI::photo_task_, "ks_photos", 6144, this, 1, nullptr);
@@ -1239,6 +1232,12 @@ void KisSegitoUI::photo_task_(void *arg) {
       continue;
     }
     self->worker_idle_ = false;
+    if (job.store) {
+      const int result = !self->cache_.ready() ? BG_NO_CACHE : self->store_picture_(job) ? BG_STORED : BG_FAILED;
+      if (job.gen == self->bg_gen_)
+        self->bg_store_ = result;
+      continue;
+    }
     std::string cached_etag;
     size_t cached_size = 0;
     uint8_t *cached = nullptr;
@@ -1270,27 +1269,10 @@ void KisSegitoUI::photo_task_(void *arg) {
     uint8_t *buf = nullptr;
     int got = 0;
     int status = 0;
-    bool stored_large = false;
     if (client != nullptr && esp_http_client_open(client, 0) == ESP_OK) {
       const int64_t len = esp_http_client_fetch_headers(client);
       status = esp_http_client_get_status_code(client);
-      if (status == 200 && len >= RESTART_PICTURE_BYTES && len < 600 * 1024 && self->cache_.ready() &&
-          !etag.empty() && self->picture_restart_allowed_(job.key)) {
-        // A new or changed background: stored straight into the flash cache
-        // (no room in PSRAM needed) and loaded from there after a restart, so
-        // a changed background always appears the same way.
-        uint32_t crc = 0;
-        auto read = [client](uint8_t *b, int n) { return esp_http_client_read(client, reinterpret_cast<char *>(b), n); };
-        stored_large = self->cache_.write_stream(job.key, etag, len, read, &crc);
-        if (!stored_large) {
-          ESP_LOGE(TAG, "Picture %s could not be stored", job.key.c_str());
-        } else if (cached == nullptr || static_cast<size_t>(len) != cached_size || crc != cached_crc) {
-          ESP_LOGI(TAG, "New picture %s stored: restarting to show it", job.key.c_str());
-          self->restart_key_ = picture_restart_key(job.key);
-          self->restart_for_picture_ = true;
-        }
-        status = 0;  // handled here
-      } else if (status == 200 && len > 8 && len < 600 * 1024) {
+      if (status == 200 && len > 8 && len < 600 * 1024) {
         if (psram_can_spare(len)) {
           buf = static_cast<uint8_t *>(heap_caps_malloc(len, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
         } else if (job.tries < 30) {
@@ -1326,7 +1308,7 @@ void KisSegitoUI::photo_task_(void *arg) {
     }
     if (client != nullptr)
       esp_http_client_cleanup(client);
-    if (status == 304 || (status == 200 && buf != nullptr) || stored_large)
+    if (status == 304 || (status == 200 && buf != nullptr))
       self->validated_.insert(job.key);
     if (buf != nullptr) {
       if (self->cache_.ready() && !etag.empty())
@@ -1337,11 +1319,104 @@ void KisSegitoUI::photo_task_(void *arg) {
         continue;
       }
       deliver(job.key, buf, got, true);
-    } else if (cached == nullptr && !stored_large) {
+    } else if (cached == nullptr) {
       deliver(job.key, nullptr, 0, false);  // could not be loaded
     }
     // With a cached copy and Home Assistant out of reach, the cached one stays.
   }
+}
+
+// A background change from Home Assistant: the new picture is stored in the
+// flash cache (no picture memory needed), then the knob restarts once it has
+// not been used for a minute and shows it from there. The picture on screen
+// stays until then. If it cannot be stored, nothing restarts.
+void KisSegitoUI::start_background_change_(const std::string &bg) {
+  this->bg_change_ = true;
+  this->bg_target_ = bg;
+  this->restart_at_ms_ = 0;
+  const uint32_t gen = ++this->bg_gen_;
+  if (bg.empty()) {
+    this->bg_store_ = BG_STORED;  // nothing to store
+  } else {
+    this->bg_store_ = BG_PENDING;
+    const std::string key = "@" + bg + "_480";
+    const size_t sep = key.rfind('_');
+    PhotoJob job{key, this->img_base_ + "/api/kis_segito/knob_image/" + key.substr(1, sep - 1) + "/480",
+                 this->img_token_};
+    job.store = true;
+    job.gen = gen;
+    {
+      std::lock_guard<std::mutex> lock(this->photo_mutex_);
+      this->photo_queue_.push_back(job);
+    }
+    this->start_photo_task_();
+  }
+  ESP_LOGI(TAG, "Background changed: restarting after %u s without use", (unsigned) (BG_RESTART_IDLE_MS / 1000));
+}
+
+void KisSegitoUI::check_background_restart_(uint32_t now) {
+  if (!this->bg_change_ || this->stopping_)
+    return;
+  if (this->bg_store_ == BG_FAILED) {
+    ESP_LOGE(TAG, "The new background could not be stored; it is shown after the next restart");
+    this->bg_change_ = false;
+    return;
+  }
+  if (this->bg_store_ == BG_NO_CACHE) {
+    // A knob without the cache area: the background is loaded right away.
+    this->bg_change_ = false;
+    this->general_bg_ = this->bg_target_;
+    if (this->started_)
+      this->apply_background_(this->wanted_bg_);
+    return;
+  }
+  if (this->bg_store_ != BG_STORED)
+    return;
+  if (this->restart_at_ms_ == 0) {
+    if (this->idle_ms_ < BG_RESTART_IDLE_MS)
+      return;
+    // Logged 2 s before, so the line reaches Home Assistant.
+    ESP_LOGW(TAG, "Restarting in 2 s to show the new background");
+    this->restart_at_ms_ = (now + 2000) | 1;  // never 0
+  } else if (static_cast<int32_t>(now - this->restart_at_ms_) >= 0) {
+    App.safe_reboot();
+  }
+}
+
+// Stores a picture in the flash cache without loading it: unchanged pictures
+// (Home Assistant answers "not modified") are already there.
+bool KisSegitoUI::store_picture_(const PhotoJob &job) {
+  const std::string old_etag = this->cache_.etag(job.key);
+  std::string etag;
+  esp_http_client_config_t cfg{};
+  cfg.url = job.url.c_str();
+  cfg.timeout_ms = 10000;
+  cfg.event_handler = http_event;
+  cfg.user_data = &etag;
+  esp_http_client_handle_t client = esp_http_client_init(&cfg);
+  if (client == nullptr)
+    return false;
+  esp_http_client_set_header(client, "X-Kis-Segito-Token", job.token.c_str());
+  if (!old_etag.empty())
+    esp_http_client_set_header(client, "If-None-Match", old_etag.c_str());
+  bool ok = false;
+  if (esp_http_client_open(client, 0) == ESP_OK) {
+    const int64_t len = esp_http_client_fetch_headers(client);
+    const int status = esp_http_client_get_status_code(client);
+    if (status == 304) {
+      ok = !old_etag.empty();
+    } else if (status == 200 && len > 8 && len < 600 * 1024 && !etag.empty()) {
+      auto read = [client](uint8_t *b, int n) { return esp_http_client_read(client, reinterpret_cast<char *>(b), n); };
+      ok = this->cache_.write_stream(job.key, etag, len, read);
+    }
+    esp_http_client_close(client);
+  }
+  esp_http_client_cleanup(client);
+  if (ok) {
+    this->validated_.insert(job.key);
+    ESP_LOGI(TAG, "Picture %s stored", job.key.c_str());
+  }
+  return ok;
 }
 
 void KisSegitoUI::on_shutdown() {
@@ -1362,19 +1437,7 @@ void KisSegitoUI::loop() {
     if (this->started_)
       this->release_photos_(0);
   }
-  // A new background: restart once the queued pictures are done (several new
-  // backgrounds: one restart), 2 s after the log line, so the log reaches
-  // Home Assistant before the connection goes down.
-  if (this->restart_for_picture_ && this->worker_idle_ && !this->stopping_) {
-    if (this->restart_at_ms_ == 0) {
-      ESP_LOGW(TAG, "Restarting in 2 s to show the new background");
-      this->restart_at_ms_ = (now + 2000) | 1;  // never 0
-    } else if (static_cast<int32_t>(now - this->restart_at_ms_) >= 0) {
-      g_picture_restart_key = this->restart_key_;
-      g_picture_restart_magic = PICTURE_RESTART_MAGIC;
-      App.safe_reboot();
-    }
-  }
+  this->check_background_restart_(now);
   // Downloaded pictures come before carousel pictures: room is made for them,
   // only when one is waiting for it. (Measuring the free memory walks the whole
   // PSRAM heap, so it is not done on every loop.)

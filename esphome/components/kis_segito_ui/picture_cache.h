@@ -33,6 +33,8 @@ class PictureCache {
   bool ready() const { return this->part_ != nullptr; }
   // Size of a cached picture, 0 when it is not cached.
   size_t size(const std::string &key) const;
+  // ETag a cached picture was stored with, empty when it is not cached.
+  std::string etag(const std::string &key) const;
   // A cached picture in a new PSRAM buffer (free with heap_caps_free), or
   // nullptr. `etag` receives the ETag it was stored with.
   uint8_t *read(const std::string &key, size_t *size, std::string *etag);
