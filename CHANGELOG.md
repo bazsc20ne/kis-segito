@@ -13,6 +13,9 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
 - Button: the press that goes straight back to the child selector is now
   three times as long as a long press (1.2 s with the default 400 ms, was
   0.8 s). The long press itself is unchanged.
+- New pictures: TV time with a child, TV time with mum, and a cookie. Like
+  every picture, they can be chosen for tasks, routines, checkpoints and
+  rewards.
 - Knob menus always open at their first item, the shop too (it keeps its
   place only when coming back from the purchase question). Only the selected
   child is remembered.
@@ -22,6 +25,9 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
 - Gomb: a gyerekválasztóhoz egyenesen visszavivő nyomás most a hosszú nyomás
   háromszorosa (az alapértelmezett 400 ms-mal 1,2 mp, eddig 0,8 mp). Maga a
   hosszú nyomás nem változott.
+- Új képek: tévézés egy gyerekkel, tévézés anyával és egy keksz. Mint minden
+  kép, ezek is választhatók feladathoz, rutinhoz, checkpointhoz és
+  jutalomhoz.
 - A gomb menüi mindig az első elemmel nyílnak, a bolt is (csak a vásárlási
   kérdésről visszatérve marad a helyén). Csak a kiválasztott gyereket jegyzi
   meg.

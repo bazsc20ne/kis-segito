@@ -289,6 +289,21 @@
     40,
     32
   ],
+  "task_tv_boy": [
+    150,
+    40,
+    32
+  ],
+  "task_tv_mom": [
+    150,
+    40,
+    32
+  ],
+  "task_cookie": [
+    150,
+    40,
+    32
+  ],
   "_aliases": {
     "task_bath": "routine_bath",
     "task_tidy_up": "routine_cleanup",
