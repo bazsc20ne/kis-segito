@@ -6,6 +6,20 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.7.28] - 2026-10-10
+
+### English
+
+- Button: the press that goes straight back to the child selector is now
+  three times as long as a long press (1.2 s with the default 400 ms, was
+  0.8 s). The long press itself is unchanged.
+
+### Magyar
+
+- Gomb: a gyerekválasztóhoz egyenesen visszavivő nyomás most a hosszú nyomás
+  háromszorosa (az alapértelmezett 400 ms-mal 1,2 mp, eddig 0,8 mp). Maga a
+  hosszú nyomás nem változott.
+
 ## [0.7.27] - 2026-10-10
 
 ### English

@@ -1986,7 +1986,7 @@ void KisSegitoUI::handle_input_() {
   } else if (in == 3) {
     this->do_long_press_();
   } else if (in == 4) {
-    // A press twice as long as a long press: back to the child selector.
+    // A press three times as long as a long press: back to the child selector.
     this->last_input_ms_ = millis();
     if (this->screen_ != Screen::CHILDREN)
       this->show_(Screen::CHILDREN);
