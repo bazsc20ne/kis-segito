@@ -33,8 +33,10 @@ namespace esphome::kis_segito_ui {
 
 static const char *const TAG = "kis_segito_ui";
 
-// PSRAM always kept free for LVGL's own work (layers, image transforms): slot
-// snapshots and picture downloads are skipped instead of eating into it.
+// PSRAM kept free for LVGL's own work (layers, image transforms) besides a
+// picture: as much as the picture itself, at least 64 KB, at most this. (A
+// fixed large reserve made every small picture "not fit" once the memory was
+// broken up, and making room for them again and again disturbed the display.)
 static constexpr size_t PSRAM_RESERVE = 384 * 1024;
 // Downloaded pictures nothing shows are kept in PSRAM up to this size (the
 // least recently used go first); the flash cache brings the others back.
@@ -42,7 +44,9 @@ static constexpr size_t PHOTO_KEEP_UNUSED = 1024 * 1024;
 
 static size_t psram_largest_block() { return heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT); }
 
-static bool psram_can_spare(size_t bytes) { return psram_largest_block() >= bytes + PSRAM_RESERVE; }
+static bool psram_can_spare(size_t bytes) {
+  return psram_largest_block() >= bytes + std::min(PSRAM_RESERVE, std::max<size_t>(64 * 1024, bytes));
+}
 
 // Whether a block of this size can be allocated now (with a little room left).
 static bool psram_has(size_t bytes) { return psram_largest_block() >= bytes + 64 * 1024; }
@@ -1475,6 +1479,11 @@ void KisSegitoUI::loop() {
   // PSRAM heap, so it is not done on every loop.)
   const size_t need = this->need_memory_;
   if (need > 0) {
+    if (now - this->last_room_log_ms_ >= 10000) {
+      this->last_room_log_ms_ = now;
+      ESP_LOGI(TAG, "Making room for a %u KB picture (largest PSRAM block %u KB)", (unsigned) (need / 1024),
+               (unsigned) (psram_largest_block() / 1024));
+    }
     pic_cache_trim(need);
     if (!psram_can_spare(need) && this->started_)
       this->release_photos_(need);

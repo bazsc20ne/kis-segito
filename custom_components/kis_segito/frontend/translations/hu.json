@@ -273,7 +273,7 @@
   "rtemplates.name": "Sablon neve",
   "rtemplates.save": "Mentés sablonként",
   "rtemplates.saved": "Sablonként mentve",
-  "rtemplates.hint": "A rutint úgy menti el saját néven, ahogy az űrlapon van (feladatok, sorrend, ikonok, időzítés, checkpointok). Később a rutinlistában új rutin hozható létre belőle, bármelyik gyereknek.",
+  "rtemplates.hint": "A rutint úgy menti el saját néven, ahogy az űrlapon van (feladatok, sorrend, ikonok, időzítés, checkpointok, gyerekek). Később új rutin hozható létre vagy tölthető ki belőle.",
   "children.avatar_change": "Módosítás",
   "children.avatar_choose": "Válassz avatart, vagy tölts fel fényképet",
   "crop.title": "Fénykép kivágása",

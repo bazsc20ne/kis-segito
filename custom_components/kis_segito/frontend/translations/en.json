@@ -273,7 +273,7 @@
   "rtemplates.name": "Template name",
   "rtemplates.save": "Save as template",
   "rtemplates.saved": "Saved as template",
-  "rtemplates.hint": "Saves this routine as it is in the form (tasks, order, icons, times, checkpoints) under its own name. A new routine can be created from it later in the routine list, for any children.",
+  "rtemplates.hint": "Saves this routine as it is in the form (tasks, order, icons, times, checkpoints, children) under its own name. New routines can be created or filled from it later.",
   "children.avatar_change": "Change",
   "children.avatar_choose": "Choose an avatar or upload a photo",
   "crop.title": "Frame the photo",

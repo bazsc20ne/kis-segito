@@ -418,6 +418,7 @@ class KisSegitoUI : public Component {
   std::deque<int> input_;  // queued input: +1/-1 turn, 2 click, 3 long press
   uint32_t last_poll_ms_{0};
   uint32_t last_memory_log_ms_{0};
+  uint32_t last_room_log_ms_{0};
 
   bool started_{false};
   bool boot_info_logged_{false};

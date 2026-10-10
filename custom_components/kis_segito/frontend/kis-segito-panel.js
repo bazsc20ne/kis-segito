@@ -19,7 +19,7 @@ const secondsToMinutes = (seconds) => (seconds === null || seconds === undefined
 const minuteInput = (attrs, seconds, disabled, placeholder = "", min = 0) =>
   `<input type="number" min="${min}" max="1440" step="0.5" data-minutes ${attrs} value="${secondsToMinutes(seconds)}" placeholder="${placeholder === "" ? "" : secondsToMinutes(placeholder)}" ${disabled}>`;
 
-const PANEL_VERSION = "0.7.25";
+const PANEL_VERSION = "0.7.26";
 const FALLBACK_LANGUAGE = "en";
 const LANGUAGE_AUTO = "auto";
 const TABS = [
@@ -659,7 +659,7 @@ class KisSegitoPanel extends HTMLElement {
           this._edit.item.name ||
           this._t("routines.unnamed");
         const routine = clone(this._edit.item);
-        for (const key of ["id", "sort_order", "children"]) {
+        for (const key of ["id", "sort_order"]) {
           delete routine[key];
         }
         await this._ws({
@@ -1246,7 +1246,7 @@ class KisSegitoPanel extends HTMLElement {
   }
 
   // Fills the routine form from a saved template: a new routine, or one day of
-  // a routine (that day keeps its id). The children chosen in the form stay.
+  // a routine (that day keeps its id).
   _routineTemplateChooser() {
     const templates = this._data.routine_templates || [];
     if (!templates.length) {
@@ -1261,19 +1261,23 @@ class KisSegitoPanel extends HTMLElement {
   _applyRoutineTemplate(id) {
     const current = this._edit.item;
     const filled = this._fromRoutineTemplate(id);
+    // The template's children; a template saved without any keeps the form's.
+    const children = filled.children.length ? filled.children : current.children || [];
     this._edit.item =
       this._edit.collection === "day_routine"
-        ? { ...current, ...filled, id: current.id, children: current.children || [], weekdays: current.weekdays }
-        : { ...filled, color: current.color, children: current.children || [] };
+        ? { ...current, ...filled, id: current.id, children, weekdays: current.weekdays }
+        : { ...filled, color: current.color, children };
   }
 
-  // A new routine from a saved routine template: its own ids, no children.
+  // A new routine from a saved routine template: its own ids, the template's
+  // children (also on its checkpoints).
   _fromRoutineTemplate(id) {
     const template = (this._data.routine_templates || []).find((t) => t.id === id);
-    const item = { ...this._newItem("routines"), ...clone(template?.routine || {}), children: [] };
+    const item = { ...this._newItem("routines"), ...clone(template?.routine || {}) };
+    item.children = item.children || [];
     const cpIds = {};
     item.checkpoints = (item.checkpoints || []).map((cp) => {
-      const copy = { ...cp, id: uid(), children: [] };
+      const copy = { ...cp, id: uid(), children: cp.children || [] };
       cpIds[cp.id] = copy.id;
       return copy;
     });

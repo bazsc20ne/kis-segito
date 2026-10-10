@@ -6,6 +6,34 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.7.26] - 2026-10-10
+
+### English
+
+- Routine templates keep the children: a template is saved with the
+  routine's children (also those of its checkpoints), and filling a routine
+  from it brings them back. A template saved earlier without children keeps
+  the children chosen in the form.
+- Stripes and steps on the track after opening the shop (#37), most likely
+  cause: once the picture memory was broken up, every small picture the shop loaded counted as
+  "not fitting" because a large fixed reserve was kept free besides it, and
+  the knob kept freeing and reloading pictures, which disturbed the display.
+  The reserve now depends on the picture's size, so small pictures fit. The
+  knob logs when it has to make room for a picture.
+
+### Magyar
+
+- A rutinsablonok megtartják a gyerekeket: a sablon a rutin gyerekeivel (a
+  checkpointjaiéval is) együtt mentődik, és a belőle kitöltött rutin
+  visszakapja őket. Egy korábban gyerekek nélkül mentett sablon az űrlapon
+  kiválasztott gyerekeket hagyja meg.
+- Csíkok és lépcsők a pályán a bolt megnyitása után (#37), a legvalószínűbb
+  ok: feldarabolódott képmemóriánál a bolt minden kis képe „nem fért el”, mert mellette egy nagy,
+  rögzített tartalékot is szabadon kellett hagyni, és a gomb újra és újra
+  felszabadított és újratöltött képeket, ami megzavarta a kijelzőt. A
+  tartalék most a kép méretétől függ, így a kis képek elférnek. A gomb
+  naplózza, amikor helyet kell csinálnia egy képnek.
+
 ## [0.7.25] - 2026-10-10
 
 ### English
