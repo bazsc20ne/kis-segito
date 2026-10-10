@@ -6,6 +6,37 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.7.22] - 2026-10-10
+
+### English
+
+- Child picture: one field shows the child's photo or avatar. A click on it
+  or on the pencil opens the avatar list, which also offers a photo upload; a
+  chosen avatar replaces the photo. The red X removes an uploaded photo and
+  brings back the default avatar.
+- Photo upload with framing: the photo is shown with a circle (what the knob
+  and the panel show) and the rest dimmed; drag to move it, zoom with the
+  slider or the mouse wheel. Only the framed square is uploaded (512 px).
+- New artwork for the default avatar and the red X (also on the knob's
+  confirm screen), and a pencil icon.
+- Routine templates: **Save as template** is also on a routine opened from
+  the calendar for one day, and saves that day's version of the routine.
+
+### Magyar
+
+- Gyerek képe: egyetlen mező mutatja a gyerek fényképét vagy avatarját. Rá
+  vagy a ceruzára kattintva megnyílik az avatarlista, ahol fénykép is
+  feltölthető; egy választott avatar a fénykép helyére lép. A piros X törli a
+  feltöltött fényképet, és visszaállítja az alap avatart.
+- Fényképfeltöltés kivágással: a fénykép egy körrel jelenik meg (ez látszik a
+  gombon és a panelen), a többi elhalványítva; húzással mozgatható, a
+  csúszkával vagy az egérgörgővel nagyítható. Csak a kivágott négyzet töltődik
+  fel (512 px).
+- Új rajz az alap avatarhoz és a piros X-hez (a gomb megerősítő képernyőjén
+  is), valamint egy ceruza ikon.
+- Rutinsablonok: a **Mentés sablonként** a naptárból egy napra megnyitott
+  rutinnál is megvan, és a rutin aznapi változatát menti.
+
 ## [0.7.21] - 2026-10-10
 
 ### English

@@ -13,7 +13,7 @@
 // Knob screen power settings (seconds; dim_level in percent).
 const SCREEN_KEYS = ["saver_after", "dim_after", "dim_level", "blank_after", "off_after"];
 const SAVER_TYPES = ["balls", "confetti", "stars"];
-const PANEL_VERSION = "0.7.21";
+const PANEL_VERSION = "0.7.22";
 const FALLBACK_LANGUAGE = "en";
 const LANGUAGE_AUTO = "auto";
 const TABS = [
@@ -38,6 +38,12 @@ const TAB_ICONS = {
   history: "nav_history",
   settings: "nav_settings",
 };
+// Photo crop: the view (canvas px), the margin around the circle, and the
+// size of the uploaded square.
+const CROP_VIEW = 360;
+const CROP_MARGIN = 20;
+const CROP_OUT = 512;
+
 const PRESET_COLORS = [
   "#6CB8FF", "#FF8FB1", "#6BCB77", "#FFC94A", "#A78BFA", "#FF9F43", "#4DD4C6", "#F472B6",
 ];
@@ -565,6 +571,20 @@ class KisSegitoPanel extends HTMLElement {
     return `<img class="photo ${round ? "round" : ""}" src="/api/image/serve/${this._e(id)}/256x256" width="${size}" height="${size}" alt="">`;
   }
 
+  // The child's picture (uploaded photo, else the chosen avatar): a click or
+  // the pencil opens the avatar list (with photo upload); the red X removes
+  // the photo, which brings back the avatar.
+  _avatarField(c) {
+    const picture = c.avatar_image ? this._photo(c.avatar_image, 72, true) : this._icon(c.avatar || "avatar_00", 72);
+    const edit = this._t("children.avatar_change");
+    return `<div class="field"><span>${this._e(this._t("children.avatar"))}</span>
+      <div class="row avatar-edit">
+        <button class="plain" data-action="pick" data-path="avatar" data-arg="avatar" title="${this._e(edit)}">${picture}</button>
+        <button class="plain" data-action="pick" data-path="avatar" data-arg="avatar" title="${this._e(edit)}">${this._icon("action_edit", 28)}</button>
+        ${c.avatar_image ? `<button class="plain" data-action="clear-picture" data-arg="avatar_image" title="${this._e(this._t("children.photo_remove"))}">${this._icon("action_x", 28)}</button>` : ""}
+      </div></div>`;
+  }
+
   _pictureField(field, iconPath, filter, iconName) {
     const id = this._edit.item[field];
     const preview = id ? this._photo(id, 56, field === "avatar_image") : this._icon(iconName, 56);
@@ -717,6 +737,9 @@ class KisSegitoPanel extends HTMLElement {
         break;
       case "pick-icon":
         this._set(this._picker.path, arg);
+        if (this._picker.filter === "avatar") {
+          this._edit.item.avatar_image = "";  // the chosen avatar replaces the photo
+        }
         this._picker = null;
         break;
       case "color":
@@ -798,6 +821,9 @@ class KisSegitoPanel extends HTMLElement {
       }
       case "clear-picture":
         this._edit.item[arg] = "";
+        if (arg === "avatar_image") {
+          this._edit.item.avatar = "avatar_00";  // back to the default avatar
+        }
         break;
       case "toggle-routine": {
         const list = this._edit.item.routines;
@@ -1036,6 +1062,10 @@ class KisSegitoPanel extends HTMLElement {
       this._historyFilter[el.dataset.filter] = el.value;
       await this._loadHistory();
       this._render();
+      return;
+    }
+    if (el.dataset.cropUpload && el.files?.length) {
+      this._openCrop(el.dataset.cropUpload, el.files[0]);
       return;
     }
     if (el.dataset.uploadBg && el.files?.length) {
@@ -1665,9 +1695,7 @@ class KisSegitoPanel extends HTMLElement {
       <div class="field"><span>${this._e(this._t("children.color"))}</span>
         <div class="row">${swatches}<input type="color" data-path="color" data-rerender value="${this._e(c.color)}"></div>
         ${close ? `<div class="warn">${this._e(this._t("children.color_warning"))}</div>` : ""}</div>
-      ${c.avatar_image ? "" : `<div class="field"><span>${this._e(this._t("children.avatar"))}</span>
-        <button class="pick" data-action="pick" data-path="avatar" data-arg="avatar">${this._icon(c.avatar, 56)}</button></div>`}
-      ${this._pictureField("avatar_image", "avatar", "avatar", c.avatar)}
+      ${this._avatarField(c)}
       <label>${this._e(this._t("children.knob"))}<select data-path="device_id">${knobs}</select></label>
       <div class="muted">${this._e(this._t("children.knob_hint"))}</div>
       <label class="check"><input type="checkbox" data-path="piggy_unlocked" ${c.piggy_unlocked ? "checked" : ""}>${this._e(this._t("children.piggy_unlocked"))}</label>
@@ -1824,7 +1852,7 @@ class KisSegitoPanel extends HTMLElement {
       <button data-action="add" data-path="tasks" data-arg="task">+ ${this._e(this._t("routines.add_task"))}</button>
       ${r.id && !dayMode ? `<div class="muted small">ID: ${this._e(r.id)}</div>` : ""}
       </fieldset>
-      ${dayMode ? "" : this._routineTemplateField(r)}
+      ${this._edit.readonly ? "" : this._routineTemplateField(r)}
       ${dayMode ? this._dayButtons() : this._formButtons(Boolean(r.id))}
     </div>`;
   }
@@ -2087,6 +2115,185 @@ class KisSegitoPanel extends HTMLElement {
     </div>`;
   }
 
+  // ------------------------------------------------------------ photo crop
+
+  // A chosen photo is framed in a circle (what the knob and the panel show):
+  // drag to move it, the slider or the mouse wheel to zoom. The square around
+  // the circle is uploaded.
+  _openCrop(field, file) {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      this._picker = null;
+      this._crop = { field, url, img, zoom: 1, x: 0, y: 0 };
+      this._render();
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      this._error = this._t("picture.failed");
+      this._render();
+    };
+    img.src = url;
+  }
+
+  _viewCrop() {
+    if (!this._crop) {
+      return "";
+    }
+    return `<div class="overlay"><div class="card crop">
+      <h2>${this._e(this._t("crop.title"))}</h2>
+      <canvas class="crop-canvas" width="${CROP_VIEW}" height="${CROP_VIEW}"></canvas>
+      <label class="row crop-zoom">${this._e(this._t("crop.zoom"))}
+        <input type="range" class="grow" min="1" max="4" step="0.01" value="${this._crop.zoom}"></label>
+      <div class="muted">${this._e(this._t("crop.hint"))}</div>
+      <div class="row buttons">
+        <button class="primary" data-crop-done>${this._e(this._t("crop.done"))}</button>
+        <button data-crop-cancel>${this._e(this._t("common.cancel"))}</button>
+      </div></div></div>`;
+  }
+
+  // Scale of the photo at zoom 1: its shorter side fills the circle.
+  _cropBase() {
+    const { img } = this._crop;
+    return (CROP_VIEW - 2 * CROP_MARGIN) / Math.min(img.naturalWidth, img.naturalHeight);
+  }
+
+  // Keeps the circle inside the photo.
+  _clampCrop() {
+    const c = this._crop;
+    const scale = this._cropBase() * c.zoom;
+    const maxX = Math.max(0, (c.img.naturalWidth * scale - (CROP_VIEW - 2 * CROP_MARGIN)) / 2);
+    const maxY = Math.max(0, (c.img.naturalHeight * scale - (CROP_VIEW - 2 * CROP_MARGIN)) / 2);
+    c.x = Math.max(-maxX, Math.min(maxX, c.x));
+    c.y = Math.max(-maxY, Math.min(maxY, c.y));
+  }
+
+  // Draws the photo (x, y: offset of its centre from the view's centre).
+  _drawCrop(ctx, size, scale, offsetX, offsetY) {
+    const { img } = this._crop;
+    const w = img.naturalWidth * scale;
+    const h = img.naturalHeight * scale;
+    ctx.drawImage(img, size / 2 - w / 2 + offsetX, size / 2 - h / 2 + offsetY, w, h);
+  }
+
+  _paintCrop(canvas) {
+    const c = this._crop;
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, CROP_VIEW, CROP_VIEW);
+    this._drawCrop(ctx, CROP_VIEW, this._cropBase() * c.zoom, c.x, c.y);
+    // Dimmed outside the circle.
+    ctx.save();
+    ctx.fillStyle = "rgba(0, 0, 0, 0.55)";
+    ctx.beginPath();
+    ctx.rect(0, 0, CROP_VIEW, CROP_VIEW);
+    ctx.arc(CROP_VIEW / 2, CROP_VIEW / 2, CROP_VIEW / 2 - CROP_MARGIN, 0, Math.PI * 2, true);
+    ctx.fill("evenodd");
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.9)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(CROP_VIEW / 2, CROP_VIEW / 2, CROP_VIEW / 2 - CROP_MARGIN, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  _setupCrop() {
+    const root = this.shadowRoot;
+    const canvas = root.querySelector(".crop-canvas");
+    const slider = root.querySelector(".crop-zoom input");
+    if (!canvas || !slider) {
+      return;
+    }
+    const c = this._crop;
+    const paint = () => this._paintCrop(canvas);
+    const setZoom = (zoom) => {
+      c.zoom = Math.max(1, Math.min(4, zoom));
+      slider.value = String(c.zoom);
+      this._clampCrop();
+      paint();
+    };
+    // Canvas pixels per CSS pixel (the canvas may be shown smaller).
+    const ratio = () => CROP_VIEW / canvas.getBoundingClientRect().width;
+    let drag = null;
+    canvas.addEventListener("pointerdown", (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      canvas.setPointerCapture(ev.pointerId);
+      drag = { x: ev.clientX, y: ev.clientY, cx: c.x, cy: c.y };
+    });
+    canvas.addEventListener("pointermove", (ev) => {
+      if (!drag) {
+        return;
+      }
+      ev.stopPropagation();
+      c.x = drag.cx + (ev.clientX - drag.x) * ratio();
+      c.y = drag.cy + (ev.clientY - drag.y) * ratio();
+      this._clampCrop();
+      paint();
+    });
+    const stop = (ev) => {
+      ev.stopPropagation();
+      drag = null;
+    };
+    canvas.addEventListener("pointerup", stop);
+    canvas.addEventListener("pointercancel", stop);
+    canvas.addEventListener(
+      "wheel",
+      (ev) => {
+        ev.preventDefault();
+        setZoom(c.zoom * (ev.deltaY < 0 ? 1.1 : 1 / 1.1));
+      },
+      { passive: false }
+    );
+    slider.addEventListener("input", (ev) => {
+      ev.stopPropagation();
+      setZoom(Number(slider.value));
+    });
+    slider.addEventListener("change", (ev) => ev.stopPropagation());
+    root.querySelector("[data-crop-cancel]").addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      this._closeCrop();
+    });
+    root.querySelector("[data-crop-done]").addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      this._finishCrop().catch(() => {});
+    });
+    this._clampCrop();
+    paint();
+  }
+
+  _closeCrop() {
+    if (this._crop) {
+      URL.revokeObjectURL(this._crop.url);
+    }
+    this._crop = null;
+    this._render();
+  }
+
+  // The square around the circle, CROP_OUT px, uploaded to Home Assistant.
+  async _finishCrop() {
+    const c = this._crop;
+    const out = document.createElement("canvas");
+    out.width = out.height = CROP_OUT;
+    const k = CROP_OUT / (CROP_VIEW - 2 * CROP_MARGIN);
+    const ctx = out.getContext("2d");
+    ctx.imageSmoothingQuality = "high";
+    this._drawCrop(ctx, CROP_OUT, this._cropBase() * c.zoom * k, c.x * k, c.y * k);
+    const blob = await new Promise((resolve) => out.toBlob(resolve, "image/jpeg", 0.92));
+    const form = new FormData();
+    form.append("file", blob, "photo.jpg");
+    try {
+      const response = await this._hass.fetchWithAuth("/api/image/upload", { method: "POST", body: form });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      this._edit.item[c.field] = (await response.json()).id;
+    } catch (err) {
+      this._error = this._t("picture.failed");
+      console.warn("Kis Segito: upload failed", err);
+    }
+    this._closeCrop();
+  }
+
   _viewPicker() {
     if (!this._picker) {
       return "";
@@ -2103,10 +2310,16 @@ class KisSegitoPanel extends HTMLElement {
       .filter(filter)
       .map((n) => `<button class="pick" title="${this._e(n)}" data-action="pick-icon" data-arg="${this._e(n)}">${this._icon(n, 56)}</button>`)
       .join("");
+    const upload =
+      this._picker.filter === "avatar"
+        ? `<label class="pick upload-tile" title="${this._e(this._t("picture.upload"))}">
+            <span>${this._e(this._t("picture.upload"))}</span>
+            <input type="file" accept="image/*" data-crop-upload="avatar_image" hidden></label>`
+        : "";
     return `<div class="overlay"><div class="card picker">
-      <div class="row"><h2 class="grow">${this._e(this._t("common.choose_icon"))}</h2>
+      <div class="row"><h2 class="grow">${this._e(this._t(this._picker.filter === "avatar" ? "children.avatar_choose" : "common.choose_icon"))}</h2>
         <button data-action="cancel-picker">✕</button></div>
-      <div class="icons">${icons}</div></div></div>`;
+      <div class="icons">${upload}${icons}</div></div></div>`;
   }
 
   // ------------------------------------------------------------ render
@@ -2173,6 +2386,7 @@ class KisSegitoPanel extends HTMLElement {
         ${body}
       </div>
       ${this._viewPicker()}
+      ${this._viewCrop()}
     `;
     const content = this.shadowRoot.querySelector(".content");
     if (content) {
@@ -2192,6 +2406,9 @@ class KisSegitoPanel extends HTMLElement {
           }
         }
       }
+    }
+    if (this._crop) {
+      this._setupCrop();
     }
     const menuButton = this.shadowRoot.querySelector("ha-menu-button");
     if (menuButton) {
@@ -2485,6 +2702,12 @@ const STYLE = `
   .filters input[type="search"] { min-width: 180px; max-width: none; }
   .photo { object-fit: cover; border-radius: 10px; vertical-align: middle; }
   .photo.round { border-radius: 50%; }
+  button.plain { background: none; border: 0; padding: 2px; cursor: pointer; min-width: 0; }
+  .avatar-edit { align-items: center; gap: 4px; }
+  .upload-tile { display: flex; align-items: center; justify-content: center; text-align: center; font-size: 13px; cursor: pointer; min-height: 72px; }
+  .crop { width: min(420px, 92vw); display: flex; flex-direction: column; gap: 10px; }
+  .crop-canvas { width: 100%; max-width: 360px; aspect-ratio: 1; align-self: center; touch-action: none; cursor: grab; border-radius: 8px; background: #000; }
+  .crop-zoom { align-items: center; gap: 8px; }
   label.upload { display: inline-block; cursor: pointer; padding: 6px 12px; border-radius: 18px; border: 1px solid var(--divider-color, #e0e0e0); }
   .chain { margin-top: 6px; padding: 6px 10px; border-left: 3px solid var(--divider-color, #e0e0e0); }
   .update { border-color: var(--primary-color, #03a9f4); }
