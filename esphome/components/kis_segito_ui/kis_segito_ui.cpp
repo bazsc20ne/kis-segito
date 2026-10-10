@@ -1920,6 +1920,14 @@ void KisSegitoUI::show_(Screen screen) {
   // background is still downloading, the previous one stays.
   this->apply_background_("");
   this->build_track_();
+  // Menus open at their first item (only the selected child is kept); the
+  // shop keeps its place when coming back from a purchase question, and a
+  // screen rebuilt for new data keeps it too.
+  if (screen == Screen::FUNCTIONS && previous != Screen::FUNCTIONS)
+    this->function_ = 0;
+  if (screen == Screen::REWARDS && previous != Screen::CONFIRM && previous != Screen::REWARDS &&
+      !this->shop_().empty())
+    this->reward_ = this->shop_().front();
   switch (screen) {
     case Screen::CHILDREN:
       this->build_children_();

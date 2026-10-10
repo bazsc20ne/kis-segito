@@ -13,12 +13,18 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
 - Button: the press that goes straight back to the child selector is now
   three times as long as a long press (1.2 s with the default 400 ms, was
   0.8 s). The long press itself is unchanged.
+- Knob menus always open at their first item, the shop too (it keeps its
+  place only when coming back from the purchase question). Only the selected
+  child is remembered.
 
 ### Magyar
 
 - Gomb: a gyerekválasztóhoz egyenesen visszavivő nyomás most a hosszú nyomás
   háromszorosa (az alapértelmezett 400 ms-mal 1,2 mp, eddig 0,8 mp). Maga a
   hosszú nyomás nem változott.
+- A gomb menüi mindig az első elemmel nyílnak, a bolt is (csak a vásárlási
+  kérdésről visszatérve marad a helyén). Csak a kiválasztott gyereket jegyzi
+  meg.
 
 ## [0.7.27] - 2026-10-10
 
