@@ -225,12 +225,25 @@ static void log_psram(const char *when) {
 // Memory state every 10 minutes (each check walks the heaps once): PSRAM, and
 // the internal DMA memory the display transfer uses.
 static constexpr uint32_t MEMORY_LOG_MS = 10 * 60 * 1000;
+// Frames drawn and pixels sent to the panel since the last memory log.
+static uint32_t g_frames = 0, g_frame_kpx = 0, g_frame_px_rest = 0, g_frames_since_ms = 0;
 static void log_memory(const char *when = "") {
   ESP_LOGI(TAG, "Memory%s after %u min: PSRAM %u KB free, largest %u KB; internal DMA %u KB free, largest %u KB",
            when, (unsigned) (millis() / 60000), (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
            (unsigned) (psram_largest_block() / 1024),
            (unsigned) (heap_caps_get_free_size(MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL) / 1024),
            (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL) / 1024));
+  // Redrawing keeps the memory bus busy while the panel reads its picture
+  // from it, so a screen that never stops redrawing shows up here.
+  unsigned timers = 0;
+  for (lv_timer_t *t = lv_timer_get_next(nullptr); t != nullptr; t = lv_timer_get_next(t))
+    timers++;
+  const uint32_t now = millis();
+  ESP_LOGI(TAG, "Drawing in the last %u s: %u frames, %u kpx; %u animations running, %u timers",
+           (unsigned) ((now - g_frames_since_ms) / 1000), (unsigned) g_frames, (unsigned) g_frame_kpx,
+           (unsigned) lv_anim_count_running(), timers);
+  g_frames = g_frame_kpx = g_frame_px_rest = 0;
+  g_frames_since_ms = now;
 }
 
 static constexpr int SCREEN = 480;
@@ -989,8 +1002,13 @@ void KisSegitoUI::start() {
       lv_display_get_default(),
       [](lv_event_t *e) {
         App.feed_wdt();
+        const auto *area = static_cast<const lv_area_t *>(lv_event_get_param(e));
+        if (area != nullptr) {
+          g_frame_px_rest += lv_area_get_size(area);
+          g_frame_kpx += g_frame_px_rest / 1000;
+          g_frame_px_rest %= 1000;
+        }
         if (g_slide_measure) {
-          const auto *area = static_cast<const lv_area_t *>(lv_event_get_param(e));
           if (area != nullptr)
             g_slide_px += lv_area_get_size(area);
           g_flush_start_us = micros();
@@ -1010,6 +1028,7 @@ void KisSegitoUI::start() {
   lv_display_add_event_cb(
       lv_display_get_default(),
       [](lv_event_t *) {
+        g_frames++;
         if (g_slide_measure) {
           g_slide_frames++;
           g_slide_render_ms += millis() - g_refr_start;

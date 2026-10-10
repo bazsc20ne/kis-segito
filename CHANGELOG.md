@@ -6,6 +6,27 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.7.29] - 2026-10-10
+
+### English
+
+- The old gift box picture is gone: a new reward starts with the rewards
+  picture (the one on the knob's Rewards menu), and rewards that still had the
+  gift box show that picture too. It can be chosen in the reward picker.
+- The knob's memory log (every 10 minutes) now also tells how much the screen
+  was redrawn since the previous line and how many animations and timers are
+  running. This helps find the cause when the picture breaks up after long
+  use.
+
+### Magyar
+
+- Eltűnt a régi ajándékdoboz-kép: az új jutalom a jutalmak képével indul (ez
+  látható a gomb Jutalmak menüjében), és az ajándékdobozt használó jutalmak is
+  ezt mutatják. A jutalom képválasztójában is kiválasztható.
+- A gomb memórianaplója (10 percenként) azt is megmutatja, mennyit rajzolt újra
+  a képernyő az előző sor óta, és hány animáció és időzítő fut. Ez segít
+  megtalálni az okát, ha hosszabb használat után szétesik a kép.
+
 ## [0.7.28] - 2026-10-10
 
 ### English

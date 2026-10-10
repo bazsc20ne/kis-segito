@@ -36,6 +36,14 @@ def test_reward_bands(seconds_early: float, tokens: int) -> None:
     assert reward_for(BANDS, seconds_early) == tokens
 
 
+def test_negative_band_pays_after_the_deadline() -> None:
+    bands = [{"min_early_min": 0, "tokens": 3}, {"min_early_min": -10, "tokens": 1}]
+    assert reward_for(bands, 60) == 3
+    assert reward_for(bands, -9 * 60) == 1  # 9 minutes late
+    assert reward_for(bands, -10 * 60) == 1
+    assert reward_for(bands, -10 * 60 - 1) == 0
+
+
 def test_reward_bands_do_not_stack_and_handle_empty() -> None:
     assert reward_for([], 600) == 0
     assert reward_for([{"min_early_min": 0, "tokens": 5}], 3600) == 5

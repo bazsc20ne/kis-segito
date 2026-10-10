@@ -119,9 +119,6 @@
   "reward_family_activity": [
     160
   ],
-  "reward_gift": [
-    160
-  ],
   "routine_generic": [
     160,
     40,
@@ -305,6 +302,7 @@
     32
   ],
   "_aliases": {
+    "reward_gift": "fn_rewards",
     "task_bath": "routine_bath",
     "task_tidy_up": "routine_cleanup",
     "task_door_ready": "routine_departure",

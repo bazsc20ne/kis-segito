@@ -19,7 +19,7 @@ const secondsToMinutes = (seconds) => (seconds === null || seconds === undefined
 const minuteInput = (attrs, seconds, disabled, placeholder = "", min = 0) =>
   `<input type="number" min="${min}" max="1440" step="0.5" data-minutes ${attrs} value="${secondsToMinutes(seconds)}" placeholder="${placeholder === "" ? "" : secondsToMinutes(placeholder)}" ${disabled}>`;
 
-const PANEL_VERSION = "0.7.28";
+const PANEL_VERSION = "0.7.29";
 const FALLBACK_LANGUAGE = "en";
 const LANGUAGE_AUTO = "auto";
 const TABS = [
@@ -1218,7 +1218,7 @@ class KisSegitoPanel extends HTMLElement {
           ),
         };
       case "rewards":
-        return { name: "", icon: "reward_gift", cost: 5, active: true, kind: "normal" };
+        return { name: "", icon: "fn_rewards", cost: 5, active: true, kind: "normal" };
       case "templates":
         return { name: "", icon: "nav_calendar", routines: [] };
       default:
@@ -2368,7 +2368,7 @@ class KisSegitoPanel extends HTMLElement {
       task: content,
       checkpoint: (n) => content(n) || n === "checkpoint_flag",
       routine: content,
-      reward: (n) => content(n) || n === "fn_piggy",
+      reward: (n) => content(n) || n === "fn_rewards" || n === "fn_piggy",
     };
     const filter = filters[this._picker.filter] || (() => true);
     const icons = this._data.icons
