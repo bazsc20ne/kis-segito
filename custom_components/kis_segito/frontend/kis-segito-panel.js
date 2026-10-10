@@ -19,7 +19,7 @@ const secondsToMinutes = (seconds) => (seconds === null || seconds === undefined
 const minuteInput = (attrs, seconds, disabled, placeholder = "", min = 0) =>
   `<input type="number" min="${min}" max="1440" step="0.5" data-minutes ${attrs} value="${secondsToMinutes(seconds)}" placeholder="${placeholder === "" ? "" : secondsToMinutes(placeholder)}" ${disabled}>`;
 
-const PANEL_VERSION = "0.7.24";
+const PANEL_VERSION = "0.7.25";
 const FALLBACK_LANGUAGE = "en";
 const LANGUAGE_AUTO = "auto";
 const TABS = [
@@ -584,7 +584,7 @@ class KisSegitoPanel extends HTMLElement {
     const picture = c.avatar_image ? this._photo(c.avatar_image, 144, true) : this._icon(c.avatar || "avatar_00", 144);
     const edit = this._t("children.avatar_change");
     return `<div class="field"><span>${this._e(this._t("children.avatar"))}</span>
-      <div class="avatar-edit">
+      <div class="avatar-edit" style="--c:${this._e(c.color || "#6CB8FF")}">
         <button class="plain" data-action="pick" data-path="avatar" data-arg="avatar" title="${this._e(edit)}">${picture}</button>
         <button class="plain corner left" data-action="pick" data-path="avatar" data-arg="avatar" title="${this._e(edit)}">${this._icon("action_edit", 24)}</button>
         ${c.avatar_image ? `<button class="plain corner right" data-action="clear-picture" data-arg="avatar_image" title="${this._e(this._t("children.photo_remove"))}">${this._icon("action_x", 24)}</button>` : ""}
@@ -1246,7 +1246,7 @@ class KisSegitoPanel extends HTMLElement {
   }
 
   // Fills the routine form from a saved template: a new routine, or one day of
-  // a routine (that day keeps its id and children).
+  // a routine (that day keeps its id). The children chosen in the form stay.
   _routineTemplateChooser() {
     const templates = this._data.routine_templates || [];
     if (!templates.length) {
@@ -1264,7 +1264,7 @@ class KisSegitoPanel extends HTMLElement {
     this._edit.item =
       this._edit.collection === "day_routine"
         ? { ...current, ...filled, id: current.id, children: current.children || [], weekdays: current.weekdays }
-        : { ...filled, color: current.color };
+        : { ...filled, color: current.color, children: current.children || [] };
   }
 
   // A new routine from a saved routine template: its own ids, no children.
@@ -1699,7 +1699,7 @@ class KisSegitoPanel extends HTMLElement {
     const rows = this._data.children
       .map(
         (c, i) => `<div class="card row">
-          ${this._avatar(c, 48)}
+          ${this._avatar(c, 96)}
           <div class="grow"><div class="title">${this._e(c.name)}${c.active === false ? ` <span class="muted">(${this._e(this._t("common.inactive"))})</span>` : ""}</div>
             <div class="muted">${this._e(c.device_id ? devices.find((d) => d.device_id === c.device_id)?.name || "?" : this._t("children.any_knob"))}</div></div>
           ${this._isAdmin ? `<button class="icon-btn" data-action="move" data-arg="children:${c.id}:-1" ${i === 0 ? "disabled" : ""}>▲</button>
@@ -2765,7 +2765,8 @@ const STYLE = `
   .photo.round { border-radius: 50%; }
   button.plain { background: none; border: 0; padding: 2px; cursor: pointer; min-width: 0; }
   .avatar-edit { position: relative; display: inline-block; width: 152px; }
-  .avatar-edit .corner { position: absolute; bottom: 2px; }
+  .avatar-edit .corner { position: absolute; bottom: 2px; background: #fff; border: 1.5px solid var(--c); border-radius: 50%;
+    padding: 3px; line-height: 0; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2); }
   .avatar-edit .corner.left { left: 2px; }
   .avatar-edit .corner.right { right: 2px; }
   .upload-tile { display: flex; align-items: center; justify-content: center; text-align: center; font-size: 13px; cursor: pointer; min-height: 72px; }

@@ -6,6 +6,44 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.7.25] - 2026-10-10
+
+### English
+
+- Background: choosing **no background** takes effect at once, without a
+  restart; the old picture's memory is freed. A change to a picture still
+  restarts each knob once, after 1 minute without use.
+- Knob menu: a routine is shown only while it is running; with no routine
+  running, the shop is the first item.
+- Button: holding the press twice as long as a long press goes straight back
+  to the child selector from anywhere in the menu (after the long press has
+  stepped back one level).
+- Panel: the avatars in the children list are twice as big, like on the
+  child's page; the pencil and the red X there sit on a white circle with a
+  thin border in the child's colour.
+- Routine templates: filling a routine from a template keeps the children
+  chosen in the form.
+- Diagnostics: the knob logs its free memory every 10 minutes (picture memory
+  and the memory the display transfer uses).
+
+### Magyar
+
+- Háttér: a **nincs háttér** választás azonnal érvényes, újraindulás nélkül;
+  a régi kép memóriája felszabadul. Képre cserélésnél továbbra is minden gomb
+  egyszer újraindul, 1 perc használaton kívüli idő után.
+- A gomb menüje: egy rutin csak akkor látszik, amikor éppen fut; ha nem fut
+  rutin, a bolt az első elem.
+- Gomb: a hosszú nyomásnál kétszer hosszabb nyomás a menü bármely pontjáról
+  egyenesen a gyerekválasztóhoz visz (miután a hosszú nyomás egy szintet
+  visszalépett).
+- Panel: a gyereklistában az avatarok kétszer akkorák, mint a gyerek
+  oldalán; ott a ceruza és a piros X fehér körön ül, vékony, a gyerek
+  színével megegyező szegéllyel.
+- Rutinsablonok: sablonból kitöltéskor az űrlapon kiválasztott gyerekek
+  megmaradnak.
+- Diagnosztika: a gomb 10 percenként naplózza a szabad memóriáját (a
+  képmemóriát és a kijelző adatátviteléhez használt memóriát).
+
 ## [0.7.24] - 2026-10-10
 
 ### English

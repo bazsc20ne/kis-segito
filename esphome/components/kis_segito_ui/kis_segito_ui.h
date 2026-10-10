@@ -177,6 +177,7 @@ class KisSegitoUI : public Component {
   void rotate(int dir);
   void click();
   void long_press();
+  void go_home();
   void set_connected(bool connected);
   // Screen power timers from Home Assistant, in seconds (0 = never), and the
   // dimmed brightness in percent.
@@ -416,6 +417,7 @@ class KisSegitoUI : public Component {
   uint32_t state_sig_{0};  // the last snapshot without its time
   std::deque<int> input_;  // queued input: +1/-1 turn, 2 click, 3 long press
   uint32_t last_poll_ms_{0};
+  uint32_t last_memory_log_ms_{0};
 
   bool started_{false};
   bool boot_info_logged_{false};

@@ -207,6 +207,17 @@ static void log_psram(const char *when) {
            (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024), (unsigned) (psram_largest_block() / 1024));
 }
 
+// Memory state every 10 minutes (each check walks the heaps once): PSRAM, and
+// the internal DMA memory the display transfer uses.
+static constexpr uint32_t MEMORY_LOG_MS = 10 * 60 * 1000;
+static void log_memory() {
+  ESP_LOGI(TAG, "Memory after %u min: PSRAM %u KB free, largest %u KB; internal DMA %u KB free, largest %u KB",
+           (unsigned) (millis() / 60000), (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
+           (unsigned) (psram_largest_block() / 1024),
+           (unsigned) (heap_caps_get_free_size(MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL) / 1024),
+           (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL) / 1024));
+}
+
 static constexpr int SCREEN = 480;
 static constexpr int CENTER = SCREEN / 2;
 static constexpr uint32_t BASE_BG = 0x1B2140;  // deep navy
@@ -1331,13 +1342,30 @@ void KisSegitoUI::photo_task_(void *arg) {
 // not been used for a minute and shows it from there. The picture on screen
 // stays until then. If it cannot be stored, nothing restarts.
 void KisSegitoUI::start_background_change_(const std::string &bg) {
+  const uint32_t gen = ++this->bg_gen_;
+  this->restart_at_ms_ = 0;
+  if (bg.empty()) {
+    // No background: the plain colour at once, no restart; the old picture's
+    // memory is freed (its place in the flash cache is reused later).
+    this->bg_change_ = false;
+    const std::string old = this->shown_bg_;
+    this->general_bg_.clear();
+    if (this->started_)
+      this->apply_background_(this->wanted_bg_);
+    auto it = this->photos_.find(old);
+    if (it != this->photos_.end() && this->shown_bg_ != old) {
+      lv_image_cache_drop(it->second.dsc);
+      heap_caps_free(it->second.raw);
+      delete it->second.dsc;
+      this->photos_.erase(it);
+      this->photo_requested_.erase(old);
+    }
+    ESP_LOGI(TAG, "Background removed");
+    return;
+  }
   this->bg_change_ = true;
   this->bg_target_ = bg;
-  this->restart_at_ms_ = 0;
-  const uint32_t gen = ++this->bg_gen_;
-  if (bg.empty()) {
-    this->bg_store_ = BG_STORED;  // nothing to store
-  } else {
+  {
     this->bg_store_ = BG_PENDING;
     const std::string key = "@" + bg + "_480";
     const size_t sep = key.rfind('_');
@@ -1436,6 +1464,10 @@ void KisSegitoUI::loop() {
     this->poll_connection_();
     if (this->started_)
       this->release_photos_(0);
+    if (now - this->last_memory_log_ms_ >= MEMORY_LOG_MS) {
+      this->last_memory_log_ms_ = now;
+      log_memory();
+    }
   }
   this->check_background_restart_(now);
   // Downloaded pictures come before carousel pictures: room is made for them,
@@ -1807,10 +1839,13 @@ std::vector<int> KisSegitoUI::shop_() const {
 }
 
 std::vector<FnItem> KisSegitoUI::functions_for_(const Child &child) const {
-  // Today's routines for this child first, then rewards, piggy bank, tokens.
+  // The routines running now for this child first (none outside their
+  // time), then rewards, piggy bank, tokens.
   std::vector<FnItem> fns;
+  const int64_t now = this->now_();
   for (size_t i = 0; i < this->routines_.size(); i++) {
-    if (applies(this->routines_[i].children, child.id))
+    const Routine &r = this->routines_[i];
+    if (applies(r.children, child.id) && now >= r.start && now < r.end)
       fns.push_back({FnType::ROUTINE, static_cast<int>(i)});
   }
   fns.push_back({FnType::REWARDS, -1});
@@ -1897,6 +1932,11 @@ void KisSegitoUI::long_press() {
     this->input_.push_back(3);
 }
 
+void KisSegitoUI::go_home() {
+  if (this->started_)
+    this->input_.push_back(4);
+}
+
 // One queued input per loop, so the screen is drawn between steps.
 void KisSegitoUI::handle_input_() {
   if (this->input_.empty())
@@ -1907,6 +1947,11 @@ void KisSegitoUI::handle_input_() {
     this->do_click_();
   } else if (in == 3) {
     this->do_long_press_();
+  } else if (in == 4) {
+    // A press twice as long as a long press: back to the child selector.
+    this->last_input_ms_ = millis();
+    if (this->screen_ != Screen::CHILDREN)
+      this->show_(Screen::CHILDREN);
   } else {
     // Turns that piled up while the screen was busy are added up: the
     // carousel jumps to the item before the last at once (one redraw, however
