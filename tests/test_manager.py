@@ -174,9 +174,9 @@ def test_migrate_children_background_and_sample_avatars() -> None:
         }
     )
     assert [c["avatar"] for c in data["children"]] == [
-        "avatar_01",
+        "avatar_00",
         "avatar_05",
-        "avatar_01",
+        "avatar_00",
     ]
     assert all("background" not in c for c in data["children"])
 

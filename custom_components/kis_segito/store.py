@@ -39,7 +39,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "notification_label": "Kis Segítő",
     # Background of the knob and the panel: "" (none), a preset ("bg_1" …) or
     # an uploaded picture id; a child's own background overrides it.
-    "background": "",
+    "background": "bg_2",
     # Knob screen power (seconds, 0 = never; dim_level in percent); each knob
     # can override any of them.
     "screen": {
@@ -78,7 +78,7 @@ def _empty_config() -> dict[str, Any]:
     }
 
 
-DEFAULT_AVATAR = "avatar_01"
+DEFAULT_AVATAR = "avatar_00"  # neutral, neither a boy nor a girl
 RETIRED_AVATARS = {
     "test_avatar_1",
     "test_avatar_2",

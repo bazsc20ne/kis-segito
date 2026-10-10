@@ -732,7 +732,7 @@ void KisSegitoUI::set_state(const std::string &json) {
   for (JsonObjectConst c : root["children"].as<JsonArrayConst>()) {
     Child child;
     child.id = c["id"].as<const char *>() ? c["id"].as<const char *>() : "";
-    child.avatar = c["a"] | "avatar_01";
+    child.avatar = c["a"] | "avatar_00";
     child.color = parse_color(c["c"].as<const char *>(), 0x6CB8FF);
     child.wallet = c["w"] | 0;
     child.piggy = c["p"] | 0;
@@ -742,7 +742,7 @@ void KisSegitoUI::set_state(const std::string &json) {
     child.selectable = c["sel"] | true;
     child.pending_interest = c["pi"] | 0;
     // Built-in avatars come from Home Assistant like uploaded pictures.
-    child.avatar = "@" + (is_online_icon(child.avatar) ? child.avatar : std::string("avatar_01"));
+    child.avatar = "@" + (is_online_icon(child.avatar) ? child.avatar : std::string("avatar_00"));
     if (c["ai"].is<const char *>() && strlen(c["ai"].as<const char *>()) > 0)
       child.avatar = std::string("@") + c["ai"].as<const char *>();
     children.push_back(child);

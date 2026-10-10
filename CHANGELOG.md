@@ -6,6 +6,26 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.7.20] - 2026-10-10
+
+### English
+
+- New neutral avatar (neither a boy nor a girl). It is preselected for a new
+  child and replaces the removed sample avatars.
+- A new installation starts with the second built-in background; the choice
+  on the **Settings** page is kept as before.
+- Background change: the knob logs the restart and waits 2 s before it
+  restarts, so the log line reaches Home Assistant.
+
+### Magyar
+
+- Új semleges avatar (se nem fiú, se nem lány). Új gyereknél ez van előre
+  kiválasztva, és ez lép a megszűnt minta-avatarok helyére.
+- Új telepítés a második beépített háttérrel indul; a **Beállítások** oldalon
+  választott háttér ugyanúgy megmarad, mint eddig.
+- Háttércsere: a gomb naplózza az újraindítást, és 2 mp-et vár előtte, így a
+  naplósor eljut a Home Assistantig.
+
 ## [0.7.19] - 2026-10-10
 
 ### English

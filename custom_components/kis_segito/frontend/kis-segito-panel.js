@@ -13,7 +13,7 @@
 // Knob screen power settings (seconds; dim_level in percent).
 const SCREEN_KEYS = ["saver_after", "dim_after", "dim_level", "blank_after", "off_after"];
 const SAVER_TYPES = ["balls", "confetti", "stars"];
-const PANEL_VERSION = "0.7.19";
+const PANEL_VERSION = "0.7.20";
 const FALLBACK_LANGUAGE = "en";
 const LANGUAGE_AUTO = "auto";
 const TABS = [
@@ -556,7 +556,7 @@ class KisSegitoPanel extends HTMLElement {
   _avatar(child, size = 48) {
     const inner = child.avatar_image
       ? this._photo(child.avatar_image, size - 6, true)
-      : this._icon(child.avatar || "avatar_01", size - 6);
+      : this._icon(child.avatar || "avatar_00", size - 6);
     return `<span class="avatar" style="--c:${this._e(child.color || "#6CB8FF")};width:${size}px;height:${size}px">${inner}</span>`;
   }
 
@@ -1132,7 +1132,7 @@ class KisSegitoPanel extends HTMLElement {
         return {
           name: "",
           color: PRESET_COLORS[(this._data.children.length || 0) % PRESET_COLORS.length],
-          avatar: "avatar_01",
+          avatar: "avatar_00",
           birth_date: "",
           active: true,
           // Locked when a reward can unlock it, open otherwise (#11).
