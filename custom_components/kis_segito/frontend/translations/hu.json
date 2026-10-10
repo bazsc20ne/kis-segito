@@ -280,5 +280,7 @@
   "crop.zoom": "Nagyítás",
   "crop.hint": "A képet húzással mozgathatod, a csúszkával vagy az egérgörgővel nagyíthatod. Ami a körön belül van, az látszik.",
   "crop.done": "Kész",
-  "children.photo_remove": "Fénykép törlése (vissza az alap avatarra)"
+  "children.photo_remove": "Fénykép törlése (vissza az alap avatarra)",
+  "rtemplates.use": "Kitöltés mentett sablonból",
+  "crop.whole": "Feltöltés kivágás nélkül"
 }

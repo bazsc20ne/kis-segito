@@ -6,6 +6,50 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.7.24] - 2026-10-10
+
+### English
+
+- New artwork for all rewards (toy car, doll, bricks, long story, extra
+  story, choose a game, treat, family activity), for the green check (also its
+  small version on the knob) and for the completed day of the streak; the old
+  drawings are gone everywhere.
+- Icons: rewards, tasks, routines and checkpoints offer the same pictures:
+  every reward, task and routine picture can be chosen for any of them.
+- Background: choosing the background that is already active again does
+  nothing (no download, no restart). A real change still restarts each knob
+  once, after 1 minute without use.
+- Child photo: a picture with a transparent background stays transparent
+  (uploaded as PNG). Framing can be skipped: **Upload without framing**
+  uploads the picture as it is.
+- Child form: the picture is about twice as big; a small pencil (change) sits
+  in its lower left corner and, with a photo, a small red X (remove) in the
+  lower right corner.
+- Routine templates: a new routine and a routine changed for one day (in the
+  calendar) can be filled from a saved template at the top of the form; a day
+  keeps its children.
+
+### Magyar
+
+- Új rajz minden jutalomhoz (kisautó, baba, kockák, hosszú mese, extra mese,
+  társasjáték választása, nasi, családi program), a zöld pipához (a gombon a
+  kis változata is) és a sorozat teljesített napjához; a régi rajzok
+  mindenhonnan kikerültek.
+- Ikonok: a jutalmak, a feladatok, a rutinok és a checkpointok ugyanazokat a
+  képeket kínálják: minden jutalom-, feladat- és rutinkép bármelyikhez
+  választható.
+- Háttér: a már aktív háttér újbóli kiválasztása nem csinál semmit (nincs
+  letöltés, nincs újraindulás). Valódi cserénél továbbra is minden gomb
+  egyszer újraindul, 1 perc használaton kívüli idő után.
+- Gyerek fényképe: az átlátszó hátterű kép átlátszó marad (PNG-ként töltődik
+  fel). A kivágás kihagyható: a **Feltöltés kivágás nélkül** a képet úgy
+  tölti fel, ahogy van.
+- Gyerek szerkesztőlapja: a kép kb. kétszer akkora; bal alsó sarkában egy kis
+  ceruza (módosítás), fénykép esetén a jobb alsó sarkában egy kis piros X
+  (törlés).
+- Rutinsablonok: új rutin és a naptárban egy napra módosított rutin az űrlap
+  tetején mentett sablonból tölthető ki; a nap megtartja a gyerekeit.
+
 ## [0.7.23] - 2026-10-10
 
 ### English

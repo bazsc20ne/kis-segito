@@ -65,7 +65,7 @@ epoch seconds, colours `#RRGGBB`):
   (`bg_1` … `bg_6`) or an uploaded picture id. The knob
   downloads it like a picture, at size 480, as `KSI2` (RGB565 without alpha,
   the whole screen).
-- `bgs`: counts the background choices, also of the same picture. When `bg` or
+- `bgs`: counts the background changes. When `bg` or
   `bgs` changes while the knob runs, it stores the new background in its flash
   cache and restarts after 1 minute without input, then shows it from there.
 - `children[].pi`: piggy-bank interest paid but not shown to the child yet; the

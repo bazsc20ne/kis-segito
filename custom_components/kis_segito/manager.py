@@ -306,9 +306,11 @@ class KisSegitoManager:
         for key, value in changes.items():
             if self.settings.get(key) != value:
                 self._audit(who, f"settings.{key}", self.settings.get(key), value)
-        if "background" in changes:
-            # Counts every choice, also of the same picture: the knobs restart
-            # to show the background after each one.
+        if "background" in changes and changes["background"] != self.settings.get(
+            "background"
+        ):
+            # Counts every change: the knobs restart to show the new picture
+            # after each one (choosing the current one again changes nothing).
             changes = changes | {
                 "background_seq": int(self.settings.get("background_seq", 0)) + 1
             }
@@ -1170,7 +1172,7 @@ class KisSegitoManager:
         rewards = [
             {
                 "id": r["id"],
-                "i": r.get("icon", "fn_rewards"),
+                "i": stored_icon(r.get("icon", "fn_rewards")),
                 "ii": r.get("image") or "",
                 "c": int(r.get("cost", 0)),
                 "k": r.get("kind", "normal"),

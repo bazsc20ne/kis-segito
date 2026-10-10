@@ -280,5 +280,7 @@
   "crop.zoom": "Zoom",
   "crop.hint": "Drag the photo to move it; zoom with the slider or the mouse wheel. What is inside the circle is shown.",
   "crop.done": "Done",
-  "children.photo_remove": "Remove photo (back to the default avatar)"
+  "children.photo_remove": "Remove photo (back to the default avatar)",
+  "rtemplates.use": "Fill from a saved template",
+  "crop.whole": "Upload without framing"
 }

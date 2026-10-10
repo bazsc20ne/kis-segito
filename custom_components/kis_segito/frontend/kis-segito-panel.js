@@ -19,7 +19,7 @@ const secondsToMinutes = (seconds) => (seconds === null || seconds === undefined
 const minuteInput = (attrs, seconds, disabled, placeholder = "", min = 0) =>
   `<input type="number" min="${min}" max="1440" step="0.5" data-minutes ${attrs} value="${secondsToMinutes(seconds)}" placeholder="${placeholder === "" ? "" : secondsToMinutes(placeholder)}" ${disabled}>`;
 
-const PANEL_VERSION = "0.7.23";
+const PANEL_VERSION = "0.7.24";
 const FALLBACK_LANGUAGE = "en";
 const LANGUAGE_AUTO = "auto";
 const TABS = [
@@ -581,13 +581,13 @@ class KisSegitoPanel extends HTMLElement {
   // the pencil opens the avatar list (with photo upload); the red X removes
   // the photo, which brings back the avatar.
   _avatarField(c) {
-    const picture = c.avatar_image ? this._photo(c.avatar_image, 72, true) : this._icon(c.avatar || "avatar_00", 72);
+    const picture = c.avatar_image ? this._photo(c.avatar_image, 144, true) : this._icon(c.avatar || "avatar_00", 144);
     const edit = this._t("children.avatar_change");
     return `<div class="field"><span>${this._e(this._t("children.avatar"))}</span>
-      <div class="row avatar-edit">
+      <div class="avatar-edit">
         <button class="plain" data-action="pick" data-path="avatar" data-arg="avatar" title="${this._e(edit)}">${picture}</button>
-        <button class="plain" data-action="pick" data-path="avatar" data-arg="avatar" title="${this._e(edit)}">${this._icon("action_edit", 28)}</button>
-        ${c.avatar_image ? `<button class="plain" data-action="clear-picture" data-arg="avatar_image" title="${this._e(this._t("children.photo_remove"))}">${this._icon("action_x", 28)}</button>` : ""}
+        <button class="plain corner left" data-action="pick" data-path="avatar" data-arg="avatar" title="${this._e(edit)}">${this._icon("action_edit", 24)}</button>
+        ${c.avatar_image ? `<button class="plain corner right" data-action="clear-picture" data-arg="avatar_image" title="${this._e(this._t("children.photo_remove"))}">${this._icon("action_x", 24)}</button>` : ""}
       </div></div>`;
   }
 
@@ -1072,6 +1072,13 @@ class KisSegitoPanel extends HTMLElement {
       this._render();
       return;
     }
+    if (el.dataset.rtemplateApply !== undefined) {
+      if (el.value) {
+        this._applyRoutineTemplate(el.value);
+      }
+      this._render();
+      return;
+    }
     if (el.dataset.cropUpload && el.files?.length) {
       this._openCrop(el.dataset.cropUpload, el.files[0]);
       return;
@@ -1236,6 +1243,28 @@ class KisSegitoPanel extends HTMLElement {
             ROUTINE_COLORS[this._data.routines.length % ROUTINE_COLORS.length],
         };
     }
+  }
+
+  // Fills the routine form from a saved template: a new routine, or one day of
+  // a routine (that day keeps its id and children).
+  _routineTemplateChooser() {
+    const templates = this._data.routine_templates || [];
+    if (!templates.length) {
+      return "";
+    }
+    return `<label>${this._e(this._t("rtemplates.use"))}<select data-rtemplate-apply>
+      <option value="">—</option>
+      ${templates.map((t) => `<option value="${this._e(t.id)}">${this._e(t.name)}</option>`).join("")}
+    </select></label>`;
+  }
+
+  _applyRoutineTemplate(id) {
+    const current = this._edit.item;
+    const filled = this._fromRoutineTemplate(id);
+    this._edit.item =
+      this._edit.collection === "day_routine"
+        ? { ...current, ...filled, id: current.id, children: current.children || [], weekdays: current.weekdays }
+        : { ...filled, color: current.color };
   }
 
   // A new routine from a saved routine template: its own ids, no children.
@@ -1837,6 +1866,7 @@ class KisSegitoPanel extends HTMLElement {
     return `<div class="card form sheet ${dayMode ? "day-mode" : ""}">
       <h2>${this._e(title)}</h2>${dayNote}
       <fieldset ${this._edit.readonly ? "disabled" : ""}>
+      ${(dayMode || !r.id) && !this._edit.readonly ? this._routineTemplateChooser() : ""}
       <div class="row"><button class="pick" data-action="pick" data-path="icon" data-arg="routine">${this._icon(r.icon, 56)}</button>
         <label class="grow">${this._e(this._t("common.name"))}${diff("name")}<input data-path="name" value="${this._e(r.name)}"></label></div>
       <div class="row wrap"><label>${this._e(this._t("routines.start"))}${diff("start")}<input type="time" data-path="start" value="${this._e(r.start)}"></label>
@@ -2138,7 +2168,7 @@ class KisSegitoPanel extends HTMLElement {
     const img = new Image();
     img.onload = () => {
       this._picker = null;
-      this._crop = { field, url, img, zoom: 1, x: 0, y: 0 };
+      this._crop = { field, url, img, file, zoom: 1, x: 0, y: 0 };
       this._render();
     };
     img.onerror = () => {
@@ -2161,6 +2191,7 @@ class KisSegitoPanel extends HTMLElement {
       <div class="muted">${this._e(this._t("crop.hint"))}</div>
       <div class="row buttons">
         <button class="primary" data-crop-done>${this._e(this._t("crop.done"))}</button>
+        <button data-crop-whole>${this._e(this._t("crop.whole"))}</button>
         <button data-crop-cancel>${this._e(this._t("common.cancel"))}</button>
       </div></div></div>`;
   }
@@ -2270,6 +2301,10 @@ class KisSegitoPanel extends HTMLElement {
       ev.stopPropagation();
       this._finishCrop().catch(() => {});
     });
+    root.querySelector("[data-crop-whole]").addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      this._finishUncropped().catch(() => {});
+    });
     this._clampCrop();
     paint();
   }
@@ -2291,9 +2326,20 @@ class KisSegitoPanel extends HTMLElement {
     const ctx = out.getContext("2d");
     ctx.imageSmoothingQuality = "high";
     this._drawCrop(ctx, CROP_OUT, this._cropBase() * c.zoom * k, c.x * k, c.y * k);
-    const blob = await new Promise((resolve) => out.toBlob(resolve, "image/jpeg", 0.92));
+    // PNG: a transparent background stays transparent.
+    const blob = await new Promise((resolve) => out.toBlob(resolve, "image/png"));
+    await this._uploadCropped(blob, "photo.png");
+  }
+
+  // The chosen file as it is, without framing.
+  async _finishUncropped() {
+    await this._uploadCropped(this._crop.file, this._crop.file.name || "photo");
+  }
+
+  async _uploadCropped(blob, name) {
+    const c = this._crop;
     const form = new FormData();
-    form.append("file", blob, "photo.jpg");
+    form.append("file", blob, name);
     try {
       const response = await this._hass.fetchWithAuth("/api/image/upload", { method: "POST", body: form });
       if (!response.ok) {
@@ -2311,12 +2357,14 @@ class KisSegitoPanel extends HTMLElement {
     if (!this._picker) {
       return "";
     }
+    // Rewards, tasks, routines and checkpoints all offer the same pictures.
+    const content = (n) => n.startsWith("routine_") || n.startsWith("task_") || n.startsWith("reward_");
     const filters = {
       avatar: (n) => n.startsWith("avatar_"),
-      task: (n) => n.startsWith("task_") || n.startsWith("routine_"),
-      checkpoint: (n) => n.startsWith("task_") || n.startsWith("routine_") || n === "checkpoint_flag",
-      routine: (n) => n.startsWith("routine_") || n.startsWith("task_"),
-      reward: (n) => n.startsWith("reward_") || n === "fn_piggy",
+      task: content,
+      checkpoint: (n) => content(n) || n === "checkpoint_flag",
+      routine: content,
+      reward: (n) => content(n) || n === "fn_piggy",
     };
     const filter = filters[this._picker.filter] || (() => true);
     const icons = this._data.icons
@@ -2716,10 +2764,14 @@ const STYLE = `
   .photo { object-fit: cover; border-radius: 10px; vertical-align: middle; }
   .photo.round { border-radius: 50%; }
   button.plain { background: none; border: 0; padding: 2px; cursor: pointer; min-width: 0; }
-  .avatar-edit { align-items: center; gap: 4px; }
+  .avatar-edit { position: relative; display: inline-block; width: 152px; }
+  .avatar-edit .corner { position: absolute; bottom: 2px; }
+  .avatar-edit .corner.left { left: 2px; }
+  .avatar-edit .corner.right { right: 2px; }
   .upload-tile { display: flex; align-items: center; justify-content: center; text-align: center; font-size: 13px; cursor: pointer; min-height: 72px; }
   .crop { width: min(420px, 92vw); display: flex; flex-direction: column; gap: 10px; }
-  .crop-canvas { width: 100%; max-width: 360px; aspect-ratio: 1; align-self: center; touch-action: none; cursor: grab; border-radius: 8px; background: #000; }
+  .crop-canvas { width: 100%; max-width: 360px; aspect-ratio: 1; align-self: center; touch-action: none; cursor: grab; border-radius: 8px;
+    background: repeating-conic-gradient(#ccc 0 25%, #fff 0 50%) 50% / 16px 16px; }
   .crop-zoom { align-items: center; gap: 8px; }
   label.upload { display: inline-block; cursor: pointer; padding: 6px 12px; border-radius: 18px; border: 1px solid var(--divider-color, #e0e0e0); }
   .chain { margin-top: 6px; padding: 6px 10px; border-left: 3px solid var(--divider-color, #e0e0e0); }
