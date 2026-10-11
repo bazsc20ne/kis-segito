@@ -6,6 +6,22 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [Unreleased]
+
+### English
+
+- The knob has a Restart button in Home Assistant (under the device's
+  configuration). It restarts the knob safely; the log says the restart was
+  asked for from Home Assistant, so it is easy to tell apart from the restart
+  after a background change.
+
+### Magyar
+
+- A gombnak van Újraindítás (Restart) gombja a Home Assistantban (az eszköz
+  konfigurációs elemei között). Biztonságosan újraindítja a gombot; a naplóban
+  látszik, hogy a Home Assistantból kérték, így nem téveszthető össze a
+  háttércsere utáni újraindítással.
+
 ## [0.7.29] - 2026-10-10
 
 ### English

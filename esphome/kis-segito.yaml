@@ -627,6 +627,16 @@ binary_sensor:
           id(swallow_click) = false;
           id(long_press_fired) = false;
 
+button:
+  # Manual restart from Home Assistant (separate from the restart that applies
+  # a new background).
+  - platform: restart
+    name: Restart
+    on_press:
+      - logger.log:
+          format: "Manual restart requested from Home Assistant"
+          tag: kis_segito
+
 text_sensor:
   # The child's actions on the knob (JSON with a unique id), for Home
   # Assistant: completed tasks, redeemed rewards. See docs/protocol.md.
