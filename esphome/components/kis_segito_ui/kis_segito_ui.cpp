@@ -38,10 +38,11 @@ static const char *const TAG = "kis_segito_ui";
 // fixed large reserve made every small picture "not fit" once the memory was
 // broken up, and making room for them again and again disturbed the display.)
 static constexpr size_t PSRAM_RESERVE = 384 * 1024;
-// Downloaded pictures nothing shows are kept in PSRAM up to this size while a
-// screen is open (the least recently used go first), and freed when another
-// screen opens; the flash cache brings them back.
-static constexpr size_t PHOTO_KEEP_UNUSED = 256 * 1024;
+// Downloaded pictures nothing shows are kept in PSRAM up to this size (about a
+// dozen item pictures), so going back and forth between screens does not load
+// them from the flash cache again and again. The least recently used go first,
+// and more go whenever a new picture needs the room.
+static constexpr size_t PHOTO_KEEP_UNUSED = 1024 * 1024;
 
 static size_t psram_largest_block() { return heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT); }
 
@@ -1972,14 +1973,13 @@ void KisSegitoUI::show_(Screen screen) {
     case Screen::NONE:
       break;
   }
-  // Pictures the new screen does not show are freed at once, so the memory
-  // does not break up: the downloaded ones (from the flash cache when needed
-  // again), and the shop's drawn items when the shop is left.
+  // The shop's drawn items are freed when the shop is left; downloaded
+  // pictures the new screen does not show stay within PHOTO_KEEP_UNUSED.
   const auto in_shop = [](Screen s) { return s == Screen::REWARDS || s == Screen::CONFIRM; };
   if (in_shop(previous) && !in_shop(screen))
     pic_cache_drop("r|");
   if (this->started_)
-    this->release_photos_(0, 0);
+    this->release_photos_(0, PHOTO_KEEP_UNUSED);
 }
 
 void KisSegitoUI::rotate(int dir) {

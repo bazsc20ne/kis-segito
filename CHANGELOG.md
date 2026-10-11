@@ -6,7 +6,7 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
-## [Unreleased]
+## [0.7.30] - 2026-10-11
 
 ### English
 
@@ -15,12 +15,33 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   asked for from Home Assistant, so it is easy to tell apart from the restart
   after a background change.
 
+- Display: fixes the striped picture with stepped ring edges that could
+  appear after a few minutes of use (browsing, the shop) and stayed until
+  the knob restarted. The panel's picture transfer restarted at every
+  vertical sync, and with the ESP-IDF 5.5 used by ESPHome a single frame
+  with missed data could then leave it out of step for good. The transfer
+  now restarts only when needed (`display_restart_in_vsync` is `"n"` by
+  default), which puts a disturbed picture right within a frame or two.
+- Item pictures are kept in memory (up to about 1 MB, about a dozen
+  pictures) when going back and forth between screens, instead of being
+  loaded from the flash cache again each time.
+
 ### Magyar
 
 - A gombnak van Újraindítás (Restart) gombja a Home Assistantban (az eszköz
   konfigurációs elemei között). Biztonságosan újraindítja a gombot; a naplóban
   látszik, hogy a Home Assistantból kérték, így nem téveszthető össze a
   háttércsere utáni újraindítással.
+- Kijelző: megszűnt a csíkos kép lépcsős gyűrűszélekkel, amely néhány perc
+  használat (lapozás, bolt) után megjelenhetett, és a gomb újraindulásáig
+  megmaradt. A panel képátvitele minden függőleges szinkronnál újraindult, és
+  az ESPHome által használt ESP-IDF 5.5-tel egyetlen adathiányos képkocka után
+  végleg kiléphetett az ütemből. Az átvitel most csak szükség esetén indul újra
+  (a `display_restart_in_vsync` alapértéke `"n"`), így a megzavart kép egy-két
+  képkockán belül helyreáll.
+- A tárgyképek a memóriában maradnak (legfeljebb kb. 1 MB-ig, kb. egy tucat
+  kép) a képernyők közötti oda-vissza lépkedésnél, nem töltődnek be minden
+  alkalommal újra a flash-gyorsítótárból.
 
 ## [0.7.29] - 2026-10-10
 
