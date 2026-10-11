@@ -971,6 +971,12 @@ class KisSegitoPanel extends HTMLElement {
         }
         await this._ws({ type: "kis_segito/device/rotate_token", device_id: arg });
         return;
+      case "restart-knob":
+        if (!confirm(this._t("settings.knob_restart_confirm"))) {
+          return;
+        }
+        await this._ws({ type: "kis_segito/device/restart", device_id: arg });
+        return;
       case "reverse":
         if (!confirm(this._t("history.confirm_reverse"))) {
           return;
@@ -2083,6 +2089,10 @@ class KisSegitoPanel extends HTMLElement {
         const rotate = this._isAdmin
           ? `<button class="small" data-action="rotate-token" data-arg="${this._e(d.device_id)}">${this._e(this._t("settings.knob_new_key"))}</button>`
           : "";
+        const restart =
+          this._isAdmin && d.can_restart
+            ? `<button class="small" data-action="restart-knob" data-arg="${this._e(d.device_id)}">${this._e(this._t("settings.knob_restart"))}</button>`
+            : "";
         const own = d.screen || {};
         const screen = SCREEN_KEYS.map((k) =>
           k === "dim_level"
@@ -2090,7 +2100,7 @@ class KisSegitoPanel extends HTMLElement {
             data-device-screen="${k}" data-device="${this._e(d.device_id)}" value="${own[k] ?? ""}" placeholder="${this._e(String(s.screen?.[k] ?? ""))}" ${disabled}></label>`
             : `<label>${this._e(this._t(`screen.${k}`))}${minuteInput(`data-device-screen="${k}" data-device="${this._e(d.device_id)}"`, own[k], disabled, s.screen?.[k] ?? "")}</label>`
         ).join("");
-        return `<div class="row">${this._icon("nav_settings", 28)}<span class="grow">${this._e(d.name)}</span>${avatars}${rotate}</div>${warning}
+        return `<div class="row">${this._icon("nav_settings", 28)}<span class="grow">${this._e(d.name)}</span>${avatars}${rotate}${restart}</div>${warning}
           <details class="knob-screen"><summary>${this._e(this._t("screen.own"))}</summary>
             <div class="muted">${this._e(this._t("screen.own_hint"))}</div>${screen}
             <label>${this._e(this._t("screen.saver_type"))}<select data-device-screen-type data-device="${this._e(d.device_id)}" ${disabled}>
@@ -2110,6 +2120,7 @@ class KisSegitoPanel extends HTMLElement {
           ${["full", "reduced", "off"].map((m) => `<option value="${m}" ${s.animation_mode === m ? "selected" : ""}>${this._e(this._t(`settings.animation_${m}`))}</option>`).join("")}
         </select></label>
         <label>${this._e(this._t("settings.inactivity"))}${minuteInput(`data-setting="inactivity_s"`, s.inactivity_s, disabled, "", 0.5)}</label>
+        <label>${this._e(this._t("settings.routine_menu_grace"))}${minuteInput(`data-setting="routine_menu_grace_s"`, s.routine_menu_grace_s, disabled)}</label>
       </div>
       <div class="card form">
         <h2>${this._e(this._t("screen.title"))}</h2>

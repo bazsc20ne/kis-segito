@@ -69,6 +69,7 @@ def async_register_commands(hass: HomeAssistant) -> None:
         ws_day_routine,
         ws_rotate_device_token,
         ws_device_screen,
+        ws_restart_device,
     ):
         websocket_api.async_register_command(hass, command)
 
@@ -124,6 +125,9 @@ async def ws_settings(
         vol.Optional("language"): str,
         vol.Optional("animation_mode"): vol.In(["full", "reduced", "off"]),
         vol.Optional("inactivity_s"): vol.All(int, vol.Range(min=10, max=3600)),
+        vol.Optional("routine_menu_grace_s"): vol.All(
+            int, vol.Range(min=0, max=86400)
+        ),
         vol.Optional("streak_target"): vol.All(int, vol.Range(min=0, max=365)),
         vol.Optional("streak_reward"): vol.All(int, vol.Range(min=0, max=1000)),
         vol.Optional("piggy_interest_percent"): vol.All(
@@ -161,6 +165,7 @@ async def ws_settings_update(
         for key in (
             "animation_mode",
             "inactivity_s",
+            "routine_menu_grace_s",
             "streak_target",
             "streak_reward",
             "piggy_interest_percent",
@@ -212,6 +217,7 @@ def _devices(hass: HomeAssistant) -> list[dict[str, Any]]:
                 "device_id": device_id,
                 "name": (device.name_by_user or device.name) if device else entry.title,
                 "encrypted": device is not None and api_encrypted(hass, device),
+                "can_restart": _restart_button(hass, device_id) is not None,
                 "screen": hass.data[DOMAIN]
                 .manager.data["devices"]
                 .get(device_id, {})
@@ -267,6 +273,44 @@ async def ws_rotate_device_token(
         connection.send_error(msg["id"], "unknown_device", "Unknown knob")
         return
     await _manager(hass).async_rotate_device_token(msg["device_id"])
+    connection.send_result(msg["id"])
+
+
+def _restart_button(hass: HomeAssistant, device_id: str) -> str | None:
+    """The knob's Restart button entity, if its firmware has one."""
+    for entry in er.async_entries_for_device(er.async_get(hass), device_id):
+        if entry.domain == "button" and (
+            entry.original_device_class == "restart"
+            or entry.entity_id.endswith("_restart")
+        ):
+            return entry.entity_id
+    return None
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/device/restart",
+        vol.Required("device_id"): str,
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_restart_device(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Restart a knob through its Restart button."""
+    if msg["device_id"] not in {d["device_id"] for d in _devices(hass)}:
+        connection.send_error(msg["id"], "unknown_device", "Unknown knob")
+        return
+    entity_id = _restart_button(hass, msg["device_id"])
+    if entity_id is None:
+        connection.send_error(msg["id"], "no_restart", "The knob has no Restart button")
+        return
+    await hass.services.async_call(
+        "button", "press", {"entity_id": entity_id}, blocking=True
+    )
     connection.send_result(msg["id"])
 
 

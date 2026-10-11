@@ -677,6 +677,7 @@ void KisSegitoUI::load_test_data_() {
   morning.icon = "routine_morning";
   morning.start = now - 12 * 60;
   morning.end = morning.start + 40 * 60;
+  morning.menu_until = morning.end;
   morning.zones = {{15 * 60, ZONE_WARN}, {5 * 60, ZONE_LATE}};
   morning.checkpoints = {
       {"breakfast", "task_breakfast", morning.start + 20 * 60, {}, {{5 * 60, 2}, {0, 1}}},
@@ -692,6 +693,7 @@ void KisSegitoUI::load_test_data_() {
   evening.icon = "routine_evening";
   evening.start = now - 5 * 60;
   evening.end = evening.start + 30 * 60;
+  evening.menu_until = evening.end;
   for (auto &cp : evening.checkpoints)
     cp.t = evening.start + (cp.t - morning.start) * 30 / 40;
   this->routines_ = {morning, evening};
@@ -810,6 +812,7 @@ void KisSegitoUI::set_state(const std::string &json) {
     routine.icon = r["i"] | "routine_generic";
     routine.start = r["s"].as<int64_t>();
     routine.end = r["e"].as<int64_t>();
+    routine.menu_until = r["m"].is<int64_t>() ? r["m"].as<int64_t>() : routine.end;
     routine.children = string_list(r["ch"]);
     routine.base_color = parse_color(r["base"].as<const char *>(), ZONE_OK);
     for (JsonArrayConst z : r["z"].as<JsonArrayConst>())
@@ -1902,13 +1905,13 @@ std::vector<int> KisSegitoUI::shop_() const {
 }
 
 std::vector<FnItem> KisSegitoUI::functions_for_(const Child &child) const {
-  // The routines running now for this child first (none outside their
-  // time), then rewards, piggy bank, tokens.
+  // The routines running now for this child first (and for a while after
+  // they end, see "m" in the snapshot), then rewards, piggy bank, tokens.
   std::vector<FnItem> fns;
   const int64_t now = this->now_();
   for (size_t i = 0; i < this->routines_.size(); i++) {
     const Routine &r = this->routines_[i];
-    if (applies(r.children, child.id) && now >= r.start && now < r.end)
+    if (applies(r.children, child.id) && now >= r.start && now < r.menu_until)
       fns.push_back({FnType::ROUTINE, static_cast<int>(i)});
   }
   fns.push_back({FnType::REWARDS, -1});

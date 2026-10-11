@@ -15,6 +15,11 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   as the same child is selected and the entry is still there. Only the shop
   always opens at its first item (except when coming back from the purchase
   question).
+- Panel → Settings → Knobs: a Restart button for each knob (with a
+  question first), for knobs whose firmware has the Restart button.
+- A routine stays in the knob's menu after it ends: while a late checkpoint
+  still pays tokens (a reward band with negative minutes), then 30 minutes
+  more. The 30 minutes can be changed in the panel's Settings.
 - The Restart button now writes "Manual restart requested from Home
   Assistant" to the log before restarting.
 - After a planned restart (update, Restart button, new background) the log
@@ -28,6 +33,11 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   nyomással visszalépve), ha ugyanaz a gyerek van kiválasztva, és az elem még
   megvan. Csak a bolt nyílik mindig az első elemével (kivéve, ha a vásárlási
   kérdésről tér vissza).
+- Panel → Beállítások → Gombok: minden gombnál Újraindítás gomb (előtte
+  rákérdez), azoknál a gomboknál, amelyek firmware-ében van Restart gomb.
+- A rutin a vége után is a gomb menüjében marad: amíg egy késői checkpoint
+  még zsetont ad (negatív percű jutalomsáv), utána még 30 percig. A 30 perc a
+  panel Beállításainál módosítható.
 - A Restart gomb újraindítás előtt beírja a naplóba: „Manual restart requested
   from Home Assistant”.
 - Tervezett újraindítás (frissítés, Restart gomb, új háttér) után a napló

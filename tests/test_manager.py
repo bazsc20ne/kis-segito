@@ -410,3 +410,36 @@ async def test_set_background_counts_every_change(
     assert snapshot["bgs"] == first + 2
     with pytest.raises(KisSegitoError):
         await manager.async_set_background("../etc")
+
+
+async def test_routine_stays_in_knob_menu_after_end(
+    hass: HomeAssistant, manager: KisSegitoManager, freezer: FrozenDateTimeFactory
+) -> None:
+    freezer.move_to(dt_util.now().replace(hour=7, minute=0, second=0, microsecond=0))
+    await _child(manager)
+    await manager.async_save_item(
+        "routines",
+        {
+            "name": "Morning",
+            "start": "06:30",
+            "end": "07:30",
+            "checkpoints": [
+                {
+                    "name": "Door",
+                    "time": "07:30",
+                    "reward_bands": [
+                        {"min_early_min": 0, "tokens": 2},
+                        {"min_early_min": -10, "tokens": 1},
+                    ],
+                }
+            ],
+            "tasks": [{"icon": "task_clothes"}],
+        },
+    )
+    routine = manager.snapshot("device", "en")["routines"][0]
+    # Late tokens until 07:40, then 30 minutes more.
+    assert routine["m"] - routine["e"] == (10 + 30) * 60
+
+    await manager.async_update_settings({"routine_menu_grace_s": 0})
+    routine = manager.snapshot("device", "en")["routines"][0]
+    assert routine["m"] - routine["e"] == 10 * 60

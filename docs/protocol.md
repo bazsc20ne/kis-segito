@@ -38,6 +38,7 @@ epoch seconds, colours `#RRGGBB`):
   ],
   "routines": [
     {"id": "…", "i": "routine_morning", "s": 1791352800, "e": 1791355500,
+     "m": 1791357300,
      "ch": [], "base": "#6BCB77", "z": [[900, "#FF9F43"], [300, "#FF6B6B"]],
      "cp": [{"id": "…", "i": "task_door_ready", "t": 1791355500, "ch": [],
              "b": [[600, 3], [0, 2]]}],
@@ -83,6 +84,10 @@ epoch seconds, colours `#RRGGBB`):
 - `children[].a`, `rewards[].i`, `routines[].i`, `cp[].i`, `t[].i`: icon ids of
   the shared icon set (the file names in `assets/device/` without the size).
 - `routines`: today's routines shown on knobs. `ch` empty = every child.
+- `m`: the routine is offered in the knob's functions menu from `s` until
+  `m`: the end, or the last moment a late checkpoint still pays (a band with a
+  negative threshold), whichever is later, plus the `routine_menu_grace_s`
+  setting (panel → Settings, default 30 minutes). Without `m` the knob uses `e`.
 - `z`: colour zones, each starting `offset` seconds before the end `e`.
 - `cp`: checkpoints; `ch` empty = shared (outer track), otherwise the
   children's own (inner track). `b`: reward bands `[seconds early, tokens]`;

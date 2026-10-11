@@ -79,6 +79,7 @@ struct Routine {
   std::string icon;
   int64_t start{0};
   int64_t end{0};
+  int64_t menu_until{0};  // shown in the functions menu until then
   std::vector<std::string> children;  // empty = everyone
   uint32_t base_color{0x6BCB77};
   std::vector<Zone> zones;

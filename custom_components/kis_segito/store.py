@@ -28,6 +28,9 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "language": LANGUAGE_AUTO,
     "animation_mode": "full",
     "inactivity_s": 60,
+    # How long a routine stays in the knob's menu after it ended (and after
+    # its late checkpoint rewards ran out).
+    "routine_menu_grace_s": 1800,
     "streak_target": 7,
     "streak_reward": 5,
     "piggy_interest_percent": 10,
