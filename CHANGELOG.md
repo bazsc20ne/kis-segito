@@ -6,6 +6,34 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [Unreleased]
+
+### English
+
+- Knob menus: the functions menu reopens at the entry last used (for example
+  after leaving the shop or a routine, or after a long press back), as long
+  as the same child is selected and the entry is still there. Only the shop
+  always opens at its first item (except when coming back from the purchase
+  question).
+- The Restart button now writes "Manual restart requested from Home
+  Assistant" to the log before restarting.
+- After a planned restart (update, Restart button, new background) the log
+  says "planned restart" instead of "other watchdog": on this chip such a
+  restart is often completed by a watchdog, which is not a fault.
+
+### Magyar
+
+- A gomb menüi: a funkciómenü azon az elemen nyílik meg újra, amelyiket
+  legutóbb használták (például a boltból vagy egy rutinból kilépve, vagy hosszú
+  nyomással visszalépve), ha ugyanaz a gyerek van kiválasztva, és az elem még
+  megvan. Csak a bolt nyílik mindig az első elemével (kivéve, ha a vásárlási
+  kérdésről tér vissza).
+- A Restart gomb újraindítás előtt beírja a naplóba: „Manual restart requested
+  from Home Assistant”.
+- Tervezett újraindítás (frissítés, Restart gomb, új háttér) után a napló
+  „planned restart”-ot ír „other watchdog” helyett: ezen a chipen az ilyen
+  újraindítást gyakran egy watchdog fejezi be, ez nem hiba.
+
 ## [0.7.30] - 2026-10-11
 
 ### English

@@ -331,6 +331,8 @@ class KisSegitoUI : public Component {
   Routine &current_routine_();
 
   std::vector<FnItem> functions_for_(const Child &child) const;
+  std::string function_key_of_(const FnItem &fn) const;
+  void remember_function_();
   std::vector<int> shop_() const;
 
   std::map<std::string, image::Image *> images_;
@@ -466,6 +468,10 @@ class KisSegitoUI : public Component {
   Screen screen_{Screen::NONE};
   int child_{0};
   int function_{0};
+  // The functions menu entry last selected ("r:<routine id>" or the type) and
+  // the child it belongs to, so the menu reopens there.
+  std::string function_key_;
+  std::string function_child_;
   int reward_{0};
   bool confirm_yes_{false};
   int routine_{0};

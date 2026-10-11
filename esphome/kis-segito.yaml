@@ -630,12 +630,17 @@ binary_sensor:
 button:
   # Manual restart from Home Assistant (separate from the restart that applies
   # a new background).
-  - platform: restart
+  - platform: template
     name: Restart
+    icon: mdi:restart
+    device_class: restart
+    entity_category: config
     on_press:
       - logger.log:
           format: "Manual restart requested from Home Assistant"
           tag: kis_segito
+      - delay: 100ms
+      - lambda: App.safe_reboot();
 
 text_sensor:
   # The child's actions on the knob (JSON with a unique id), for Home

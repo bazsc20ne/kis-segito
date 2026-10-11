@@ -11,6 +11,7 @@
 #include <strings.h>
 
 #include <esp_heap_caps.h>
+#include <esp_attr.h>
 #include <esp_system.h>
 #include <esp_http_client.h>
 #include <esp_rom_crc.h>
@@ -617,11 +618,23 @@ static const char *reset_reason_text(esp_reset_reason_t reason) {
   }
 }
 
+// Set just before a planned restart (update, restart button, new background).
+// On this chip the restart itself is often completed by the RTC watchdog, so
+// the reset reason then says "other watchdog" although nothing went wrong.
+static constexpr uint32_t PLANNED_RESTART = 0x4B535253;  // "KSRS"
+static RTC_NOINIT_ATTR uint32_t g_planned_restart;
+
 // Why the previous run ended; after an OTA rollback this explains the crash.
 // Logged at boot and again with the first state from Home Assistant, when the
 // log also reaches Home Assistant.
 void KisSegitoUI::log_reset_reason_() {
   const esp_reset_reason_t reason = esp_reset_reason();
+  const bool planned = g_planned_restart == PLANNED_RESTART;
+  g_planned_restart = 0;
+  if (planned && (reason == ESP_RST_SW || reason == ESP_RST_WDT)) {
+    ESP_LOGI(TAG, "Previous run ended by: planned restart (reset reason %d)", (int) reason);
+    return;
+  }
   if (reason == ESP_RST_PANIC || reason == ESP_RST_INT_WDT || reason == ESP_RST_TASK_WDT ||
       reason == ESP_RST_WDT || reason == ESP_RST_BROWNOUT) {
     ESP_LOGE(TAG, "Previous run ended by: %s (reset reason %d)", reset_reason_text(reason), (int) reason);
@@ -1486,6 +1499,7 @@ bool KisSegitoUI::store_picture_(const PhotoJob &job) {
 }
 
 void KisSegitoUI::on_shutdown() {
+  g_planned_restart = PLANNED_RESTART;
   this->stopping_ = true;
   if (!this->photo_task_started_)
     return;
@@ -1904,6 +1918,19 @@ std::vector<FnItem> KisSegitoUI::functions_for_(const Child &child) const {
   return fns;
 }
 
+std::string KisSegitoUI::function_key_of_(const FnItem &fn) const {
+  if (fn.type == FnType::ROUTINE)
+    return "r:" + this->routines_[fn.routine].id;
+  return std::to_string(static_cast<int>(fn.type));
+}
+
+void KisSegitoUI::remember_function_() {
+  const Child &child = this->children_[this->child_];
+  const auto fns = this->functions_for_(child);
+  this->function_key_ = this->function_key_of_(fns[this->function_ % fns.size()]);
+  this->function_child_ = child.id;
+}
+
 // ---------------------------------------------------------------- Navigation
 
 void KisSegitoUI::show_(Screen screen) {
@@ -1940,11 +1967,9 @@ void KisSegitoUI::show_(Screen screen) {
   // background is still downloading, the previous one stays.
   this->apply_background_("");
   this->build_track_();
-  // Menus open at their first item (only the selected child is kept); the
-  // shop keeps its place when coming back from a purchase question, and a
-  // screen rebuilt for new data keeps it too.
-  if (screen == Screen::FUNCTIONS && previous != Screen::FUNCTIONS)
-    this->function_ = 0;
+  // Menus reopen at the entry last chosen (build_functions_). Only the shop
+  // opens at its first item; it keeps its place when coming back from a
+  // purchase question, and a screen rebuilt for new data keeps it too.
   if (screen == Screen::REWARDS && previous != Screen::CONFIRM && previous != Screen::REWARDS &&
       !this->shop_().empty())
     this->reward_ = this->shop_().front();
@@ -2053,6 +2078,7 @@ void KisSegitoUI::do_rotate_(int dir, bool animate) {
       this->select_child_(this->carousel_.selected());
     } else if (this->screen_ == Screen::FUNCTIONS) {
       this->function_ = this->carousel_.selected();
+      this->remember_function_();
     } else {
       this->reward_ = this->shop_()[this->carousel_.selected()];
     }
@@ -2070,6 +2096,7 @@ void KisSegitoUI::do_rotate_(int dir, bool animate) {
     case Screen::FUNCTIONS:
       this->carousel_.rotate(dir, animate);
       this->function_ = this->carousel_.selected();
+      this->remember_function_();
       break;
     case Screen::REWARDS:
       this->carousel_.rotate(dir, animate);
@@ -2128,7 +2155,6 @@ void KisSegitoUI::do_click_() {
         this->shake_(this->carousel_.center_slot());
         return;
       }
-      this->function_ = 0;
       this->show_(Screen::FUNCTIONS);
       break;
     case Screen::FUNCTIONS: {
@@ -2366,7 +2392,19 @@ void KisSegitoUI::build_children_() {
 void KisSegitoUI::build_functions_() {
   const Child &child = this->children_[this->child_];
   const auto fns = this->functions_for_(child);
-  this->function_ %= static_cast<int>(fns.size());
+  // Back at the entry this child last chose (the list changes as routines
+  // start and end); another child starts at the first one.
+  this->function_ = 0;
+  if (this->function_child_ == child.id) {
+    for (size_t i = 0; i < fns.size(); i++) {
+      if (this->function_key_of_(fns[i]) == this->function_key_) {
+        this->function_ = static_cast<int>(i);
+        break;
+      }
+    }
+  }
+  this->function_child_ = child.id;
+  this->function_key_ = this->function_key_of_(fns[this->function_]);
   this->carousel_.sig = [this, fns](int index) {
     const FnItem &fn = fns[index];
     std::string icon = fn.type == FnType::ROUTINE ? this->routines_[fn.routine].icon : std::to_string(static_cast<int>(fn.type));
