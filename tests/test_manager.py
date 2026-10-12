@@ -416,8 +416,8 @@ async def test_routine_stays_in_knob_menu_after_end(
     hass: HomeAssistant, manager: KisSegitoManager, freezer: FrozenDateTimeFactory
 ) -> None:
     freezer.move_to(dt_util.now().replace(hour=7, minute=0, second=0, microsecond=0))
-    await _child(manager)
-    await manager.async_save_item(
+    kid = await _child(manager)
+    saved = await manager.async_save_item(
         "routines",
         {
             "name": "Morning",
@@ -436,8 +436,11 @@ async def test_routine_stays_in_knob_menu_after_end(
             "tasks": [{"icon": "task_clothes"}],
         },
     )
+    await manager.async_device_action(
+        {"a": "task", "id": "x1", "c": kid, "r": saved["id"], "t": saved["tasks"][0]["id"]}
+    )
     routine = manager.snapshot("device", "en")["routines"][0]
-    # Late tokens until 07:40, then 30 minutes more.
+    # All done: late tokens until 07:40, then 30 minutes more.
     assert routine["m"] - routine["e"] == (10 + 30) * 60
 
     await manager.async_update_settings({"routine_menu_grace_s": 0})
@@ -445,7 +448,7 @@ async def test_routine_stays_in_knob_menu_after_end(
     assert routine["m"] - routine["e"] == 10 * 60
 
 
-async def test_finished_routine_leaves_knob_menu_at_end(
+async def test_routine_with_open_tasks_stays_in_knob_menu(
     hass: HomeAssistant, manager: KisSegitoManager, freezer: FrozenDateTimeFactory
 ) -> None:
     freezer.move_to(dt_util.now().replace(hour=7, minute=0, second=0, microsecond=0))
@@ -459,11 +462,14 @@ async def test_finished_routine_leaves_knob_menu_at_end(
             "tasks": [{"icon": "task_clothes"}],
         },
     )
+    # A task is open: the rest of the day.
     snap = manager.snapshot("device", "en")["routines"][0]
-    assert snap["m"] - snap["e"] == 30 * 60
+    end_of_day = dt_util.now().replace(hour=0, minute=0) + timedelta(days=1)
+    assert snap["m"] == int(end_of_day.timestamp())
+    # Everything done: the normal expiry, 30 minutes after the end.
     task = routine["tasks"][0]["id"]
     await manager.async_device_action(
         {"a": "task", "id": "x1", "c": kid, "r": routine["id"], "t": task}
     )
     snap = manager.snapshot("device", "en")["routines"][0]
-    assert snap["m"] == snap["e"]
+    assert snap["m"] - snap["e"] == 30 * 60

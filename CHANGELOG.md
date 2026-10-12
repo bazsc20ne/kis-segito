@@ -14,14 +14,13 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   starts at its first entry (also after waking the screen or after holding
   the button to go back). Coming back from a screen opened from the menu
   (shop, routine, tokens, piggy bank) returns to that entry.
-- A routine stays in the knob's menu after it ends only while at least one of
-  its children still has a task open. Exact rule: until the end the routine
-  is shown as before; after the end it stays while some child has an open
-  task, at most until the last late checkpoint reward runs out (reward band
-  with negative minutes) plus the time set in the panel (default 30
-  minutes). When every child has finished every task, it leaves the menu at
-  once (at the earliest at the end).
-
+- When a routine leaves the knob's menu. Exact rule: it is shown until its
+  normal expiry, which is the end of the routine or, if later, the moment
+  the last late checkpoint reward runs out (reward band with negative
+  minutes), plus the time set in the panel (default 30 minutes). If every
+  child of the routine has finished every task by then, it leaves the menu
+  at that time. If a child still has a task open, it stays in the menu for
+  the rest of the day.
 - The log line "Previous run ended by: planned restart" now also appears in
   Home Assistant's log (it showed "software restart" there).
 
@@ -31,13 +30,12 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   elemnél kezd (a képernyő felébresztése és a visszalépő tartás után is). Egy
   a menüből megnyitott képernyőről (bolt, rutin, zsetonok, malacpersely)
   visszatérve azon az elemen marad, ahonnan megnyitották.
-- A lejárt rutin csak akkor marad a gomb menüjében, ha valamelyik gyereknek
-  még van nyitott feladata. Pontos szabály: a rutin a végéig úgy látszik, mint
-  eddig; a vége után addig marad, amíg valamelyik gyereknek van nyitott
-  feladata, legfeljebb az utolsó késői checkpoint-jutalom lejártáig (negatív
-  percű jutalomsáv) plusz a panelen beállított időig (alapból 30 perc). Ha
-  minden gyerek minden feladatot elvégzett, azonnal eltűnik a menüből
-  (legkorábban a rutin végén).
+- Mikor tűnik el a rutin a gomb menüjéből. Pontos szabály: a szokásos
+  lejáratig látszik, ez a rutin vége vagy, ha az későbbi, az utolsó késői
+  checkpoint-jutalom lejárta (negatív percű jutalomsáv), plusz a panelen
+  beállított idő (alapból 30 perc). Ha addigra a rutin minden gyereke minden
+  feladatot elvégzett, ekkor eltűnik a menüből. Ha valamelyik gyereknek még
+  van nyitott feladata, a nap hátralévő részében a menüben marad.
 - A „Previous run ended by: planned restart” sor most a Home Assistant
   naplójában is megjelenik (ott eddig „software restart” látszott).
 
