@@ -85,11 +85,11 @@ epoch seconds, colours `#RRGGBB`):
   the shared icon set (the file names in `assets/device/` without the size).
 - `routines`: today's routines shown on knobs. `ch` empty = every child.
 - `m`: the routine is offered in the knob's functions menu from `s` until
-  `m`: the end, or the last moment a late checkpoint still pays (a band with a
-  negative threshold), whichever is later, plus the `routine_menu_grace_s`
-  setting (panel → Settings, default 30 minutes), while a child of the routine
-  has not finished the tasks of their last checkpoint; once every child has,
-  `m` equals `e`. Without `m` the knob uses `e`.
+  `m`. While a task is still open for a child of the routine, `m` is the
+  end, or the last moment the last checkpoint still pays late (a band with a
+  negative threshold) if that is later, plus the `routine_menu_grace_s`
+  setting (panel → Settings, default 30 minutes). Once every child has
+  finished every task, `m` equals `e`. Without `m` the knob uses `e`.
 - `z`: colour zones, each starting `offset` seconds before the end `e`.
 - `cp`: checkpoints; `ch` empty = shared (outer track), otherwise the
   children's own (inner track). `b`: reward bands `[seconds early, tokens]`;

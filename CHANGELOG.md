@@ -16,9 +16,10 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   (shop, routine, tokens, piggy bank) returns to that entry.
 - When a routine leaves the knob's menu. Exact rule: until the routine's
   end it is always shown. After the end, if every child of the routine has
-  finished every task of their last checkpoint, it leaves the menu at once
-  (no late-reward time, no extra minutes). If a child has not, it stays as long as a
-  late checkpoint still pays (reward band with negative minutes), then for
+  finished every task, it leaves the menu at once (no late-reward time, no
+  extra minutes). If any task is still open for a child (whichever
+  checkpoint it belongs to), it stays as long as the routine's last
+  checkpoint still pays late (reward band with negative minutes), then for
   the time set in the panel (default 30 minutes).
 - The knob logs which routines its functions menu offers whenever that
   changes, with the times that decide it ("Menu: routine … shown/hidden").
@@ -32,10 +33,11 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   a menüből megnyitott képernyőről (bolt, rutin, zsetonok, malacpersely)
   visszatérve azon az elemen marad, ahonnan megnyitották.
 - Mikor tűnik el a rutin a gomb menüjéből. Pontos szabály: a rutin végéig
-  mindig látszik. A vége után, ha a rutin minden gyereke elvégezte az utolsó
-  checkpointja összes feladatát, azonnal eltűnik (nincs késői jutalomidő,
-  nincs plusz perc). Ha valamelyik gyerek még nem, addig marad, amíg egy késői
-  checkpoint még zsetont ad (negatív percű jutalomsáv), utána még a panelen
+  mindig látszik. A vége után, ha a rutin minden gyereke minden feladatot
+  elvégzett, azonnal eltűnik (nincs késői jutalomidő, nincs plusz perc). Ha
+  bármelyik gyereknek bármelyik feladata nyitott (mindegy, melyik
+  checkpointhoz tartozik), addig marad, amíg a rutin utolsó checkpointja
+  még késve is zsetont ad (negatív percű jutalomsáv), utána még a panelen
   beállított ideig (alapból 30 perc).
 - A gomb naplózza, mely rutinokat kínálja a funkciómenü, amikor ez változik,
   a döntő időpontokkal együtt („Menu: routine … shown/hidden”).

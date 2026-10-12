@@ -863,24 +863,6 @@ class KisSegitoManager:
         day = self.today()
         return max(cps, key=lambda c: self.checkpoint_time(routine, c, day))
 
-    def _last_checkpoint_tasks(
-        self, routine: dict[str, Any], child_id: str, day: date
-    ) -> set[str]:
-        """Ids of the tasks leading to the child's last checkpoint (all tasks
-        when the routine has no checkpoint for the child)."""
-        tasks = routine.get("tasks", [])
-        cps = [
-            c for c in routine.get("checkpoints", []) if applies_to(c, child_id)
-        ]
-        if not cps:
-            return {t["id"] for t in tasks}
-        last = max(cps, key=lambda c: self.checkpoint_time(routine, c, day))
-        return {
-            t["id"]
-            for t in tasks
-            if (self.task_checkpoint(routine, t) or {}).get("id") == last["id"]
-        }
-
     async def async_complete_task(
         self,
         child_id: str,
@@ -1238,21 +1220,21 @@ class KisSegitoManager:
                 .get(routine["id"], {})
                 .items()
             }
-            # After its end the routine stays in the knob's menu only while a
-            # child of the routine has not finished the tasks of its last
-            # checkpoint: as long as a late checkpoint still pays (a band with
-            # a negative threshold), then for the "routine_menu_grace_s"
-            # setting longer.
+            # After its end the routine stays in the knob's menu while any task
+            # is open for a child of the routine: as long as the last
+            # checkpoint still pays late (a band with a negative threshold),
+            # then for the "routine_menu_grace_s" setting longer.
             menu_until = int(end.timestamp())
+            task_ids = {t["id"] for t in routine.get("tasks", [])}
             if any(
-                not self._last_checkpoint_tasks(routine, child["id"], day)
-                <= set(done.get(child["id"], []))
+                not task_ids <= set(done.get(child["id"], []))
                 for child in self.data["children"]
                 if applies_to(routine, child["id"])
             ):
-                for c in checkpoints:
-                    for early_s, _tokens in c["b"]:
-                        menu_until = max(menu_until, c["t"] - min(early_s, 0))
+                if checkpoints:
+                    last = max(checkpoints, key=lambda c: c["t"])
+                    for early_s, _tokens in last["b"]:
+                        menu_until = max(menu_until, last["t"] - min(early_s, 0))
                 menu_until += int(self.settings.get("routine_menu_grace_s", 1800))
             routines.append(
                 {

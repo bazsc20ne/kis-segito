@@ -478,7 +478,7 @@ async def test_finished_routine_leaves_knob_menu_at_end(
     assert snap["m"] == snap["e"]
 
 
-async def test_routine_menu_counts_last_checkpoint_tasks(
+async def test_routine_menu_counts_every_task(
     hass: HomeAssistant, manager: KisSegitoManager, freezer: FrozenDateTimeFactory
 ) -> None:
     freezer.move_to(dt_util.now().replace(hour=7, minute=0, second=0, microsecond=0))
@@ -490,8 +490,16 @@ async def test_routine_menu_counts_last_checkpoint_tasks(
             "start": "06:30",
             "end": "07:30",
             "checkpoints": [
-                {"name": "Breakfast", "time": "07:10"},
-                {"name": "Door", "time": "07:30"},
+                {
+                    "name": "Breakfast",
+                    "time": "07:10",
+                    "reward_bands": [{"min_early_min": -40, "tokens": 1}],
+                },
+                {
+                    "name": "Door",
+                    "time": "07:30",
+                    "reward_bands": [{"min_early_min": -10, "tokens": 1}],
+                },
             ],
             "tasks": [{"icon": "task_breakfast"}, {"icon": "task_shoes"}],
         },
@@ -500,12 +508,13 @@ async def test_routine_menu_counts_last_checkpoint_tasks(
     routine["tasks"][0]["checkpoint_id"] = first_cp
     routine = await manager.async_save_item("routines", routine)
     shoes = routine["tasks"][1]["id"]
-    # Only the last checkpoint's task is done: the routine leaves at its end.
+    # An earlier checkpoint's task is still open: the time counts from the last
+    # checkpoint's settings (10 min late), then 30 minutes more.
     await manager.async_device_action(
         {"a": "task", "id": "x1", "c": kid, "r": routine["id"], "t": shoes}
     )
     snap = manager.snapshot("device", "en")["routines"][0]
-    assert snap["m"] == snap["e"]
+    assert snap["m"] - snap["e"] == (10 + 30) * 60
 
 
 async def test_evening_routine_stays_in_knob_menu_while_late_reward_pays(
