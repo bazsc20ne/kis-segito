@@ -416,8 +416,8 @@ async def test_routine_stays_in_knob_menu_after_end(
     hass: HomeAssistant, manager: KisSegitoManager, freezer: FrozenDateTimeFactory
 ) -> None:
     freezer.move_to(dt_util.now().replace(hour=7, minute=0, second=0, microsecond=0))
-    kid = await _child(manager)
-    saved = await manager.async_save_item(
+    await _child(manager)
+    await manager.async_save_item(
         "routines",
         {
             "name": "Morning",
@@ -436,11 +436,8 @@ async def test_routine_stays_in_knob_menu_after_end(
             "tasks": [{"icon": "task_clothes"}],
         },
     )
-    await manager.async_device_action(
-        {"a": "task", "id": "x1", "c": kid, "r": saved["id"], "t": saved["tasks"][0]["id"]}
-    )
     routine = manager.snapshot("device", "en")["routines"][0]
-    # All done: late tokens until 07:40, then 30 minutes more.
+    # A task open: late tokens until 07:40, then 30 minutes more.
     assert routine["m"] - routine["e"] == (10 + 30) * 60
 
     await manager.async_update_settings({"routine_menu_grace_s": 0})
@@ -448,7 +445,7 @@ async def test_routine_stays_in_knob_menu_after_end(
     assert routine["m"] - routine["e"] == 10 * 60
 
 
-async def test_routine_with_open_tasks_stays_in_knob_menu(
+async def test_finished_routine_leaves_knob_menu_at_end(
     hass: HomeAssistant, manager: KisSegitoManager, freezer: FrozenDateTimeFactory
 ) -> None:
     freezer.move_to(dt_util.now().replace(hour=7, minute=0, second=0, microsecond=0))
@@ -459,17 +456,23 @@ async def test_routine_with_open_tasks_stays_in_knob_menu(
             "name": "Morning",
             "start": "06:30",
             "end": "07:30",
+            "checkpoints": [
+                {
+                    "name": "Door",
+                    "time": "07:30",
+                    "reward_bands": [{"min_early_min": -10, "tokens": 1}],
+                }
+            ],
             "tasks": [{"icon": "task_clothes"}],
         },
     )
-    # A task is open: the rest of the day.
+    # A task is open: late rewards (10 min), then 30 minutes more.
     snap = manager.snapshot("device", "en")["routines"][0]
-    end_of_day = dt_util.now().replace(hour=0, minute=0) + timedelta(days=1)
-    assert snap["m"] == int(end_of_day.timestamp())
-    # Everything done: the normal expiry, 30 minutes after the end.
+    assert snap["m"] - snap["e"] == (10 + 30) * 60
+    # Everything done: it leaves the menu at the end.
     task = routine["tasks"][0]["id"]
     await manager.async_device_action(
         {"a": "task", "id": "x1", "c": kid, "r": routine["id"], "t": task}
     )
     snap = manager.snapshot("device", "en")["routines"][0]
-    assert snap["m"] - snap["e"] == 30 * 60
+    assert snap["m"] == snap["e"]
