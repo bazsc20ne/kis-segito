@@ -334,6 +334,8 @@ class KisSegitoUI : public Component {
   std::vector<FnItem> functions_for_(const Child &child) const;
   std::string function_key_of_(const FnItem &fn) const;
   void remember_function_();
+  void log_menu_routines_();
+  std::string menu_routines_;  // routines last offered in the functions menu
   std::vector<int> shop_() const;
 
   std::map<std::string, image::Image *> images_;

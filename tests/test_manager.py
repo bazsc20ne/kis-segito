@@ -506,3 +506,35 @@ async def test_routine_menu_counts_last_checkpoint_tasks(
     )
     snap = manager.snapshot("device", "en")["routines"][0]
     assert snap["m"] == snap["e"]
+
+
+async def test_evening_routine_stays_in_knob_menu_while_late_reward_pays(
+    hass: HomeAssistant, manager: KisSegitoManager, freezer: FrozenDateTimeFactory
+) -> None:
+    freezer.move_to(dt_util.now().replace(hour=20, minute=20, second=0, microsecond=0))
+    await _child(manager)
+    await manager.async_save_item(
+        "routines",
+        {
+            "name": "Evening",
+            "start": "19:30",
+            "end": "20:15",
+            "checkpoints": [
+                {
+                    "name": "Sleep",
+                    "time": "20:15",
+                    "reward_bands": [
+                        {"min_early_min": 10, "tokens": 2},
+                        {"min_early_min": -20, "tokens": 1},
+                    ],
+                }
+            ],
+            "tasks": [{"icon": "task_bath"}, {"icon": "task_toothbrush"}],
+        },
+    )
+    routine = manager.snapshot("device", "en")["routines"][0]
+    sleep = dt_util.now().replace(hour=20, minute=15)
+    # After the end, tasks still open: 20 minutes of late reward, then 30 more.
+    assert routine["e"] == int(sleep.timestamp())
+    assert routine["m"] == int((sleep + timedelta(minutes=20 + 30)).timestamp())
+    assert routine["m"] > int(dt_util.now().timestamp())

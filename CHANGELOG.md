@@ -20,6 +20,8 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   (no late-reward time, no extra minutes). If a child has not, it stays as long as a
   late checkpoint still pays (reward band with negative minutes), then for
   the time set in the panel (default 30 minutes).
+- The knob logs which routines its functions menu offers whenever that
+  changes, with the times that decide it ("Menu: routine … shown/hidden").
 - The log line "Previous run ended by: planned restart" now also appears in
   Home Assistant's log (it showed "software restart" there).
 
@@ -35,6 +37,8 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   nincs plusz perc). Ha valamelyik gyerek még nem, addig marad, amíg egy késői
   checkpoint még zsetont ad (negatív percű jutalomsáv), utána még a panelen
   beállított ideig (alapból 30 perc).
+- A gomb naplózza, mely rutinokat kínálja a funkciómenü, amikor ez változik,
+  a döntő időpontokkal együtt („Menu: routine … shown/hidden”).
 - A „Previous run ended by: planned restart” sor most a Home Assistant
   naplójában is megjelenik (ott eddig „software restart” látszott).
 

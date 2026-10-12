@@ -886,6 +886,10 @@ void KisSegitoUI::set_state(const std::string &json) {
   }
   ESP_LOGI(TAG, "State: %u children, %u rewards, %u routines", (unsigned) this->children_.size(),
            (unsigned) this->rewards_.size(), (unsigned) this->routines_.size());
+  for (const auto &r : this->routines_)
+    ESP_LOGD(TAG, "Routine %s: start %lld, end %lld, menu until %lld", r.id.c_str(), (long long) r.start,
+             (long long) r.end, (long long) r.menu_until);
+  this->menu_routines_.clear();  // logged again with the new data
   if (!this->boot_info_logged_) {
     this->boot_info_logged_ = true;
     this->log_reset_reason_();
@@ -1521,8 +1525,10 @@ void KisSegitoUI::loop() {
   if (now - this->last_poll_ms_ >= 1000) {
     this->last_poll_ms_ = now;
     this->poll_connection_();
-    if (this->started_)
+    if (this->started_) {
       this->release_photos_(0, PHOTO_KEEP_UNUSED);
+      this->log_menu_routines_();
+    }
     if (now - this->last_memory_log_ms_ >= MEMORY_LOG_MS) {
       this->last_memory_log_ms_ = now;
       log_memory();
@@ -1929,6 +1935,28 @@ std::string KisSegitoUI::function_key_of_(const FnItem &fn) const {
   if (fn.type == FnType::ROUTINE)
     return "r:" + this->routines_[fn.routine].id;
   return std::to_string(static_cast<int>(fn.type));
+}
+
+// Logs when the routines offered in the selected child's functions menu
+// change, with the times that decide it.
+void KisSegitoUI::log_menu_routines_() {
+  if (this->children_.empty() || !this->have_state_)
+    return;
+  std::string shown;
+  for (const auto &fn : this->functions_for_(this->children_[this->child_])) {
+    if (fn.type == FnType::ROUTINE)
+      shown += this->routines_[fn.routine].id + ",";
+  }
+  if (shown == this->menu_routines_)
+    return;
+  this->menu_routines_ = shown;
+  const int64_t now = this->now_();
+  for (const auto &r : this->routines_) {
+    const bool in_menu = shown.find(r.id + ",") != std::string::npos;
+    ESP_LOGI(TAG, "Menu: routine %s %s (now %lld, start %lld, end %lld, menu until %lld)", r.id.c_str(),
+             in_menu ? "shown" : "hidden", (long long) now, (long long) r.start, (long long) r.end,
+             (long long) r.menu_until);
+  }
 }
 
 void KisSegitoUI::remember_function_() {
