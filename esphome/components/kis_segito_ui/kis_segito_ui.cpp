@@ -629,8 +629,12 @@ static RTC_NOINIT_ATTR uint32_t g_planned_restart;
 // log also reaches Home Assistant.
 void KisSegitoUI::log_reset_reason_() {
   const esp_reset_reason_t reason = esp_reset_reason();
-  const bool planned = g_planned_restart == PLANNED_RESTART;
-  g_planned_restart = 0;
+  // Read once: the reason is logged again later, with the flag cleared.
+  static const bool planned = [] {
+    const bool set = g_planned_restart == PLANNED_RESTART;
+    g_planned_restart = 0;
+    return set;
+  }();
   if (planned && (reason == ESP_RST_SW || reason == ESP_RST_WDT)) {
     ESP_LOGI(TAG, "Previous run ended by: planned restart (reset reason %d)", (int) reason);
     return;
@@ -2158,6 +2162,9 @@ void KisSegitoUI::do_click_() {
         this->shake_(this->carousel_.center_slot());
         return;
       }
+      // Entering the menu starts at its first entry; coming back from one of
+      // its screens returns to the entry it was opened from.
+      this->function_key_.clear();
       this->show_(Screen::FUNCTIONS);
       break;
     case Screen::FUNCTIONS: {
@@ -2396,7 +2403,7 @@ void KisSegitoUI::build_functions_() {
   const Child &child = this->children_[this->child_];
   const auto fns = this->functions_for_(child);
   // Back at the entry this child last chose (the list changes as routines
-  // start and end); another child starts at the first one.
+  // start and end); a fresh entry or another child starts at the first one.
   this->function_ = 0;
   if (this->function_child_ == child.id) {
     for (size_t i = 0; i < fns.size(); i++) {

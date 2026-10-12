@@ -443,3 +443,27 @@ async def test_routine_stays_in_knob_menu_after_end(
     await manager.async_update_settings({"routine_menu_grace_s": 0})
     routine = manager.snapshot("device", "en")["routines"][0]
     assert routine["m"] - routine["e"] == 10 * 60
+
+
+async def test_finished_routine_leaves_knob_menu_at_end(
+    hass: HomeAssistant, manager: KisSegitoManager, freezer: FrozenDateTimeFactory
+) -> None:
+    freezer.move_to(dt_util.now().replace(hour=7, minute=0, second=0, microsecond=0))
+    kid = await _child(manager)
+    routine = await manager.async_save_item(
+        "routines",
+        {
+            "name": "Morning",
+            "start": "06:30",
+            "end": "07:30",
+            "tasks": [{"icon": "task_clothes"}],
+        },
+    )
+    snap = manager.snapshot("device", "en")["routines"][0]
+    assert snap["m"] - snap["e"] == 30 * 60
+    task = routine["tasks"][0]["id"]
+    await manager.async_device_action(
+        {"a": "task", "id": "x1", "c": kid, "r": routine["id"], "t": task}
+    )
+    snap = manager.snapshot("device", "en")["routines"][0]
+    assert snap["m"] == snap["e"]

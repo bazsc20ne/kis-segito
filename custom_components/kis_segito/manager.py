@@ -1206,14 +1206,6 @@ class KisSegitoManager:
                 end = max(
                     end, *(datetime.fromtimestamp(c["t"], tz) for c in checkpoints)
                 )
-            # The routine stays in the knob's menu while a late checkpoint
-            # still pays (a band with a negative threshold), then for the
-            # "routine_menu_grace_s" setting longer.
-            menu_until = int(end.timestamp())
-            for c in checkpoints:
-                for early_s, _tokens in c["b"]:
-                    menu_until = max(menu_until, c["t"] - min(early_s, 0))
-            menu_until += int(self.settings.get("routine_menu_grace_s", 1800))
             done = {
                 child_id: sorted(entry.get("tasks", {}))
                 for child_id, entry in self.data["days"]
@@ -1228,6 +1220,22 @@ class KisSegitoManager:
                 .get(routine["id"], {})
                 .items()
             }
+            # After its end the routine stays in the knob's menu while a
+            # child still has a task open: as long as a late checkpoint still
+            # pays (a band with a negative threshold), then for the
+            # "routine_menu_grace_s" setting longer.
+            menu_until = int(end.timestamp())
+            task_ids = {t["id"] for t in routine.get("tasks", [])}
+            open_tasks = any(
+                not task_ids <= set(done.get(child["id"], []))
+                for child in self.data["children"]
+                if applies_to(routine, child["id"])
+            )
+            if open_tasks:
+                for c in checkpoints:
+                    for early_s, _tokens in c["b"]:
+                        menu_until = max(menu_until, c["t"] - min(early_s, 0))
+                menu_until += int(self.settings.get("routine_menu_grace_s", 1800))
             routines.append(
                 {
                     "id": routine["id"],
