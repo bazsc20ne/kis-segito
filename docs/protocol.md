@@ -88,8 +88,8 @@ epoch seconds, colours `#RRGGBB`):
   `m`: the end, or the last moment a late checkpoint still pays (a band with a
   negative threshold), whichever is later, plus the `routine_menu_grace_s`
   setting (panel → Settings, default 30 minutes), while a child of the routine
-  still has a task open; when every child has finished every task, `m` equals
-  `e`. Without `m` the knob uses `e`.
+  has not finished the tasks of their last checkpoint; once every child has,
+  `m` equals `e`. Without `m` the knob uses `e`.
 - `z`: colour zones, each starting `offset` seconds before the end `e`.
 - `cp`: checkpoints; `ch` empty = shared (outer track), otherwise the
   children's own (inner track). `b`: reward bands `[seconds early, tokens]`;

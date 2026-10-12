@@ -476,3 +476,33 @@ async def test_finished_routine_leaves_knob_menu_at_end(
     )
     snap = manager.snapshot("device", "en")["routines"][0]
     assert snap["m"] == snap["e"]
+
+
+async def test_routine_menu_counts_last_checkpoint_tasks(
+    hass: HomeAssistant, manager: KisSegitoManager, freezer: FrozenDateTimeFactory
+) -> None:
+    freezer.move_to(dt_util.now().replace(hour=7, minute=0, second=0, microsecond=0))
+    kid = await _child(manager)
+    routine = await manager.async_save_item(
+        "routines",
+        {
+            "name": "Morning",
+            "start": "06:30",
+            "end": "07:30",
+            "checkpoints": [
+                {"name": "Breakfast", "time": "07:10"},
+                {"name": "Door", "time": "07:30"},
+            ],
+            "tasks": [{"icon": "task_breakfast"}, {"icon": "task_shoes"}],
+        },
+    )
+    first_cp = routine["checkpoints"][0]["id"]
+    routine["tasks"][0]["checkpoint_id"] = first_cp
+    routine = await manager.async_save_item("routines", routine)
+    shoes = routine["tasks"][1]["id"]
+    # Only the last checkpoint's task is done: the routine leaves at its end.
+    await manager.async_device_action(
+        {"a": "task", "id": "x1", "c": kid, "r": routine["id"], "t": shoes}
+    )
+    snap = manager.snapshot("device", "en")["routines"][0]
+    assert snap["m"] == snap["e"]

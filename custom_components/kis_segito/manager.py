@@ -863,6 +863,24 @@ class KisSegitoManager:
         day = self.today()
         return max(cps, key=lambda c: self.checkpoint_time(routine, c, day))
 
+    def _last_checkpoint_tasks(
+        self, routine: dict[str, Any], child_id: str, day: date
+    ) -> set[str]:
+        """Ids of the tasks leading to the child's last checkpoint (all tasks
+        when the routine has no checkpoint for the child)."""
+        tasks = routine.get("tasks", [])
+        cps = [
+            c for c in routine.get("checkpoints", []) if applies_to(c, child_id)
+        ]
+        if not cps:
+            return {t["id"] for t in tasks}
+        last = max(cps, key=lambda c: self.checkpoint_time(routine, c, day))
+        return {
+            t["id"]
+            for t in tasks
+            if (self.task_checkpoint(routine, t) or {}).get("id") == last["id"]
+        }
+
     async def async_complete_task(
         self,
         child_id: str,
@@ -1221,13 +1239,14 @@ class KisSegitoManager:
                 .items()
             }
             # After its end the routine stays in the knob's menu only while a
-            # child of the routine still has a task open: as long as a late
-            # checkpoint still pays (a band with a negative threshold), then
-            # for the "routine_menu_grace_s" setting longer.
+            # child of the routine has not finished the tasks of its last
+            # checkpoint: as long as a late checkpoint still pays (a band with
+            # a negative threshold), then for the "routine_menu_grace_s"
+            # setting longer.
             menu_until = int(end.timestamp())
-            task_ids = {t["id"] for t in routine.get("tasks", [])}
             if any(
-                not task_ids <= set(done.get(child["id"], []))
+                not self._last_checkpoint_tasks(routine, child["id"], day)
+                <= set(done.get(child["id"], []))
                 for child in self.data["children"]
                 if applies_to(routine, child["id"])
             ):
