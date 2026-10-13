@@ -60,6 +60,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     store = KisSegitoStore(hass)
     await store.async_load()
     manager = KisSegitoManager(hass, store)
+    await manager.async_backfill_events()
     manager.notifier = Notifier(
         hass,
         lambda: store.data["notifications"],

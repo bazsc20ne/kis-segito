@@ -42,6 +42,8 @@ ACTION_TTL = timedelta(days=7)
 ACTION_KEPT = 2000
 # Daily progress is kept this long.
 DAYS_KEPT = 31
+# Events without a token movement kept for the statistics (a few years).
+EVENTS_KEPT = 50000
 
 COLLECTIONS = ("children", "routines", "rewards", "templates", "routine_templates")
 # Built-in backgrounds (frontend/backgrounds/bg_<n>.jpg).
@@ -87,6 +89,12 @@ class KisSegitoManager:
                 self._listeners.remove(listener)
 
         return remove
+
+    @callback
+    def async_notify_listeners(self) -> None:
+        """Tell the listeners (panels, knobs) about a change stored elsewhere."""
+        for listener in list(self._listeners):
+            listener()
 
     async def _changed(self, *, ledger: bool = False) -> None:
         if ledger:
@@ -345,6 +353,10 @@ class KisSegitoManager:
             "by": who,
             "at": _iso(dt_util.now()),
         }
+        if old and old.get("moved") and not skip:
+            # Back on its own day: the moved copy goes.
+            self._drop_moved_copies(day.isoformat(), routine_id)
+            new.pop("moved", None)
         if not skip and not shift_min and not new.get("routine"):
             day_overrides.pop(routine_id, None)
             new = None
@@ -359,17 +371,20 @@ class KisSegitoManager:
         routine_id: str | None,
         routine: dict[str, Any] | None,
         *,
+        target_day: date | None = None,
         who: str = "parent",
     ) -> str | None:
         """Edit a routine for one day only, add a one-day routine, or restore.
 
         ``routine_id`` None with a routine adds a one-day routine; a routine of
-        None restores the original (or removes a one-day routine). The source
-        routine is never changed. Past days are read-only.
+        None restores the original: the day's copy, its time shift and a move
+        to another day are all dropped (a one-day routine is removed). With
+        ``target_day`` the occurrence moves to that day. The source routine is
+        never changed. Past days are read-only.
         """
-        if day < self.today():
+        target_day = target_day or day
+        if day < self.today() or target_day < self.today():
             raise KisSegitoError("past_day")
-        day_overrides = self.data["overrides"].setdefault(day.isoformat(), {})
         if routine is not None:
             routine = {
                 k: v
@@ -377,35 +392,90 @@ class KisSegitoManager:
                 if k not in ("id", "weekdays", "active", "one_day")
             }
             self._normalise_routine(routine)
+        day_overrides = self.data["overrides"].setdefault(day.isoformat(), {})
         if routine_id is None:
             if routine is None:
                 raise KisSegitoError("unknown_routine")
-            routine_id = "d" + lg.new_id()
-            new: dict[str, Any] | None = {"one_day": True, "routine": routine}
-            old = None
-        else:
-            old = day_overrides.get(routine_id)
-            one_day = bool(old and old.get("one_day"))
-            if not one_day and self.routine(routine_id) is None:
-                raise KisSegitoError("unknown_routine")
-            if routine is None:
-                new = (
-                    None
-                    if one_day
-                    else {k: v for k, v in (old or {}).items() if k != "routine"}
-                )
-                if new is not None and not (new.get("skip") or new.get("shift_min")):
-                    new = None
+            return await self._add_one_day(target_day, routine, None, who)
+        old = day_overrides.get(routine_id)
+        one_day = bool(old and old.get("one_day"))
+        if not one_day and self.routine(routine_id) is None:
+            raise KisSegitoError("unknown_routine")
+        if routine is None:
+            self._restore_occurrence(day, routine_id, who)
+            await self._changed()
+            return None
+        if target_day != day:
+            # Moved: the copy goes to the other day; a routine of the series
+            # is skipped on its own day, a one-day routine leaves it.
+            origin = (old or {}).get("moved_from") or (
+                None if one_day else {"date": day.isoformat(), "routine_id": routine_id}
+            )
+            if one_day:
+                day_overrides.pop(routine_id, None)
             else:
-                new = dict(old or {}) | {"routine": routine}
-        if new is None:
-            day_overrides.pop(routine_id, None)
-        else:
-            new |= {"by": who, "at": _iso(dt_util.now())}
-            day_overrides[routine_id] = new
+                day_overrides[routine_id] = dict(old or {}) | {
+                    "skip": True,
+                    "moved": True,
+                    "by": who,
+                    "at": _iso(dt_util.now()),
+                }
+            self._audit(who, f"day_routine.{day.isoformat()}.{routine_id}", old, None)
+            return await self._add_one_day(target_day, routine, origin, who)
+        new = {k: v for k, v in (old or {}).items() if k != "shift_min"} | {
+            "routine": routine,
+            "by": who,
+            "at": _iso(dt_util.now()),
+        }
+        day_overrides[routine_id] = new
         self._audit(who, f"day_routine.{day.isoformat()}.{routine_id}", old, new)
         await self._changed()
-        return routine_id if new is not None else None
+        return routine_id
+
+    async def _add_one_day(
+        self,
+        day: date,
+        routine: dict[str, Any],
+        origin: dict[str, Any] | None,
+        who: str,
+    ) -> str:
+        """Add a routine for one day only (``origin``: where it was moved from)."""
+        routine_id = "d" + lg.new_id()
+        new: dict[str, Any] = {
+            "one_day": True,
+            "routine": routine,
+            "by": who,
+            "at": _iso(dt_util.now()),
+        }
+        if origin:
+            new["moved_from"] = origin
+        self.data["overrides"].setdefault(day.isoformat(), {})[routine_id] = new
+        self._audit(who, f"day_routine.{day.isoformat()}.{routine_id}", None, new)
+        await self._changed()
+        return routine_id
+
+    def _restore_occurrence(self, day: date, routine_id: str, who: str) -> None:
+        """Drop every change of one occurrence (a moved one goes back home)."""
+        day_overrides = self.data["overrides"].get(day.isoformat(), {})
+        old = day_overrides.pop(routine_id, None)
+        self._audit(who, f"day_routine.{day.isoformat()}.{routine_id}", old, None)
+        origin = (old or {}).get("moved_from")
+        if origin:
+            home = self.data["overrides"].get(origin["date"], {})
+            back = home.get(origin["routine_id"])
+            if back and back.get("moved"):
+                home.pop(origin["routine_id"], None)
+        elif old and old.get("moved"):
+            self._drop_moved_copies(day.isoformat(), routine_id)
+
+    def _drop_moved_copies(self, date_key: str, routine_id: str) -> None:
+        """Remove the copies of an occurrence that was moved to other days."""
+        origin = {"date": date_key, "routine_id": routine_id}
+        for overrides in self.data["overrides"].values():
+            for key in [
+                k for k, o in overrides.items() if o.get("moved_from") == origin
+            ]:
+                del overrides[key]
 
     async def async_save_notifications(
         self, rules: list[dict[str, Any]], *, who: str = "parent"
@@ -672,6 +742,157 @@ class KisSegitoManager:
         )
         return tx
 
+    # ------------------------------------------------------------ events
+
+    @property
+    def events(self) -> list[dict[str, Any]]:
+        """Events without a token movement (tasks, checkpoints), oldest first."""
+        return self.store.ledger.setdefault("events", [])
+
+    def _log_event(self, event: dict[str, Any]) -> None:
+        """Record an event for the statistics and the history page."""
+        self.events.append({"id": lg.new_id()} | event)
+        del self.events[:-EVENTS_KEPT]
+
+    def _task_event(
+        self, child_id: str, routine: dict[str, Any], task: dict[str, Any], at: str
+    ) -> dict[str, Any]:
+        return {
+            "timestamp": at,
+            "day": at[:10],
+            "child_id": child_id,
+            "type": "task_done",
+            "routine_id": routine["id"],
+            "routine_name": routine.get("name", ""),
+            "task_id": task["id"],
+            "task_name": task.get("label", ""),
+            "icon": task.get("icon", ""),
+        }
+
+    def _checkpoint_event(
+        self,
+        child_id: str,
+        routine: dict[str, Any],
+        checkpoint: dict[str, Any],
+        day: date,
+        record: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        """A completed checkpoint (``record``), or a missed one (None)."""
+        due = self.checkpoint_time(routine, checkpoint, day)
+        event = {
+            "day": day.isoformat(),
+            "child_id": child_id,
+            "routine_id": routine["id"],
+            "routine_name": routine.get("name", ""),
+            "checkpoint_id": checkpoint["id"],
+            "checkpoint_name": checkpoint.get("name", ""),
+            "icon": checkpoint.get("icon") or "checkpoint_flag",
+            "due": _iso(due),
+        }
+        if record is None:
+            return event | {
+                "timestamp": _iso(due),
+                "type": "checkpoint_missed",
+                "tokens": 0,
+                "on_time": False,
+            }
+        done = dt_util.parse_datetime(record.get("at", "")) or due
+        return event | {
+            "timestamp": record.get("at") or _iso(due),
+            "type": "checkpoint_done",
+            "tokens": int(record.get("tokens", 0)),
+            "on_time": bool(record.get("on_time")),
+            "early_s": int((due - done).total_seconds()),
+        }
+
+    def _missed_checkpoints(self, day: date, child_id: str) -> list[dict[str, Any]]:
+        """Events for the checkpoints a child did not reach on ``day``."""
+        result = []
+        for routine in self.routines_on_day(day):
+            if not applies_to(routine, child_id):
+                continue
+            done = self.progress(day, routine["id"], child_id)["checkpoints"]
+            for checkpoint in routine.get("checkpoints", []):
+                if applies_to(checkpoint, child_id) and checkpoint["id"] not in done:
+                    result.append(
+                        self._checkpoint_event(child_id, routine, checkpoint, day, None)
+                    )
+        return result
+
+    async def async_backfill_events(self) -> None:
+        """Build the event log from the kept daily progress (first start)."""
+        if self.events or not self.data["days"]:
+            return
+        today = self.today()
+        found: list[dict[str, Any]] = []
+        for key, routines in sorted(self.data["days"].items()):
+            day = date.fromisoformat(key)
+            for routine_id, by_child in routines.items():
+                routine = self.routine_for_day(routine_id, day) or self.routine(
+                    routine_id
+                )
+                if routine is None:
+                    continue
+                tasks = {t["id"]: t for t in routine.get("tasks", [])}
+                cps = {c["id"]: c for c in routine.get("checkpoints", [])}
+                for child_id, progress in by_child.items():
+                    for task_id, at in progress.get("tasks", {}).items():
+                        if task_id in tasks:
+                            found.append(
+                                self._task_event(child_id, routine, tasks[task_id], at)
+                            )
+                    for cp_id, record in progress.get("checkpoints", {}).items():
+                        if cp_id in cps:
+                            found.append(
+                                self._checkpoint_event(
+                                    child_id, routine, cps[cp_id], day, record
+                                )
+                            )
+            if day < today:
+                for child in self.children(active_only=True):
+                    found.extend(self._missed_checkpoints(day, child["id"]))
+        for event in sorted(found, key=lambda e: e["timestamp"]):
+            self._log_event(event)
+        if found:
+            await self.store.async_save_ledger()
+
+    def event_list(
+        self,
+        child_id: str | None = None,
+        limit: int = 500,
+        *,
+        date_from: str | None = None,
+        date_to: str | None = None,
+        search: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Events, newest first, filtered like the token history."""
+        needle = (search or "").strip().casefold()
+        result = []
+        for event in reversed(self.events):
+            if child_id and event["child_id"] != child_id:
+                continue
+            day = event.get("day") or event["timestamp"][:10]
+            if (date_from and day < date_from) or (date_to and day > date_to):
+                continue
+            if needle:
+                child = self.child(event["child_id"]) or {}
+                text = " ".join(
+                    str(v)
+                    for v in (
+                        child.get("name"),
+                        event.get("routine_name"),
+                        event.get("task_name"),
+                        event.get("checkpoint_name"),
+                    )
+                    if v
+                ).casefold()
+                if needle not in text:
+                    continue
+            result.append(event)
+            if len(result) >= limit:
+                break
+        return result
+
     def history(
         self,
         child_id: str | None = None,
@@ -886,9 +1107,11 @@ class KisSegitoManager:
         if task_id in progress["tasks"]:
             return
         progress["tasks"][task_id] = _iso(dt_util.now())
+        self._log_event(
+            self._task_event(child_id, routine, task, progress["tasks"][task_id])
+        )
         self._fire("task_completed", child_id, routine_id=routine_id, task_id=task_id)
         checkpoint = self.task_checkpoint(routine, task)
-        ledger_changed = False
         if checkpoint is not None and applies_to(checkpoint, child_id):
             linked = [
                 t
@@ -897,11 +1120,9 @@ class KisSegitoManager:
                 == checkpoint["id"]
             ]
             if all(t["id"] in progress["tasks"] for t in linked):
-                ledger_changed = self._complete_checkpoint(
-                    child_id, routine, checkpoint, day, source
-                )
+                self._complete_checkpoint(child_id, routine, checkpoint, day, source)
         self._prune_days()
-        await self._changed(ledger=ledger_changed)
+        await self._changed(ledger=True)
 
     async def async_complete_checkpoint(
         self,
@@ -924,10 +1145,8 @@ class KisSegitoManager:
         )
         if checkpoint is None:
             raise KisSegitoError("unknown_checkpoint")
-        changed = self._complete_checkpoint(
-            child_id, routine, checkpoint, self.today(), source
-        )
-        await self._changed(ledger=changed)
+        self._complete_checkpoint(child_id, routine, checkpoint, self.today(), source)
+        await self._changed(ledger=True)
 
     def _complete_checkpoint(
         self,
@@ -968,6 +1187,9 @@ class KisSegitoManager:
             )
             record["tx"] = tx["id"]
         progress["checkpoints"][checkpoint["id"]] = record
+        self._log_event(
+            self._checkpoint_event(child_id, routine, checkpoint, day, record)
+        )
         self._fire(
             "checkpoint_completed",
             child_id,
@@ -1019,6 +1241,9 @@ class KisSegitoManager:
             )
             if streak.get("last_day") and streak["last_day"] >= day.isoformat():
                 continue  # already evaluated
+            for event in self._missed_checkpoints(day, child["id"]):
+                self._log_event(event)
+                ledger_changed = True
             success = self.day_success(child["id"], day)
             streak["last_day"] = day.isoformat()
             if success is None:

@@ -70,6 +70,8 @@ def async_register_commands(hass: HomeAssistant) -> None:
         ws_rotate_device_token,
         ws_device_screen,
         ws_restart_device,
+        ws_rename_device,
+        ws_events,
     ):
         websocket_api.async_register_command(hass, command)
 
@@ -314,6 +316,60 @@ async def ws_restart_device(
     connection.send_result(msg["id"])
 
 
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/device/rename",
+        vol.Required("device_id"): str,
+        vol.Required("name"): vol.All(str, vol.Length(max=100)),
+    }
+)
+@websocket_api.require_admin
+@callback
+def ws_rename_device(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Rename a knob (its Home Assistant device name; empty: the original)."""
+    if msg["device_id"] not in {d["device_id"] for d in _devices(hass)}:
+        connection.send_error(msg["id"], "unknown_device", "Unknown knob")
+        return
+    dr.async_get(hass).async_update_device(
+        msg["device_id"], name_by_user=msg["name"].strip() or None
+    )
+    _manager(hass).async_notify_listeners()
+    connection.send_result(msg["id"])
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/events",
+        vol.Optional("child_id"): vol.Any(None, str),
+        vol.Optional("limit", default=500): vol.All(int, vol.Range(min=1, max=20000)),
+        vol.Optional("date_from"): vol.Any(None, str),
+        vol.Optional("date_to"): vol.Any(None, str),
+        vol.Optional("search"): vol.Any(None, str),
+    }
+)
+@callback
+def ws_events(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Events without a token movement (tasks, checkpoints), newest first."""
+    connection.send_result(
+        msg["id"],
+        _manager(hass).event_list(
+            msg.get("child_id"),
+            msg["limit"],
+            date_from=msg.get("date_from") or None,
+            date_to=msg.get("date_to") or None,
+            search=msg.get("search"),
+        ),
+    )
+
+
 def _children(manager: KisSegitoManager) -> list[dict[str, Any]]:
     return [
         child
@@ -480,7 +536,7 @@ async def ws_assign(
     {
         vol.Required("type"): f"{DOMAIN}/history",
         vol.Optional("child_id"): vol.Any(None, str),
-        vol.Optional("limit", default=200): vol.All(int, vol.Range(min=1, max=2000)),
+        vol.Optional("limit", default=200): vol.All(int, vol.Range(min=1, max=20000)),
         vol.Optional("reasons"): vol.Any(None, [str]),
         vol.Optional("account"): vol.Any(None, vol.In([WALLET, PIGGY])),
         vol.Optional("date_from"): vol.Any(None, str),
@@ -681,6 +737,9 @@ def ws_week(
                     {
                         "routine": r,
                         "one_day": bool(r.get("one_day")),
+                        "moved_from": (manager.override(day, r["id"]) or {}).get(
+                            "moved_from"
+                        ),
                         "edited": bool(
                             (manager.override(day, r["id"]) or {}).get("routine")
                         ),
@@ -894,6 +953,7 @@ async def ws_notify_test(
         vol.Required("date"): str,
         vol.Optional("routine_id"): vol.Any(None, str),
         vol.Required("routine"): vol.Any(None, dict),
+        vol.Optional("target_date"): vol.Any(None, str),
     }
 )
 @websocket_api.require_admin
@@ -911,6 +971,9 @@ async def ws_day_routine(
             date.fromisoformat(msg["date"]),
             msg.get("routine_id"),
             msg["routine"],
+            target_day=date.fromisoformat(msg["target_date"])
+            if msg.get("target_date")
+            else None,
             who=_who(connection),
         ),
     )

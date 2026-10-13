@@ -124,7 +124,10 @@ class KisSegitoStore:
             hass, STORAGE_VERSION, LEDGER_KEY, private=True, atomic_writes=True
         )
         self.data: dict[str, Any] = _empty_config()
-        self.ledger: dict[str, Any] = {"transactions": [], "actions": {}}
+        # Transactions (token movements), processed knob action ids, and the
+        # events without a token movement (tasks and checkpoints, for the
+        # statistics and the history page).
+        self.ledger: dict[str, Any] = {"transactions": [], "actions": {}, "events": []}
 
     async def async_load(self) -> None:
         """Load both documents, starting empty when nothing is stored yet."""
@@ -135,6 +138,7 @@ class KisSegitoStore:
             self.ledger = {
                 "transactions": list(ledger.get("transactions", [])),
                 "actions": dict(ledger.get("actions", {})),
+                "events": list(ledger.get("events", [])),
             }
 
     async def async_save(self) -> None:

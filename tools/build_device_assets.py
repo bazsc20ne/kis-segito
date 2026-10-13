@@ -41,6 +41,9 @@ AVATAR_SIZE = 180
 WEB_SMALL_SIZE = 88  # 44 px at 2x
 # Sources that are not icons for the panel.
 WEB_SKIP = ("ball_", "brand_logo", "brand_app_icon", "token_pile_shadow")
+# The panel header's wordmarks (Hungarian and every other language).
+LOGOS = ("brand_logo", "brand_logo_en")
+LOGO_HEIGHT = 160  # shown up to 80 px high
 
 
 def _srgb_to_linear(v: np.ndarray) -> np.ndarray:
@@ -147,6 +150,14 @@ def main() -> int:
         )
         web += 1
     print(f"wrote {web} panel icons to {WEB_OUT.relative_to(ROOT)}")
+    # Header wordmarks: transparent margins trimmed, a fixed height.
+    for name in LOGOS:
+        img = Image.open(SOURCE / f"{name}.png").convert("RGBA")
+        img = img.crop(img.getchannel("A").point(lambda a: 255 if a > 8 else 0).getbbox())
+        width = round(img.width * LOGO_HEIGHT / img.height)
+        img.resize((width, LOGO_HEIGHT), Image.LANCZOS).save(
+            WEB_OUT / f"{name}.webp", "WEBP", quality=90, method=6
+        )
     # Icon ids that share another icon's artwork ("_aliases": id -> stored id).
     (WEB_OUT / "aliases.json").write_text(
         json.dumps(manifest.get("_aliases", {}), indent=2, sort_keys=True) + "\n", "utf-8"

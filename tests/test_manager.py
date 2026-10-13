@@ -351,9 +351,15 @@ async def test_day_routine_edits(manager: KisSegitoManager) -> None:
     # Tasks of the day's copy can be completed.
     task_id = manager.routine_for_day(routine["id"], day)["tasks"][0]["id"]
     await manager.async_complete_task(kid, routine["id"], task_id)
-    # Restore: back to the routine (the shift stays until removed).
+    # Restore: back to the routine, the shift goes too.
     await manager.async_set_day_routine(day, routine["id"], None)
+    assert manager.routine_for_day(routine["id"], day)["start"] == "19:00"
+    # Saving the day's copy keeps the shifted times, without shifting again.
+    await manager.async_set_override(day, routine["id"], shift_min=10)
+    shifted = manager.routine_for_day(routine["id"], day)
+    await manager.async_set_day_routine(day, routine["id"], shifted)
     assert manager.routine_for_day(routine["id"], day)["start"] == "19:10"
+    await manager.async_set_day_routine(day, routine["id"], None)
 
     one_day = await manager.async_set_day_routine(
         day + timedelta(days=1),
@@ -547,3 +553,74 @@ async def test_evening_routine_stays_in_knob_menu_while_late_reward_pays(
     assert routine["e"] == int(sleep.timestamp())
     assert routine["m"] == int((sleep + timedelta(minutes=20 + 30)).timestamp())
     assert routine["m"] > int(dt_util.now().timestamp())
+
+
+async def test_occurrence_moves_to_another_day(manager: KisSegitoManager) -> None:
+    routine = await manager.async_save_item(
+        "routines",
+        {
+            "name": "Evening",
+            "start": "19:00",
+            "end": "20:00",
+            "checkpoints": [{"name": "Bed", "time": "20:00"}],
+        },
+    )
+    day = manager.today()
+    target = day + timedelta(days=1)
+    moved = dict(routine) | {"start": "17:00", "end": "18:00"}
+    copy_id = await manager.async_set_day_routine(
+        day, routine["id"], moved, target_day=target
+    )
+    assert manager.routine_for_day(routine["id"], day) is None
+    copy = manager.routine_for_day(copy_id, target)
+    assert copy["start"] == "17:00" and copy["one_day"]
+    assert manager.override(target, copy_id)["moved_from"] == {
+        "date": day.isoformat(),
+        "routine_id": routine["id"],
+    }
+    # The same routine on the target day stays independent.
+    assert manager.routine_for_day(routine["id"], target)["start"] == "19:00"
+    # Restoring the copy brings the occurrence back to its own day.
+    await manager.async_set_day_routine(target, copy_id, None)
+    assert manager.routine_for_day(copy_id, target) is None
+    assert manager.routine_for_day(routine["id"], day)["start"] == "19:00"
+    # Restoring on the home day ("Modify today") removes the moved copy.
+    copy_id = await manager.async_set_day_routine(
+        day, routine["id"], moved, target_day=target
+    )
+    await manager.async_set_override(day, routine["id"])
+    assert manager.routine_for_day(copy_id, target) is None
+    assert manager.routine_for_day(routine["id"], day)["start"] == "19:00"
+
+
+async def test_events_log_tasks_and_checkpoints(
+    hass: HomeAssistant, manager: KisSegitoManager, freezer: FrozenDateTimeFactory
+) -> None:
+    freezer.move_to(dt_util.now().replace(hour=7, minute=0, second=0, microsecond=0))
+    kid = await _child(manager)
+    routine = await manager.async_save_item(
+        "routines",
+        {
+            "name": "Morning",
+            "start": "06:30",
+            "end": "07:30",
+            "checkpoints": [
+                {"name": "Breakfast", "time": "07:10"},
+                {"name": "Door", "time": "07:30", "reward_bands": []},
+            ],
+            "tasks": [{"icon": "task_breakfast", "label": "Eat"}],
+        },
+    )
+    routine["tasks"][0]["checkpoint_id"] = routine["checkpoints"][0]["id"]
+    routine = await manager.async_save_item("routines", routine)
+    await manager.async_complete_task(kid, routine["id"], routine["tasks"][0]["id"])
+    events = manager.event_list(kid)
+    assert [e["type"] for e in events] == ["checkpoint_done", "task_done"]
+    assert events[0]["tokens"] == 0 and events[0]["early_s"] == 600
+    assert manager.event_list(kid, search="eat")[0]["task_name"] == "Eat"
+    # The door was not reached: logged as missed when the day is evaluated.
+    await manager.async_evaluate_day(manager.today())
+    missed = manager.event_list(kid)[0]
+    assert missed["type"] == "checkpoint_missed"
+    assert missed["checkpoint_name"] == "Door"
+    assert manager.balances(kid) == {"wallet": 0, "piggy": 0}
