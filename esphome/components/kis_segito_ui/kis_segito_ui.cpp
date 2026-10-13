@@ -889,7 +889,6 @@ void KisSegitoUI::set_state(const std::string &json) {
   for (const auto &r : this->routines_)
     ESP_LOGD(TAG, "Routine %s: start %lld, end %lld, menu until %lld", r.id.c_str(), (long long) r.start,
              (long long) r.end, (long long) r.menu_until);
-  this->menu_routines_.clear();  // logged again with the new data
   if (!this->boot_info_logged_) {
     this->boot_info_logged_ = true;
     this->log_reset_reason_();

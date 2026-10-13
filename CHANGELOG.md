@@ -6,6 +6,18 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [Unreleased]
+
+### English
+
+- The knob's "Menu: routine … shown/hidden" log lines appear only when the
+  routines in the menu change, not again with every data update.
+
+### Magyar
+
+- A gomb „Menu: routine … shown/hidden” naplósorai csak akkor jelennek meg,
+  ha a menü rutinjai változnak, nem minden adatfrissítéskor újra.
+
 ## [0.7.32] - 2026-10-12
 
 ### English
