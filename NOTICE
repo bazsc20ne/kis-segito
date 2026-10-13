@@ -37,3 +37,9 @@ SOFTWARE.
 
 The display driver (mipi_rgb) comes from ESPHome (https://esphome.io), which is
 used as a dependency and keeps its own license.
+
+The Home Assistant panel ships subsets of two fonts, both licensed under the
+SIL Open Font License 1.1 (full text next to the font files in
+custom_components/kis_segito/frontend/fonts/):
+- Baloo 2 - Copyright 2019 The Baloo 2 Project Authors (OFL-Baloo2.txt)
+- Figtree - Copyright 2022 The Figtree Project Authors (OFL-Figtree.txt)

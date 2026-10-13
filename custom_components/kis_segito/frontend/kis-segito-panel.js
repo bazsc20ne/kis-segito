@@ -2296,6 +2296,7 @@ class KisSegitoPanel extends HTMLElement {
     } else {
       await this._loadForTab(tab);
     }
+    this._render();
     this.shadowRoot.querySelector(".page")?.scrollTo({ top: 0 });
   }
 

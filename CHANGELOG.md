@@ -10,11 +10,70 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
 
 ### English
 
+- Redesigned Home Assistant panel: a new, playful look with its own fonts
+  (Baloo 2 and Figtree), a day/night switch (by default it follows the Home
+  Assistant dark mode), the Kis Segítő / Little Helper logo in the header, a
+  language switch, pill tabs on desktop and a bottom bar on phones. Editors open
+  in side drawers with section navigation; every drawer and dialog closes with a
+  click outside or Esc; confirmations appear inside the panel and short
+  messages appear as toasts.
+- Today page: a top card with the ring preview, the next checkpoint and the
+  remaining tasks, a time slider to look back over the day, child cards that open
+  the child's statistics, and a "Modify today" section to adjust or restore
+  today's routines.
+- Statistics per child: last 7 days by default, or 30 days, all time or a custom
+  period; summary tiles, a daily chart, per-checkpoint timing, observations, and
+  tokens earned, spent and saved.
+- Event log: finished tasks, finished checkpoints (with tokens and timing) and
+  missed checkpoints are now recorded. Existing history is filled in from the
+  saved days on the first start. The History page hides events without token movement by
+  default; a switch shows them and search always finds them.
+- Calendar: drag a routine to another time or day, drag its top or bottom edge
+  to change its length (5-minute steps), with an undo bar. Checkpoints keep their
+  distance from the end of the routine. A moved routine shows where it came from;
+  "Restore the original" moves it back. The one-day editor has a date field. Past
+  days cannot be changed.
+- Restoring a changed occurrence now restores the original completely, including
+  a time shift.
+- Rewards: shop grid with reordering, an editor with live preview; "Use icon"
+  opens the icon picker right away. Tokens: quick amounts.
+- Settings: knobs can be renamed from the panel; restart and new picture key ask
+  for confirmation; background thumbnails.
 - The knob's "Menu: routine … shown/hidden" log lines appear only when the
   routines in the menu change, not again with every data update.
 
 ### Magyar
 
+- Megújult Home Assistant panel: új, játékos megjelenés saját betűtípusokkal
+  (Baloo 2 és Figtree), nappali/éjszakai kapcsoló (alapból a Home Assistant
+  sötét módját követi), Kis Segítő / Little Helper logó a fejlécben,
+  nyelvváltó, asztali gépen lapfülek, telefonon alsó menüsor. A szerkesztők
+  oldalsó fiókban nyílnak, szakaszonkénti navigációval; minden fiók és
+  párbeszédablak bezárható kívülre kattintással vagy Esc-kel; a megerősítések a
+  panelen belül jelennek meg, a rövid üzenetek felugró sávként.
+- Ma oldal: felső kártya a gyűrű előnézetével, a következő checkpointtal és a
+  hátralévő feladatokkal, idősáv a nap visszanézéséhez, gyerekkártyák, amelyek a
+  gyerek statisztikáját nyitják, és „Mai nap módosítása” rész a mai rutinok
+  módosításához vagy visszaállításához.
+- Gyerekenkénti statisztika: alapból az utolsó 7 nap, vagy 30 nap, a teljes idő
+  vagy egyéni időszak; összesítő csempék, napi grafikon, checkpointonkénti
+  időzítés, megfigyelések, valamint a szerzett, elköltött és megtakarított
+  zsetonok.
+- Eseménynapló: a kész feladatok, a kész checkpointok (zsetonnal és
+  időzítéssel) és a lekésett checkpointok is rögzülnek. A meglévő előzmények az
+  első indításkor a mentett napokból töltődnek fel. Az Előzmények oldal a zsetonmozgás nélküli eseményeket
+  alapból elrejti; kapcsolóval megjeleníthetők, a keresés mindig megtalálja őket.
+- Naptár: a rutin áthúzható másik időpontra vagy napra, a felső vagy alsó széle
+  húzásával a hossza változtatható (5 perces lépésekben), visszavonás sávval. A
+  checkpointok megtartják a távolságukat a rutin végétől. Az áthelyezett rutin
+  mutatja, honnan jött; az „Visszaállítás eredetire” visszaviszi. Az egynapos
+  szerkesztőben dátummező van. Múltbeli nap nem módosítható.
+- Egy módosított alkalom visszaállítása most teljesen visszaállítja az eredetit,
+  az időeltolással együtt.
+- Jutalmak: bolti rács átrendezéssel, szerkesztő élő előnézettel; az „Ikon
+  használata” azonnal megnyitja az ikonválasztót. Zsetonok: gyors összegek.
+- Beállítások: a gombok átnevezhetők a panelről; az újraindítás és az új
+  képkulcs megerősítést kér; háttér-bélyegképek.
 - A gomb „Menu: routine … shown/hidden” naplósorai csak akkor jelennek meg,
   ha a menü rutinjai változnak, nem minden adatfrissítéskor újra.
 
