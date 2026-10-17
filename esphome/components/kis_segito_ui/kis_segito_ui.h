@@ -188,6 +188,26 @@ class KisSegitoUI : public Component {
   uint32_t blank_after() const { return this->blank_after_; }
   uint32_t off_after() const { return this->off_after_; }
   bool started() const { return this->started_; }
+  // Sensor-driven screen behaviour from Home Assistant (each part can be
+  // switched off). Distances in cm, brightness in percent, times in seconds.
+  struct SensorSettings {
+    bool presence_wake{true};   // presence wakes the screen (soft fade-in)
+    bool presence_saver{true};  // screen power stages count from absence
+    bool night_light{true};
+    float night_lux{5};         // darker than this: night (with hysteresis)
+    uint8_t night_brightness{30};
+    uint16_t night_kelvin{2700};
+    uint32_t night_off_after{60};  // night light stays this long after presence ends
+    uint16_t near_cm{80};           // closer than this: the child UI
+    bool ambient{true};             // brightness follows the room light
+    uint8_t ambient_min{10};
+    uint8_t ambient_max{100};
+  };
+  const SensorSettings &sensor_settings() const { return this->sensor_; }
+  // Night light: a white screen (colour temperature in kelvin) with a small
+  // black crescent moon in the middle, above everything else.
+  void show_night_light(uint16_t kelvin);
+  void hide_night_light();
   // Time since the knob was last turned or pressed (any input, also one that
   // only woke the screen).
   void set_idle_ms(uint32_t ms) { this->idle_ms_ = ms; }
@@ -433,6 +453,10 @@ class KisSegitoUI : public Component {
   uint32_t blank_after_{0};
   uint32_t off_after_{120};
   std::string saver_type_{"balls"};
+  SensorSettings sensor_;
+  lv_obj_t *night_layer_{nullptr};
+  lv_obj_t *night_moon_{nullptr};
+  lv_obj_t *night_cut_{nullptr};
   static constexpr int CONFETTI = 40;
   static constexpr int CONFETTI_MIN = 36;  // blown-away pieces come back below this
   struct Piece {

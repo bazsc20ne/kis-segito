@@ -21,7 +21,7 @@ def main() -> int:
     )
     versions = {"manifest.json": manifest["version"]}
 
-    esphome = (ROOT / "esphome/kis-segito.yaml").read_text("utf-8")
+    esphome = (ROOT / "esphome/kis-segito-core.yaml").read_text("utf-8")
     match = re.search(r'^\s+version:\s*"([^"]+)"', esphome, re.MULTILINE)
     versions["esphome project"] = match.group(1) if match else "<missing>"
 

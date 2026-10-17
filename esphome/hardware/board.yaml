@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 #
-# Board definition for the VIEWE UEDX48480021-MD80E knob (no touch):
-# ESP32-S3 + 2.1" 480x480 RGB panel, backlight. Included by kis-segito.yaml and
-# display-test.yaml.
+# Board profile of the VIEWE UEDX48480021-MD80E knob (no touch): ESP32-S3,
+# 2.1" 480x480 RGB panel, backlight, rotary encoder and push button. Included by
+# kis-segito.yaml, display-test.yaml and pin-probe.yaml; docs/boards.md describes
+# what a board profile provides.
 #
 # Panel setup follows the vendor's MD80E ESP-IDF example
 # (VIEWESMART/UEDX48480021-MD80ESP32_2.1inch-Knob,
@@ -43,9 +44,17 @@ substitutions:
   # ESP-IDF 5.5 a frame that missed data can then leave the picture striped
   # and stepped until the knob restarts.
   display_restart_in_vsync: "n"
-  # Serial log on UART0 (GPIO43/44). "0" turns the serial log off and frees
-  # UART0 for other hardware; logs stay available over the network.
+  # Serial log: UART0 sends it on GPIO43/44 (the debug board's TX1/RX1).
+  # UART1 has no pins assigned, which frees GPIO43/44 for sensors; the log
+  # stays available over the network. Do not set logger_baud_rate to "0" on
+  # this knob: the display then shows stripes and goes blank.
+  logger_uart: UART0
   logger_baud_rate: "115200"
+  # Encoder counts per mechanical click at the finest resolution (4 counts per
+  # quadrature cycle). The MD80E encoder makes half a cycle per click = 2.
+  # How many clicks make one UI step is set at runtime from Home Assistant
+  # ("Encoder clicks per step").
+  encoder_counts_per_click: "2"
 
 packages:
   panel: !include panel/${display_controller}.yaml
@@ -113,7 +122,7 @@ esp32:
 
 # The native USB port (USB-Serial-JTAG) is left unused at runtime (#8).
 logger:
-  hardware_uart: UART0
+  hardware_uart: ${logger_uart}
   baud_rate: ${logger_baud_rate}
 
 psram:
@@ -193,3 +202,33 @@ light:
     output: backlight_pwm
     restore_mode: ALWAYS_ON
     default_transition_length: 250ms
+
+# Rotary encoder: external 4.7k pull-ups are on the board. A/B are swapped
+# against the vendor's BSP_ENCODER_A/B so that clockwise counts up.
+sensor:
+  - platform: rotary_encoder
+    id: knob_encoder
+    name: Encoder
+    icon: mdi:knob
+    pin_a: GPIO5
+    pin_b: GPIO6
+    # Finest resolution; clicks are counted in software.
+    resolution: 4
+    # Raw counts are only useful for debugging.
+    internal: true
+
+# Push button: GPIO0 is a strapping pin. Holding the button down while the knob
+# powers up or restarts puts the ESP32-S3 into download (flashing) mode.
+# External pull-up on the board.
+binary_sensor:
+  - platform: gpio
+    id: knob_button
+    name: Button
+    icon: mdi:gesture-tap-button
+    pin:
+      number: GPIO0
+      inverted: true
+      ignore_strapping_warning: true
+    filters:
+      - delayed_on: 10ms
+      - delayed_off: 10ms

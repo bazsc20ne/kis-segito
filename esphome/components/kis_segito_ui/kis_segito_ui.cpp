@@ -867,6 +867,34 @@ void KisSegitoUI::set_state(const std::string &json) {
     this->off_after_ = off;
     this->saver_type_ = saver_type;
   }
+  if (root["sen"].is<JsonObjectConst>()) {
+    JsonObjectConst sen = root["sen"].as<JsonObjectConst>();
+    SensorSettings s;
+    s.presence_wake = sen["pw"] | true;
+    s.presence_saver = sen["ps"] | true;
+    s.night_light = sen["nl"] | true;
+    s.night_lux = std::max(0.0f, sen["nlx"] | 5.0f);
+    s.night_brightness = static_cast<uint8_t>(std::min(100, std::max(1, sen["nb"] | 30)));
+    s.night_kelvin = static_cast<uint16_t>(std::min(6500, std::max(1500, sen["nk"] | 2700)));
+    s.night_off_after = static_cast<uint32_t>(std::max(0, sen["noff"] | 60));
+    s.near_cm = static_cast<uint16_t>(std::min(1000, std::max(10, sen["near"] | 80)));
+    s.ambient = sen["amb"] | true;
+    s.ambient_min = static_cast<uint8_t>(std::min(100, std::max(1, sen["amin"] | 10)));
+    s.ambient_max = static_cast<uint8_t>(std::min(100, std::max<int>(s.ambient_min, sen["amax"] | 100)));
+    const SensorSettings &o = this->sensor_;
+    if (first_state || s.presence_wake != o.presence_wake || s.presence_saver != o.presence_saver ||
+        s.night_light != o.night_light || s.night_lux != o.night_lux || s.night_brightness != o.night_brightness ||
+        s.night_kelvin != o.night_kelvin || s.night_off_after != o.night_off_after || s.near_cm != o.near_cm ||
+        s.ambient != o.ambient || s.ambient_min != o.ambient_min || s.ambient_max != o.ambient_max) {
+      ESP_LOGI(TAG,
+               "Sensors: presence wake %s, screen stages from absence %s, night light %s (below %.1f lx, %u%%, "
+               "%u K, off %us after presence), UI closer than %u cm, room-light brightness %s (%u-%u%%)",
+               YESNO(s.presence_wake), YESNO(s.presence_saver), YESNO(s.night_light), s.night_lux,
+               (unsigned) s.night_brightness, (unsigned) s.night_kelvin, (unsigned) s.night_off_after,
+               (unsigned) s.near_cm, YESNO(s.ambient), (unsigned) s.ambient_min, (unsigned) s.ambient_max);
+    }
+    this->sensor_ = s;
+  }
   if (root["anim"].is<const char *>())
     this->set_animation_mode(root["anim"].as<const char *>());
 
@@ -3593,6 +3621,72 @@ void KisSegitoUI::stop_confetti() {
     lv_obj_delete(this->saver_screen_);  // deletes the pieces too
     this->saver_screen_ = nullptr;
   }
+}
+
+
+// Colour of a light source of the given temperature (Tanner Helland's
+// approximation of the black-body curve), as 0xRRGGBB.
+static uint32_t kelvin_to_rgb(uint16_t kelvin) {
+  const float t = kelvin / 100.0f;
+  auto clamp = [](float v) { return static_cast<uint32_t>(std::min(255.0f, std::max(0.0f, v))); };
+  uint32_t r, g, b;
+  if (t <= 66) {
+    r = 255;
+    g = clamp(99.4708025861f * logf(t) - 161.1195681661f);
+    b = t <= 19 ? 0 : clamp(138.5177312231f * logf(t - 10) - 305.0447927307f);
+  } else {
+    r = clamp(329.698727446f * powf(t - 60, -0.1332047592f));
+    g = clamp(288.1221695283f * powf(t - 60, -0.0755148492f));
+    b = 255;
+  }
+  return (r << 16) | (g << 8) | b;
+}
+
+void KisSegitoUI::show_night_light(uint16_t kelvin) {
+  const lv_color_t bg = lv_color_hex(kelvin_to_rgb(kelvin));
+  if (this->night_layer_ == nullptr) {
+    // The moon is ~70 px tall on a 480 px screen, scaled to the display.
+    lv_display_t *disp = lv_display_get_default();
+    const int size = std::min(lv_display_get_horizontal_resolution(disp), lv_display_get_vertical_resolution(disp));
+    const int moon = std::max(8, size * 70 / 480);
+    lv_obj_t *layer = lv_obj_create(lv_layer_sys());
+    lv_obj_remove_style_all(layer);
+    lv_obj_set_size(layer, LV_PCT(100), LV_PCT(100));
+    lv_obj_set_style_bg_opa(layer, LV_OPA_COVER, 0);
+    lv_obj_remove_flag(layer, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_remove_flag(layer, LV_OBJ_FLAG_CLICKABLE);
+    // A crescent: a black disc partly covered by a disc in the background
+    // colour, shifted up and to the right.
+    lv_obj_t *disc = lv_obj_create(layer);
+    lv_obj_remove_style_all(disc);
+    lv_obj_set_size(disc, moon, moon);
+    lv_obj_set_style_radius(disc, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_color(disc, lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(disc, LV_OPA_COVER, 0);
+    lv_obj_center(disc);
+    lv_obj_t *cut = lv_obj_create(layer);
+    lv_obj_remove_style_all(cut);
+    const int cut_size = moon * 82 / 100;
+    lv_obj_set_size(cut, cut_size, cut_size);
+    lv_obj_set_style_radius(cut, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_opa(cut, LV_OPA_COVER, 0);
+    lv_obj_align(cut, LV_ALIGN_CENTER, moon * 30 / 100, -moon * 16 / 100);
+    this->night_layer_ = layer;
+    this->night_moon_ = disc;
+    this->night_cut_ = cut;
+  }
+  lv_obj_set_style_bg_color(this->night_layer_, bg, 0);
+  lv_obj_set_style_bg_color(this->night_cut_, bg, 0);
+  lv_obj_move_foreground(this->night_layer_);
+  lv_obj_remove_flag(this->night_layer_, LV_OBJ_FLAG_HIDDEN);
+  ESP_LOGI(TAG, "Night light on (%u K)", (unsigned) kelvin);
+}
+
+void KisSegitoUI::hide_night_light() {
+  if (this->night_layer_ == nullptr || lv_obj_has_flag(this->night_layer_, LV_OBJ_FLAG_HIDDEN))
+    return;
+  lv_obj_add_flag(this->night_layer_, LV_OBJ_FLAG_HIDDEN);
+  ESP_LOGI(TAG, "Night light off");
 }
 
 }  // namespace esphome::kis_segito_ui
