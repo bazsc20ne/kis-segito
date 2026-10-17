@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.kis_segito.const import CONF_DEVICE_ID, DOMAIN
@@ -125,3 +126,65 @@ async def test_panel_data_flow(hass: HomeAssistant, hass_ws_client) -> None:
     )["result"]
     assert settings["streak_target"] == 5
     assert settings["animation_mode"] == "reduced"
+
+
+async def test_sensor_settings_and_inputs(hass: HomeAssistant, hass_ws_client) -> None:
+    esphome_entry = MockConfigEntry(
+        domain="esphome", data={"host": "192.0.2.1", "device_name": "test-knob"}
+    )
+    esphome_entry.add_to_hass(hass)
+    device = dr.async_get(hass).async_get_or_create(
+        config_entry_id=esphome_entry.entry_id,
+        connections={(dr.CONNECTION_NETWORK_MAC, "00:00:00:00:00:05")},
+        name="Knob",
+    )
+    own = er.async_get(hass).async_get_or_create(
+        "binary_sensor",
+        "esphome",
+        "knob-presence",
+        device_id=device.id,
+        config_entry=esphome_entry,
+    )
+    entry = MockConfigEntry(
+        domain=DOMAIN, unique_id=device.id, data={CONF_DEVICE_ID: device.id}
+    )
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    client = await hass_ws_client(hass)
+
+    async def call(**msg):
+        await client.send_json_auto_id(msg)
+        return await client.receive_json()
+
+    # Defaults are returned; switches and numbers are validated and stored.
+    settings = (await call(type=f"{DOMAIN}/settings"))["result"]
+    assert settings["screen"]["night_light"] is True
+    assert settings["screen"]["near_cm"] == 80
+    result = await call(
+        type=f"{DOMAIN}/settings/update",
+        screen={"night_light": False, "night_kelvin": 2200, "night_lux": 3.5},
+    )
+    assert result["success"]
+    assert result["result"]["screen"]["night_light"] is False
+    assert result["result"]["screen"]["night_kelvin"] == 2200
+    assert result["result"]["screen"]["dim_after"] == 60
+    bad = await call(type=f"{DOMAIN}/settings/update", screen={"night_kelvin": 900})
+    assert not bad["success"]
+
+    # Forwarded inputs; the knob's own entity is refused.
+    assert (
+        await call(
+            type=f"{DOMAIN}/device/inputs",
+            device_id=device.id,
+            inputs={"presence": "binary_sensor.hall_motion"},
+        )
+    )["success"]
+    refused = await call(
+        type=f"{DOMAIN}/device/inputs",
+        device_id=device.id,
+        inputs={"presence": own.entity_id},
+    )
+    assert refused["error"]["code"] == "own_entity"
+    devices = (await call(type=f"{DOMAIN}/data"))["result"]["devices"]
+    assert devices[0]["inputs"] == {"presence": "binary_sensor.hall_motion"}

@@ -8,7 +8,7 @@
 # over the air afterwards:
 #
 #   packages:
-#     kis_segito: github://bazsc20ne/kis-segito/esphome/pin-probe.yaml@v0.7.33
+#     kis_segito: github://bazsc20ne/kis-segito/esphome/pin-probe.yaml@v0.8.0
 #
 # On the screen: the GPIO number being probed and its mode. Turn the knob for
 # the next or previous GPIO; press the button to switch between pull-up (the

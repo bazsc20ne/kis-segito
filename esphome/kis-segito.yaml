@@ -10,7 +10,7 @@
 #     name: kis-segito
 #     friendly_name: Kis Segito
 #   packages:
-#     kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.7.33
+#     kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.8.0
 #   api:
 #     encryption:
 #       key: !secret kis_segito_api_key

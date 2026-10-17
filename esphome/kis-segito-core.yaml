@@ -25,8 +25,8 @@ substitutions:
   friendly_name: Kis Segito
   # Where the UI component and its images come from. They must match the
   # version of this package; CI and local builds point them at the repository.
-  kis_segito_components: github://bazsc20ne/kis-segito@v0.7.33
-  kis_segito_assets: https://raw.githubusercontent.com/bazsc20ne/kis-segito/v0.7.33/assets/device
+  kis_segito_components: github://bazsc20ne/kis-segito@v0.8.0
+  kis_segito_assets: https://raw.githubusercontent.com/bazsc20ne/kis-segito/v0.8.0/assets/device
   # "true": log every raw encoder count (to check the encoder's detents).
   encoder_debug: "false"
   # Loading animation: highlight layer offset from the ball centre, in pixels
@@ -46,7 +46,7 @@ esphome:
   name_add_mac_suffix: false
   project:
     name: bazsc20ne.kis-segito
-    version: "0.7.33"
+    version: "0.8.0"
 
 external_components:
   - source: ${kis_segito_components}
@@ -568,7 +568,7 @@ script:
             - light.turn_off:
                 id: backlight
                 transition_length: 300ms
-            - delay: 350ms
+            - delay: 450ms
       - lambda: |-
           const auto &cfg = id(ui).sensor_settings();
           const int kelvin = id(night_req_kelvin) > 0 ? id(night_req_kelvin) : cfg.night_kelvin;
@@ -596,7 +596,8 @@ script:
           auto call = id(backlight).turn_off();
           call.set_transition_length(800);
           call.perform();
-      - delay: 900ms
+      # keep_content must outlast the transition (on_turn_off fires at its end).
+      - delay: 1100ms
       - lambda: |-
           id(keep_content) = false;
           id(night_light_on) = false;
