@@ -25,6 +25,7 @@ ESPHOME_DOMAIN: Final = "esphome"
 # ESPHome API action exposed by the knob firmware (see esphome/kis-segito.yaml).
 ESPHOME_ACTION_SET_UI_STRINGS: Final = "set_ui_strings"
 ESPHOME_ACTION_SET_STATE: Final = "set_state"
+ESPHOME_ACTION_SET_SENSOR: Final = "set_sensor"
 # Name of the knob's text sensor that reports child actions (JSON).
 ACTION_SENSOR_NAME: Final = "Action"
 

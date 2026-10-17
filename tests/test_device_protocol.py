@@ -321,6 +321,99 @@ async def test_knob_screen_settings(hass: HomeAssistant) -> None:
     await manager.async_set_device_screen("dev", {"dim_after": None})
     assert manager.snapshot("dev", "en")["scr"]["dim"] == 60
 
+    # Sensor-driven settings travel in short form, booleans and numbers.
+    assert manager.snapshot("dev", "en")["sen"] == {
+        "pw": True,
+        "ps": True,
+        "nl": True,
+        "nlx": 5.0,
+        "nb": 30,
+        "nk": 2700,
+        "noff": 60,
+        "near": 80,
+        "amb": True,
+        "amin": 10,
+        "amax": 100,
+    }
+    await manager.async_set_device_screen(
+        "dev", {"night_light": False, "near_cm": 120, "night_lux": 2.5}
+    )
+    sen = manager.snapshot("dev", "en")["sen"]
+    assert (sen["nl"], sen["near"], sen["nlx"]) == (False, 120, 2.5)
+    await manager.async_set_device_screen("dev", {"night_light": None})
+    assert manager.snapshot("dev", "en")["sen"]["nl"] is True
+
+
+async def test_knob_sensor_inputs_forwarded(hass: HomeAssistant) -> None:
+    esphome_entry = MockConfigEntry(
+        domain="esphome",
+        data={"host": "192.0.2.1", "device_name": "test-knob", "noise_psk": "x"},
+    )
+    esphome_entry.add_to_hass(hass)
+    device = dr.async_get(hass).async_get_or_create(
+        config_entry_id=esphome_entry.entry_id,
+        connections={(dr.CONNECTION_NETWORK_MAC, "00:00:00:00:00:04")},
+        name="Knob",
+    )
+    sent: list[tuple[str, float]] = []
+
+    async def _set_sensor(call: ServiceCall) -> None:
+        sent.append((call.data["kind"], call.data["value"]))
+
+    async def _ignore(call: ServiceCall) -> None:
+        return
+
+    hass.services.async_register("esphome", "test_knob_set_sensor", _set_sensor)
+    hass.services.async_register("esphome", "test_knob_set_state", _ignore)
+    hass.services.async_register("esphome", "test_knob_set_ui_strings", _ignore)
+    hass.states.async_set("binary_sensor.hall_motion", "off")
+    hass.states.async_set(
+        "sensor.hall_distance", "1.2", {"unit_of_measurement": "m"}
+    )
+    hass.states.async_set("sensor.hall_lux", "unavailable")
+
+    entry = MockConfigEntry(
+        domain=DOMAIN, unique_id=device.id, data={CONF_DEVICE_ID: device.id}
+    )
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    manager = hass.data[DOMAIN].manager
+
+    await manager.async_set_device_inputs(
+        device.id,
+        {
+            "presence": "binary_sensor.hall_motion",
+            "distance": "sensor.hall_distance",
+            "illuminance": "sensor.hall_lux",
+        },
+    )
+    link = entry.runtime_data
+    link._inputs_debouncer.async_cancel()
+    await link.async_push_inputs()
+    await hass.async_block_till_done()
+    # Current values (distance in cm); an unavailable entity sends nothing.
+    assert ("presence", 0.0) in sent
+    assert ("distance", 120.0) in sent
+    assert not [k for k, _ in sent if k == "illuminance"]
+
+    sent.clear()
+    hass.states.async_set("binary_sensor.hall_motion", "on")
+    hass.states.async_set("sensor.hall_lux", "3.5", {"unit_of_measurement": "lx"})
+    await hass.async_block_till_done()
+    assert ("presence", 1.0) in sent
+    assert ("illuminance", 3.5) in sent
+
+    # Cleared inputs are no longer followed.
+    await manager.async_set_device_inputs(
+        device.id, {"presence": None, "distance": None, "illuminance": None}
+    )
+    assert manager.device_inputs(device.id) == {}
+    sent.clear()
+    hass.states.async_set("binary_sensor.hall_motion", "off")
+    await hass.async_block_till_done()
+    assert sent == []
+
 
 async def test_knob_served_icons(hass: HomeAssistant, hass_client_no_auth) -> None:
     entry = MockConfigEntry(

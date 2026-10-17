@@ -5,9 +5,10 @@ The integration talks to the knob only through the ESPHome native API: the
 firmware exposes API actions, which the ESPHome integration registers as
 ``esphome.<node_name>_<action>`` services. This module resolves those service
 names and pushes the on-screen strings in the chosen language (by default the
-Home Assistant language) and the data snapshot (``set_state``). The knob reports
-the child's actions through its "Action" text sensor (JSON); see
-docs/protocol.md.
+Home Assistant language) and the data snapshot (``set_state``), and forwards
+the Home Assistant entities chosen for the knob's sensor inputs
+(``set_sensor``). The knob reports the child's actions through its "Action"
+text sensor (JSON); see docs/protocol.md.
 """
 
 from __future__ import annotations
@@ -42,6 +43,7 @@ from .const import (
     ACTION_SENSOR_NAME,
     DEFAULT_LANGUAGE,
     DOMAIN,
+    ESPHOME_ACTION_SET_SENSOR,
     ESPHOME_ACTION_SET_STATE,
     ESPHOME_ACTION_SET_UI_STRINGS,
     ESPHOME_DOMAIN,
@@ -169,6 +171,28 @@ def esphome_node_name(hass: HomeAssistant, device: dr.DeviceEntry) -> str | None
     return None
 
 
+# States that mean "someone is there" for a forwarded presence entity.
+PRESENT_STATES = {"on", "home", "detected", "occupied", "true"}
+# Distance units converted to centimetres.
+DISTANCE_TO_CM = {"cm": 1.0, "m": 100.0, "mm": 0.1, "km": 100000.0, "in": 2.54, "ft": 30.48}
+
+
+def input_value(kind: str, state: str, unit: str | None) -> float | None:
+    """A forwarded entity state as the knob's input value (None: skip it)."""
+    if state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
+        return None
+    if kind == "presence":
+        return 1.0 if state.lower() in PRESENT_STATES else 0.0
+    try:
+        value = float(state)
+    except ValueError:
+        return None
+    if kind == "distance":
+        factor = DISTANCE_TO_CM.get((unit or "cm").lower())
+        return None if factor is None else round(value * factor, 1)
+    return value
+
+
 def esphome_service_name(node_name: str, action: str) -> str:
     """Mirror how the ESPHome integration names user-defined API actions."""
     return f"{node_name.replace('-', '_')}_{action}"
@@ -191,6 +215,9 @@ class DeviceLink:
         self._language = language or (lambda: self.hass.config.language)
         self._unsubs: list[CALLBACK_TYPE] = []
         self._action_entity: str | None = None
+        # Forwarded sensor inputs: kind -> entity id, and their state listener.
+        self._inputs: dict[str, str] = {}
+        self._inputs_unsub: CALLBACK_TYPE | None = None
         self._action_times: deque[float] = deque()
         self._debouncer = Debouncer(
             hass,
@@ -205,6 +232,13 @@ class DeviceLink:
             cooldown=0.5,
             immediate=False,
             function=self.async_push_state,
+        )
+        self._inputs_debouncer = Debouncer(
+            hass,
+            _LOGGER,
+            cooldown=1.0,
+            immediate=False,
+            function=self.async_push_inputs,
         )
 
     def _service(self, action: str) -> str | None:
@@ -300,6 +334,51 @@ class DeviceLink:
             )
         return encrypted
 
+    async def async_push_input(self, kind: str, entity_id: str) -> None:
+        """Send one forwarded entity's current value to the knob."""
+        state = self.hass.states.get(entity_id)
+        if state is None:
+            return
+        value = input_value(
+            kind, state.state, state.attributes.get("unit_of_measurement")
+        )
+        if value is None:
+            return
+        service = self._service(ESPHOME_ACTION_SET_SENSOR)
+        if service is None:
+            return
+        await self.hass.services.async_call(
+            ESPHOME_DOMAIN, service, {"kind": kind, "value": value}, blocking=True
+        )
+
+    async def async_push_inputs(self) -> None:
+        """Send all forwarded inputs (after a reconnect or a new choice)."""
+        for kind, entity_id in self._inputs.items():
+            await self.async_push_input(kind, entity_id)
+
+    @callback
+    def _async_update_inputs(self) -> None:
+        """Follow the entities currently chosen for the knob's inputs."""
+        inputs = self.manager.device_inputs(self.device_id) if self.manager else {}
+        if inputs == self._inputs:
+            return
+        if self._inputs_unsub is not None:
+            self._inputs_unsub()
+            self._inputs_unsub = None
+        self._inputs = dict(inputs)
+        if inputs:
+            self._inputs_unsub = async_track_state_change_event(
+                self.hass, list(set(inputs.values())), self._async_input_changed
+            )
+            self.hass.async_create_task(self._inputs_debouncer.async_call())
+
+    @callback
+    def _async_input_changed(self, event: Event[EventStateChangedData]) -> None:
+        entity_id = event.data["entity_id"]
+        for kind, source in self._inputs.items():
+            if source == entity_id:
+                self.hass.async_create_task(self.async_push_input(kind, entity_id))
+
     @callback
     def async_schedule_state(self) -> None:
         """Push the data snapshot soon (after a data change)."""
@@ -344,6 +423,10 @@ class DeviceLink:
             self._unsubs.append(
                 self.manager.async_add_listener(self.async_schedule_state)
             )
+            self._unsubs.append(
+                self.manager.async_add_listener(self._async_update_inputs)
+            )
+            self._async_update_inputs()
         if entity_ids:
             self._unsubs.append(
                 async_track_state_change_event(
@@ -368,8 +451,13 @@ class DeviceLink:
         """Stop listening."""
         while self._unsubs:
             self._unsubs.pop()()
+        if self._inputs_unsub is not None:
+            self._inputs_unsub()
+            self._inputs_unsub = None
+        self._inputs = {}
         self._debouncer.async_cancel()
         self._state_debouncer.async_cancel()
+        self._inputs_debouncer.async_cancel()
 
     @callback
     def _async_state_changed(self, event: Event[EventStateChangedData]) -> None:
@@ -378,9 +466,10 @@ class DeviceLink:
         if new_state is None or new_state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
             return
         if old_state is None or old_state.state == STATE_UNAVAILABLE:
-            # The knob (re)connected: it needs strings and data again.
+            # The knob (re)connected: it needs strings, data and inputs again.
             self.hass.async_create_task(self._debouncer.async_call())
             self.async_schedule_state()
+            self.hass.async_create_task(self._inputs_debouncer.async_call())
             return
         if (
             event.data["entity_id"] == self._action_entity

@@ -135,15 +135,15 @@ api:
         - lambda: |-
             id(wake_transition_ms) = 800;
             id(wake_screen).execute();
-    # Starts (on) or ends (off) the screensaver.
+    # Starts (enable true) or ends (false) the screensaver.
     - action: screensaver
       variables:
-        on: bool
+        enable: bool
       then:
         - lambda: |-
             if (!id(ui).started())
               return;
-            if (on) {
+            if (enable) {
               if (id(night_light_on) || (id(screen_state) & 1))
                 return;
               id(screen_state) |= 1;
@@ -151,20 +151,21 @@ api:
             } else {
               id(wake_screen).execute();
             }
-    # Shows (on) or ends (off) the night light. brightness in percent and
-    # kelvin (colour temperature); 0 uses the settings from the panel.
+    # Shows (enable true) or ends (false) the night light. brightness in
+    # percent and kelvin (colour temperature); 0 uses the panel settings.
     - action: night_light
       variables:
-        on: bool
+        enable: bool
         brightness: int
         kelvin: int
       then:
         - lambda: |-
             if (!id(ui).started())
               return;
-            if (on) {
-              id(night_req_brightness) = std::max(0, std::min(100, brightness));
-              id(night_req_kelvin) = kelvin > 0 ? std::max(1500, std::min(6500, kelvin)) : 0;
+            if (enable) {
+              const int pct = static_cast<int>(brightness), k = static_cast<int>(kelvin);
+              id(night_req_brightness) = std::max(0, std::min(100, pct));
+              id(night_req_kelvin) = k > 0 ? std::max(1500, std::min(6500, k)) : 0;
               id(night_light_start).execute();
             } else if (id(night_light_on)) {
               id(night_light_stop).execute();

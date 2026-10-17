@@ -53,6 +53,22 @@ DEFAULT_SETTINGS: dict[str, Any] = {
         "off_after": 120,
         # Screensaver: "balls", "confetti" or "stars".
         "saver_type": "balls",
+        # With sensors (on the knob or forwarded from Home Assistant):
+        # presence wakes the screen; the stages above count from when someone
+        # was last near; night light in the dark (lux, percent, kelvin, seconds
+        # after presence ended); the child UI only closer than near_cm; the
+        # backlight follows the room light between the two percentages.
+        "presence_wake": True,
+        "presence_saver": True,
+        "night_light": True,
+        "night_lux": 5,
+        "night_brightness": 30,
+        "night_kelvin": 2700,
+        "night_off_after": 60,
+        "near_cm": 80,
+        "ambient": True,
+        "ambient_min": 10,
+        "ambient_max": 100,
     },
 }
 

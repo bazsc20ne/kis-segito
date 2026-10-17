@@ -49,6 +49,22 @@ COLLECTIONS = ("children", "routines", "rewards", "templates", "routine_template
 # Built-in backgrounds (frontend/backgrounds/bg_<n>.jpg).
 # Knob screen power settings, in the order the knob protocol sends them.
 SCREEN_KEYS = ("saver_after", "dim_after", "dim_level", "blank_after", "off_after")
+# Sensor-driven screen settings and their short names in the knob protocol.
+SENSOR_KEYS = {
+    "presence_wake": "pw",
+    "presence_saver": "ps",
+    "night_light": "nl",
+    "night_lux": "nlx",
+    "night_brightness": "nb",
+    "night_kelvin": "nk",
+    "night_off_after": "noff",
+    "near_cm": "near",
+    "ambient": "amb",
+    "ambient_min": "amin",
+    "ambient_max": "amax",
+}
+# Sensor inputs a knob can take from Home Assistant entities.
+INPUT_KINDS = ("presence", "distance", "illuminance")
 BACKGROUND_PRESETS = tuple(f"bg_{n}" for n in range(1, 7))
 # The background: "" (none), a preset or an uploaded picture.
 BACKGROUND_VALUE = r"^(|bg_[1-6]|[a-z0-9]{1,64})$"
@@ -1356,11 +1372,44 @@ class KisSegitoManager:
         new = {
             k: v
             for k, v in (old | values).items()
-            if v is not None and (k in SCREEN_KEYS or k == "saver_type")
+            if v is not None
+            and (k in SCREEN_KEYS or k in SENSOR_KEYS or k == "saver_type")
         }
         device["screen"] = new
         self._audit(who, f"device_screen.{device_id}", old, new)
         await self._changed()
+
+    def device_inputs(self, device_id: str) -> dict[str, str]:
+        """Home Assistant entities forwarded to a knob's sensor inputs."""
+        inputs = self.data["devices"].get(device_id, {}).get("inputs") or {}
+        return {k: v for k, v in inputs.items() if k in INPUT_KINDS and v}
+
+    async def async_set_device_inputs(
+        self, device_id: str, values: dict[str, str | None], *, who: str = "parent"
+    ) -> None:
+        """Choose (an entity id) or clear (None) a knob's forwarded inputs."""
+        device = self.data["devices"].setdefault(device_id, {})
+        old = dict(device.get("inputs") or {})
+        new = {
+            k: v for k, v in (old | values).items() if v and k in INPUT_KINDS
+        }
+        device["inputs"] = new
+        self._audit(who, f"device_inputs.{device_id}", old, new)
+        await self._changed()
+
+    def _sensor_snapshot(self, device_id: str) -> dict[str, Any]:
+        """The sensor-driven screen settings in the knob protocol's form."""
+        values = self.screen_settings(device_id)
+        result: dict[str, Any] = {}
+        for key, short in SENSOR_KEYS.items():
+            value = values.get(key, DEFAULT_SETTINGS["screen"][key])
+            if isinstance(DEFAULT_SETTINGS["screen"][key], bool):
+                result[short] = bool(value)
+            elif key == "night_lux":
+                result[short] = round(float(value), 1)
+            else:
+                result[short] = int(value)
+        return result
 
     def device_children(self, device_id: str) -> set[str]:
         """Ids of the children selectable on a knob."""
@@ -1507,6 +1556,7 @@ class KisSegitoManager:
                 )
             }
             | {"ss": str(self.screen_settings(device_id).get("saver_type", "balls"))},
+            "sen": self._sensor_snapshot(device_id),
             "anim": self.settings.get("animation_mode", "full"),
             "idle": int(self.settings.get("inactivity_s", 60)),
             "children": children,

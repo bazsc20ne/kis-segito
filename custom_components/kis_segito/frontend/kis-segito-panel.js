@@ -20,6 +20,24 @@ const BOTTOM_TABS = ["today", "calendar", "routines", "rewards"];
 // dim_level in percent).
 const SCREEN_KEYS = ["saver_after", "dim_after", "dim_level", "blank_after", "off_after"];
 const SAVER_TYPES = ["balls", "confetti", "stars"];
+// Sensor-driven knob screen behaviour: switches, and number fields with their
+// limits (night_off_after in minutes, like the other times).
+const SENSOR_FLAGS = ["presence_wake", "presence_saver", "night_light", "ambient"];
+const SENSOR_NUMBERS = [
+  ["near_cm", 10, 1000, 5],
+  ["night_lux", 0, 1000, 0.5],
+  ["night_brightness", 1, 100, 1],
+  ["night_kelvin", 1500, 6500, 100],
+  ["night_off_after", null],
+  ["ambient_min", 1, 100, 1],
+  ["ambient_max", 1, 100, 1],
+];
+// Sensor inputs a knob can take from Home Assistant, and the entities offered.
+const INPUT_KINDS = {
+  presence: (id, st) => ["binary_sensor", "device_tracker", "person"].includes(id.split(".")[0]) && (id.split(".")[0] !== "binary_sensor" || ["occupancy", "presence", "motion", "moving"].includes(st.attributes.device_class)),
+  distance: (id, st) => id.startsWith("sensor.") && st.attributes.device_class === "distance",
+  illuminance: (id, st) => id.startsWith("sensor.") && st.attributes.device_class === "illuminance",
+};
 const REASONS = ["checkpoint_reward", "reward_redemption", "piggy_transfer", "piggy_interest", "streak_reward", "manual_adjustment", "reversal", "correction"];
 // Logged events without a token movement (history page, statistics).
 const EVENT_REASONS = ["task_done", "checkpoint_done", "checkpoint_missed"];
@@ -1460,7 +1478,9 @@ class KisSegitoPanel extends HTMLElement {
           ${this._isAdmin ? `<div class="row wrap"><button class="btn sm" data-act="rotate-token" data-arg="${this._e(d.device_id)}">🔑 ${this._e(this._t("settings.knob_new_key"))}</button>${d.can_restart ? `<button class="btn sm" data-act="restart-knob" data-arg="${this._e(d.device_id)}">↻ ${this._e(this._t("settings.knob_restart"))}</button>` : ""}</div>` : ""}
           <details><summary>${this._e(this._t("screen.own"))}</summary><div class="hint">${this._e(this._t("screen.own_hint"))}</div>
             <div class="form-grid" style="margin-top:10px">${fields}
-            <label class="field"><span>${this._e(this._t("screen.saver_type"))}</span><select data-device-screen-type data-device="${this._e(d.device_id)}" ${dis}><option value="">${this._e(this._t("screen.general"))}</option>${SAVER_TYPES.map((x) => `<option value="${x}" ${own.saver_type === x ? "selected" : ""}>${this._e(this._t(`screen.saver_${x}`))}</option>`).join("")}</select></label></div></details></div>`;
+            <label class="field"><span>${this._e(this._t("screen.saver_type"))}</span><select data-device-screen-type data-device="${this._e(d.device_id)}" ${dis}><option value="">${this._e(this._t("screen.general"))}</option>${SAVER_TYPES.map((x) => `<option value="${x}" ${own.saver_type === x ? "selected" : ""}>${this._e(this._t(`screen.saver_${x}`))}</option>`).join("")}</select></label></div></details>
+          <details><summary>${this._e(this._t("sensors.inputs"))}</summary><div class="hint">${this._e(this._t("sensors.inputs_hint"))}</div>
+            <div class="form-grid" style="margin-top:10px">${Object.keys(INPUT_KINDS).map((k) => `<label class="field"><span>${this._e(this._t(`sensors.input_${k}`))}</span><input list="ks-inputs-${k}" data-device-input="${k}" data-device="${this._e(d.device_id)}" value="${this._e((d.inputs || {})[k] || "")}" placeholder="${this._e(this._t("sensors.input_none"))}" ${dis}></label>`).join("")}</div></details></div>`;
       })
       .join("");
     const uploaded = s.background && !s.background.startsWith("bg_") ? s.background : "";
@@ -1484,6 +1504,10 @@ class KisSegitoPanel extends HTMLElement {
           <div class="form-grid">${SCREEN_KEYS.map((k) => `<label class="field"><span>${this._e(this._t(`screen.${k}`))}</span>${k === "dim_level" ? `<input type="number" min="1" max="100" data-screen="${k}" value="${sc[k] ?? ""}" ${dis}>` : this._minuteInput(`data-screen="${k}"`, sc[k])}</label>`).join("")}</div>
           <div class="field"><span>${this._e(this._t("screen.saver_type"))}</span><div class="seg">${SAVER_TYPES.map((x) => `<button class="${(sc.saver_type || "balls") === x ? "on" : ""}" data-act="saver" data-arg="${x}" ${dis}>${this._e(this._t(`screen.saver_${x}`))}</button>`).join("")}</div></div>
           <div class="hint">${this._e(this._t("screen.hint"))}</div></div>
+        <div class="card"><h3>${this._e(this._t("sensors.title"))}</h3>
+          <div class="stack" style="gap:6px">${SENSOR_FLAGS.map((k) => `<label class="switch"><input type="checkbox" data-screen-flag="${k}" ${sc[k] !== false ? "checked" : ""} ${dis}>${this._e(this._t(`sensors.${k}`))}</label>`).join("")}</div>
+          <div class="form-grid">${SENSOR_NUMBERS.map(([k, min, max, step]) => `<label class="field"><span>${this._e(this._t(`sensors.${k}`))}</span>${min === null ? this._minuteInput(`data-screen="${k}"`, sc[k]) : `<input type="number" min="${min}" max="${max}" step="${step}" data-screen="${k}" value="${sc[k] ?? ""}" ${dis}>`}</label>`).join("")}</div>
+          <div class="hint">${this._e(this._t("sensors.hint"))}</div></div>
         <div class="card"><h3>${this._e(this._t("background.title"))}</h3>${backgrounds}<div class="hint">${this._e(this._t("background.hint"))}</div></div>
         <div class="card"><h3>${this._e(this._t("settings.knobs"))}</h3>${devices || `<div class="muted">${this._e(this._t("settings.no_knobs"))}</div>`}<div class="hint">${this._e(this._t("settings.knobs_hint"))}</div></div>
         <div class="card"><h3>${this._icon("streak_flame", 26)} ${this._e(this._t("settings.streak"))}</h3><div class="form-grid">
@@ -1497,6 +1521,7 @@ class KisSegitoPanel extends HTMLElement {
           <label class="field"><span>${this._e(this._t("settings.interest_max"))}</span>${num("piggy_interest_max", 0, 1000)}</label></div></div>
         ${this._isAdmin ? `<div class="card"><h3>${this._e(this._t("settings.data"))}</h3><div class="hint">${this._e(this._t("settings.export_hint"))}</div><div><button class="btn" data-act="export">⇩ ${this._e(this._t("settings.export"))}</button></div></div>` : ""}
       </div>
+      ${Object.entries(INPUT_KINDS).map(([k, match]) => `<datalist id="ks-inputs-${k}">${Object.entries(this._hass?.states || {}).filter(([id, st]) => match(id, st)).map(([id, st]) => `<option value="${this._e(id)}">${this._e(st.attributes.friendly_name || id)}</option>`).join("")}</datalist>`).join("")}
       <p class="muted small">${this._e(this._t("panel.version"))}: <span class="num">${this._e(this._version)}</span></p>`;
   }
 
@@ -2957,6 +2982,22 @@ class KisSegitoPanel extends HTMLElement {
     if (el.dataset.devname) {
       await this._ws({ type: "kis_segito/device/rename", device_id: el.dataset.devname, name: el.value });
       this._toast(this._t("toast.renamed"));
+      await this._load();
+      return;
+    }
+    if (el.dataset.screenFlag) {
+      await this._ws({ type: "kis_segito/settings/update", screen: { [el.dataset.screenFlag]: el.checked } });
+      this._toast(this._t("toast.saved"));
+      await this._load();
+      return;
+    }
+    if (el.dataset.deviceInput) {
+      try {
+        await this._ws({ type: "kis_segito/device/inputs", device_id: el.dataset.device, inputs: { [el.dataset.deviceInput]: el.value.trim() || null } });
+        this._toast(this._t("toast.saved"));
+      } catch (err) {
+        // The error banner explains it.
+      }
       await this._load();
       return;
     }

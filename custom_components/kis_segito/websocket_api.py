@@ -9,6 +9,7 @@ from typing import Any
 import voluptuous as vol
 from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import label_registry as lr
@@ -22,6 +23,7 @@ from .manager import (
     BACKGROUND_PRESETS,
     BACKGROUND_VALUE,
     COLLECTIONS,
+    INPUT_KINDS,
     KisSegitoError,
     KisSegitoManager,
 )
@@ -37,6 +39,18 @@ SCREEN_FIELDS = {
     "blank_after": vol.All(int, vol.Range(min=0, max=86400)),
     "off_after": vol.All(int, vol.Range(min=0, max=86400)),
     "saver_type": vol.In(["balls", "confetti", "stars"]),
+    # Sensor-driven behaviour (see store.DEFAULT_SETTINGS).
+    "presence_wake": bool,
+    "presence_saver": bool,
+    "night_light": bool,
+    "night_lux": vol.All(vol.Coerce(float), vol.Range(min=0, max=1000)),
+    "night_brightness": vol.All(int, vol.Range(min=1, max=100)),
+    "night_kelvin": vol.All(int, vol.Range(min=1500, max=6500)),
+    "night_off_after": vol.All(int, vol.Range(min=0, max=86400)),
+    "near_cm": vol.All(int, vol.Range(min=10, max=1000)),
+    "ambient": bool,
+    "ambient_min": vol.All(int, vol.Range(min=1, max=100)),
+    "ambient_max": vol.All(int, vol.Range(min=1, max=100)),
 }
 SCREEN_SCHEMA = vol.Schema({vol.Optional(k): v for k, v in SCREEN_FIELDS.items()})
 
@@ -69,6 +83,7 @@ def async_register_commands(hass: HomeAssistant) -> None:
         ws_day_routine,
         ws_rotate_device_token,
         ws_device_screen,
+        ws_device_inputs,
         ws_restart_device,
         ws_rename_device,
         ws_events,
@@ -224,6 +239,7 @@ def _devices(hass: HomeAssistant) -> list[dict[str, Any]]:
                 .manager.data["devices"]
                 .get(device_id, {})
                 .get("screen", {}),
+                "inputs": hass.data[DOMAIN].manager.device_inputs(device_id),
             }
         )
     return result
@@ -253,6 +269,42 @@ async def ws_device_screen(
         return
     await _manager(hass).async_set_device_screen(
         msg["device_id"], msg["screen"], who=_who(connection)
+    )
+    connection.send_result(msg["id"])
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/device/inputs",
+        vol.Required("device_id"): str,
+        # An entity id forwards that entity to the knob's input; None clears it.
+        vol.Required("inputs"): {
+            vol.Optional(kind): vol.Any(None, cv.entity_id) for kind in INPUT_KINDS
+        },
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_device_inputs(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Choose the Home Assistant entities forwarded to a knob's sensor inputs."""
+    device_id = msg["device_id"]
+    if device_id not in {d["device_id"] for d in _devices(hass)}:
+        connection.send_error(msg["id"], "unknown_device", "Unknown knob")
+        return
+    own = {
+        entry.entity_id
+        for entry in er.async_entries_for_device(er.async_get(hass), device_id)
+    }
+    if any(entity_id in own for entity_id in msg["inputs"].values() if entity_id):
+        # The knob's own inputs would feed back into themselves.
+        connection.send_error(msg["id"], "own_entity", "The knob's own entity")
+        return
+    await _manager(hass).async_set_device_inputs(
+        device_id, msg["inputs"], who=_who(connection)
     )
     connection.send_result(msg["id"])
 

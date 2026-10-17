@@ -76,3 +76,18 @@ async def test_actions_are_rate_limited(hass) -> None:
         await link._async_run_action(json.dumps({"a": "seen", "id": f"i{i}", "c": "k"}))
     link.async_stop()
     assert len(calls) == ACTION_RATE_COUNT
+
+
+def test_input_values() -> None:
+    from custom_components.kis_segito.device_link import input_value
+
+    assert input_value("presence", "on", None) == 1.0
+    assert input_value("presence", "home", None) == 1.0
+    assert input_value("presence", "off", None) == 0.0
+    assert input_value("presence", "unavailable", None) is None
+    assert input_value("distance", "0.8", "m") == 80.0
+    assert input_value("distance", "450", "mm") == 45.0
+    assert input_value("distance", "75", None) == 75.0
+    assert input_value("distance", "3", "parsec") is None
+    assert input_value("illuminance", "12.5", "lx") == 12.5
+    assert input_value("illuminance", "dark", "lx") is None
