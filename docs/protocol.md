@@ -8,13 +8,23 @@ ESPHome native API.
 
 ## Home Assistant → knob
 
-API actions of the firmware (`esphome/kis-segito.yaml`), called by the
+API actions of the firmware (`esphome/kis-segito-core.yaml`), called by the
 integration as `esphome.<node>_<action>`:
 
 | Action | Variables | Purpose |
 |---|---|---|
 | `set_ui_strings` | `language`, `keys[]`, `values[]` | On-screen texts in the chosen language. The loading text and the language are kept in flash. |
 | `set_state` | `data` (JSON string) | Data snapshot, sent on every change and after (re)connecting. |
+| `set_sensor` | `kind`, `value` | A sensor input forwarded from a Home Assistant entity (panel → Settings → Knobs → Sensors from Home Assistant): `presence` (1 or 0), `distance` (cm, negative = nobody) or `illuminance` (lx). Sent on every change and after (re)connecting. |
+
+Actions for automations (not used by the integration itself), see
+[automations.md](automations.md):
+
+| Action | Variables | Purpose |
+|---|---|---|
+| `wake` | – | Wakes the screen with a soft fade-in, like a turn of the knob. |
+| `screensaver` | `enable` | Starts (`true`) or ends (`false`) the screensaver. |
+| `night_light` | `enable`, `brightness`, `kelvin` | Shows (`true`) or ends (`false`) the night light; `brightness` in percent and `kelvin` (colour temperature, 1500–6500); 0 uses the panel settings. |
 
 `set_state` JSON (compact keys to keep the knob's memory use low; times are Unix
 epoch seconds, colours `#RRGGBB`):
@@ -27,6 +37,8 @@ epoch seconds, colours `#RRGGBB`):
   "bg": "bg_2",
   "bgs": 3,
   "scr": {"saver": 0, "dim": 60, "lvl": 15, "blank": 0, "off": 120, "ss": "balls"},
+  "sen": {"pw": true, "ps": true, "nl": true, "nlx": 5.0, "nb": 30, "nk": 2700,
+          "noff": 60, "near": 80, "amb": true, "amin": 10, "amax": 100},
   "anim": "full",
   "idle": 60,
   "children": [
@@ -62,6 +74,14 @@ epoch seconds, colours `#RRGGBB`):
 - `scr`: screen power of this knob, idle seconds until the screensaver, dimming,
   drawing off (black, LVGL paused) and backlight off (0 = never); `lvl` is the
   dimmed brightness in percent, `ss` the screensaver (`balls`, `confetti` or `stars`).
+- `sen`: sensor-driven behaviour of this knob (panel → Settings → Sensors).
+  `pw`: presence wakes the screen; `ps`: the `scr` stages count from when
+  someone was last near (not only from the last input); `nl`: night light
+  below `nlx` lx (light again above 1.5 × `nlx` + 1 lx), at `nb` percent and
+  `nk` kelvin, ending `noff` seconds after presence ended; `near`: the child
+  UI only closer than this many cm; `amb`: the backlight follows the room
+  light between `amin` and `amax` percent. Each works only when the knob gets
+  the matching input (see [sensors.md](sensors.md)).
 - `bg`: background of every screen: `""` (none), a built-in preset
   (`bg_1` … `bg_6`) or an uploaded picture id. The knob
   downloads it like a picture, at size 480, as `KSI2` (RGB565 without alpha,

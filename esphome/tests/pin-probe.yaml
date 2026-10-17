@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# CI only: the pin probe firmware, to prove it builds. Not meant to be flashed
+# as is (it has no API key).
+
+packages:
+  probe: !include ../pin-probe.yaml

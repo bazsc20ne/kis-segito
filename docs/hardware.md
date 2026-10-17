@@ -18,7 +18,7 @@ Tuning below).
 | HSYNC pulse / back / front | 8 / 20 / 40 | `display_hsync_pulse_width`, `display_hsync_back_porch`, `display_hsync_front_porch` |
 | VSYNC pulse / back / front | 8 / 20 / 50 | `display_vsync_pulse_width`, `display_vsync_back_porch`, `display_vsync_front_porch` |
 | COLMOD after the table | none | `display_colmod` (`"0"`, `"0x55"`, `"0x66"`, `"0x77"`) |
-| Serial log on UART0 (GPIO43/44) | 115200 baud | `logger_baud_rate` (`"0"` = off, frees UART0) |
+| Serial log | UART0 on GPIO43/44, 115200 baud | `logger_uart` (`UART1`: no pins, frees GPIO43/44; the log stays on the network), `logger_baud_rate`. Do not set the baud rate to `"0"` on this knob: the display shows stripes and goes blank. |
 | RGB bus drive strength | ESP-IDF default | `display_drive_strength` (`"-1"` = default, `"0"`…`"3"` ≈ 5/10/20/40 mA) |
 | Restart the RGB transfer at every vertical sync (`"n"`: only after missed data or when the display asks, which keeps the picture clean with ESP-IDF 5.5) | off | `display_restart_in_vsync` (`"y"` / `"n"`) |
 
@@ -74,15 +74,17 @@ kattintások) alapértékre állítja.
 
 If the knob restarts before it reaches Wi-Fi (for example after an update), its
 messages are only on the serial port UART0: GPIO43 (TX) and GPIO44 (RX) on the
-debug board's TX/RX pins, 115200 baud. Connect a 3.3 V USB-UART adapter (adapter
+debug board's TX1/RX1 pins, 115200 baud (not with `logger_uart: UART1`, which
+frees these pins for sensors). Connect a 3.3 V USB-UART adapter (adapter
 RX to knob TX, adapter TX to knob RX, GND to GND) and open it with any serial
 terminal, e.g. `esphome logs` with the adapter's port. After such a restart the
 knob also logs why its previous run ended ("Previous run ended by: …") once it is
 back and connected to Home Assistant.
 
 Ha a knob még a WiFi előtt újraindul (például frissítés után), az üzenetei csak a
-soros porton (UART0) érhetők el: GPIO43 (TX) és GPIO44 (RX) a debug panel TX/RX
-lábain, 115200 baud. Egy 3,3 V-os USB-UART adapterrel olvasható (adapter RX a knob
+soros porton (UART0) érhetők el: GPIO43 (TX) és GPIO44 (RX) a debug panel TX1/RX1
+lábain, 115200 baud (a `logger_uart: UART1` beállítással nem, az érzékelőknek
+szabadítja fel ezeket a lábakat). Egy 3,3 V-os USB-UART adapterrel olvasható (adapter RX a knob
 TX-ére, adapter TX a knob RX-ére, GND a GND-re). Ilyenkor a knob a következő sikeres
 indulás után azt is naplózza, miért ért véget az előző futása.
 
@@ -103,7 +105,77 @@ indulás után azt is naplózza, miért ért véget az előző futása.
 | Backlight | 7 | P-MOSFET, **low = on** (PWM, inverted) |
 | Encoder A / B | 6 / 5 (vendor naming) | external 4.7 kΩ pull-ups; the firmware uses A=5, B=6 so clockwise counts up; 2 counts per click at full resolution |
 | Push button | 0 | active low, external 4.7 kΩ pull-up; strapping pin |
-| Free on J1/J2 | 4 (ADC) | also UART0 TX/RX (GPIO43/44, serial log by default), USB D+/D− |
+| Free | 4, 15, 16, 43, 44 | on the debug board, see [Free pins](#free-pins--szabad-lábak) |
+
+## Free pins / Szabad lábak
+
+Five signal lines of the knob are free and reach the USB debug/adapter board
+(measured on a unit with the adapter board "USB-test-MD50-V3.3 202405"; the
+vendor's specification is wrong in several places):
+
+| Debug board pin | GPIO | Notes |
+|---|---|---|
+| TX1 | GPIO43 | UART0 TX: free with `logger_uart: UART1` |
+| RX1 | GPIO44 | UART0 RX: free with `logger_uart: UART1` |
+| PB7 | GPIO4 | filtered on the board (slow edges, ~370 µs rise with the internal pull-up): fine for slow signals (PIR, button), not for I²C |
+| RX2 | GPIO15 | reaches the knob through FPC pins P4/P5 |
+| TX2 | GPIO16 | reaches the knob through FPC pins P4/P5 |
+| GND | – | all GND pins of the J5 header |
+| SK / SD | – | the USB D+/D− lines, no extra signals |
+
+That is enough for a UART sensor (e.g. a radar on GPIO15/16) and an I²C bus
+(GPIO43/44) at the same time; see [sensors.md](sensors.md) for tested wiring.
+Boards can differ between batches: check yours with the pin probe below.
+
+A gomb öt jelvezetéke szabad, és eljut az USB-s debug/adapter panelre (mérve
+egy „USB-test-MD50-V3.3 202405” adapterpaneles példányon; a gyártói leírás több
+helyen hibás): TX1 = GPIO43, RX1 = GPIO44 (`logger_uart: UART1` beállítással
+szabad), PB7 = GPIO4 (a panelen szűrve: lassú jelekhez, pl. PIR-hez jó, I²C-hez
+nem), RX2 = GPIO15, TX2 = GPIO16. A J5 csatlakozó minden GND lába föld, az
+SK/SD az USB D+/D− vonala. Ez egyszerre elég egy UART-os érzékelőnek (pl.
+radar a GPIO15/16-on) és egy I²C-busznak (GPIO43/44); kipróbált bekötés:
+[sensors.md](sensors.md). A panelek gyártási tételenként eltérhetnek: a
+sajátodat az alábbi lábazonosító firmware-rel ellenőrizheted.
+
+### Pin probe / Lábazonosító
+
+`esphome/pin-probe.yaml` shows which GPIO reaches which header pin of your
+unit:
+
+1. Make a copy of your device config and change only the package line to
+   `github://bazsc20ne/kis-segito/esphome/pin-probe.yaml@<version>` (same name,
+   API key, OTA and Wi-Fi settings), then install it over the air.
+2. The screen shows the GPIO being probed in large numbers. Turn the knob for
+   the next or previous one (GPIO4, 15, 16, 43, 44).
+3. In **pull-up** mode (the default) the GPIO is pulled weakly to 3.3 V and
+   nothing is driven; every other probed GPIO floats. Measure each header pin
+   against GND with a multimeter: the one at about 3.3 V belongs to the GPIO
+   on the screen. A press switches to **HIGH** (the GPIO drives 3.3 V) and
+   back.
+4. Install your normal device config again over the air.
+
+The flash and PSRAM pins (GPIO26–37) are never touched. The list can be changed
+with the `probe_pins` substitution; never add a GPIO the knob already uses
+(display, backlight, encoder, button, USB).
+
+Az `esphome/pin-probe.yaml` megmutatja, melyik GPIO melyik csatlakozólábra fut
+a te példányodon:
+
+1. Másold le az eszközkonfigodat, és csak a package sort írd át
+   `github://bazsc20ne/kis-segito/esphome/pin-probe.yaml@<verzió>`-ra (ugyanaz
+   a név, API-kulcs, OTA- és WiFi-beállítás), majd telepítsd hálózaton.
+2. A képernyő nagy számmal mutatja a vizsgált GPIO-t. Tekeréssel a következőre
+   vagy az előzőre lépsz (GPIO4, 15, 16, 43, 44).
+3. **Pull-up** módban (alapból) a GPIO gyengén 3,3 V-ra van húzva, semmit nem
+   hajt meg; a többi vizsgált GPIO lebeg. Multiméterrel mérd meg a csatlakozó
+   lábait a GND-hez képest: amelyiken kb. 3,3 V van, az a képernyőn látható
+   GPIO. Gombnyomással **HIGH** módra vált (a GPIO 3,3 V-ot hajt meg), és
+   vissza.
+4. Utána telepítsd vissza hálózaton a normál eszközkonfigodat.
+
+A flash és a PSRAM lábaihoz (GPIO26–37) sosem nyúl. A lista a `probe_pins`
+substitutionnel módosítható; ne vegyél fel olyan GPIO-t, amelyet a gomb már
+használ (kijelző, háttérvilágítás, enkóder, gomb, USB).
 
 ## Tuning / Hangolás
 

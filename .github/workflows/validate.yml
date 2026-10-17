@@ -71,3 +71,5 @@ jobs:
           esphome config kis-segito-factory.yaml
           esphome config display-test.yaml
           esphome config tests/diagnostics.yaml
+          esphome config tests/pin-probe.yaml
+          esphome config tests/sensors.yaml

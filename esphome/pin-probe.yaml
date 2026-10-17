@@ -1,0 +1,173 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# Pin probe: finds out which knob GPIO reaches which pin of the debug board,
+# so a sensor can be wired to it. Boards can differ between batches.
+#
+# Use it like the normal package, in a copy of your device config (same name,
+# API key, OTA and Wi-Fi settings), so the normal firmware can be flashed back
+# over the air afterwards:
+#
+#   packages:
+#     kis_segito: github://bazsc20ne/kis-segito/esphome/pin-probe.yaml@v0.7.33
+#
+# On the screen: the GPIO number being probed and its mode. Turn the knob for
+# the next or previous GPIO; press the button to switch between pull-up (the
+# pin is pulled to 3.3 V weakly, nothing is driven; default) and high (the pin
+# drives 3.3 V). Measure each header pin against GND with a multimeter: the pin
+# showing ~3.3 V belongs to the GPIO on the screen. All other probed GPIOs
+# float. See docs/hardware.md.
+
+substitutions:
+  name: kis-segito
+  friendly_name: Kis Segito
+  # GPIOs to probe, in order. Never list a GPIO the board already uses (display,
+  # backlight, encoder, button, USB); the flash and PSRAM pins (GPIO26-37) are
+  # always skipped.
+  probe_pins: "4, 15, 16, 43, 44"
+  # The serial log on UART1 has no pins, so GPIO43/44 can be probed too.
+  logger_uart: UART1
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+  min_version: 2026.9.0
+  name_add_mac_suffix: false
+  on_boot:
+    # After everything else: every probed GPIO floats, then the first one is
+    # probed.
+    - priority: -100
+      then:
+        - lambda: |-
+            static const int pins[] = {${probe_pins}};
+            for (int pin : pins) {
+              if (pin >= 26 && pin <= 37)
+                continue;
+              gpio_reset_pin(static_cast<gpio_num_t>(pin));
+              gpio_set_direction(static_cast<gpio_num_t>(pin), GPIO_MODE_INPUT);
+              gpio_set_pull_mode(static_cast<gpio_num_t>(pin), GPIO_FLOATING);
+            }
+        - script.execute: probe_apply
+
+packages:
+  board: !include hardware/board.yaml
+
+logger:
+
+# Your device config sets the API key and the OTA password, as for the normal
+# firmware (see esphome/example.yaml).
+api:
+
+ota:
+  - platform: esphome
+    id: kis_segito_ota
+
+wifi:
+  ap: {}
+
+captive_portal:
+
+globals:
+  # Index into probe_pins, the probe mode (false = pull-up, true = high), the
+  # GPIO probed now (-1 = none) and the encoder count of the last step.
+  - id: probe_index
+    type: int
+    initial_value: "0"
+  - id: probe_high
+    type: bool
+    initial_value: "false"
+  - id: probe_active
+    type: int
+    initial_value: "-1"
+  - id: probe_base
+    type: int
+    initial_value: "0"
+
+script:
+  # Lets the previous GPIO float again and probes the selected one.
+  - id: probe_apply
+    then:
+      - lambda: |-
+          static const int pins[] = {${probe_pins}};
+          constexpr int count = sizeof(pins) / sizeof(pins[0]);
+          int &index = id(probe_index);
+          index = ((index % count) + count) % count;
+          const int pin = pins[index];
+          if (id(probe_active) >= 0) {
+            const auto prev = static_cast<gpio_num_t>(id(probe_active));
+            gpio_set_direction(prev, GPIO_MODE_INPUT);
+            gpio_set_pull_mode(prev, GPIO_FLOATING);
+            id(probe_active) = -1;
+          }
+          if (pin >= 26 && pin <= 37) {
+            ESP_LOGW("pin_probe", "GPIO%d is a flash/PSRAM pin: skipped", pin);
+            return;
+          }
+          const auto gpio = static_cast<gpio_num_t>(pin);
+          gpio_reset_pin(gpio);
+          if (id(probe_high)) {
+            gpio_set_pull_mode(gpio, GPIO_FLOATING);
+            gpio_set_direction(gpio, GPIO_MODE_OUTPUT);
+            gpio_set_level(gpio, 1);
+          } else {
+            gpio_set_direction(gpio, GPIO_MODE_INPUT);
+            gpio_set_pull_mode(gpio, GPIO_PULLUP_ONLY);
+          }
+          id(probe_active) = pin;
+          ESP_LOGI("pin_probe", "GPIO%d (%d of %d): %s", pin, index + 1, count,
+                   id(probe_high) ? "high" : "pull-up");
+      - component.update: knob_display
+
+sensor:
+  - id: !extend knob_encoder
+    on_value:
+      - lambda: |-
+          const int pos = (int) x;
+          const int cpc = ${encoder_counts_per_click};
+          int step = 0;
+          while (pos - id(probe_base) >= cpc) {
+            id(probe_base) += cpc;
+            step++;
+          }
+          while (pos - id(probe_base) <= -cpc) {
+            id(probe_base) -= cpc;
+            step--;
+          }
+          if (step != 0) {
+            id(probe_index) += step;
+            id(probe_apply).execute();
+          }
+
+binary_sensor:
+  - id: !extend knob_button
+    on_press:
+      - lambda: |-
+          id(probe_high) = !id(probe_high);
+          id(probe_apply).execute();
+
+font:
+  - file: "gfonts://Baloo 2@800"
+    id: probe_number
+    size: 170
+    glyphs: "0123456789"
+  - file: "gfonts://Nunito@700"
+    id: probe_text
+    size: 30
+    glyphs: " 0123456789()./-:GPIOHULVghilpu"
+
+display:
+  - id: !extend knob_display
+    update_interval: 2s
+    lambda: |-
+      static const int pins[] = {${probe_pins}};
+      constexpr int count = sizeof(pins) / sizeof(pins[0]);
+      const int cx = it.get_width() / 2, cy = it.get_height() / 2;
+      const bool high = id(probe_high);
+      it.fill(Color(0, 0, 0));
+      it.print(cx, cy - 130, id(probe_text), Color(170, 170, 170), TextAlign::CENTER, "GPIO");
+      if (id(probe_active) >= 0)
+        it.printf(cx, cy - 10, id(probe_number), Color(255, 255, 255), TextAlign::CENTER, "%d",
+                  id(probe_active));
+      it.print(cx, cy + 105, id(probe_text), high ? Color(255, 159, 67) : Color(107, 203, 119),
+               TextAlign::CENTER, high ? "HIGH (3.3 V)" : "pull-up");
+      it.printf(cx, cy + 150, id(probe_text), Color(170, 170, 170), TextAlign::CENTER, "%d / %d",
+                id(probe_index) + 1, count);

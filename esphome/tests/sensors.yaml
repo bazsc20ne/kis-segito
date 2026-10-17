@@ -1,0 +1,53 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# CI only: the factory firmware with the sensor wiring from docs/sensors.md
+# (LD2410C radar and VEML7700 light sensor on the debug board), to prove the
+# example builds. Not meant to be flashed as is.
+
+substitutions:
+  logger_uart: UART1
+
+packages:
+  firmware: !include ../kis-segito-factory.yaml
+
+uart:
+  id: radar_uart
+  rx_pin: GPIO15
+  tx_pin: GPIO16
+  baud_rate: 256000
+  parity: NONE
+  stop_bits: 1
+
+ld2410:
+  uart_id: radar_uart
+
+i2c:
+  sda: GPIO43
+  scl: GPIO44
+  frequency: 100kHz
+
+binary_sensor:
+  - platform: ld2410
+    has_target:
+      name: Radar presence
+      on_state:
+        - binary_sensor.template.publish:
+            id: ks_presence
+            state: !lambda return x;
+
+sensor:
+  - platform: ld2410
+    detection_distance:
+      name: Radar distance
+      on_value:
+        - sensor.template.publish:
+            id: ks_distance
+            state: !lambda return x;
+  - platform: veml7700
+    update_interval: 10s
+    ambient_light:
+      name: Room light
+      on_value:
+        - sensor.template.publish:
+            id: ks_illuminance
+            state: !lambda return x;

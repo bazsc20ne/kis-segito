@@ -6,6 +6,77 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [Unreleased]
+
+### English
+
+- Sensors (optional): the knob takes presence, distance and illuminance
+  values, from any sensor wired to it (routed in the device config, see
+  docs/sensors.md; tested: LD2410C radar and VEML7700 light sensor) or from
+  Home Assistant entities chosen on the panel (Settings → Knobs → Sensors from
+  Home Assistant). The logic runs on the knob. Settings on the panel
+  (Settings → Sensors), each part can be switched off:
+  - someone near the knob wakes the screen with a soft fade-in;
+  - with a presence sensor the screensaver and the other screen stages count
+    from when someone was last near, not only from the last turn or press;
+  - night light: in the dark, someone further away gets a white light (colour
+    temperature and brightness are settings) with a small black crescent moon;
+    coming closer than the set distance (default 80 cm) shows the child
+    screen. Without a distance sensor a turn or press shows it. The light
+    fades out some time after presence ended (default 1 minute);
+  - the backlight follows the room light between a lowest and a highest
+    brightness, smoothly.
+- New entities on the knob: Presence, Distance, Illuminance, Night light,
+  Screensaver, Screen brightness. New knob actions for automations: `wake`,
+  `screensaver`, `night_light` (docs/automations.md).
+- The firmware is split into a hardware-independent core
+  (`esphome/kis-segito-core.yaml`) and the knob's board profile
+  (`esphome/hardware/board.yaml`). `kis-segito.yaml` combines the two, so
+  existing device configs keep working. A profile can be written for another
+  knob (docs/boards.md).
+- The serial log can move to UART1 (`logger_uart: UART1`), which frees
+  GPIO43/44 for sensors while the log stays available over the network.
+  Setting `logger_baud_rate` to `"0"` breaks the display on this knob and is
+  no longer suggested.
+- docs/hardware.md: the debug board's free pins as measured (GPIO4, 15, 16,
+  43, 44; the vendor specification is wrong in several places), and a pin
+  probe firmware (`esphome/pin-probe.yaml`) to check them on your own unit.
+
+### Magyar
+
+- Érzékelők (nem kötelező): a gomb jelenlét-, távolság- és megvilágításértéket
+  fogad bármelyik rákötött érzékelőtől (az eszközkonfigban irányítva, lásd
+  docs/sensors.md; kipróbálva: LD2410C radar és VEML7700 fényérzékelő), vagy a
+  panelen kiválasztott Home Assistant-entitásoktól (Beállítások → Gombok →
+  Érzékelők a Home Assistantból). A logika a gombon fut. Beállítások a panelen
+  (Beállítások → Érzékelők), mindegyik rész kikapcsolható:
+  - ha valaki a gomb közelében van, a képernyő lágyan felébred;
+  - jelenlétérzékelővel a képernyővédő és a többi képernyőlépés attól számít,
+    hogy utoljára valaki közel volt, nem csak az utolsó tekeréstől vagy
+    nyomástól;
+  - éjszakai fény: sötétben a távolabb lévő fehér fényt kap (színhőmérséklete
+    és erőssége beállítható) egy kis fekete holdsarlóval; a beállított
+    távolságnál (alapból 80 cm) közelebb lépve a gyerekképernyő jön elő.
+    Távolságérzékelő nélkül tekeréssel vagy nyomással jön elő. A fény a
+    jelenlét vége után egy idővel (alapból 1 perc) elhalványul;
+  - a háttérvilágítás lágyan követi a szoba fényét egy legkisebb és egy
+    legnagyobb fényerő között.
+- Új entitások a gombon: Presence, Distance, Illuminance, Night light,
+  Screensaver, Screen brightness. Új gombműveletek automatizáláshoz: `wake`,
+  `screensaver`, `night_light` (docs/automations.md).
+- A firmware hardverfüggetlen magra (`esphome/kis-segito-core.yaml`) és a gomb
+  profiljára (`esphome/hardware/board.yaml`) vált szét. A `kis-segito.yaml` a
+  kettőt együtt tartalmazza, így a meglévő eszközkonfigok változatlanul
+  működnek. Más gombhoz is írható profil (docs/boards.md).
+- A soros napló UART1-re tehető (`logger_uart: UART1`), ez felszabadítja a
+  GPIO43/44-et az érzékelőknek, a napló a hálózaton továbbra is elérhető. A
+  `logger_baud_rate: "0"` ezen a gombon elrontja a kijelzőt, ezért már nem
+  javasolt.
+- docs/hardware.md: a debug panel mért szabad lábai (GPIO4, 15, 16, 43, 44; a
+  gyártói leírás több helyen hibás), és egy lábazonosító firmware
+  (`esphome/pin-probe.yaml`), amellyel a saját példányodon ellenőrizheted
+  őket.
+
 ## [0.7.33] - 2026-10-13
 
 ### English

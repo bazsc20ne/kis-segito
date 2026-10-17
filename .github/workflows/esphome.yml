@@ -51,3 +51,23 @@ jobs:
         with:
           yaml-file: esphome/tests/diagnostics.yaml
           version: ${{ vars.ESPHOME_VERSION || '2026.9.1' }}
+
+  build-pin-probe:
+    name: Compile pin probe firmware
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: esphome/build-action@76cd6898550762b189215bbe6e50e29080fd2c33 # v7.0.0
+        with:
+          yaml-file: esphome/tests/pin-probe.yaml
+          version: ${{ vars.ESPHOME_VERSION || '2026.9.1' }}
+
+  build-sensors:
+    name: Compile sensor example
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: esphome/build-action@76cd6898550762b189215bbe6e50e29080fd2c33 # v7.0.0
+        with:
+          yaml-file: esphome/tests/sensors.yaml
+          version: ${{ vars.ESPHOME_VERSION || '2026.9.1' }}

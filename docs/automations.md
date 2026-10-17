@@ -91,6 +91,46 @@ actions:
       background: "{{ 'bg_1' if trigger.id == 'night' else 'bg_2' }}"
 ```
 
+## Knob screen / A gomb képernyője
+
+The knob's own ESPHome actions, named after its node name
+(`esphome.<node>_<action>`; with the default name `kis-segito` for example
+`esphome.kis_segito_wake`):
+
+| Action | Data | What it does |
+|---|---|---|
+| `wake` | – | Wakes the screen with a soft fade-in. |
+| `screensaver` | `enable: true` / `false` | Starts or ends the screensaver. |
+| `night_light` | `enable`, `brightness` (%), `kelvin` | Shows or ends the night light; 0 uses the panel settings. |
+
+Its state is on the knob's device: **Night light**, **Screensaver**, **Screen
+brightness**, and the sensor inputs **Presence**, **Distance**, **Illuminance**
+(see [sensors.md](sensors.md)).
+
+A gomb saját ESPHome-műveletei a gomb nevével (`esphome.<név>_<művelet>`;
+alapértelmezett névvel például `esphome.kis_segito_wake`): `wake` (lágy
+felébresztés), `screensaver` (`enable`: képernyővédő be/ki), `night_light`
+(`enable`, `brightness` %, `kelvin`; 0 = a panel beállítása). Az állapotuk a
+gomb eszközén látható.
+
+Example: night light at bedtime, off in the morning.
+
+```yaml
+triggers:
+  - trigger: time
+    at: "20:00:00"
+    id: "on"
+  - trigger: time
+    at: "07:00:00"
+    id: "off"
+actions:
+  - action: esphome.kis_segito_night_light
+    data:
+      enable: "{{ trigger.id == 'on' }}"
+      brightness: 20
+      kelvin: 2400
+```
+
 ## Token history
 
 Tokens are kept in an append-only ledger: nothing is deleted. Reversing adds an

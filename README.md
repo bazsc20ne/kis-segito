@@ -34,7 +34,17 @@ előzményként tárolódik. A projekt aktív fejlesztés alatt áll.
   - kezelés: csak forgatás + nyomás
   - első felíráshoz USB-s debug/adapter panel
 
-Lábkiosztás és hangolási lehetőségek: [docs/hardware.md](docs/hardware.md).
+Lábkiosztás, a debug panel szabad lábai (mérve), lábazonosító firmware és
+hangolási lehetőségek: [docs/hardware.md](docs/hardware.md).
+
+Érzékelők (nem kötelező): jelenlét-, távolság- és fényérzékelővel a gomb
+közelítésre felébred, sötétben éjszakai fényt mutat, a fényerejét a szoba
+fényéhez igazítja. Bármelyik, az ESPHome által támogatott érzékelő a gombra
+köthető (kipróbálva: LD2410C radar, VEML7700 fényérzékelő), vagy a Home
+Assistant entitásai továbbíthatók neki: [docs/sensors.md](docs/sensors.md).
+
+Más gomb: a firmware magja és a gomb hardverleírása (gombprofil) külön van, így
+más gombhoz is írható profil: [docs/boards.md](docs/boards.md).
 
 ## Telepítés
 
@@ -203,7 +213,18 @@ can be reviewed and reversed. The project is under active development.
   - input: turn + press only
   - USB debug/adapter board for the first flash
 
-Pinout and tuning options: [docs/hardware.md](docs/hardware.md).
+Pinout, the debug board's free pins (measured), a pin probe firmware and
+tuning options: [docs/hardware.md](docs/hardware.md).
+
+Sensors (optional): with a presence, distance and light sensor the knob wakes
+when someone comes near, shows a night light in the dark and sets its
+brightness to the room light. Any sensor ESPHome supports can be wired to the
+knob (tested: LD2410C radar, VEML7700 light sensor), or Home Assistant entities
+can be forwarded to it: [docs/sensors.md](docs/sensors.md).
+
+Other knobs: the firmware core and the knob's hardware description (board
+profile) are separate, so a profile can be written for another knob:
+[docs/boards.md](docs/boards.md).
 
 ### Installation
 
