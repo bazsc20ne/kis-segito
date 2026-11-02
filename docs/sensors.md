@@ -329,17 +329,27 @@ source, on the knob or forwarded from Home Assistant: the knob multiplies the
 measured value by it for the night light threshold and for the brightness. The
 card shows each knob's measured value and the room value it gives.
 
-1. Install a light meter app on your phone (Android: any lux meter app reads
-   the phone's light sensor; iOS has no app access to that sensor, so these
-   apps estimate the light with the camera and are rougher).
-2. Hold the phone next to the knob, pointing the same way as the knob's
-   window, and read the app and the knob's measured value on the panel in the
-   same minute.
-3. Divide the app's value by the knob's measured value: that is the
-   correction. For example the app shows 120 lx and the knob 30 lx: 120 / 30 =
-   4.
-4. Repeat once in daylight and once with a lamp, and take a value between the
-   two results. Enter it at **Light correction**.
+How to find the factor:
+
+- **Reference.** Best is a second, uncovered light sensor of the same type
+  (e.g. a VEML7700) right next to the knob. Second best is an Android light
+  meter app, which reads the phone's own light sensor. On an iPhone these apps
+  measure with the camera; they are not reliable for this (in one test an
+  iPhone app showed 7.7 times the knob's value, Android apps 1.4–1.75 times).
+- **Light level.** Measure in medium light, not in the dark: in a dark room
+  phones are useless (two phones showed 2.5 and 0.1 lx in the same darkness).
+- **Measuring.** Put the phone next to the knob's light window, facing the
+  same way, and leave it there for 1–2 minutes, so the knob takes several
+  readings. Compare the reference with the knob's measured value on the panel
+  (Settings → Sensors) from the same minutes.
+- **Factor.** Divide the reference by the knob's measured value. For example
+  the reference shows 120 lx and the knob 30 lx: 120 / 30 = 4. Measure at two
+  different light levels (e.g. a lamp and daylight): the two factors should
+  match. Enter the factor at **Light correction**.
+
+The VEML7700 measures very small light levels too (its finest step was
+0.0036 lx in use), so a dark room is still detected reliably after the
+correction.
 
 A tok átlátszó ablaka mögötti fényérzékelő kevesebbet mér, mint amennyi fény a
 szobában valóban van, így az éjszakai fény akkor is bekapcsolhat, amikor a szoba
@@ -349,15 +359,28 @@ jön: a gomb az éjszakai fény küszöbéhez és a fényerőhöz a mért érté
 szorozza. A kártya minden gombnál mutatja a mért értéket és az ebből adódó
 szobaértéket.
 
-1. Telepíts a telefonodra egy fénymérő alkalmazást (Androidon bármelyik
-   luxmérő a telefon fényérzékelőjét olvassa; iOS-en az alkalmazások nem érik
-   el ezt az érzékelőt, ezért a kamerával becsülnek, és pontatlanabbak).
-2. Tartsd a telefont a gomb mellé, a gomb ablakával egy irányba, és ugyanabban
-   a percben olvasd le az alkalmazást és a gomb mért értékét a panelen.
-3. Oszd el az alkalmazás értékét a gomb mért értékével: ez a korrekció. Például
-   az alkalmazás 120 lx-et mutat, a gomb 30 lx-et: 120 / 30 = 4.
-4. Ismételd meg egyszer nappali fénynél és egyszer lámpafénynél, és a két
-   eredmény közötti értéket add meg a **Fénykorrekció** mezőben.
+A szorzó meghatározása:
+
+- **Viszonyítás.** A legjobb egy második, takaratlan, azonos típusú
+  fényérzékelő (pl. VEML7700) közvetlenül a gomb mellett. A második legjobb
+  egy androidos fénymérő alkalmazás, amely a telefon saját fényérzékelőjét
+  olvassa. iPhone-on ezek az alkalmazások a kamerával mérnek, és erre nem
+  megbízhatók (egy mérésben az iPhone-os alkalmazás a gomb értékének 7,7-szeresét
+  mutatta, az androidosok 1,4–1,75-szörösét).
+- **Fényszint.** Közepes fénynél mérj, ne sötétben: sötét szobában a telefonok
+  használhatatlanok (ugyanabban a sötétben két telefon 2,5, illetve 0,1 lx-et
+  mutatott).
+- **Mérés.** Tedd a telefont a gomb fényablaka mellé, egy irányba vele, és
+  hagyd ott 1–2 percig, hogy a gomb több mintát is vegyen. A viszonyítási
+  értéket ugyanezekből a percekből vesd össze a gomb mért értékével a panelen
+  (Beállítások → Érzékelők).
+- **Szorzó.** Oszd el a viszonyítási értéket a gomb mért értékével. Például a
+  viszonyítás 120 lx, a gomb 30 lx: 120 / 30 = 4. Mérj két különböző
+  fényerőnél (pl. lámpafénynél és nappali fénynél): a két szorzónak egyeznie
+  kell. A szorzót a **Fénykorrekció** mezőben add meg.
+
+A VEML7700 a nagyon kis fényt is méri (használat közben a legkisebb lépése
+0,0036 lx volt), így a korrekció után is megbízhatóan érzékeli a sötét szobát.
 
 ## I2C warnings / I2C-figyelmeztetések
 
