@@ -51,6 +51,7 @@ SCREEN_FIELDS = {
     "ambient": bool,
     "ambient_min": vol.All(int, vol.Range(min=1, max=100)),
     "ambient_max": vol.All(int, vol.Range(min=1, max=100)),
+    "light_factor": vol.All(vol.Coerce(float), vol.Range(min=0.1, max=100)),
 }
 SCREEN_SCHEMA = vol.Schema({vol.Optional(k): v for k, v in SCREEN_FIELDS.items()})
 
@@ -223,6 +224,17 @@ def _small_icons() -> list[str]:
     )
 
 
+def _own_entity(hass: HomeAssistant, device_id: str, key: str) -> str | None:
+    """One of the knob's own sensor entities (e.g. its Illuminance input)."""
+    for entry in er.async_entries_for_device(er.async_get(hass), device_id):
+        if entry.domain == "sensor" and (
+            (entry.original_name or "").lower() == key
+            or entry.entity_id.endswith(f"_{key}")
+        ):
+            return entry.entity_id
+    return None
+
+
 def _devices(hass: HomeAssistant) -> list[dict[str, Any]]:
     registry = dr.async_get(hass)
     result = []
@@ -240,6 +252,7 @@ def _devices(hass: HomeAssistant) -> list[dict[str, Any]]:
                 .get(device_id, {})
                 .get("screen", {}),
                 "inputs": hass.data[DOMAIN].manager.device_inputs(device_id),
+                "illuminance_entity": _own_entity(hass, device_id, "illuminance"),
             }
         )
     return result

@@ -38,7 +38,7 @@ epoch seconds, colours `#RRGGBB`):
   "bgs": 3,
   "scr": {"saver": 0, "dim": 60, "lvl": 15, "blank": 0, "off": 120, "ss": "balls"},
   "sen": {"pw": true, "ps": true, "nl": true, "nlx": 5.0, "nb": 30, "nk": 2700,
-          "noff": 60, "near": 80, "amb": true, "amin": 10, "amax": 100},
+          "noff": 60, "near": 80, "amb": true, "amin": 10, "amax": 100, "lf": 1.0},
   "anim": "full",
   "idle": 60,
   "children": [
@@ -80,7 +80,8 @@ epoch seconds, colours `#RRGGBB`):
   below `nlx` lx (light again above 1.5 × `nlx` + 1 lx), at `nb` percent and
   `nk` kelvin, ending `noff` seconds after presence ended; `near`: the child
   UI only closer than this many cm; `amb`: the backlight follows the room
-  light between `amin` and `amax` percent. Each works only when the knob gets
+  light between `amin` and `amax` percent; `lf`: light correction, the knob
+  uses the measured illuminance times this factor. Each works only when the knob gets
   the matching input (see [sensors.md](sensors.md)).
 - `bg`: background of every screen: `""` (none), a built-in preset
   (`bg_1` … `bg_6`) or an uploaded picture id. The knob

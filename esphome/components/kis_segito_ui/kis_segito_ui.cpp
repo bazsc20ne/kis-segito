@@ -881,17 +881,21 @@ void KisSegitoUI::set_state(const std::string &json) {
     s.ambient = sen["amb"] | true;
     s.ambient_min = static_cast<uint8_t>(std::min(100, std::max(1, sen["amin"] | 10)));
     s.ambient_max = static_cast<uint8_t>(std::min(100, std::max<int>(s.ambient_min, sen["amax"] | 100)));
+    s.light_factor = std::min(100.0f, std::max(0.1f, sen["lf"] | 1.0f));
     const SensorSettings &o = this->sensor_;
     if (first_state || s.presence_wake != o.presence_wake || s.presence_saver != o.presence_saver ||
         s.night_light != o.night_light || s.night_lux != o.night_lux || s.night_brightness != o.night_brightness ||
         s.night_kelvin != o.night_kelvin || s.night_off_after != o.night_off_after || s.near_cm != o.near_cm ||
-        s.ambient != o.ambient || s.ambient_min != o.ambient_min || s.ambient_max != o.ambient_max) {
+        s.ambient != o.ambient || s.ambient_min != o.ambient_min || s.ambient_max != o.ambient_max ||
+        s.light_factor != o.light_factor) {
       ESP_LOGI(TAG,
                "Sensors: presence wake %s, screen stages from absence %s, night light %s (below %.1f lx, %u%%, "
-               "%u K, off %us after presence), UI closer than %u cm, room-light brightness %s (%u-%u%%)",
+               "%u K, off %us after presence), UI closer than %u cm, room-light brightness %s (%u-%u%%), "
+               "light correction x%.2f",
                YESNO(s.presence_wake), YESNO(s.presence_saver), YESNO(s.night_light), s.night_lux,
                (unsigned) s.night_brightness, (unsigned) s.night_kelvin, (unsigned) s.night_off_after,
-               (unsigned) s.near_cm, YESNO(s.ambient), (unsigned) s.ambient_min, (unsigned) s.ambient_max);
+               (unsigned) s.near_cm, YESNO(s.ambient), (unsigned) s.ambient_min, (unsigned) s.ambient_max,
+               s.light_factor);
     }
     this->sensor_ = s;
   }

@@ -10,7 +10,7 @@
 
 // Must equal the integration version (scripts/check_versions.py checks it):
 // a browser that still runs an older copy of this file shows a reload bar.
-const PANEL_VERSION = "0.8.0";
+const PANEL_VERSION = "0.8.1";
 const FALLBACK_LANGUAGE = "en";
 const LANGUAGE_AUTO = "auto";
 const TABS = ["today", "calendar", "children", "routines", "rewards", "tokens", "history", "notifications", "settings"];
@@ -31,6 +31,7 @@ const SENSOR_NUMBERS = [
   ["night_off_after", null],
   ["ambient_min", 1, 100, 1],
   ["ambient_max", 1, 100, 1],
+  ["light_factor", 0.1, 100, 0.05],
 ];
 // Sensor inputs a knob can take from Home Assistant, and the entities offered.
 const INPUT_KINDS = {
@@ -186,6 +187,10 @@ class KisSegitoPanel extends HTMLElement {
       if (menuButton) {
         menuButton.hass = hass;
       }
+      // The knobs' measured illuminance next to the light correction.
+      this.shadowRoot.querySelectorAll("[data-lux-entity]").forEach((el) => {
+        el.textContent = this._luxText(el.dataset.luxEntity);
+      });
       const dark = Boolean(hass.themes?.darkMode);
       if (dark !== this._haDark) {
         this._haDark = dark;
@@ -578,6 +583,18 @@ class KisSegitoPanel extends HTMLElement {
 
   _dis() {
     return this._isAdmin ? "" : "disabled";
+  }
+
+  // "measured → room light" for an illuminance entity, with the correction.
+  _luxText(entityId) {
+    const state = this._hass?.states?.[entityId];
+    const value = state ? Number(state.state) : NaN;
+    if (!Number.isFinite(value)) {
+      return this._t("sensors.lux_none");
+    }
+    const factor = Number(this._data?.settings?.screen?.light_factor) || 1;
+    const fmt = (v) => (v < 10 ? v.toFixed(1) : String(Math.round(v)));
+    return this._t("sensors.lux_value", "").replace("{measured}", fmt(value)).replace("{room}", fmt(value * factor));
   }
 
   _minuteInput(attrs, seconds, placeholder = "", min = 0) {
@@ -1507,7 +1524,12 @@ class KisSegitoPanel extends HTMLElement {
         <div class="card"><h3>${this._e(this._t("sensors.title"))}</h3>
           <div class="stack" style="gap:6px">${SENSOR_FLAGS.map((k) => `<label class="switch"><input type="checkbox" data-screen-flag="${k}" ${sc[k] !== false ? "checked" : ""} ${dis}>${this._e(this._t(`sensors.${k}`))}</label>`).join("")}</div>
           <div class="form-grid">${SENSOR_NUMBERS.map(([k, min, max, step]) => `<label class="field"><span>${this._e(this._t(`sensors.${k}`))}</span>${min === null ? this._minuteInput(`data-screen="${k}"`, sc[k]) : `<input type="number" min="${min}" max="${max}" step="${step}" data-screen="${k}" value="${sc[k] ?? ""}" ${dis}>`}</label>`).join("")}</div>
-          <div class="hint">${this._e(this._t("sensors.hint"))}</div></div>
+          ${this._data.devices.map((d) => {
+            const lux = (d.inputs || {}).illuminance || d.illuminance_entity;
+            return lux ? `<div class="row wrap" style="gap:6px"><span class="tag">${this._e(d.name)}</span><span class="muted small" data-lux-entity="${this._e(lux)}">${this._e(this._luxText(lux))}</span></div>` : "";
+          }).join("")}
+          <div class="hint">${this._e(this._t("sensors.hint"))}</div>
+          <div class="hint">${this._e(this._t("sensors.light_factor_hint"))}</div></div>
         <div class="card"><h3>${this._e(this._t("background.title"))}</h3>${backgrounds}<div class="hint">${this._e(this._t("background.hint"))}</div></div>
         <div class="card"><h3>${this._e(this._t("settings.knobs"))}</h3>${devices || `<div class="muted">${this._e(this._t("settings.no_knobs"))}</div>`}<div class="hint">${this._e(this._t("settings.knobs_hint"))}</div></div>
         <div class="card"><h3>${this._icon("streak_flame", 26)} ${this._e(this._t("settings.streak"))}</h3><div class="form-grid">

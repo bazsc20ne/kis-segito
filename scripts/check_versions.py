@@ -61,6 +61,17 @@ def main() -> int:
     if len(set(versions.values())) != 1:
         print("Version mismatch", file=sys.stderr)
         return 1
+
+    # Every workflow builds with the same pinned ESPHome version.
+    pins = set()
+    for workflow in sorted((ROOT / ".github/workflows").glob("*.yml")):
+        text = workflow.read_text("utf-8")
+        pins.update(re.findall(r"esphome/build-action@\S+.*?\n(?:.*\n)*?\s+version:\s*([\d.]+)", text))
+        pins.update(re.findall(r"esphome==([\d.]+)", text))
+    print(f"ESPHome (workflows): {', '.join(sorted(pins)) or '<missing>'}")
+    if len(pins) != 1:
+        print("ESPHome version mismatch between workflows", file=sys.stderr)
+        return 1
     return 0
 
 

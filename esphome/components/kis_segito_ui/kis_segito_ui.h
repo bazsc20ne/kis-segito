@@ -202,6 +202,7 @@ class KisSegitoUI : public Component {
     bool ambient{true};             // brightness follows the room light
     uint8_t ambient_min{10};
     uint8_t ambient_max{100};
+    float light_factor{1};          // measured illuminance x this = room light
   };
   const SensorSettings &sensor_settings() const { return this->sensor_; }
   // Night light: a white screen (colour temperature in kelvin) with a small

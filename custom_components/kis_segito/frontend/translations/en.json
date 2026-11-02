@@ -390,5 +390,9 @@
   "sensors.input_distance": "Distance",
   "sensors.input_illuminance": "Illuminance",
   "sensors.input_none": "None",
-  "error.own_entity": "The knob's own sensor cannot be forwarded to itself."
+  "error.own_entity": "The knob's own sensor cannot be forwarded to itself.",
+  "sensors.light_factor": "Light correction (×)",
+  "sensors.lux_value": "measured {measured} lx → room {room} lx",
+  "sensors.lux_none": "no illuminance value yet",
+  "sensors.light_factor_hint": "A light sensor behind the knob's window reads less than the room has. The knob multiplies the measured value by the light correction for the night light and the brightness. Measure the room with a light meter app and set the correction so that the room value matches (see the documentation, docs/sensors.md)."
 }

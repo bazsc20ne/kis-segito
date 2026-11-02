@@ -145,6 +145,14 @@ async def test_sensor_settings_and_inputs(hass: HomeAssistant, hass_ws_client) -
         device_id=device.id,
         config_entry=esphome_entry,
     )
+    lux = er.async_get(hass).async_get_or_create(
+        "sensor",
+        "esphome",
+        "knob-illuminance",
+        device_id=device.id,
+        config_entry=esphome_entry,
+        original_name="Illuminance",
+    )
     entry = MockConfigEntry(
         domain=DOMAIN, unique_id=device.id, data={CONF_DEVICE_ID: device.id}
     )
@@ -171,6 +179,10 @@ async def test_sensor_settings_and_inputs(hass: HomeAssistant, hass_ws_client) -
     assert result["result"]["screen"]["dim_after"] == 60
     bad = await call(type=f"{DOMAIN}/settings/update", screen={"night_kelvin": 900})
     assert not bad["success"]
+    result = await call(type=f"{DOMAIN}/settings/update", screen={"light_factor": 3})
+    assert result["result"]["screen"]["light_factor"] == 3.0
+    bad = await call(type=f"{DOMAIN}/settings/update", screen={"light_factor": 0})
+    assert not bad["success"]
 
     # Forwarded inputs; the knob's own entity is refused.
     assert (
@@ -188,3 +200,4 @@ async def test_sensor_settings_and_inputs(hass: HomeAssistant, hass_ws_client) -
     assert refused["error"]["code"] == "own_entity"
     devices = (await call(type=f"{DOMAIN}/data"))["result"]["devices"]
     assert devices[0]["inputs"] == {"presence": "binary_sensor.hall_motion"}
+    assert devices[0]["illuminance_entity"] == lux.entity_id

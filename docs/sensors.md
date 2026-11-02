@@ -320,6 +320,100 @@ A gomb eszközén látható a **Presence** (jelenlét), **Distance** (távolság
 felébreszthető, a képernyővédő és az éjszakai fény be- és kikapcsolható: lásd
 [automations.md](automations.md#knob-screen--a-gomb-képernyője).
 
+## Light correction / Fénykorrekció
+
+A light sensor behind the enclosure's transparent window reads less than the
+room really has, so the night light may come on although the room is not dark.
+The **light correction** (panel → Settings → Sensors) fixes this for any light
+source, on the knob or forwarded from Home Assistant: the knob multiplies the
+measured value by it for the night light threshold and for the brightness. The
+card shows each knob's measured value and the room value it gives.
+
+1. Install a light meter app on your phone (Android: any lux meter app reads
+   the phone's light sensor; iOS has no app access to that sensor, so these
+   apps estimate the light with the camera and are rougher).
+2. Hold the phone next to the knob, pointing the same way as the knob's
+   window, and read the app and the knob's measured value on the panel in the
+   same minute.
+3. Divide the app's value by the knob's measured value: that is the
+   correction. For example the app shows 120 lx and the knob 30 lx: 120 / 30 =
+   4.
+4. Repeat once in daylight and once with a lamp, and take a value between the
+   two results. Enter it at **Light correction**.
+
+A tok átlátszó ablaka mögötti fényérzékelő kevesebbet mér, mint amennyi fény a
+szobában valóban van, így az éjszakai fény akkor is bekapcsolhat, amikor a szoba
+nem sötét. A **fénykorrekció** (panel → Beállítások → Érzékelők) ezt
+bármilyen fényforrásnál kijavítja, akár a gombon van, akár a Home Assistantból
+jön: a gomb az éjszakai fény küszöbéhez és a fényerőhöz a mért értéket ezzel
+szorozza. A kártya minden gombnál mutatja a mért értéket és az ebből adódó
+szobaértéket.
+
+1. Telepíts a telefonodra egy fénymérő alkalmazást (Androidon bármelyik
+   luxmérő a telefon fényérzékelőjét olvassa; iOS-en az alkalmazások nem érik
+   el ezt az érzékelőt, ezért a kamerával becsülnek, és pontatlanabbak).
+2. Tartsd a telefont a gomb mellé, a gomb ablakával egy irányba, és ugyanabban
+   a percben olvasd le az alkalmazást és a gomb mért értékét a panelen.
+3. Oszd el az alkalmazás értékét a gomb mért értékével: ez a korrekció. Például
+   az alkalmazás 120 lx-et mutat, a gomb 30 lx-et: 120 / 30 = 4.
+4. Ismételd meg egyszer nappali fénynél és egyszer lámpafénynél, és a két
+   eredmény közötti értéket add meg a **Fénykorrekció** mezőben.
+
+## I2C warnings / I2C-figyelmeztetések
+
+If the log shows many warnings like `Error reading ALS register, err = 2`,
+`Shutdown failed`, `Turn on failed` or `set Warning flag` while the values
+still arrive, I2C transfers to the sensor fail now and then. Error 2 means the
+sensor did not answer (not acknowledged): the signals on the wires are
+disturbed. (`Error reading ALS_CONF_0 register, err = 0` is the same failure:
+that ESPHome message prints the code of the previous read.) A failed reading is
+simply repeated at the next update.
+
+On the MD80E knob these warnings come mostly while the screen is on, so the
+display (its backlight switching and the picture data in the same cable) is the
+likely source. What helps, in this order:
+
+1. Keep the sensor wires short, twist SDA and SCL each with a GND wire, and
+   keep them away from the display cable.
+2. Put a 100 nF capacitor between the sensor's VIN and GND, at the sensor.
+3. Lower the I2C speed: `i2c: frequency: 50kHz` (or `10kHz`); the sensor needs
+   very little data.
+4. Try another backlight PWM frequency in the substitutions, e.g.
+   `backlight_pwm_frequency: 300Hz` or `20kHz`.
+5. Try a lower RGB bus drive strength: `display_drive_strength: "0"` (see
+   [hardware.md](hardware.md)); check that the picture stays clean.
+
+Change one thing at a time and compare the number of warnings per hour. To only
+hide the warnings (the readings are not affected), add
+`logger: logs: veml7700: ERROR` to the device config.
+
+Ha a naplóban sok `Error reading ALS register, err = 2`, `Shutdown failed`,
+`Turn on failed` vagy `set Warning flag` figyelmeztetés van, miközben az
+értékek megérkeznek, az I²C-átvitel időnként meghiúsul. A 2-es hiba azt
+jelenti, hogy a szenzor nem válaszolt (nem nyugtázott): a vezetékeken zavart a
+jel. (Az `Error reading ALS_CONF_0 register, err = 0` ugyanez a hiba: ez az
+ESPHome-üzenet az előző olvasás kódját írja ki.) A sikertelen mérés a következő
+frissítéskor egyszerűen megismétlődik.
+
+Az MD80E gombon ezek a figyelmeztetések főleg bekapcsolt képernyőnél jönnek,
+így a kijelző (a háttérvilágítás kapcsolgatása és a képadat ugyanabban a
+kábelben) a valószínű forrás. Ami segít, ebben a sorrendben:
+
+1. Az érzékelő vezetékei legyenek rövidek, az SDA-t és az SCL-t egy-egy GND
+   vezetékkel sodord össze, és vezesd távol a kijelző kábelétől.
+2. Tegyél egy 100 nF-os kondenzátort az érzékelő VIN és GND lába közé, az
+   érzékelőnél.
+3. Csökkentsd az I²C sebességét: `i2c: frequency: 50kHz` (vagy `10kHz`); a
+   szenzornak nagyon kevés adat kell.
+4. Próbálj más háttérfény-PWM-frekvenciát a substitutionökben, pl.
+   `backlight_pwm_frequency: 300Hz` vagy `20kHz`.
+5. Próbálj alacsonyabb RGB-busz meghajtási erősséget: `display_drive_strength:
+   "0"` (lásd [hardware.md](hardware.md)); ellenőrizd, hogy a kép tiszta marad.
+
+Egyszerre egy dolgot változtass, és hasonlítsd össze az óránkénti
+figyelmeztetések számát. Ha csak el akarod rejteni őket (a mérést nem
+befolyásolja), írd az eszközkonfigba: `logger: logs: veml7700: ERROR`.
+
 ## Tips / Tippek
 
 - Place the light sensor where the screen does not shine on it, otherwise the

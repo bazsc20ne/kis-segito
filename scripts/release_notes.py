@@ -23,7 +23,25 @@ def main() -> int:
         print(f"No CHANGELOG.md section for {version}", file=sys.stderr)
         return 1
     print(match.group(1).strip())
+    tested = tested_with()
+    if tested:
+        print(f"\n---\n\n{tested}")
     return 0
+
+
+def tested_with() -> str:
+    """The ESPHome and Home Assistant versions this release was tested with."""
+    release = (ROOT / ".github/workflows/release.yml").read_text("utf-8")
+    esphome = re.search(r"^\s+version:\s*([\d.]+)\s*$", release, re.MULTILINE)
+    requirements = (ROOT / "requirements_test.txt").read_text("utf-8")
+    hass = re.search(r"^homeassistant==([\d.]+)", requirements, re.MULTILINE)
+    if not (esphome and hass):
+        return ""
+    return (
+        f"Built and tested with ESPHome {esphome.group(1)} and Home Assistant "
+        f"{hass.group(1)}. / Az ESPHome {esphome.group(1)} és a Home Assistant "
+        f"{hass.group(1)} verzióval fordítva és tesztelve."
+    )
 
 
 if __name__ == "__main__":

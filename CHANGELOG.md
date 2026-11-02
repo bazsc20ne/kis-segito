@@ -6,6 +6,45 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.8.1] - 2026-11-02
+
+### English
+
+- Light correction: a factor on the panel (Settings → Sensors) that the knob
+  applies to the measured illuminance for the night light threshold and the
+  brightness, whatever the light source. A sensor behind the enclosure's window
+  reads less than the room has; the card shows each knob's measured value and
+  the room value next to it. How to set it with a phone light meter app:
+  docs/sensors.md.
+- Ready for current Home Assistant: the integration no longer uses
+  `DeviceEntry.config_entries` (removed in Home Assistant 2027.10), and its
+  daily and weekly timers stop cleanly when Home Assistant shuts down. Tested
+  with Home Assistant 2026.10.4.
+- The firmware is built and tested with ESPHome 2026.10.1. The release notes
+  name the ESPHome and Home Assistant versions each release was tested with.
+- docs/sensors.md: what the VEML7700 I2C warnings (`err = 2`, `Shutdown
+  failed`, …) mean and what helps against them. The backlight PWM frequency
+  can be changed with the `backlight_pwm_frequency` substitution.
+
+### Magyar
+
+- Fénykorrekció: egy szorzó a panelen (Beállítások → Érzékelők), amelyet a
+  gomb a mért megvilágításra alkalmaz az éjszakai fény küszöbénél és a
+  fényerőnél, bármilyen fényforrásnál. A tok ablaka mögötti érzékelő
+  kevesebbet mér, mint amennyi fény a szobában van; a kártya minden gombnál
+  mutatja a mért értéket és mellette a szobaértéket. Beállítása telefonos
+  fénymérő alkalmazással: docs/sensors.md.
+- Felkészítve a mai Home Assistantra: az integráció már nem használja a
+  `DeviceEntry.config_entries`-t (a Home Assistant 2027.10-ben megszűnik), és
+  a napi és heti időzítői a Home Assistant leállásakor rendben leállnak.
+  Tesztelve a Home Assistant 2026.10.4-gyel.
+- A firmware az ESPHome 2026.10.1-gyel fordítva és tesztelve. A kiadási
+  jegyzetek megnevezik, melyik ESPHome- és Home Assistant-verzióval tesztelték
+  az adott kiadást.
+- docs/sensors.md: mit jelentenek a VEML7700 I²C-figyelmeztetései (`err = 2`,
+  `Shutdown failed`, …), és mi segít ellenük. A háttérfény PWM-frekvenciája a
+  `backlight_pwm_frequency` substitutionnel módosítható.
+
 ## [0.8.0] - 2026-10-17
 
 ### English

@@ -7,8 +7,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.const import EVENT_HOMEASSISTANT_STOP, Platform
+from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.event import async_track_time_change
@@ -95,8 +95,17 @@ def _async_schedule_jobs(hass: HomeAssistant, manager: KisSegitoManager) -> None
         ) == (due.hour, due.minute):
             await manager.async_pay_interest()
 
-    async_track_time_change(hass, _after_midnight, hour=0, minute=0, second=30)
-    async_track_time_change(hass, _every_minute, second=5)
+    unsubs = [
+        async_track_time_change(hass, _after_midnight, hour=0, minute=0, second=30),
+        async_track_time_change(hass, _every_minute, second=5),
+    ]
+
+    @callback
+    def _stop(_event: Event) -> None:
+        while unsubs:
+            unsubs.pop()()
+
+    hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, _stop)
     # Catch up a missed evaluation (Home Assistant was off at midnight).
     hass.async_create_task(
         manager.async_evaluate_day(dt_util.now().date() - timedelta(days=1))

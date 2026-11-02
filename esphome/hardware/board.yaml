@@ -55,6 +55,9 @@ substitutions:
   # How many clicks make one UI step is set at runtime from Home Assistant
   # ("Encoder clicks per step").
   encoder_counts_per_click: "2"
+  # Backlight PWM frequency. Its switching can disturb long sensor wires (see
+  # docs/sensors.md, "I2C warnings"); try e.g. 300Hz or 20kHz if it does.
+  backlight_pwm_frequency: 1000Hz
 
 packages:
   panel: !include panel/${display_controller}.yaml
@@ -192,7 +195,7 @@ output:
     id: backlight_pwm
     pin: GPIO7
     inverted: true
-    frequency: 1000Hz
+    frequency: ${backlight_pwm_frequency}
 
 light:
   - platform: monochromatic

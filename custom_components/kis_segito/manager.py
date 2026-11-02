@@ -62,6 +62,7 @@ SENSOR_KEYS = {
     "ambient": "amb",
     "ambient_min": "amin",
     "ambient_max": "amax",
+    "light_factor": "lf",
 }
 # Sensor inputs a knob can take from Home Assistant entities.
 INPUT_KINDS = ("presence", "distance", "illuminance")
@@ -1407,6 +1408,8 @@ class KisSegitoManager:
                 result[short] = bool(value)
             elif key == "night_lux":
                 result[short] = round(float(value), 1)
+            elif key == "light_factor":
+                result[short] = round(float(value), 2)
             else:
                 result[short] = int(value)
         return result

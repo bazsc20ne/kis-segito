@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import voluptuous as vol
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     EVENT_CORE_CONFIG_UPDATE,
     STATE_UNAVAILABLE,
@@ -116,13 +117,31 @@ def parse_action(raw: str) -> dict[str, Any] | None:
         return None
 
 
-def api_encrypted(hass: HomeAssistant, device: dr.DeviceEntry) -> bool:
-    """Whether Home Assistant talks to this ESPHome device with an encryption key."""
-    for entry_id in device.config_entries:
+def _device_entry_ids(device: dr.DeviceEntry) -> list[str]:
+    """Config entry ids of a device.
+
+    Current Home Assistant versions have one (``config_entry_id``); older ones
+    a set (``config_entries``).
+    """
+    entry_id = getattr(device, "config_entry_id", None)
+    if entry_id is not None:
+        return [entry_id]
+    return list(device.config_entries)
+
+
+def _esphome_entry(hass: HomeAssistant, device: dr.DeviceEntry) -> ConfigEntry | None:
+    """The ESPHome config entry a device belongs to."""
+    for entry_id in _device_entry_ids(device):
         entry = hass.config_entries.async_get_entry(entry_id)
         if entry is not None and entry.domain == ESPHOME_DOMAIN:
-            return bool(entry.data.get("noise_psk"))
-    return False
+            return entry
+    return None
+
+
+def api_encrypted(hass: HomeAssistant, device: dr.DeviceEntry) -> bool:
+    """Whether Home Assistant talks to this ESPHome device with an encryption key."""
+    entry = _esphome_entry(hass, device)
+    return entry is not None and bool(entry.data.get("noise_psk"))
 
 
 def unencrypted_issue_id(device_id: str) -> str:
@@ -162,12 +181,9 @@ def load_device_strings(language: str | None) -> tuple[str, dict[str, str]]:
 
 def esphome_node_name(hass: HomeAssistant, device: dr.DeviceEntry) -> str | None:
     """Return the ESPHome node name of a device, used in its service names."""
-    for entry_id in device.config_entries:
-        entry = hass.config_entries.async_get_entry(entry_id)
-        if entry is None or entry.domain != ESPHOME_DOMAIN:
-            continue
-        if name := entry.data.get("device_name"):
-            return str(name)
+    entry = _esphome_entry(hass, device)
+    if entry is not None and (name := entry.data.get("device_name")):
+        return str(name)
     return None
 
 

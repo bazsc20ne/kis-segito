@@ -390,5 +390,9 @@
   "sensors.input_distance": "Távolság",
   "sensors.input_illuminance": "Megvilágítás",
   "sensors.input_none": "Nincs",
-  "error.own_entity": "A gomb saját érzékelőjét nem lehet önmagának továbbítani."
+  "error.own_entity": "A gomb saját érzékelőjét nem lehet önmagának továbbítani.",
+  "sensors.light_factor": "Fénykorrekció (×)",
+  "sensors.lux_value": "mért {measured} lx → szoba {room} lx",
+  "sensors.lux_none": "még nincs megvilágításérték",
+  "sensors.light_factor_hint": "A gomb ablaka mögötti fényérzékelő kevesebbet mér, mint amennyi fény a szobában van. A gomb az éjszakai fényhez és a fényerőhöz a mért értéket a fénykorrekcióval szorozza. Mérd meg a szobát egy fénymérő alkalmazással, és úgy állítsd be a korrekciót, hogy a szobaérték egyezzen (lásd a dokumentációt: docs/sensors.md)."
 }

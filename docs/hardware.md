@@ -19,6 +19,7 @@ Tuning below).
 | VSYNC pulse / back / front | 8 / 20 / 50 | `display_vsync_pulse_width`, `display_vsync_back_porch`, `display_vsync_front_porch` |
 | COLMOD after the table | none | `display_colmod` (`"0"`, `"0x55"`, `"0x66"`, `"0x77"`) |
 | Serial log | UART0 on GPIO43/44, 115200 baud | `logger_uart` (`UART1`: no pins, frees GPIO43/44; the log stays on the network), `logger_baud_rate`. Do not set the baud rate to `"0"` on this knob: the display shows stripes and goes blank. |
+| Backlight PWM frequency | 1000 Hz | `backlight_pwm_frequency` (see [sensors.md](sensors.md#i2c-warnings--i2c-figyelmeztetések)) |
 | RGB bus drive strength | ESP-IDF default | `display_drive_strength` (`"-1"` = default, `"0"`…`"3"` ≈ 5/10/20/40 mA) |
 | Restart the RGB transfer at every vertical sync (`"n"`: only after missed data or when the display asks, which keeps the picture clean with ESP-IDF 5.5) | off | `display_restart_in_vsync` (`"y"` / `"n"`) |
 

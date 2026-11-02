@@ -334,12 +334,14 @@ async def test_knob_screen_settings(hass: HomeAssistant) -> None:
         "amb": True,
         "amin": 10,
         "amax": 100,
+        "lf": 1.0,
     }
     await manager.async_set_device_screen(
         "dev", {"night_light": False, "near_cm": 120, "night_lux": 2.5}
     )
+    await manager.async_set_device_screen("dev", {"light_factor": 4.25})
     sen = manager.snapshot("dev", "en")["sen"]
-    assert (sen["nl"], sen["near"], sen["nlx"]) == (False, 120, 2.5)
+    assert (sen["nl"], sen["near"], sen["nlx"], sen["lf"]) == (False, 120, 2.5, 4.25)
     await manager.async_set_device_screen("dev", {"night_light": None})
     assert manager.snapshot("dev", "en")["sen"]["nl"] is True
 

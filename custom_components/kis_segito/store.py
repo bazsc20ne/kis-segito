@@ -69,6 +69,9 @@ DEFAULT_SETTINGS: dict[str, Any] = {
         "ambient": True,
         "ambient_min": 10,
         "ambient_max": 100,
+        # The knob uses the measured illuminance times this factor (a sensor
+        # behind the enclosure's window reads less than the room has).
+        "light_factor": 1.0,
     },
 }
 
