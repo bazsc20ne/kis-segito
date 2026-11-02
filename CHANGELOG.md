@@ -6,6 +6,31 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.8.2] - 2026-11-03
+
+### English
+
+- Fix: with 0.8.1 the knob's screen stayed dark (backlight on, no picture).
+  ESPHome 2026.10 sends the display's start-up sequence only after the
+  picture bus has taken over the pins it shares with it on this knob, so the
+  panel never got it. The firmware now resets the panel and sends the
+  sequence itself before the display starts, as with earlier ESPHome versions.
+- docs/sensors.md: how to measure the light correction reliably (an uncovered
+  light sensor or an Android light meter app as reference, medium light, two
+  light levels).
+
+### Magyar
+
+- Javítás: a 0.8.1-gyel a gomb képernyője sötét maradt (a háttérfény ég, kép
+  nincs). Az ESPHome 2026.10 a kijelző indítási sorozatát csak azután küldi
+  el, hogy a képadatbusz átvette azokat a lábakat, amelyeken ezen a gombon
+  osztoznak, így a panel nem kapta meg. A firmware most maga reseteli a panelt
+  és küldi el a sorozatot a kijelző indulása előtt, mint a korábbi
+  ESPHome-verziókkal.
+- docs/sensors.md: hogyan mérhető megbízhatóan a fénykorrekció (viszonyításnak
+  takaratlan fényérzékelő vagy androidos fénymérő alkalmazás, közepes fény, két
+  fényerő).
+
 ## [0.8.1] - 2026-11-02
 
 ### English

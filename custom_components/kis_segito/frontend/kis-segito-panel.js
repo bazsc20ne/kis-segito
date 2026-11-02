@@ -10,7 +10,7 @@
 
 // Must equal the integration version (scripts/check_versions.py checks it):
 // a browser that still runs an older copy of this file shows a reload bar.
-const PANEL_VERSION = "0.8.1";
+const PANEL_VERSION = "0.8.2";
 const FALLBACK_LANGUAGE = "en";
 const LANGUAGE_AUTO = "auto";
 const TABS = ["today", "calendar", "children", "routines", "rewards", "tokens", "history", "notifications", "settings"];
