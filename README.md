@@ -77,7 +77,7 @@ wifi:
 ```
 
 Az első felírás USB-n történik (debug/adapter panel), utána OTA-val frissíthető.
-Szükséges ESPHome-verzió: 2026.9.0 vagy újabb.
+Szükséges ESPHome-verzió: 2026.10.0 vagy újabb.
 
 Az enkóder érzékenysége a Home Assistantből állítható: az eszköz **Encoder clicks per
 step** beállítása (1–5, alapból 1 = egy kattanás egy lépés), és újraindítás után is
@@ -257,7 +257,7 @@ wifi:
 ```
 
 The first flash is done over USB (debug/adapter board); after that it updates over the
-air. Requires ESPHome 2026.9.0 or newer.
+air. Requires ESPHome 2026.10.0 or newer.
 
 The encoder sensitivity is set from Home Assistant: the device's **Encoder clicks per
 step** setting (1–5, default 1 = one step per click), kept across reboots. For a

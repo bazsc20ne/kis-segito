@@ -20,8 +20,10 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   `DeviceEntry.config_entries` (removed in Home Assistant 2027.10), and its
   daily and weekly timers stop cleanly when Home Assistant shuts down. Tested
   with Home Assistant 2026.10.4.
-- The firmware is built and tested with ESPHome 2026.10.1. The release notes
-  name the ESPHome and Home Assistant versions each release was tested with.
+- The firmware is built and tested with ESPHome 2026.10.1 and now needs
+  ESPHome 2026.10.0 or newer: ESPHome 2026.10 changed how the display gets its
+  start-up sequence, so 0.8.0 does not compile with it. The release notes name
+  the ESPHome and Home Assistant versions each release was tested with.
 - docs/sensors.md: what the VEML7700 I2C warnings (`err = 2`, `Shutdown
   failed`, …) mean and what helps against them. The backlight PWM frequency
   can be changed with the `backlight_pwm_frequency` substitution.
@@ -38,9 +40,11 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   `DeviceEntry.config_entries`-t (a Home Assistant 2027.10-ben megszűnik), és
   a napi és heti időzítői a Home Assistant leállásakor rendben leállnak.
   Tesztelve a Home Assistant 2026.10.4-gyel.
-- A firmware az ESPHome 2026.10.1-gyel fordítva és tesztelve. A kiadási
-  jegyzetek megnevezik, melyik ESPHome- és Home Assistant-verzióval tesztelték
-  az adott kiadást.
+- A firmware az ESPHome 2026.10.1-gyel fordítva és tesztelve, és mostantól
+  ESPHome 2026.10.0 vagy újabb kell hozzá: az ESPHome 2026.10 megváltoztatta,
+  hogyan kapja meg a kijelző az indítási sorozatát, ezért a 0.8.0 nem fordul le
+  vele. A kiadási jegyzetek megnevezik, melyik ESPHome- és Home
+  Assistant-verzióval tesztelték az adott kiadást.
 - docs/sensors.md: mit jelentenek a VEML7700 I²C-figyelmeztetései (`err = 2`,
   `Shutdown failed`, …), és mi segít ellenük. A háttérfény PWM-frekvenciája a
   `backlight_pwm_frequency` substitutionnel módosítható.
