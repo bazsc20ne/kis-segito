@@ -6,7 +6,7 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
-## [0.8.3] - 2026-11-03
+## [0.9.0] - 2026-11-03
 
 ### English
 
