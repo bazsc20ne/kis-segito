@@ -149,14 +149,43 @@ async def test_routine_checkpoint_reward_and_device_action(
 async def test_device_assignment(manager: KisSegitoManager) -> None:
     a, b = await _child(manager, "A"), await _child(manager, "B")
     assert manager.device_children("knob1") == {a, b}
-    await manager.async_assign_device(a, "knob1")
-    # A only on its knob; B (no knob) on every knob.
+    # Older data: A assigned to knob1 only, B to no knob.
+    next(c for c in manager.data["children"] if c["id"] == a)["device_id"] = "knob1"
     assert manager.device_children("knob1") == {a, b}
     assert manager.device_children("knob2") == {b}
-    await manager.async_assign_devices(a, ["knob1", "knob2"])
-    assert manager.device_children("knob2") == {a, b}
-    await manager.async_assign_device(a, None)
-    assert manager.device_children("knob3") == {a, b}
+    # Ticked at the knob: that list counts; a new child is ticked everywhere.
+    await manager.async_set_device_options("knob2", children=[a])
+    assert manager.device_children("knob2") == {a}
+    c = await _child(manager, "C")
+    assert manager.device_children("knob2") == {a, c}
+    # The others are shown locked, or hidden.
+    snap = manager.snapshot("knob2", "en")
+    assert {x["id"]: x["sel"] for x in snap["children"]} == {a: True, b: False, c: True}
+    await manager.async_set_device_options("knob2", hide_locked=True)
+    assert {x["id"] for x in manager.snapshot("knob2", "en")["children"]} == {a, c}
+
+
+async def test_device_background(manager: KisSegitoManager) -> None:
+    await manager.async_set_background("bg_2")
+    assert manager.snapshot("k1", "en")["bg"] == "bg_2"
+    seq = manager.snapshot("k1", "en")["bgs"]
+    # Its own background; choosing the shown one again changes nothing.
+    await manager.async_set_device_options("k1", background="bg_2")
+    assert manager.snapshot("k1", "en")["bgs"] == seq
+    await manager.async_set_device_options("k1", background="bg_4")
+    assert (manager.snapshot("k1", "en")["bg"], manager.snapshot("k1", "en")["bgs"]) == ("bg_4", seq + 1)
+    # The common one does not change a knob with its own.
+    await manager.async_update_settings({"background": "bg_5"})
+    assert manager.snapshot("k1", "en")["bg"] == "bg_4"
+    assert manager.snapshot("k2", "en")["bg"] == "bg_5"
+    # The service: one knob, or every knob.
+    await manager.async_set_background("bg_1", device_id="k2")
+    assert manager.snapshot("k2", "en")["bg"] == "bg_1"
+    await manager.async_set_background("bg_3")
+    assert manager.snapshot("k1", "en")["bg"] == manager.snapshot("k2", "en")["bg"] == "bg_3"
+    # Back to the common one.
+    await manager.async_set_device_options("k1", clear_background=True)
+    assert manager.snapshot("k1", "en")["bg"] == "bg_3"
 
 
 def test_migrate_schema_1() -> None:

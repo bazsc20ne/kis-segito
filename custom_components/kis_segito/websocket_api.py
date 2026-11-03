@@ -70,7 +70,6 @@ def async_register_commands(hass: HomeAssistant) -> None:
         ws_save,
         ws_delete,
         ws_reorder,
-        ws_assign,
         ws_history,
         ws_adjust,
         ws_reverse,
@@ -87,6 +86,7 @@ def async_register_commands(hass: HomeAssistant) -> None:
         ws_rotate_device_token,
         ws_device_screen,
         ws_device_inputs,
+        ws_device_options,
         ws_virtual_list,
         ws_virtual_save,
         ws_virtual_delete,
@@ -261,6 +261,7 @@ def _devices(hass: HomeAssistant) -> list[dict[str, Any]]:
                 "inputs": hass.data[DOMAIN].manager.device_inputs(device_id),
                 "illuminance_entity": _own_entity(hass, device_id, "illuminance"),
             }
+            | _knob_options(hass, device_id)
         )
     manager = hass.data[DOMAIN].manager
     for knob in manager.virtual_knobs():
@@ -275,8 +276,20 @@ def _devices(hass: HomeAssistant) -> list[dict[str, Any]]:
                 "inputs": {},
                 "illuminance_entity": None,
             }
+            | _knob_options(hass, knob["id"])
         )
     return result
+
+
+def _knob_options(hass: HomeAssistant, device_id: str) -> dict[str, Any]:
+    """A knob's children, how it shows the others, and its own background."""
+    manager = hass.data[DOMAIN].manager
+    device = manager.data["devices"].get(device_id, {})
+    return {
+        "children": sorted(manager.device_children(device_id)),
+        "hide_locked": manager.device_hides_locked(device_id),
+        "background": device.get("background") if "background" in device else None,
+    }
 
 
 @websocket_api.websocket_command(
@@ -341,6 +354,41 @@ async def ws_device_inputs(
         device_id, msg["inputs"], who=_who(connection)
     )
     connection.send_result(msg["id"])
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/device/options",
+        vol.Required("device_id"): str,
+        vol.Optional("children"): [str],
+        vol.Optional("hide_locked"): bool,
+        # A background value, or None: the common background.
+        vol.Optional("background"): vol.Any(None, vol.Match(BACKGROUND_VALUE)),
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_device_options(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Set a knob's children, how it shows the others, and its background."""
+    if msg["device_id"] not in {d["device_id"] for d in _devices(hass)}:
+        connection.send_error(msg["id"], "unknown_device", "Unknown knob")
+        return
+    await _run(
+        connection,
+        msg["id"],
+        _manager(hass).async_set_device_options(
+            msg["device_id"],
+            children=msg.get("children"),
+            hide_locked=msg.get("hide_locked"),
+            background=msg.get("background"),
+            clear_background="background" in msg and msg["background"] is None,
+            who=_who(connection),
+        ),
+    )
 
 
 @websocket_api.websocket_command(
@@ -604,33 +652,6 @@ async def ws_reorder(
         connection,
         msg["id"],
         _manager(hass).async_reorder(msg["collection"], msg["ids"]),
-    )
-
-
-@websocket_api.websocket_command(
-    {
-        vol.Required("type"): f"{DOMAIN}/assign",
-        vol.Required("child_id"): str,
-        vol.Exclusive("device_id", "knobs"): vol.Any(None, str),
-        vol.Exclusive("device_ids", "knobs"): [str],
-    }
-)
-@websocket_api.require_admin
-@websocket_api.async_response
-async def ws_assign(
-    hass: HomeAssistant,
-    connection: websocket_api.ActiveConnection,
-    msg: dict[str, Any],
-) -> None:
-    """Assign a child to knobs (none: every knob)."""
-    if "device_ids" in msg:
-        devices = msg["device_ids"]
-    else:
-        devices = [msg["device_id"]] if msg.get("device_id") else []
-    await _run(
-        connection,
-        msg["id"],
-        _manager(hass).async_assign_devices(msg["child_id"], devices),
     )
 
 

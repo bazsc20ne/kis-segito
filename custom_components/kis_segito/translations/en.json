@@ -137,11 +137,15 @@
     },
     "set_background": {
       "name": "Set background",
-      "description": "Chooses the background of every knob, like the Settings page. After the change each knob restarts once, after 1 minute without use, to show the new picture.",
+      "description": "Chooses the background of one knob, or of every knob, like the Settings page. A physical knob restarts once after the change, after 1 minute without use, to show the new picture.",
       "fields": {
         "background": {
           "name": "Background",
           "description": "A built-in background (bg_1 … bg_6), the id of an uploaded picture, or empty for no picture."
+        },
+        "knob": {
+          "name": "Knob",
+          "description": "The knob's name or device id (as on the panel's Settings → Knobs). Empty: every knob."
         }
       }
     }
@@ -217,6 +221,9 @@
     },
     "invalid_background": {
       "message": "Unknown background. Use bg_1 … bg_6, the id of an uploaded picture, or leave it empty."
+    },
+    "unknown_device": {
+      "message": "Unknown knob. Use a knob's name or device id from the panel's Settings → Knobs."
     }
   },
   "issues": {

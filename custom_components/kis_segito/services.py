@@ -53,7 +53,13 @@ SCHEMAS = {
         }
     ),
     "reverse_transaction": vol.Schema({vol.Required("transaction_id"): cv.string}),
-    "set_background": vol.Schema({vol.Required("background", default=""): cv.string}),
+    "set_background": vol.Schema(
+        {
+            vol.Required("background", default=""): cv.string,
+            # A knob's name or device id; without it every knob changes.
+            vol.Optional("knob"): cv.string,
+        }
+    ),
     "set_today_template": vol.Schema(
         {vol.Optional("template_id"): vol.Any(None, cv.string)}
     ),
@@ -114,7 +120,9 @@ def async_register_services(hass: HomeAssistant, manager: KisSegitoManager) -> N
                     )
                 case "set_background":
                     await manager.async_set_background(
-                        data["background"].strip(), who="automation"
+                        data["background"].strip(),
+                        device_id=_knob_id(hass, data.get("knob")),
+                        who="automation",
                     )
                 case "reverse_transaction":
                     await manager.async_reverse(
@@ -127,3 +135,18 @@ def async_register_services(hass: HomeAssistant, manager: KisSegitoManager) -> N
 
     for name, schema in SCHEMAS.items():
         hass.services.async_register(DOMAIN, name, handle, schema=schema)
+
+
+def _knob_id(hass: HomeAssistant, knob: str | None) -> str | None:
+    """A knob given by its name or device id (None: every knob)."""
+    from .websocket_api import _devices  # noqa: PLC0415 - avoids an import cycle
+
+    if not knob or not knob.strip():
+        return None
+    wanted = knob.strip()
+    for device in _devices(hass):
+        if wanted == device["device_id"] or wanted.casefold() == str(
+            device["name"]
+        ).casefold():
+            return device["device_id"]
+    raise KisSegitoError("unknown_device")

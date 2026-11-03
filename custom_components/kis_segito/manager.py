@@ -278,8 +278,7 @@ class KisSegitoManager:
         item = dict(item)
         if collection == "children":
             item.pop("background", None)  # one background for all children
-            if "device_ids" in item or "device_id" in item:
-                self._normalise_child(item)
+
         if not item.get("id"):
             item["id"] = lg.new_id()
             item.setdefault("sort_order", len(items))
@@ -345,11 +344,25 @@ class KisSegitoManager:
         await self._changed()
 
     async def async_set_background(
-        self, background: str, *, who: str = "automation"
+        self,
+        background: str,
+        *,
+        device_id: str | None = None,
+        who: str = "automation",
     ) -> None:
-        """Choose the background of every knob (as on the Settings page)."""
+        """Choose the background of one knob, or of every knob (the common
+        one, and no knob keeps its own)."""
         if not re.match(BACKGROUND_VALUE, background):
             raise KisSegitoError("invalid_background")
+        if device_id is not None:
+            await self._set_device_background(device_id, background, who=who)
+            return
+        for device in self.data["devices"].values():
+            if "background" in device:
+                # Its own picture was shown: the counter moves on with it.
+                seq = int(device.get("background_seq", 0))
+                device["background_seq"] = seq + int(device["background"] != background)
+                device["background"] = background
         await self.async_update_settings({"background": background}, who=who)
 
     async def async_set_override(
@@ -515,22 +528,63 @@ class KisSegitoManager:
             return [str(d) for d in child.get("device_ids") or [] if d]
         return [child["device_id"]] if child.get("device_id") else []
 
-    @staticmethod
-    def _normalise_child(child: dict[str, Any]) -> None:
-        """Keep the knob assignment as a list (older data: one device_id)."""
-        devices = KisSegitoManager.child_devices(child)
-        child["device_ids"] = list(dict.fromkeys(devices))
-        child.pop("device_id", None)
+    async def async_set_device_options(
+        self,
+        device_id: str,
+        *,
+        children: list[str] | None = None,
+        hide_locked: bool | None = None,
+        background: str | None = None,
+        clear_background: bool = False,
+        who: str = "parent",
+    ) -> None:
+        """A knob's own options: the children usable on it, whether the
+        others are hidden (or shown locked), and its own background."""
+        device = self.data["devices"].setdefault(device_id, {})
+        if children is not None:
+            allowed = set(children)
+            old = sorted(self.device_children(device_id))
+            # Stored as the children left out, so a new child can be used on
+            # every knob.
+            device["excluded"] = sorted(
+                c["id"] for c in self.data["children"] if c["id"] not in allowed
+            )
+            self._audit(who, f"device_children.{device_id}", old, sorted(allowed))
+        if hide_locked is not None:
+            device["hide_locked"] = bool(hide_locked)
+        if background is not None or clear_background:
+            await self._set_device_background(
+                device_id, None if clear_background else background, who=who
+            )
+            return
+        await self._changed()
 
-    async def async_assign_device(self, child_id: str, device_id: str | None) -> None:
-        """Assign a child to one knob only, or to none (every knob)."""
-        await self.async_assign_devices(child_id, [device_id] if device_id else [])
+    def device_background(self, device_id: str) -> tuple[str, int]:
+        """A knob's background and its change counter (see "bgs")."""
+        device = self.data["devices"].get(device_id, {})
+        if "background" in device:
+            return str(device["background"] or ""), int(device.get("background_seq", 0))
+        return str(self.settings.get("background") or ""), int(
+            self.settings.get("background_seq", 0)
+        )
 
-    async def async_assign_devices(self, child_id: str, device_ids: list[str]) -> None:
-        """Assign a child to these knobs (empty: every knob)."""
-        child = self._require_child(child_id)
-        child["device_ids"] = list(dict.fromkeys(d for d in device_ids if d))
-        child.pop("device_id", None)
+    async def _set_device_background(
+        self, device_id: str, background: str | None, *, who: str
+    ) -> None:
+        """Set (a value) or clear (None: the common one) a knob's background."""
+        if background is not None and not re.match(BACKGROUND_VALUE, background):
+            raise KisSegitoError("invalid_background")
+        old, seq = self.device_background(device_id)
+        device = self.data["devices"].setdefault(device_id, {})
+        if background is None:
+            device.pop("background", None)
+            device.pop("background_seq", None)
+        else:
+            device["background"] = background
+            # Counts only real changes: choosing the shown one again changes
+            # nothing on the knob.
+            device["background_seq"] = seq if background == old else seq + 1
+        self._audit(who, f"device_background.{device_id}", old, background)
         await self._changed()
 
     @staticmethod
@@ -1442,10 +1496,6 @@ class KisSegitoManager:
         if not self.is_virtual_knob(device_id):
             raise KisSegitoError("unknown_device")
         old = self.data["devices"].pop(device_id)
-        for child in self.data["children"]:
-            if device_id in self.child_devices(child):
-                self._normalise_child(child)
-                child["device_ids"].remove(device_id)
         self._audit(who, f"virtual_knob.{device_id}", old.get("name"), None)
         await self._changed()
 
@@ -1494,11 +1544,21 @@ class KisSegitoManager:
         return result
 
     def device_children(self, device_id: str) -> set[str]:
-        """Ids of the children selectable on a knob."""
+        """Ids of the children usable on a knob: the ones ticked at the knob;
+        until the knob's list is saved, the older per-child assignment (a
+        child without a knob everywhere, an assigned child only there)."""
         children = self.children(active_only=True)
+        device = self.data["devices"].get(device_id, {})
+        if "excluded" in device:
+            excluded = set(device["excluded"])
+            return {c["id"] for c in children if c["id"] not in excluded}
         return {
             c["id"] for c in children if child_on_device(self.child_devices(c), device_id)
         }
+
+    def device_hides_locked(self, device_id: str) -> bool:
+        """Whether a knob hides the children not usable on it."""
+        return bool(self.data["devices"].get(device_id, {}).get("hide_locked"))
 
     def snapshot(
         self, device_id: str, language: str, base_url: str | None = None
@@ -1508,8 +1568,11 @@ class KisSegitoManager:
         day = now.date()
         tz = dt_util.get_default_time_zone()
         selectable = self.device_children(device_id)
+        hide = self.device_hides_locked(device_id)
         children = []
         for child in self.children(active_only=True):
+            if hide and child["id"] not in selectable:
+                continue  # this knob hides the children not usable on it
             bal = self.balances(child["id"])
             children.append(
                 {
@@ -1628,8 +1691,8 @@ class KisSegitoManager:
             "v": 1,
             "now": int(now.timestamp()),
             "lang": language,
-            "bg": self.settings.get("background") or "",
-            "bgs": int(self.settings.get("background_seq", 0)),
+            "bg": self.device_background(device_id)[0],
+            "bgs": self.device_background(device_id)[1],
             "scr": {
                 key: int(value)
                 for key, value in zip(

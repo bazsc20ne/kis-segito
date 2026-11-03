@@ -10,13 +10,19 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
 
 ### English
 
-- Knob assignment, the same on physical and virtual knobs: a child without a
-  knob can be used on every knob; a child assigned to knobs only on those, and
-  the other knobs show it greyed with a lock. A child can now be assigned to
-  several knobs (e.g. the physical knob and a phone's virtual knob); none
-  chosen means every knob. Until now a knob nobody was assigned to worked for
-  every child, and a child without a knob was locked on knobs with assigned
-  children. Existing assignments are kept.
+- Children per knob: on the panel (Settings → Knobs) each knob, physical or
+  virtual, has a ticked list of the children who can use it – everyone by
+  default, and a new child is ticked on every knob. The others are shown
+  greyed with a lock, or hidden (a switch per knob). The same rule on physical
+  and virtual knobs. The child's own knob choice is gone; existing assignments
+  are carried over (a child without a knob on every knob, an assigned child
+  only on its knob).
+- Background per knob: each knob can have its own background (Settings →
+  Knobs); the common one is the default. A physical knob still restarts once
+  after a change, when the new picture is stored and it has not been used for
+  a minute; choosing the shown one again does nothing. A virtual knob shows the
+  new picture at once. `kis_segito.set_background` has an optional `knob`
+  field (name or device id); without it every knob changes.
 - Several virtual knobs can be used side by side (e.g. one per phone or
   tablet).
 - Virtual knob card: only the round screen is shown, without a card
@@ -26,14 +32,20 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
 
 ### Magyar
 
-- Gombhozzárendelés, a fizikai és a virtuális gombon ugyanúgy: a gomb nélküli
-  gyerek minden gombon használható, a gombokhoz rendelt csak azokon, a többi
-  gombon szürkén, lakattal látszik. Egy gyerek mostantól több gombhoz is
-  rendelhető (pl. a fizikai gombhoz és egy telefon virtuális gombjához); ha
-  egyik sincs kiválasztva, minden gombon használható. Eddig a senkihez sem
-  rendelt gomb minden gyereknek működött, a gomb nélküli gyerek pedig zárolva
-  volt azokon a gombokon, amelyekhez gyerek volt rendelve. A meglévő
-  hozzárendelések megmaradnak.
+- Gyerekek gombonként: a panelen (Beállítások → Gombok) minden gombnál –
+  fizikainál és virtuálisnál is – bepipálható, mely gyerekek használhatják;
+  alapból mindenki, és az új gyerek minden gombnál be van pipálva. A többiek
+  szürkén, lakattal látszanak, vagy rejtve vannak (gombonként kapcsolható).
+  A fizikai és a virtuális gombon ugyanaz a szabály. A gyereknél megadható
+  gombválasztó megszűnt; a meglévő beállítások átkerülnek (a gomb nélküli
+  gyerek minden gombon, a gombhoz rendelt csak annál).
+- Háttér gombonként: minden gombnak lehet saját háttere (Beállítások →
+  Gombok), a közös a kezdőérték. A fizikai gomb csere után továbbra is egyszer
+  újraindul, amikor az új kép eltárolódott, és a gombot 1 percig nem
+  használták; ugyanannak a háttérnek az újraválasztása nem csinál semmit. A
+  virtuális gomb azonnal az új képet mutatja. A `kis_segito.set_background`
+  kapott egy nem kötelező `knob` mezőt (név vagy eszközazonosító); nélküle
+  minden gomb vált.
 - Több virtuális gomb is használható egyszerre (pl. telefononként vagy
   táblagépenként egy).
 - Virtuális gomb kártya: csak a kerek képernyő látszik, kártyaháttér, keret és

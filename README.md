@@ -118,13 +118,13 @@ szünet) is megadhatók: a hét napjaihoz alapértelmezett sablon, egy-egy napho
 rendelhető. A Home Assistantben egy összesítő szenzor (`sensor.kis_segito`), gyerekenként egy
 szenzor és egy naptár (`calendar.kis_segito`) jelenik meg.
 Üres rendszerben a Rutinok és a Jutalmak oldalon egy gombnyomással példa-rutinok és
--jutalmak hozhatók létre. Egy gyerek egy vagy több knobhoz rendelhető (a gyerek oldalán):
-a gomb nélküli gyerek minden knobon használható, a gombokhoz rendelt csak azokon, a többi
-knobon szürkén, lakattal látszik. A knob perselyképernyőjén tekeréssel választható ki,
-hány zseton kerüljön a perselybe vagy onnan vissza; a gombnyomás könyveli. Háttér: a **Beállítások** oldalon egy
-háttér választható a gombokra (6 beépített vagy saját feltöltött kép), minden gyereknek
-ugyanaz; cseréjekor a gombok 1 perc használaton kívüli idő után egyszer újraindulnak
-(automatizálásból is váltható: `kis_segito.set_background`). Automatizáláshoz:
+-jutalmak hozhatók létre. Gombonként (**Beállítások → Gombok**) bepipálható, mely
+gyerekek használhatják az adott gombot (alapból mindenki); a többiek ott szürkén, lakattal
+látszanak, vagy – gombonként kapcsolható – rejtve vannak. A knob perselyképernyőjén tekeréssel választható ki,
+hány zseton kerüljön a perselybe vagy onnan vissza; a gombnyomás könyveli. Háttér: a **Beállítások** oldalon egy közös
+háttér választható a gombokra (6 beépített vagy saját feltöltött kép), és gombonként saját
+is; cseréjekor a fizikai gomb 1 perc használaton kívüli idő után egyszer újraindul
+(automatizálásból is váltható, egy vagy minden gombra: `kis_segito.set_background`). Automatizáláshoz:
 [docs/automations.md](docs/automations.md), saját gombhoz vagy kijelzőhöz:
 [docs/protocol.md](docs/protocol.md).
 
@@ -305,13 +305,13 @@ page also holds day templates (e.g. weekday, weekend, holiday): a default per we
 a different one for a single day. Home Assistant gets a summary sensor
 (`sensor.kis_segito`), one sensor per child and a calendar (`calendar.kis_segito`). In an empty
 setup, example routines and rewards can be created with one click on the Routines and
-Rewards pages. A child can be assigned to one or more knobs (on the child's page): a child
-without a knob can be used on every knob, a child with knobs only on those, and the other
-knobs show it greyed with a lock. On the knob's piggy-bank screen, turning chooses how many tokens go
-into the piggy bank or back out; pressing books it. Background: the **Settings** page has a
-background for the knobs (6 built-in or your own uploaded picture), the same for every
-child; after a change each knob restarts once, after 1 minute without use
-(also from automations: `kis_segito.set_background`). For automations see
+Rewards pages. Each knob (**Settings → Knobs**) has a ticked list of the
+children who can use it (everyone by default); the others are shown greyed with a lock
+there, or – switchable per knob – hidden. On the knob's piggy-bank screen, turning chooses how many tokens go
+into the piggy bank or back out; pressing books it. Background: the **Settings** page has a common
+background for the knobs (6 built-in or your own uploaded picture), and each knob can have
+its own; after a change a physical knob restarts once, after 1 minute without use (also
+from automations, for one knob or all: `kis_segito.set_background`). For automations see
 [docs/automations.md](docs/automations.md), for building your own knob or display
 [docs/protocol.md](docs/protocol.md).
 

@@ -100,7 +100,12 @@ async def test_panel_data_flow(hass: HomeAssistant, hass_ws_client) -> None:
         )
     )["result"]
     assert (
-        await call(type=f"{DOMAIN}/assign", child_id=child["id"], device_id=device.id)
+        await call(
+            type=f"{DOMAIN}/device/options",
+            device_id=device.id,
+            children=[child["id"]],
+            hide_locked=True,
+        )
     )["success"]
     assert (await call(type=f"{DOMAIN}/tokens/adjust", child_id=child["id"], amount=5))[
         "success"
@@ -112,7 +117,8 @@ async def test_panel_data_flow(hass: HomeAssistant, hass_ws_client) -> None:
 
     data = (await call(type=f"{DOMAIN}/data"))["result"]
     assert data["children"][0]["balances"]["wallet"] == 5
-    assert data["children"][0]["device_ids"] == [device.id]
+    assert data["devices"][0]["children"] == [data["children"][0]["id"]]
+    assert data["devices"][0]["hide_locked"] is True
     assert data["devices"][0]["device_id"] == device.id
     assert "task_toothbrush" in data["icons"]
 

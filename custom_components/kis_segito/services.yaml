@@ -106,3 +106,7 @@ set_background:
       example: bg_2
       selector:
         text:
+    knob:
+      example: Kis Segito
+      selector:
+        text:

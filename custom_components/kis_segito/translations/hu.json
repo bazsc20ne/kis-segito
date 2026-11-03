@@ -137,11 +137,15 @@
     },
     "set_background": {
       "name": "Háttér beállítása",
-      "description": "Kiválasztja minden gomb hátterét, mint a Beállítások oldal. A csere után minden gomb 1 perc használaton kívüli idő után egyszer újraindul, hogy az új képet mutassa.",
+      "description": "Kiválasztja egy gomb vagy minden gomb hátterét, mint a Beállítások oldal. A csere után a fizikai gomb 1 perc használaton kívüli idő után egyszer újraindul, hogy az új képet mutassa.",
       "fields": {
         "background": {
           "name": "Háttér",
           "description": "Beépített háttér (bg_1 … bg_6), egy feltöltött kép azonosítója, vagy üresen: nincs kép."
+        },
+        "knob": {
+          "name": "Gomb",
+          "description": "A gomb neve vagy eszközazonosítója (ahogy a panel Beállítások → Gombok részén látszik). Üresen: minden gomb."
         }
       }
     }
@@ -217,6 +221,9 @@
     },
     "invalid_background": {
       "message": "Ismeretlen háttér. Adj meg bg_1 … bg_6 értéket, egy feltöltött kép azonosítóját, vagy hagyd üresen."
+    },
+    "unknown_device": {
+      "message": "Ismeretlen gomb. Egy gomb nevét vagy eszközazonosítóját add meg a panel Beállítások → Gombok részéből."
     }
   },
   "issues": {

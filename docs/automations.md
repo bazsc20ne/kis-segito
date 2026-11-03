@@ -65,17 +65,21 @@ actions:
 
 ### Background / Háttér
 
-`kis_segito.set_background` chooses the background of every knob, like the
-**Settings** page: `bg_1` … `bg_6`, the id of an uploaded picture (shown in
-the address of the picture), or empty for no picture. After each change every
-knob restarts once, after 1 minute without use, to show the new picture. With
-it you can, for example, switch to a night background at sunset:
+`kis_segito.set_background` chooses the background of one knob or of every
+knob, like the **Settings** page: `bg_1` … `bg_6`, the id of an uploaded
+picture (shown in the address of the picture), or empty for no picture. `knob`
+(optional): the knob's name or device id as on **Settings → Knobs**; without
+it every knob changes. After a change a physical knob restarts once, after 1
+minute without use, to show the new picture; a virtual knob shows it at once.
+With it you can, for example, switch to a night background at sunset:
 
-A `kis_segito.set_background` minden gomb hátterét választja ki, mint a
-**Beállítások** oldal: `bg_1` … `bg_6`, egy feltöltött kép azonosítója, vagy
-üresen: nincs kép. Minden csere után a gombok 1 perc használaton kívüli idő
-után egyszer újraindulnak, hogy az új képet mutassák. Így például
-napnyugtakor éjszakai háttérre válthatsz:
+A `kis_segito.set_background` egy gomb vagy minden gomb hátterét választja
+ki, mint a **Beállítások** oldal: `bg_1` … `bg_6`, egy feltöltött kép
+azonosítója, vagy üresen: nincs kép. `knob` (nem kötelező): a gomb neve vagy
+eszközazonosítója, ahogy a **Beállítások → Gombok** részen látszik; nélküle
+minden gomb vált. Csere után a fizikai gomb 1 perc használaton kívüli idő után
+egyszer újraindul, hogy az új képet mutassa; a virtuális gomb azonnal
+mutatja. Így például napnyugtakor éjszakai háttérre válthatsz:
 
 ```yaml
 triggers:

@@ -92,8 +92,10 @@ epoch seconds, colours `#RRGGBB`):
   cache and restarts after 1 minute without input, then shows it from there.
 - `children[].pi`: piggy-bank interest paid but not shown to the child yet; the
   knob shows a badge and plays it when the piggy bank is opened.
-- `children[].sel`: whether the child can be selected on this knob (device
-  assignment); others are shown locked.
+- `children[].sel`: whether the child can be used on this knob (ticked at
+  the knob on Settings → Knobs); others are shown locked. A knob set to hide
+  the others gets only its own children.
+- `bg`, `bgs`: this knob's background (its own, or the common one).
 - Icons of routines, tasks and rewards (`routine_…`, `task_…`, `reward_…`) are
   not part of the firmware: the knob downloads them like a picture, at the size
   it shows them (`knob_image/<icon>/<size>`).

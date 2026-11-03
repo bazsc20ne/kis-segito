@@ -572,12 +572,28 @@ class KisSegitoPanel extends HTMLElement {
     return path.split(".").reduce((obj, key) => obj?.[key], this._edit?.item);
   }
 
-  // The knobs a child is assigned to (none: every knob; older data: device_id).
-  _childKnobs(child) {
-    if (Array.isArray(child?.device_ids)) {
-      return child.device_ids;
-    }
-    return child?.device_id ? [child.device_id] : [];
+  // A knob's own options: the children usable on it (a ticked list), whether
+  // the others are hidden or shown locked, and its background.
+  _knobOptions(d) {
+    const dis = this._dis();
+    const chosen = d.children || [];
+    const all = this._data.children;
+    const summary = chosen.length === all.length ? this._t("settings.knob_children_all") : this._t("settings.knob_children_some").replace("{n}", chosen.length).replace("{total}", all.length);
+    const children = all
+      .map((c) => `<button class="chip ${chosen.includes(c.id) ? "on" : ""}" data-act="knob-child" data-arg="${this._e(`${d.device_id}|${c.id}`)}" ${dis}>${chosen.includes(c.id) ? "☑" : "☐"} ${this._avatar(c, 22)}${this._e(c.name)}</button>`)
+      .join("");
+    const own = d.background;
+    const bgs = [`<button class="bg ${own == null ? "on" : ""}" data-act="knob-bg" data-arg="@common" data-device="${this._e(d.device_id)}" ${dis}>${this._e(this._t("settings.knob_bg_common"))}</button>`,
+      `<button class="bg ${own === "" ? "on" : ""}" data-act="knob-bg" data-arg="" data-device="${this._e(d.device_id)}" ${dis}>${this._e(this._t("background.none"))}</button>`]
+      .concat((this._data.backgrounds || []).map((b) => `<button class="bg ${own === b ? "on" : ""}" style="background-image:url('${this._backgroundUrl(b)}')" data-act="knob-bg" data-arg="${this._e(b)}" data-device="${this._e(d.device_id)}" aria-label="${this._e(b)}" ${dis}></button>`))
+      .concat(own && !own.startsWith("bg_") ? [`<button class="bg on" style="background-image:url('${this._backgroundUrl(own)}')" data-act="knob-bg" data-arg="${this._e(own)}" data-device="${this._e(d.device_id)}" ${dis}></button>`] : [])
+      .concat(this._data.settings?.background && !this._data.settings.background.startsWith("bg_") && this._data.settings.background !== own ? [`<button class="bg" style="background-image:url('${this._backgroundUrl(this._data.settings.background)}')" data-act="knob-bg" data-arg="${this._e(this._data.settings.background)}" data-device="${this._e(d.device_id)}" aria-label="${this._e(this._t("background.own"))}" ${dis}></button>`] : [])
+      .join("");
+    return `<details><summary>${this._e(this._t("settings.knob_children"))}: ${this._e(summary)}</summary>
+        <div class="row wrap" style="gap:6px;margin-top:10px">${children}</div>
+        <label class="switch" style="margin-top:10px"><input type="checkbox" data-knob-hide="${this._e(d.device_id)}" ${d.hide_locked ? "checked" : ""} ${dis}>${this._e(this._t("settings.knob_hide_locked"))}</label>
+        <div class="hint">${this._e(this._t("settings.knob_children_hint"))}</div></details>
+      <details><summary>${this._e(this._t("settings.knob_bg"))}</summary><div class="bgs" style="margin-top:10px">${bgs}</div><div class="hint">${this._e(this._t(d.virtual ? "settings.knob_bg_hint_virtual" : "settings.knob_bg_hint"))}</div></details>`;
   }
 
   _set(path, value) {
@@ -1208,8 +1224,8 @@ class KisSegitoPanel extends HTMLElement {
     const today = this._todayStr();
     const cards = this._data.children
       .map((c, i) => {
-        const knobs = this._childKnobs(c);
-        const device = knobs.length ? knobs.map((id) => this._data.devices.find((d) => d.device_id === id)?.name || "?").join(", ") : this._t("children.any_knob");
+        const usable = this._data.devices.filter((d) => (d.children || []).includes(c.id));
+        const device = usable.length === this._data.devices.length ? this._t("children.any_knob") : usable.map((d) => d.name).join(", ") || this._t("children.no_knob");
         const st = week
           ? this._computeStats(c, week.history.filter((h) => h.child_id === c.id), week.events.filter((e) => e.child_id === c.id), addDays(today, -6), today)
           : null;
@@ -1489,9 +1505,10 @@ class KisSegitoPanel extends HTMLElement {
     const mark = (k, label) => (sc[k] ? `<div class="mk" style="left:${(sc[k] / maxT) * 100}%"><i></i>${this._e(label)}<br><span class="num">${secondsToMinutes(sc[k])}′</span></div>` : "");
     const devices = this._data.devices
       .map((d) => {
-        const kids = this._data.children.filter((c) => this._childKnobs(c).includes(d.device_id));
+        // Avatars of the children usable here (all: "everyone").
+        const kids = (d.children || []).length === this._data.children.length ? [] : this._data.children.filter((c) => (d.children || []).includes(c.id));
         const own = d.screen || {};
-        const bg = this._backgroundUrl(s.background || "");
+        const bg = this._backgroundUrl(d.background != null ? d.background : s.background || "");
         const fields = SCREEN_KEYS.map((k) =>
           k === "dim_level"
             ? `<label class="field"><span>${this._e(this._t(`screen.${k}`))}</span><input type="number" min="1" max="100" data-device-screen="${k}" data-device="${this._e(d.device_id)}" value="${own[k] ?? ""}" placeholder="${this._e(String(sc[k] ?? ""))}" ${dis}></label>`
@@ -1504,12 +1521,14 @@ class KisSegitoPanel extends HTMLElement {
             <div class="grow"><label class="field"><span>${this._e(this._t("settings.virtual_name"))}</span><input data-devname="${this._e(d.device_id)}" value="${this._e(d.name)}" ${dis} style="font-weight:700"></label></div>
             <div class="row" style="gap:4px">${kids.length ? kids.map((c) => this._avatar(c, 30)).join("") : `<span class="tag">${this._e(this._t("settings.knob_everyone"))}</span>`}</div></div>
             <div class="hint">${this._e(this._t("settings.virtual_hint"))}</div>
+            ${this._knobOptions(d)}
             ${this._isAdmin ? `<div class="row wrap"><button class="btn sm" data-act="virtual-delete" data-arg="${this._e(d.device_id)}">🗑 ${this._e(this._t("settings.virtual_delete"))}</button></div>` : ""}</div>`;
         }
         return `<div class="knob-card stack" style="gap:10px"><div class="row wrap"><span class="knob-face" style="${bg ? `background-image:url('${bg}')` : ""}"></span>
           <div class="grow"><label class="field"><span>${this._e(this._t("settings.knob_name"))}</span><input data-devname="${this._e(d.device_id)}" value="${this._e(d.name)}" ${dis} style="font-weight:700"></label></div>
           <div class="row" style="gap:4px">${kids.length ? kids.map((c) => this._avatar(c, 30)).join("") : `<span class="tag">${this._e(this._t("settings.knob_everyone"))}</span>`}</div></div>
           ${d.encrypted ? "" : `<div class="warnbox">${this._e(this._t("settings.knob_unencrypted"))}</div>`}
+          ${this._knobOptions(d)}
           ${this._isAdmin ? `<div class="row wrap"><button class="btn sm" data-act="rotate-token" data-arg="${this._e(d.device_id)}">🔑 ${this._e(this._t("settings.knob_new_key"))}</button>${d.can_restart ? `<button class="btn sm" data-act="restart-knob" data-arg="${this._e(d.device_id)}">↻ ${this._e(this._t("settings.knob_restart"))}</button>` : ""}</div>` : ""}
           <details><summary>${this._e(this._t("screen.own"))}</summary><div class="hint">${this._e(this._t("screen.own_hint"))}</div>
             <div class="form-grid" style="margin-top:10px">${fields}
@@ -1823,11 +1842,6 @@ class KisSegitoPanel extends HTMLElement {
       return { title: c.name, nav, body: this._viewStats(this._child(c.id) || c), plain: true };
     }
     const close = SEMANTIC_COLORS.some((x) => colorDistance(x, c.color || "#000000") < 60);
-    // Several knobs can be chosen; none chosen: every knob.
-    const chosen = this._childKnobs(c);
-    const knobs = `<button class="chip noimg ${chosen.length ? "" : "on"}" data-act="knob-any">${this._e(this._t("children.any_knob"))}</button>${this._data.devices
-      .map((d) => `<button class="chip noimg ${chosen.includes(d.device_id) ? "on" : ""}" data-act="knob-toggle" data-arg="${this._e(d.device_id)}">${this._e(d.name)}</button>`)
-      .join("")}`;
     return {
       title: this._edit.readonly ? c.name : this._t(this._edit.isNew ? "children.add" : "children.edit"),
       nav,
@@ -1836,8 +1850,6 @@ class KisSegitoPanel extends HTMLElement {
           <label class="field"><span>${this._e(this._t("children.birth_date"))}</span><input type="date" data-path="birth_date" value="${this._e(c.birth_date || "")}"></label></div></div>
         <div class="field"><span>${this._e(this._t("children.color"))}</span><div class="row wrap">${PRESET_COLORS.map((x) => `<button class="swatch ${x === c.color ? "on" : ""}" style="background:${x}" data-act="set" data-path="color" data-v="${x}" aria-label="${x}"></button>`).join("")}<input type="color" data-path="color" data-rerender value="${this._e(c.color)}"></div>
           ${close ? `<div class="warnbox">${this._e(this._t("children.color_warning"))}</div>` : ""}</div>
-        <div class="field"><span>${this._e(this._t("children.knob"))}</span><div class="row wrap" style="gap:6px">${knobs}</div></div>
-        <div class="hint">${this._e(this._t("children.knob_hint"))}</div>
         <label class="switch"><input type="checkbox" data-path="piggy_unlocked" ${c.piggy_unlocked ? "checked" : ""}>${this._icon("fn_piggy", 26)} ${this._e(this._t("children.piggy_unlocked"))}</label>
         <label class="switch"><input type="checkbox" data-path="active" ${c.active !== false ? "checked" : ""}>${this._e(this._t("common.active"))}</label>`,
     };
@@ -2559,16 +2571,21 @@ class KisSegitoPanel extends HTMLElement {
       case "set":
         this._set(path, el.dataset.v);
         break;
-      case "knob-any":
-        this._edit.item.device_ids = [];
-        delete this._edit.item.device_id;
-        break;
-      case "knob-toggle": {
-        const list = this._childKnobs(this._edit.item);
-        this._edit.item.device_ids = list.includes(arg) ? list.filter((x) => x !== arg) : [...list, arg];
-        delete this._edit.item.device_id;
-        break;
+      case "knob-child": {
+        // A child ticked or unticked at a knob.
+        const [deviceId, childId] = arg.split("|");
+        const d = this._data.devices.find((x) => x.device_id === deviceId);
+        const list = d?.children || [];
+        await this._ws({ type: "kis_segito/device/options", device_id: deviceId, children: list.includes(childId) ? list.filter((x) => x !== childId) : [...list, childId] });
+        this._toast(this._t("toast.saved"));
+        await this._load();
+        return;
       }
+      case "knob-bg":
+        await this._ws({ type: "kis_segito/device/options", device_id: el.dataset.device, background: arg === "@common" ? null : arg });
+        this._toast(this._t("toast.bg"));
+        await this._load();
+        return;
       case "pick":
         this._picker = { path, filter: arg };
         break;
@@ -3046,6 +3063,12 @@ class KisSegitoPanel extends HTMLElement {
     if (el.dataset.devname) {
       await this._ws({ type: "kis_segito/device/rename", device_id: el.dataset.devname, name: el.value });
       this._toast(this._t("toast.renamed"));
+      await this._load();
+      return;
+    }
+    if (el.dataset.knobHide) {
+      await this._ws({ type: "kis_segito/device/options", device_id: el.dataset.knobHide, hide_locked: el.checked });
+      this._toast(this._t("toast.saved"));
       await this._load();
       return;
     }
@@ -3709,6 +3732,8 @@ const STYLE = `
   .timeline .mk { position: absolute; top: 0; transform: translateX(-50%); text-align: center; font-size: .7rem; font-weight: 700; color: var(--muted); white-space: nowrap; }
   .timeline .mk i { display: block; width: 16px; height: 16px; border-radius: 50%; margin: 20px auto 2px; background: var(--surface); border: 3px solid var(--ink); }
   .bgs { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 10px; }
+  .knob-card .bgs { grid-template-columns: repeat(auto-fill, minmax(56px, 64px)); gap: 8px; }
+  .knob-card .bg { font-size: .65rem; }
   .bg { aspect-ratio: 1; border-radius: 50%; border: 3px solid transparent; cursor: pointer; background-size: cover; background-position: center; box-shadow: var(--shadow); position: relative; display: grid; place-items: center; text-align: center; font-size: .75rem; font-weight: 700; color: var(--muted); background-color: var(--surface-2); transition: transform .2s; padding: 4px; }
   .bg:hover { transform: scale(1.05); }
   .bg.on { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }

@@ -55,13 +55,15 @@ async def test_virtual_knob(hass: HomeAssistant, hass_ws_client) -> None:
     )["success"]
     assert manager.virtual_knobs()[0]["name"] == "Holiday"
 
-    # Kid is assigned to it and to the physical knob, Other to the physical
-    # knob only; a child without knobs can be used everywhere.
-    await call(
-        type=f"{DOMAIN}/assign", child_id=kid["id"], device_ids=[knob_id, device.id]
-    )
-    await call(type=f"{DOMAIN}/assign", child_id=other["id"], device_id=device.id)
+    # Kid on both knobs, Other only on the physical one; Free on every knob.
     free = await manager.async_save_item("children", {"name": "Free"})
+    assert (
+        await call(
+            type=f"{DOMAIN}/device/options",
+            device_id=knob_id,
+            children=[kid["id"], free["id"]],
+        )
+    )["success"]
     assert manager.device_children(device.id) == {kid["id"], other["id"], free["id"]}
     assert manager.device_children(knob_id) == {kid["id"], free["id"]}
 
@@ -107,24 +109,23 @@ async def test_virtual_knob(hass: HomeAssistant, hass_ws_client) -> None:
     )
     assert bad["error"]["code"] == "invalid_action"
 
-    # Several virtual knobs; removing one keeps the child's other knobs.
+    # Several virtual knobs, each with its own children and background.
     second = (await call(type=f"{DOMAIN}/virtual/save", name="Tablet"))["result"]
     assert len(manager.virtual_knobs()) == 2
-    assert manager.device_children(second) == {free["id"]}
+    assert manager.device_children(second) == {kid["id"], other["id"], free["id"]}
+    assert (
+        await call(type=f"{DOMAIN}/device/options", device_id=second, background="bg_4")
+    )["success"]
+    devices = (await call(type=f"{DOMAIN}/data"))["result"]["devices"]
+    tablet = next(d for d in devices if d["device_id"] == second)
+    assert tablet["background"] == "bg_4" and tablet["hide_locked"] is False
     assert (await call(type=f"{DOMAIN}/virtual/delete", device_id=knob_id))[
         "success"
     ]
     assert [k["id"] for k in manager.virtual_knobs()] == [second]
-    child = next(c for c in manager.children() if c["id"] == kid["id"])
-    assert manager.child_devices(child) == [device.id]
 
-    # Older data with one device_id still counts; saving keeps it as a list.
-    legacy = await manager.async_save_item(
-        "children", {"name": "Old", "device_id": device.id}
+    # The background service for one knob, by name.
+    await hass.services.async_call(
+        DOMAIN, "set_background", {"background": "bg_1", "knob": "tablet"}, blocking=True
     )
-    assert legacy["device_ids"] == [device.id] and "device_id" not in legacy
-    raw = next(c for c in manager.data["children"] if c["id"] == free["id"])
-    raw["device_id"] = second
-    raw.pop("device_ids", None)
-    assert free["id"] in manager.device_children(second)
-    assert free["id"] not in manager.device_children(device.id)
+    assert manager.snapshot(second, "en")["bg"] == "bg_1"
