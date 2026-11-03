@@ -59,7 +59,7 @@ substitutions:
   friendly_name: Kis Segito
 
 packages:
-  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.8.2
+  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.8.3
 
 api:
   encryption:
@@ -128,6 +128,16 @@ ugyanaz; cseréjekor a gombok 1 perc használaton kívüli idő után egyszer ú
 [docs/automations.md](docs/automations.md), saját gombhoz vagy kijelzőhöz:
 [docs/protocol.md](docs/protocol.md).
 
+**Virtuális gomb:** a gomb képernyője irányítópult-kártyaként is használható, például
+utazáskor vagy ha a gomb nem működik. Ugyanazok a képernyők, képek és animációk, csak
+érintéssel: húzás balra/jobbra = tekerés, koppintás = nyomás, nyomva tartás = vissza
+(egérgörgő és billentyűk is működnek). Létrehozása: panel → **Beállítások → Gombok →
+Virtuális gomb hozzáadása**, majd egy irányítópulton **Kártya hozzáadása → Kis Segítő**, és
+a kártya beállításaiban a gomb kiválasztása (a kártya az integrációval együtt települ).
+Gyerekek ugyanúgy rendelhetők hozzá, mint egy valódi gombhoz. Telefonon a Home Assistant
+alkalmazásban is működik; a gyerek kezébe adott telefonhoz egy csak ezt a kártyát mutató
+irányítópult ajánlott.
+
 A knob kijelzőjének és a panelnek a
 szövegei alapból a Home Assistant nyelvén jelennek meg (jelenleg angol és magyar; ha egy
 nyelvhez nincs fordítás, angolul). A panel **Beállítások** kártyáján más nyelv is
@@ -150,7 +160,7 @@ választható; ez a knobokra és a panelre is érvényes. Új nyelv:
   át nem érhetők el. Ha egy gomb kapcsolata nem titkosított, a Home Assistant javítási
   értesítést mutat, és a gomb a képek helyett ikonokat jelenít meg. A gomb hozzáférése a
   képekhez megújítható: panel → **Beállítások → Gombok → Új képkulcs**.
-- **Frissítés:** a fenti mintában a package egy adott verzióra mutat (`@v0.8.2`), így a
+- **Frissítés:** a fenti mintában a package egy adott verzióra mutat (`@v0.8.3`), így a
   gomb firmware-e csak akkor változik, amikor ezt átírod egy újabb verzióra.
 - **Nem része a projektnek:** aki fizikailag hozzáfér a gombhoz, kiolvashatja a
   flash-memóriáját (és a benne lévő titkos adatokat). Ez egy otthoni, házilag épített
@@ -239,7 +249,7 @@ substitutions:
   friendly_name: Kis Segito
 
 packages:
-  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.8.2
+  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.8.3
 
 api:
   encryption:
@@ -305,6 +315,15 @@ child; after a change each knob restarts once, after 1 minute without use
 [docs/automations.md](docs/automations.md), for building your own knob or display
 [docs/protocol.md](docs/protocol.md).
 
+**Virtual knob:** the knob screen can also be used as a dashboard card, for example on a
+trip or when the knob does not work. The same screens, pictures and animations, operated
+by touch: swipe left/right = turn, tap = press, press and hold = back (a mouse wheel and
+the keyboard work too). To create one: panel → **Settings → Knobs → Add a virtual knob**,
+then on a dashboard **Add card → Kis Segítő**, and choose the knob in the card settings
+(the card comes with the integration). Children can be assigned to it like to a real
+knob. It works in the Home Assistant app on a phone too; for a phone handed to a child, a
+dashboard showing only this card is recommended.
+
 The texts on the knob display and in the
 panel follow the Home Assistant language by default (currently English and Hungarian;
 English when there is no translation for a language). Another language can be chosen on
@@ -328,7 +347,7 @@ the panel's **Settings** card; it applies to the knobs and the panel. Adding a l
   Assistant shows a repair issue and the knob shows icons instead of the pictures. A
   knob's access to the pictures can be renewed: panel → **Settings → Knobs → New picture
   key**.
-- **Updates:** in the example above the package points to a given version (`@v0.8.2`), so
+- **Updates:** in the example above the package points to a given version (`@v0.8.3`), so
   the knob's firmware changes only when you change it to a newer version.
 - **Out of scope:** anyone with physical access to the knob can read its flash memory (and
   the secrets in it). This is a DIY device for the home, so flash encryption and secure

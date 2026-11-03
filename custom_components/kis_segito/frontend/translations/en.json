@@ -394,5 +394,11 @@
   "sensors.light_factor": "Light correction (×)",
   "sensors.lux_value": "measured {measured} lx → room {room} lx",
   "sensors.lux_none": "no illuminance value yet",
-  "sensors.light_factor_hint": "A light sensor behind the knob's window reads less than the room has. The knob multiplies the measured value by the light correction for the night light and the brightness. Measure the room with a light meter app and set the correction so that the room value matches (see the documentation, docs/sensors.md)."
+  "sensors.light_factor_hint": "A light sensor behind the knob's window reads less than the room has. The knob multiplies the measured value by the light correction for the night light and the brightness. Measure the room with a light meter app and set the correction so that the room value matches (see the documentation, docs/sensors.md).",
+  "settings.virtual_add": "Add a virtual knob",
+  "settings.virtual_default": "Virtual knob",
+  "settings.virtual_name": "Virtual knob name",
+  "settings.virtual_hint": "The knob screen as a dashboard card: add the “Kis Segítő” card to a dashboard and choose this knob. Children can be assigned to it like to a real knob.",
+  "settings.virtual_delete": "Remove the virtual knob",
+  "settings.virtual_delete_confirm": "Remove this virtual knob? Its cards stop working, and its children are no longer assigned to it."
 }

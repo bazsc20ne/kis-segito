@@ -1380,6 +1380,63 @@ class KisSegitoManager:
         self._audit(who, f"device_screen.{device_id}", old, new)
         await self._changed()
 
+    # ------------------------------------------------------------ virtual knobs
+
+    def virtual_knobs(self) -> list[dict[str, str]]:
+        """Virtual knobs (the knob screen as a dashboard card), by name."""
+        knobs = [
+            {"id": device_id, "name": str(device.get("name") or "")}
+            for device_id, device in self.data["devices"].items()
+            if device.get("virtual")
+        ]
+        return sorted(knobs, key=lambda k: k["name"].lower())
+
+    def is_virtual_knob(self, device_id: str) -> bool:
+        """Whether a device id is a virtual knob."""
+        return bool(self.data["devices"].get(device_id, {}).get("virtual"))
+
+    async def async_save_virtual_knob(
+        self, device_id: str | None, name: str, *, who: str = "parent"
+    ) -> str:
+        """Create (no id) or rename a virtual knob; returns its id."""
+        name = name.strip()
+        if not name:
+            raise KisSegitoError("name_required")
+        if device_id is None:
+            device_id = f"virtual_{lg.new_id()}"
+            self.data["devices"][device_id] = {"virtual": True}
+        elif not self.is_virtual_knob(device_id):
+            raise KisSegitoError("unknown_device")
+        device = self.data["devices"][device_id]
+        old = device.get("name")
+        device["name"] = name
+        self._audit(who, f"virtual_knob.{device_id}", old, name)
+        await self._changed()
+        return device_id
+
+    async def async_delete_virtual_knob(
+        self, device_id: str, *, who: str = "parent"
+    ) -> None:
+        """Remove a virtual knob; its children are no longer assigned to it."""
+        if not self.is_virtual_knob(device_id):
+            raise KisSegitoError("unknown_device")
+        old = self.data["devices"].pop(device_id)
+        for child in self.data["children"]:
+            if child.get("device_id") == device_id:
+                child["device_id"] = None
+        self._audit(who, f"virtual_knob.{device_id}", old.get("name"), None)
+        await self._changed()
+
+    async def async_virtual_action(
+        self, device_id: str, action: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Run an action from a virtual knob, for a child selectable there."""
+        if not self.is_virtual_knob(device_id):
+            return {"ok": False, "error": "unknown_device"}
+        if str(action.get("c") or "") not in self.device_children(device_id):
+            return {"ok": False, "error": "not_selectable"}
+        return await self.async_device_action(action)
+
     def device_inputs(self, device_id: str) -> dict[str, str]:
         """Home Assistant entities forwarded to a knob's sensor inputs."""
         inputs = self.data["devices"].get(device_id, {}).get("inputs") or {}

@@ -143,3 +143,19 @@ The knob shows the result at once; Home Assistant validates and books it and
 sends a new snapshot, which corrects the knob if the action was refused (for
 example: not enough tokens). Without a Home Assistant connection the knob
 refuses token transactions.
+
+## Virtual knob
+
+The virtual knob card (`custom_components/kis_segito/frontend/kis-segito-knob-card.js`)
+is a knob without ESPHome. It talks to the integration over the Home Assistant
+WebSocket API with the same data:
+
+| Command | Fields | Purpose |
+|---|---|---|
+| `kis_segito/virtual/subscribe` | `device_id` | The snapshot above (without `img`'s picture key), sent now and after every change, with `static_url`, `version`, `small_icons`. |
+| `kis_segito/virtual/action` | `device_id`, `action` (JSON string) | One action as in "Knob → Home Assistant": the same fields, limits and once-only ids. Only for a child selectable on this virtual knob. |
+| `kis_segito/virtual/list` | – | The virtual knobs (`id`, `name`). |
+| `kis_segito/virtual/save`, `kis_segito/virtual/delete` | `device_id`, `name` | Create, rename, remove (administrators only). |
+
+Pictures come from the integration's static files (icons, backgrounds) and Home
+Assistant's image upload (`/api/image/serve/<id>/<size>`).

@@ -10,7 +10,7 @@
 
 // Must equal the integration version (scripts/check_versions.py checks it):
 // a browser that still runs an older copy of this file shows a reload bar.
-const PANEL_VERSION = "0.8.2";
+const PANEL_VERSION = "0.8.3";
 const FALLBACK_LANGUAGE = "en";
 const LANGUAGE_AUTO = "auto";
 const TABS = ["today", "calendar", "children", "routines", "rewards", "tokens", "history", "notifications", "settings"];
@@ -1488,6 +1488,15 @@ class KisSegitoPanel extends HTMLElement {
             ? `<label class="field"><span>${this._e(this._t(`screen.${k}`))}</span><input type="number" min="1" max="100" data-device-screen="${k}" data-device="${this._e(d.device_id)}" value="${own[k] ?? ""}" placeholder="${this._e(String(sc[k] ?? ""))}" ${dis}></label>`
             : `<label class="field"><span>${this._e(this._t(`screen.${k}`))}</span>${this._minuteInput(`data-device-screen="${k}" data-device="${this._e(d.device_id)}"`, own[k], sc[k] ?? "")}</label>`
         ).join("");
+        if (d.virtual) {
+          // A virtual knob (the knob screen as a dashboard card): a name, its
+          // children, and removal.
+          return `<div class="knob-card stack" style="gap:10px"><div class="row wrap"><span class="knob-face" style="${bg ? `background-image:url('${bg}')` : ""}"></span>
+            <div class="grow"><label class="field"><span>${this._e(this._t("settings.virtual_name"))}</span><input data-devname="${this._e(d.device_id)}" value="${this._e(d.name)}" ${dis} style="font-weight:700"></label></div>
+            <div class="row" style="gap:4px">${kids.length ? kids.map((c) => this._avatar(c, 30)).join("") : `<span class="tag">${this._e(this._t("settings.knob_everyone"))}</span>`}</div></div>
+            <div class="hint">${this._e(this._t("settings.virtual_hint"))}</div>
+            ${this._isAdmin ? `<div class="row wrap"><button class="btn sm" data-act="virtual-delete" data-arg="${this._e(d.device_id)}">🗑 ${this._e(this._t("settings.virtual_delete"))}</button></div>` : ""}</div>`;
+        }
         return `<div class="knob-card stack" style="gap:10px"><div class="row wrap"><span class="knob-face" style="${bg ? `background-image:url('${bg}')` : ""}"></span>
           <div class="grow"><label class="field"><span>${this._e(this._t("settings.knob_name"))}</span><input data-devname="${this._e(d.device_id)}" value="${this._e(d.name)}" ${dis} style="font-weight:700"></label></div>
           <div class="row" style="gap:4px">${kids.length ? kids.map((c) => this._avatar(c, 30)).join("") : `<span class="tag">${this._e(this._t("settings.knob_everyone"))}</span>`}</div></div>
@@ -1531,7 +1540,7 @@ class KisSegitoPanel extends HTMLElement {
           <div class="hint">${this._e(this._t("sensors.hint"))}</div>
           <div class="hint">${this._e(this._t("sensors.light_factor_hint"))}</div></div>
         <div class="card"><h3>${this._e(this._t("background.title"))}</h3>${backgrounds}<div class="hint">${this._e(this._t("background.hint"))}</div></div>
-        <div class="card"><h3>${this._e(this._t("settings.knobs"))}</h3>${devices || `<div class="muted">${this._e(this._t("settings.no_knobs"))}</div>`}<div class="hint">${this._e(this._t("settings.knobs_hint"))}</div></div>
+        <div class="card"><h3>${this._e(this._t("settings.knobs"))}</h3>${devices || `<div class="muted">${this._e(this._t("settings.no_knobs"))}</div>`}<div class="hint">${this._e(this._t("settings.knobs_hint"))}</div>${this._isAdmin ? `<div><button class="btn sm" data-act="virtual-add">＋ ${this._e(this._t("settings.virtual_add"))}</button></div>` : ""}</div>
         <div class="card"><h3>${this._icon("streak_flame", 26)} ${this._e(this._t("settings.streak"))}</h3><div class="form-grid">
           <label class="field"><span>${this._e(this._t("settings.streak_target"))}</span>${num("streak_target", 0, 365)}</label>
           <label class="field"><span>${this._e(this._t("settings.streak_reward"))}</span>${num("streak_reward", 0, 1000)}</label></div></div>
@@ -2825,6 +2834,18 @@ class KisSegitoPanel extends HTMLElement {
           await this._ws({ type: "kis_segito/device/rotate_token", device_id: arg });
           this._toast(this._t("toast.key"));
         });
+        return;
+      case "virtual-add":
+        await this._ws({ type: "kis_segito/virtual/save", name: this._t("settings.virtual_default") });
+        this._toast(this._t("toast.saved"));
+        await this._load();
+        return;
+      case "virtual-delete":
+        this._confirm(this._t("settings.virtual_delete"), this._t("settings.virtual_delete_confirm"), async () => {
+          await this._ws({ type: "kis_segito/virtual/delete", device_id: arg });
+          this._toast(this._t("toast.deleted"));
+          await this._load();
+        }, { danger: true });
         return;
       case "restart-knob":
         this._confirm(this._t("settings.knob_restart"), this._t("settings.knob_restart_confirm"), async () => {

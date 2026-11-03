@@ -394,5 +394,11 @@
   "sensors.light_factor": "Fénykorrekció (×)",
   "sensors.lux_value": "mért {measured} lx → szoba {room} lx",
   "sensors.lux_none": "még nincs megvilágításérték",
-  "sensors.light_factor_hint": "A gomb ablaka mögötti fényérzékelő kevesebbet mér, mint amennyi fény a szobában van. A gomb az éjszakai fényhez és a fényerőhöz a mért értéket a fénykorrekcióval szorozza. Mérd meg a szobát egy fénymérő alkalmazással, és úgy állítsd be a korrekciót, hogy a szobaérték egyezzen (lásd a dokumentációt: docs/sensors.md)."
+  "sensors.light_factor_hint": "A gomb ablaka mögötti fényérzékelő kevesebbet mér, mint amennyi fény a szobában van. A gomb az éjszakai fényhez és a fényerőhöz a mért értéket a fénykorrekcióval szorozza. Mérd meg a szobát egy fénymérő alkalmazással, és úgy állítsd be a korrekciót, hogy a szobaérték egyezzen (lásd a dokumentációt: docs/sensors.md).",
+  "settings.virtual_add": "Virtuális gomb hozzáadása",
+  "settings.virtual_default": "Virtuális gomb",
+  "settings.virtual_name": "A virtuális gomb neve",
+  "settings.virtual_hint": "A gomb képernyője irányítópult-kártyaként: adj hozzá egy „Kis Segítő” kártyát egy irányítópulthoz, és válaszd ki ezt a gombot. Gyerekek ugyanúgy rendelhetők hozzá, mint egy valódi gombhoz.",
+  "settings.virtual_delete": "Virtuális gomb törlése",
+  "settings.virtual_delete_confirm": "Törlöd ezt a virtuális gombot? A kártyái nem működnek tovább, és a gyerekei már nem lesznek hozzárendelve."
 }

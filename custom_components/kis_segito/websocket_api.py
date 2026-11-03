@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import time
 from datetime import date, timedelta
 from typing import Any
 
@@ -15,8 +17,8 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import label_registry as lr
 from homeassistant.helpers.service import async_get_all_descriptions
 
-from .const import CONF_DEVICE_ID, DOMAIN, LANGUAGE_AUTO
-from .device_link import api_encrypted, available_languages
+from .const import CONF_DEVICE_ID, DOMAIN, LANGUAGE_AUTO, STATIC_URL
+from .device_link import api_encrypted, available_languages, parse_action
 from .icons import ICON_ALIASES
 from .ledger import PIGGY, WALLET
 from .manager import (
@@ -85,6 +87,11 @@ def async_register_commands(hass: HomeAssistant) -> None:
         ws_rotate_device_token,
         ws_device_screen,
         ws_device_inputs,
+        ws_virtual_list,
+        ws_virtual_save,
+        ws_virtual_delete,
+        ws_virtual_subscribe,
+        ws_virtual_action,
         ws_restart_device,
         ws_rename_device,
         ws_events,
@@ -255,6 +262,20 @@ def _devices(hass: HomeAssistant) -> list[dict[str, Any]]:
                 "illuminance_entity": _own_entity(hass, device_id, "illuminance"),
             }
         )
+    manager = hass.data[DOMAIN].manager
+    for knob in manager.virtual_knobs():
+        result.append(
+            {
+                "device_id": knob["id"],
+                "name": knob["name"],
+                "virtual": True,
+                "encrypted": True,
+                "can_restart": False,
+                "screen": {},
+                "inputs": {},
+                "illuminance_entity": None,
+            }
+        )
     return result
 
 
@@ -398,6 +419,17 @@ def ws_rename_device(
     """Rename a knob (its Home Assistant device name; empty: the original)."""
     if msg["device_id"] not in {d["device_id"] for d in _devices(hass)}:
         connection.send_error(msg["id"], "unknown_device", "Unknown knob")
+        return
+    if _manager(hass).is_virtual_knob(msg["device_id"]):
+        hass.async_create_task(
+            _run(
+                connection,
+                msg["id"],
+                _manager(hass).async_save_virtual_knob(
+                    msg["device_id"], msg["name"], who=_who(connection)
+                ),
+            )
+        )
         return
     dr.async_get(hass).async_update_device(
         msg["device_id"], name_by_user=msg["name"].strip() or None
@@ -1042,3 +1074,168 @@ async def ws_day_routine(
             who=_who(connection),
         ),
     )
+
+
+# ---------------------------------------------------------------- virtual knobs
+
+
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/virtual/list"})
+@callback
+def ws_virtual_list(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """The virtual knobs (for the card editor)."""
+    connection.send_result(msg["id"], _manager(hass).virtual_knobs())
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/virtual/save",
+        vol.Optional("device_id"): vol.Any(None, str),
+        vol.Required("name"): vol.All(str, vol.Length(min=1, max=100)),
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_virtual_save(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Create or rename a virtual knob."""
+    await _run(
+        connection,
+        msg["id"],
+        _manager(hass).async_save_virtual_knob(
+            msg.get("device_id"), msg["name"], who=_who(connection)
+        ),
+    )
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/virtual/delete",
+        vol.Required("device_id"): str,
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_virtual_delete(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Remove a virtual knob."""
+    await _run(
+        connection,
+        msg["id"],
+        _manager(hass).async_delete_virtual_knob(
+            msg["device_id"], who=_who(connection)
+        ),
+    )
+
+
+def _virtual_state(hass: HomeAssistant, device_id: str) -> dict[str, Any]:
+    """What a virtual knob card shows: the knob snapshot (without picture key)."""
+    data = hass.data[DOMAIN]
+    language = data.store.effective_language(None, hass.config.language) or "en"
+    return {
+        "state": data.manager.snapshot(device_id, language, None),
+        "static_url": STATIC_URL,
+        "version": data.version,
+        "long_press_ms": 500,
+        "small_icons": _small_icons(),
+    }
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/virtual/subscribe",
+        vol.Required("device_id"): str,
+    }
+)
+@callback
+def ws_virtual_subscribe(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Send a virtual knob its snapshot now and after every change."""
+    manager = _manager(hass)
+    device_id = msg["device_id"]
+    if not manager.is_virtual_knob(device_id):
+        connection.send_error(msg["id"], "unknown_device", "Unknown knob")
+        return
+    msg_id = msg["id"]
+    pending: list[asyncio.TimerHandle] = []
+
+    @callback
+    def _send() -> None:
+        pending.clear()
+        if not manager.is_virtual_knob(device_id):
+            connection.send_message(
+                websocket_api.event_message(msg_id, {"removed": True})
+            )
+            return
+        connection.send_message(
+            websocket_api.event_message(msg_id, _virtual_state(hass, device_id))
+        )
+
+    @callback
+    def _changed() -> None:
+        # Several changes in a row are sent once.
+        if not pending:
+            pending.append(hass.loop.call_later(0.3, _send))
+
+    remove = manager.async_add_listener(_changed)
+
+    @callback
+    def _unsubscribe() -> None:
+        remove()
+        for handle in pending:
+            handle.cancel()
+        pending.clear()
+
+    connection.subscriptions[msg_id] = _unsubscribe
+    connection.send_result(msg_id)
+    _send()
+
+
+# Actions a virtual knob may send per user, like a physical knob.
+VIRTUAL_RATE_COUNT = 20
+VIRTUAL_RATE_WINDOW_S = 60.0
+_virtual_action_times: dict[tuple[str, str], list[float]] = {}
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/virtual/action",
+        vol.Required("device_id"): str,
+        vol.Required("action"): vol.All(str, vol.Length(max=255)),
+    }
+)
+@websocket_api.async_response
+async def ws_virtual_action(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Run a child's action from a virtual knob (the knob protocol's JSON)."""
+    now = time.monotonic()
+    key = (connection.user.id if connection.user else "", msg["device_id"])
+    times = _virtual_action_times.setdefault(key, [])
+    times[:] = [t for t in times if now - t <= VIRTUAL_RATE_WINDOW_S]
+    if len(times) >= VIRTUAL_RATE_COUNT:
+        connection.send_error(msg["id"], "rate_limited", "Too many actions")
+        return
+    times.append(now)
+    action = parse_action(msg["action"])
+    if action is None:
+        connection.send_error(msg["id"], "invalid_action", "Invalid action")
+        return
+    result = await _manager(hass).async_virtual_action(msg["device_id"], action)
+    # Refused actions change nothing: the card drops its guess with a fresh state.
+    _manager(hass).async_notify_listeners()
+    connection.send_result(msg["id"], result)

@@ -23,6 +23,7 @@ from .logic import parse_hhmm
 from .manager import KisSegitoManager
 from .notify import Notifier
 from .panel import (
+    async_register_card,
     async_register_panel,
     async_register_static_files,
     async_unregister_panel,
@@ -117,6 +118,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: KisSegitoConfigEntry) ->
     data: KisSegitoData = hass.data[DOMAIN]
     if not data.static_registered:
         await async_register_static_files(hass)
+        async_register_card(hass, data.version)
         data.static_registered = True
     if not data.panel_registered:
         await async_register_panel(hass, data.version)

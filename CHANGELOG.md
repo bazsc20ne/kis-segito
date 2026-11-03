@@ -6,6 +6,37 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.8.3] - 2026-11-03
+
+### English
+
+- Virtual knob: the knob screen as a dashboard card, for use without the
+  physical knob (on a trip, or when the knob does not work). It shows the same
+  screens, pictures and animations – children, functions, routine with the time
+  track, rewards with confirmation, piggy bank, tokens and streak – and is
+  operated by touch: swipe left/right = turn, tap = press, press and hold =
+  back; a mouse wheel and the arrow, Enter and Escape keys work too, and an
+  optional back button can be shown. Create one on the panel (Settings → Knobs
+  → Add a virtual knob), then add the "Kis Segítő" card to a dashboard; the
+  card comes with the integration. Children can be assigned to it like to a
+  real knob; the actions it sends are booked by Home Assistant with the same
+  rules, once each.
+
+### Magyar
+
+- Virtuális gomb: a gomb képernyője irányítópult-kártyaként, a fizikai gomb
+  nélküli használathoz (utazáskor, vagy ha a gomb nem működik). Ugyanazokat a
+  képernyőket, képeket és animációkat mutatja – gyerekek, funkciók, rutin az
+  idősávval, jutalmak megerősítéssel, persely, zsetonok és napi sorozat –, és
+  érintéssel kezelhető: húzás balra/jobbra = tekerés, koppintás = nyomás,
+  nyomva tartás = vissza; egérgörgő és a nyíl-, Enter- és Esc-billentyű is
+  működik, és vissza gomb is megjeleníthető. Létrehozása a panelen
+  (Beállítások → Gombok → Virtuális gomb hozzáadása), utána egy irányítópultra
+  a „Kis Segítő” kártyát kell felvenni; a kártya az integrációval együtt
+  települ. Gyerekek ugyanúgy rendelhetők hozzá, mint egy valódi gombhoz; az
+  általa küldött műveleteket a Home Assistant ugyanazokkal a szabályokkal,
+  egyszer könyveli.
+
 ## [0.8.2] - 2026-11-03
 
 ### English
