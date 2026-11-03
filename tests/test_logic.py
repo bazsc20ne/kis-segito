@@ -9,7 +9,7 @@ from custom_components.kis_segito import ledger as lg
 from custom_components.kis_segito.logic import (
     interest_for,
     reward_for,
-    selectable_children,
+    child_on_device,
 )
 
 BANDS = [
@@ -76,12 +76,12 @@ def test_compound_interest() -> None:
     assert balance == 133  # 100 -> 110 -> 121 -> 133
 
 
-def test_selectable_children() -> None:
-    everyone = ["a", "b", "c"]
-    assert selectable_children(everyone, []) == {"a", "b", "c"}
-    assert selectable_children(everyone, ["a"]) == {"a"}
-    assert selectable_children(everyone, ["a", "b"]) == {"a", "b"}
-    assert selectable_children(everyone, everyone) == {"a", "b", "c"}
+def test_child_on_device() -> None:
+    # No knob: every knob; assigned knobs: only those.
+    assert child_on_device([], "k1")
+    assert child_on_device(["k1"], "k1")
+    assert not child_on_device(["k1"], "k2")
+    assert child_on_device(["k1", "v1"], "v1")
 
 
 def _tx(amount: int, account: str = lg.WALLET) -> dict:

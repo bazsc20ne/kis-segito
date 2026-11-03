@@ -85,7 +85,7 @@ const newActionId = () => {
 
 const STYLE = `
 :host { display: block; }
-ha-card { overflow: hidden; background: var(--ha-card-background, var(--card-background-color)); }
+ha-card { overflow: visible; background: none; border: none; box-shadow: none; }
 .wrap { position: relative; width: 100%; aspect-ratio: 1; touch-action: none; user-select: none; -webkit-user-select: none; outline: none; }
 .knob { position: absolute; left: 0; top: 0; width: 480px; height: 480px; transform-origin: 0 0; border-radius: 50%; overflow: hidden; background: #1b2140; }
 .layer { position: absolute; inset: 0; }
@@ -100,7 +100,9 @@ img.abs { pointer-events: none; -webkit-user-drag: none; }
 .slot { position: absolute; top: 0; will-change: transform, opacity; }
 .grey { filter: grayscale(1) brightness(0.85); }
 .dim { filter: grayscale(1) brightness(0.85); opacity: 0.67; }
-.back { position: absolute; right: 1%; bottom: 1%; width: 13%; aspect-ratio: 1; border-radius: 50%; border: 0; background: rgba(15, 19, 48, 0.55); color: #fff; font-size: 1.4rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.back { position: absolute; right: 1%; bottom: 1%; width: 13%; aspect-ratio: 1; border-radius: 50%; border: 0; padding: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; background: var(--card-background-color, var(--ha-card-background)); color: var(--primary-color); box-shadow: var(--ha-card-box-shadow, 0 2px 4px rgba(0, 0, 0, 0.2)); }
+.back[hidden] { display: none; }
+.back ha-icon { display: flex; }
 .empty { padding: 24px; text-align: center; color: var(--secondary-text-color); }
 `;
 
@@ -471,7 +473,7 @@ class KisSegitoKnobCard extends HTMLElement {
     root.innerHTML = `<style>${STYLE}</style><ha-card><div class="wrap" tabindex="0"><div class="knob">
       <div class="layer bg"></div><div class="layer screen"></div><div class="layer band"></div>
       <svg class="layer ring" viewBox="0 0 480 480"></svg><div class="layer track"></div><div class="layer top"></div>
-      </div><button class="back" hidden aria-label="Back">↩</button></div><div class="empty" hidden></div></ha-card>`;
+      </div><button class="back" hidden aria-label="Back"><ha-icon icon="mdi:arrow-u-left-bottom"></ha-icon></button></div><div class="empty" hidden></div></ha-card>`;
     this._root = root;
     this._wrap = root.querySelector(".wrap");
     this._knob = root.querySelector(".knob");
@@ -494,6 +496,7 @@ class KisSegitoKnobCard extends HTMLElement {
     const w = this._wrap.clientWidth;
     if (w > 0) {
       this._knob.style.transform = `scale(${w / SCREEN})`;
+      this._backButton.style.setProperty("--mdc-icon-size", `${Math.round(w * 0.13 * 0.6)}px`);
     }
   }
 

@@ -150,8 +150,13 @@ async def test_device_assignment(manager: KisSegitoManager) -> None:
     a, b = await _child(manager, "A"), await _child(manager, "B")
     assert manager.device_children("knob1") == {a, b}
     await manager.async_assign_device(a, "knob1")
-    assert manager.device_children("knob1") == {a}
+    # A only on its knob; B (no knob) on every knob.
+    assert manager.device_children("knob1") == {a, b}
+    assert manager.device_children("knob2") == {b}
+    await manager.async_assign_devices(a, ["knob1", "knob2"])
     assert manager.device_children("knob2") == {a, b}
+    await manager.async_assign_device(a, None)
+    assert manager.device_children("knob3") == {a, b}
 
 
 def test_migrate_schema_1() -> None:

@@ -611,7 +611,8 @@ async def ws_reorder(
     {
         vol.Required("type"): f"{DOMAIN}/assign",
         vol.Required("child_id"): str,
-        vol.Required("device_id"): vol.Any(None, str),
+        vol.Exclusive("device_id", "knobs"): vol.Any(None, str),
+        vol.Exclusive("device_ids", "knobs"): [str],
     }
 )
 @websocket_api.require_admin
@@ -621,11 +622,15 @@ async def ws_assign(
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
 ) -> None:
-    """Assign a child to a knob (or to none)."""
+    """Assign a child to knobs (none: every knob)."""
+    if "device_ids" in msg:
+        devices = msg["device_ids"]
+    else:
+        devices = [msg["device_id"]] if msg.get("device_id") else []
     await _run(
         connection,
         msg["id"],
-        _manager(hass).async_assign_device(msg["child_id"], msg["device_id"]),
+        _manager(hass).async_assign_devices(msg["child_id"], devices),
     )
 
 

@@ -6,6 +6,40 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.9.1] - 2026-11-04
+
+### English
+
+- Knob assignment, the same on physical and virtual knobs: a child without a
+  knob can be used on every knob; a child assigned to knobs only on those, and
+  the other knobs show it greyed with a lock. A child can now be assigned to
+  several knobs (e.g. the physical knob and a phone's virtual knob); none
+  chosen means every knob. Until now a knob nobody was assigned to worked for
+  every child, and a child without a knob was locked on knobs with assigned
+  children. Existing assignments are kept.
+- Several virtual knobs can be used side by side (e.g. one per phone or
+  tablet).
+- Virtual knob card: only the round screen is shown, without a card
+  background, frame or shadow. The back button appears only when it is
+  switched on in the card settings, as a Home Assistant icon in the theme's
+  colours.
+
+### Magyar
+
+- Gombhozzárendelés, a fizikai és a virtuális gombon ugyanúgy: a gomb nélküli
+  gyerek minden gombon használható, a gombokhoz rendelt csak azokon, a többi
+  gombon szürkén, lakattal látszik. Egy gyerek mostantól több gombhoz is
+  rendelhető (pl. a fizikai gombhoz és egy telefon virtuális gombjához); ha
+  egyik sincs kiválasztva, minden gombon használható. Eddig a senkihez sem
+  rendelt gomb minden gyereknek működött, a gomb nélküli gyerek pedig zárolva
+  volt azokon a gombokon, amelyekhez gyerek volt rendelve. A meglévő
+  hozzárendelések megmaradnak.
+- Több virtuális gomb is használható egyszerre (pl. telefononként vagy
+  táblagépenként egy).
+- Virtuális gomb kártya: csak a kerek képernyő látszik, kártyaháttér, keret és
+  árnyék nélkül. A vissza gomb csak akkor jelenik meg, ha a kártya
+  beállításaiban be van kapcsolva, Home Assistant-ikonként a téma színeivel.
+
 ## [0.9.0] - 2026-11-03
 
 ### English

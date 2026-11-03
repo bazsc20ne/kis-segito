@@ -55,8 +55,15 @@ async def test_virtual_knob(hass: HomeAssistant, hass_ws_client) -> None:
     )["success"]
     assert manager.virtual_knobs()[0]["name"] == "Holiday"
 
-    # Only Kid is assigned to it.
-    await manager.async_assign_device(kid["id"], knob_id)
+    # Kid is assigned to it and to the physical knob, Other to the physical
+    # knob only; a child without knobs can be used everywhere.
+    await call(
+        type=f"{DOMAIN}/assign", child_id=kid["id"], device_ids=[knob_id, device.id]
+    )
+    await call(type=f"{DOMAIN}/assign", child_id=other["id"], device_id=device.id)
+    free = await manager.async_save_item("children", {"name": "Free"})
+    assert manager.device_children(device.id) == {kid["id"], other["id"], free["id"]}
+    assert manager.device_children(knob_id) == {kid["id"], free["id"]}
 
     # The card gets the snapshot, without the knob's picture key.
     await client.send_json_auto_id(
@@ -67,7 +74,7 @@ async def test_virtual_knob(hass: HomeAssistant, hass_ws_client) -> None:
     state = event["state"]
     assert state["img"] == {"u": "", "t": ""}
     selectable = {c["id"]: c["sel"] for c in state["children"]}
-    assert selectable == {kid["id"]: True, other["id"]: False}
+    assert selectable == {kid["id"]: True, other["id"]: False, free["id"]: True}
     assert event["static_url"]
 
     def action(child_id: str, action_id: str) -> str:
@@ -100,11 +107,24 @@ async def test_virtual_knob(hass: HomeAssistant, hass_ws_client) -> None:
     )
     assert bad["error"]["code"] == "invalid_action"
 
-    # Removing it frees its children.
+    # Several virtual knobs; removing one keeps the child's other knobs.
+    second = (await call(type=f"{DOMAIN}/virtual/save", name="Tablet"))["result"]
+    assert len(manager.virtual_knobs()) == 2
+    assert manager.device_children(second) == {free["id"]}
     assert (await call(type=f"{DOMAIN}/virtual/delete", device_id=knob_id))[
         "success"
     ]
-    assert manager.virtual_knobs() == []
-    assert next(c for c in manager.children() if c["id"] == kid["id"]).get(
-        "device_id"
-    ) is None
+    assert [k["id"] for k in manager.virtual_knobs()] == [second]
+    child = next(c for c in manager.children() if c["id"] == kid["id"])
+    assert manager.child_devices(child) == [device.id]
+
+    # Older data with one device_id still counts; saving keeps it as a list.
+    legacy = await manager.async_save_item(
+        "children", {"name": "Old", "device_id": device.id}
+    )
+    assert legacy["device_ids"] == [device.id] and "device_id" not in legacy
+    raw = next(c for c in manager.data["children"] if c["id"] == free["id"])
+    raw["device_id"] = second
+    raw.pop("device_ids", None)
+    assert free["id"] in manager.device_children(second)
+    assert free["id"] not in manager.device_children(device.id)

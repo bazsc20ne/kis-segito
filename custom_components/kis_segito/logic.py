@@ -80,19 +80,14 @@ def applies_to(item: Mapping[str, Any], child_id: str) -> bool:
     return not children or child_id in children
 
 
-def selectable_children(
-    all_children: Iterable[str], assigned: Iterable[str]
-) -> set[str]:
-    """Children selectable on a device.
+def child_on_device(child_devices: Iterable[str], device_id: str) -> bool:
+    """Whether a child can be used on a knob.
 
-    A device assigned to nobody, or to every child, works for everyone;
-    otherwise only the assigned children can be selected there.
+    A child without knobs can be used on every knob; a child assigned to knobs
+    only on those (the other knobs show it locked).
     """
-    everyone = set(all_children)
-    chosen = set(assigned) & everyone
-    if not chosen or chosen == everyone:
-        return everyone
-    return chosen
+    devices = set(child_devices)
+    return not devices or device_id in devices
 
 
 def shift_hhmm(value: str, minutes: int) -> str:

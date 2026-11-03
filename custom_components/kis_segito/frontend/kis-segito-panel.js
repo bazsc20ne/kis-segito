@@ -10,7 +10,7 @@
 
 // Must equal the integration version (scripts/check_versions.py checks it):
 // a browser that still runs an older copy of this file shows a reload bar.
-const PANEL_VERSION = "0.9.0";
+const PANEL_VERSION = "0.9.1";
 const FALLBACK_LANGUAGE = "en";
 const LANGUAGE_AUTO = "auto";
 const TABS = ["today", "calendar", "children", "routines", "rewards", "tokens", "history", "notifications", "settings"];
@@ -570,6 +570,14 @@ class KisSegitoPanel extends HTMLElement {
   // Reads/writes a nested value in the edit buffer by path like "tasks.2.icon".
   _get(path) {
     return path.split(".").reduce((obj, key) => obj?.[key], this._edit?.item);
+  }
+
+  // The knobs a child is assigned to (none: every knob; older data: device_id).
+  _childKnobs(child) {
+    if (Array.isArray(child?.device_ids)) {
+      return child.device_ids;
+    }
+    return child?.device_id ? [child.device_id] : [];
   }
 
   _set(path, value) {
@@ -1200,7 +1208,8 @@ class KisSegitoPanel extends HTMLElement {
     const today = this._todayStr();
     const cards = this._data.children
       .map((c, i) => {
-        const device = c.device_id ? this._data.devices.find((d) => d.device_id === c.device_id)?.name || "?" : this._t("children.any_knob");
+        const knobs = this._childKnobs(c);
+        const device = knobs.length ? knobs.map((id) => this._data.devices.find((d) => d.device_id === id)?.name || "?").join(", ") : this._t("children.any_knob");
         const st = week
           ? this._computeStats(c, week.history.filter((h) => h.child_id === c.id), week.events.filter((e) => e.child_id === c.id), addDays(today, -6), today)
           : null;
@@ -1480,7 +1489,7 @@ class KisSegitoPanel extends HTMLElement {
     const mark = (k, label) => (sc[k] ? `<div class="mk" style="left:${(sc[k] / maxT) * 100}%"><i></i>${this._e(label)}<br><span class="num">${secondsToMinutes(sc[k])}′</span></div>` : "");
     const devices = this._data.devices
       .map((d) => {
-        const kids = this._data.children.filter((c) => c.device_id === d.device_id);
+        const kids = this._data.children.filter((c) => this._childKnobs(c).includes(d.device_id));
         const own = d.screen || {};
         const bg = this._backgroundUrl(s.background || "");
         const fields = SCREEN_KEYS.map((k) =>
@@ -1814,9 +1823,11 @@ class KisSegitoPanel extends HTMLElement {
       return { title: c.name, nav, body: this._viewStats(this._child(c.id) || c), plain: true };
     }
     const close = SEMANTIC_COLORS.some((x) => colorDistance(x, c.color || "#000000") < 60);
-    const knobs = [`<option value="">${this._e(this._t("children.any_knob"))}</option>`]
-      .concat(this._data.devices.map((d) => `<option value="${this._e(d.device_id)}" ${d.device_id === c.device_id ? "selected" : ""}>${this._e(d.name)}</option>`))
-      .join("");
+    // Several knobs can be chosen; none chosen: every knob.
+    const chosen = this._childKnobs(c);
+    const knobs = `<button class="chip noimg ${chosen.length ? "" : "on"}" data-act="knob-any">${this._e(this._t("children.any_knob"))}</button>${this._data.devices
+      .map((d) => `<button class="chip noimg ${chosen.includes(d.device_id) ? "on" : ""}" data-act="knob-toggle" data-arg="${this._e(d.device_id)}">${this._e(d.name)}</button>`)
+      .join("")}`;
     return {
       title: this._edit.readonly ? c.name : this._t(this._edit.isNew ? "children.add" : "children.edit"),
       nav,
@@ -1825,7 +1836,7 @@ class KisSegitoPanel extends HTMLElement {
           <label class="field"><span>${this._e(this._t("children.birth_date"))}</span><input type="date" data-path="birth_date" value="${this._e(c.birth_date || "")}"></label></div></div>
         <div class="field"><span>${this._e(this._t("children.color"))}</span><div class="row wrap">${PRESET_COLORS.map((x) => `<button class="swatch ${x === c.color ? "on" : ""}" style="background:${x}" data-act="set" data-path="color" data-v="${x}" aria-label="${x}"></button>`).join("")}<input type="color" data-path="color" data-rerender value="${this._e(c.color)}"></div>
           ${close ? `<div class="warnbox">${this._e(this._t("children.color_warning"))}</div>` : ""}</div>
-        <label class="field"><span>${this._e(this._t("children.knob"))}</span><select data-path="device_id">${knobs}</select></label>
+        <div class="field"><span>${this._e(this._t("children.knob"))}</span><div class="row wrap" style="gap:6px">${knobs}</div></div>
         <div class="hint">${this._e(this._t("children.knob_hint"))}</div>
         <label class="switch"><input type="checkbox" data-path="piggy_unlocked" ${c.piggy_unlocked ? "checked" : ""}>${this._icon("fn_piggy", 26)} ${this._e(this._t("children.piggy_unlocked"))}</label>
         <label class="switch"><input type="checkbox" data-path="active" ${c.active !== false ? "checked" : ""}>${this._e(this._t("common.active"))}</label>`,
@@ -2548,6 +2559,16 @@ class KisSegitoPanel extends HTMLElement {
       case "set":
         this._set(path, el.dataset.v);
         break;
+      case "knob-any":
+        this._edit.item.device_ids = [];
+        delete this._edit.item.device_id;
+        break;
+      case "knob-toggle": {
+        const list = this._childKnobs(this._edit.item);
+        this._edit.item.device_ids = list.includes(arg) ? list.filter((x) => x !== arg) : [...list, arg];
+        delete this._edit.item.device_id;
+        break;
+      }
       case "pick":
         this._picker = { path, filter: arg };
         break;

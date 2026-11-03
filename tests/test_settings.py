@@ -112,7 +112,7 @@ async def test_panel_data_flow(hass: HomeAssistant, hass_ws_client) -> None:
 
     data = (await call(type=f"{DOMAIN}/data"))["result"]
     assert data["children"][0]["balances"]["wallet"] == 5
-    assert data["children"][0]["device_id"] == device.id
+    assert data["children"][0]["device_ids"] == [device.id]
     assert data["devices"][0]["device_id"] == device.id
     assert "task_toothbrush" in data["icons"]
 

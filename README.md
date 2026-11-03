@@ -59,7 +59,7 @@ substitutions:
   friendly_name: Kis Segito
 
 packages:
-  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.9.0
+  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.9.1
 
 api:
   encryption:
@@ -118,9 +118,9 @@ szünet) is megadhatók: a hét napjaihoz alapértelmezett sablon, egy-egy napho
 rendelhető. A Home Assistantben egy összesítő szenzor (`sensor.kis_segito`), gyerekenként egy
 szenzor és egy naptár (`calendar.kis_segito`) jelenik meg.
 Üres rendszerben a Rutinok és a Jutalmak oldalon egy gombnyomással példa-rutinok és
--jutalmak hozhatók létre. Egy gyerek legfeljebb egy knobhoz rendelhető (a gyerek oldalán);
-egy knobon a hozzá rendelt gyerekek választhatók, a többiek zárolva látszanak, a gyerek
-nélküli knob mindenkinek működik. A knob perselyképernyőjén tekeréssel választható ki,
+-jutalmak hozhatók létre. Egy gyerek egy vagy több knobhoz rendelhető (a gyerek oldalán):
+a gomb nélküli gyerek minden knobon használható, a gombokhoz rendelt csak azokon, a többi
+knobon szürkén, lakattal látszik. A knob perselyképernyőjén tekeréssel választható ki,
 hány zseton kerüljön a perselybe vagy onnan vissza; a gombnyomás könyveli. Háttér: a **Beállítások** oldalon egy
 háttér választható a gombokra (6 beépített vagy saját feltöltött kép), minden gyereknek
 ugyanaz; cseréjekor a gombok 1 perc használaton kívüli idő után egyszer újraindulnak
@@ -160,7 +160,7 @@ választható; ez a knobokra és a panelre is érvényes. Új nyelv:
   át nem érhetők el. Ha egy gomb kapcsolata nem titkosított, a Home Assistant javítási
   értesítést mutat, és a gomb a képek helyett ikonokat jelenít meg. A gomb hozzáférése a
   képekhez megújítható: panel → **Beállítások → Gombok → Új képkulcs**.
-- **Frissítés:** a fenti mintában a package egy adott verzióra mutat (`@v0.9.0`), így a
+- **Frissítés:** a fenti mintában a package egy adott verzióra mutat (`@v0.9.1`), így a
   gomb firmware-e csak akkor változik, amikor ezt átírod egy újabb verzióra.
 - **Nem része a projektnek:** aki fizikailag hozzáfér a gombhoz, kiolvashatja a
   flash-memóriáját (és a benne lévő titkos adatokat). Ez egy otthoni, házilag épített
@@ -249,7 +249,7 @@ substitutions:
   friendly_name: Kis Segito
 
 packages:
-  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.9.0
+  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.9.1
 
 api:
   encryption:
@@ -305,9 +305,9 @@ page also holds day templates (e.g. weekday, weekend, holiday): a default per we
 a different one for a single day. Home Assistant gets a summary sensor
 (`sensor.kis_segito`), one sensor per child and a calendar (`calendar.kis_segito`). In an empty
 setup, example routines and rewards can be created with one click on the Routines and
-Rewards pages. A child can be assigned to at most one knob (on the child's page); on a knob
-its children can be selected and the others are shown locked; a knob without children
-works for everyone. On the knob's piggy-bank screen, turning chooses how many tokens go
+Rewards pages. A child can be assigned to one or more knobs (on the child's page): a child
+without a knob can be used on every knob, a child with knobs only on those, and the other
+knobs show it greyed with a lock. On the knob's piggy-bank screen, turning chooses how many tokens go
 into the piggy bank or back out; pressing books it. Background: the **Settings** page has a
 background for the knobs (6 built-in or your own uploaded picture), the same for every
 child; after a change each knob restarts once, after 1 minute without use
@@ -347,7 +347,7 @@ the panel's **Settings** card; it applies to the knobs and the panel. Adding a l
   Assistant shows a repair issue and the knob shows icons instead of the pictures. A
   knob's access to the pictures can be renewed: panel → **Settings → Knobs → New picture
   key**.
-- **Updates:** in the example above the package points to a given version (`@v0.9.0`), so
+- **Updates:** in the example above the package points to a given version (`@v0.9.1`), so
   the knob's firmware changes only when you change it to a newer version.
 - **Out of scope:** anyone with physical access to the knob can read its flash memory (and
   the secrets in it). This is a DIY device for the home, so flash encryption and secure

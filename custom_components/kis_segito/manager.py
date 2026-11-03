@@ -31,7 +31,7 @@ from .logic import (
     routine_runs_on,
     routine_window,
     routine_with_override,
-    selectable_children,
+    child_on_device,
 )
 from .store import AUDIT_KEPT, DEFAULT_AVATAR, DEFAULT_SETTINGS, KisSegitoStore
 
@@ -278,6 +278,8 @@ class KisSegitoManager:
         item = dict(item)
         if collection == "children":
             item.pop("background", None)  # one background for all children
+            if "device_ids" in item or "device_id" in item:
+                self._normalise_child(item)
         if not item.get("id"):
             item["id"] = lg.new_id()
             item.setdefault("sort_order", len(items))
@@ -506,10 +508,29 @@ class KisSegitoManager:
         await self._changed()
         return rules
 
+    @staticmethod
+    def child_devices(child: dict[str, Any]) -> list[str]:
+        """The knobs a child is assigned to (none: every knob)."""
+        if "device_ids" in child:
+            return [str(d) for d in child.get("device_ids") or [] if d]
+        return [child["device_id"]] if child.get("device_id") else []
+
+    @staticmethod
+    def _normalise_child(child: dict[str, Any]) -> None:
+        """Keep the knob assignment as a list (older data: one device_id)."""
+        devices = KisSegitoManager.child_devices(child)
+        child["device_ids"] = list(dict.fromkeys(devices))
+        child.pop("device_id", None)
+
     async def async_assign_device(self, child_id: str, device_id: str | None) -> None:
-        """Assign a child to a knob (a child has at most one knob)."""
+        """Assign a child to one knob only, or to none (every knob)."""
+        await self.async_assign_devices(child_id, [device_id] if device_id else [])
+
+    async def async_assign_devices(self, child_id: str, device_ids: list[str]) -> None:
+        """Assign a child to these knobs (empty: every knob)."""
         child = self._require_child(child_id)
-        child["device_id"] = device_id or None
+        child["device_ids"] = list(dict.fromkeys(d for d in device_ids if d))
+        child.pop("device_id", None)
         await self._changed()
 
     @staticmethod
@@ -1422,8 +1443,9 @@ class KisSegitoManager:
             raise KisSegitoError("unknown_device")
         old = self.data["devices"].pop(device_id)
         for child in self.data["children"]:
-            if child.get("device_id") == device_id:
-                child["device_id"] = None
+            if device_id in self.child_devices(child):
+                self._normalise_child(child)
+                child["device_ids"].remove(device_id)
         self._audit(who, f"virtual_knob.{device_id}", old.get("name"), None)
         await self._changed()
 
@@ -1474,8 +1496,9 @@ class KisSegitoManager:
     def device_children(self, device_id: str) -> set[str]:
         """Ids of the children selectable on a knob."""
         children = self.children(active_only=True)
-        assigned = [c["id"] for c in children if c.get("device_id") == device_id]
-        return selectable_children([c["id"] for c in children], assigned)
+        return {
+            c["id"] for c in children if child_on_device(self.child_devices(c), device_id)
+        }
 
     def snapshot(
         self, device_id: str, language: str, base_url: str | None = None
