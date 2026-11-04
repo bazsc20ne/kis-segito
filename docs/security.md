@@ -43,7 +43,7 @@ accepted. No OTA password is needed (and it cannot be combined with
 `encryption`). Keep the key safe: a knob whose key is lost can only be flashed
 again over USB, and the key cannot be changed over the air.
 
-**Moving from an OTA password** (configs before 0.9.2 had
+**Moving from an OTA password** (configs before 0.9.3 had
 `password: !secret ota_password`). The knob still running the old firmware asks
 for the password once more, so the first install after the change carries both:
 

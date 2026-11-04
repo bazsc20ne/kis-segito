@@ -89,6 +89,13 @@ def async_register_commands(hass: HomeAssistant) -> None:
         ws_device_inputs,
         ws_device_options,
         ws_virtual_list,
+        ws_approvals,
+        ws_icons_add,
+        ws_icons_replace,
+        ws_icons_active,
+        ws_icons_usage,
+        ws_icons_delete,
+        ws_resolve_approval,
         ws_virtual_save,
         ws_virtual_delete,
         ws_virtual_subscribe,
@@ -565,6 +572,8 @@ async def ws_data(
             "devices": _devices(hass),
             "icons": await hass.async_add_executor_job(_icons),
             "small_icons": await hass.async_add_executor_job(_small_icons),
+            "own_icons": _manager(hass).icon_settings["own"],
+            "disabled_icons": _manager(hass).icon_settings["disabled"],
             "icon_aliases": ICON_ALIASES,
             "backgrounds": list(BACKGROUND_PRESETS),
         },
@@ -1184,6 +1193,9 @@ def _virtual_state(hass: HomeAssistant, device_id: str) -> dict[str, Any]:
         "version": data.version,
         "long_press_ms": 500,
         "small_icons": _small_icons(),
+        "own_icons": {
+            i["key"]: i["image"] for i in data.manager.icon_settings["own"]
+        },
     }
 
 
@@ -1276,3 +1288,151 @@ async def ws_virtual_action(
     # Refused actions change nothing: the card drops its guess with a fresh state.
     _manager(hass).async_notify_listeners()
     connection.send_result(msg["id"], result)
+
+
+# ---------------------------------------------------------------- approvals
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/approvals",
+        vol.Optional("status", default="pending"): vol.In(["pending", "all"]),
+        vol.Optional("limit", default=100): vol.All(int, vol.Range(min=1, max=2000)),
+    }
+)
+@callback
+def ws_approvals(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Approval requests, newest first (pending ones, or all)."""
+    manager = _manager(hass)
+    items = manager.pending_approvals() if msg["status"] == "pending" else manager.approvals
+    connection.send_result(msg["id"], list(reversed(items))[: msg["limit"]])
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/approval/resolve",
+        vol.Required("approval_id"): str,
+        vol.Required("approve"): bool,
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_resolve_approval(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Approve or reject a request."""
+    await _run(
+        connection,
+        msg["id"],
+        _manager(hass).async_resolve_approval(
+            msg["approval_id"], msg["approve"], who=_who(connection)
+        ),
+    )
+
+
+# ---------------------------------------------------------------- own icons
+
+IMAGE_ID_SCHEMA = vol.All(str, vol.Match(r"^[a-z0-9_]{1,64}$"))
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/icons/add",
+        vol.Required("image_id"): IMAGE_ID_SCHEMA,
+        vol.Optional("name", default=""): vol.All(str, vol.Length(max=100)),
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_icons_add(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Add an uploaded picture as an own icon (returns its key)."""
+    await _run(
+        connection,
+        msg["id"],
+        _manager(hass).async_add_icon(msg["image_id"], msg["name"], who=_who(connection)),
+    )
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/icons/replace",
+        vol.Required("key"): str,
+        vol.Required("image_id"): IMAGE_ID_SCHEMA,
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_icons_replace(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Give an own icon a new picture."""
+    await _run(
+        connection,
+        msg["id"],
+        _manager(hass).async_replace_icon(msg["key"], msg["image_id"], who=_who(connection)),
+    )
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/icons/active",
+        vol.Required("key"): str,
+        vol.Required("active"): bool,
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_icons_active(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Offer an icon in the pickers, or not."""
+    await _run(
+        connection,
+        msg["id"],
+        _manager(hass).async_set_icon_active(msg["key"], msg["active"], who=_who(connection)),
+    )
+
+
+@websocket_api.websocket_command(
+    {vol.Required("type"): f"{DOMAIN}/icons/usage", vol.Required("key"): str}
+)
+@callback
+def ws_icons_usage(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Where an icon is used."""
+    connection.send_result(msg["id"], _manager(hass).icon_usage(msg["key"]))
+
+
+@websocket_api.websocket_command(
+    {vol.Required("type"): f"{DOMAIN}/icons/delete", vol.Required("key"): str}
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_icons_delete(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Delete an own icon (what used it gets a built-in icon)."""
+    await _run(
+        connection,
+        msg["id"],
+        _manager(hass).async_delete_icon(msg["key"], who=_who(connection)),
+    )

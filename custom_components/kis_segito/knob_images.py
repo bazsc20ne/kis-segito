@@ -14,7 +14,8 @@ Backgrounds (size 480, the whole round screen) are opaque, without alpha:
     + width*height RGB565 pixels (LE)
 
 A background is a built-in preset (frontend/backgrounds/bg_<n>.jpg) or an
-uploaded picture. The icons that are not compiled into the firmware
+uploaded picture. Own icons (``own_…``) are uploaded pictures too. The icons
+that are not compiled into the firmware
 (knob_icons/) and the built-in avatars (knob_avatars/avatar_<nn>.png) are served
 the same way, so they are not part of the firmware.
 
@@ -181,6 +182,12 @@ class KnobImageView(HomeAssistantView):
             )
         elif AVATAR_ID.match(image_id) and int(size) in SIZES:
             path = AVATARS_DIR / f"{image_id}.png"
+        elif image_id.startswith("own_") and int(size) in ICON_SIZES:
+            # An own (uploaded) icon, at any size the knob shows icons.
+            own = manager.own_icon(image_id)
+            if own is None:
+                return web.Response(status=404)
+            path = Path(self.hass.config.path("image", own["image"], "original"))
         elif (
             icon := await self.hass.async_add_executor_job(
                 _icon_path, image_id, int(size)

@@ -219,6 +219,7 @@ class KisSegitoKnobCard extends HTMLElement {
     this._longPressMs = msg.long_press_ms || 500;
     this._state = msg.state;
     this._small = new Set(msg.small_icons || []);
+    this._ownIcons = msg.own_icons || {};
     this._receivedAt = Date.now();
     if (first) {
       this._loadFonts();
@@ -386,6 +387,11 @@ class KisSegitoKnobCard extends HTMLElement {
   // ------------------------------------------------------------ pictures
 
   _iconUrl(name, size) {
+    // An own (uploaded) icon is a picture of Home Assistant's image upload.
+    if (name && name.startsWith("own_")) {
+      const image = this._ownIcons?.[name];
+      return image ? `/api/image/serve/${encodeURIComponent(image)}/256x256` : "";
+    }
     name = this._aliases[name] || name;
     // Small places use the simplified variant, when the icon has one.
     const small = size <= 44 && this._small?.has(name) ? "small/" : "";

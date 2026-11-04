@@ -59,7 +59,7 @@ substitutions:
   friendly_name: Kis Segito
 
 packages:
-  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.9.2
+  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.9.3
 
 api:
   encryption:
@@ -129,6 +129,16 @@ is; cseréjekor a fizikai gomb 1 perc használaton kívüli idő után egyszer �
 [docs/automations.md](docs/automations.md), saját gombhoz vagy kijelzőhöz:
 [docs/protocol.md](docs/protocol.md).
 
+**Jóváhagyás:** egy feladatnál bekapcsolható, hogy jóváhagyás kelljen hozzá, egy
+jutalomnál, hogy megerősítés kelljen hozzá (alapból egyik sem). A jóváhagyásra váró kérések
+a **Ma** oldal tetején jelennek meg. A jutalom ára a döntésig félre van téve, elutasításkor
+visszakerül; a feladat azonnal késznek számít, a checkpointja zsetonjai jóváhagyáskor
+jönnek. Minden lépés naplózva van.
+
+**Saját ikonok:** ahol ikont lehet választani, saját kép is feltölthető ikonnak; a
+**Beállítások → Ikonok** részen cserélhető, kikapcsolható vagy törölhető. A beépített ikonok
+kikapcsolhatók.
+
 **Virtuális gomb:** a gomb képernyője irányítópult-kártyaként is használható, például
 utazáskor vagy ha a gomb nem működik. Ugyanazok a képernyők, képek és animációk, csak
 érintéssel: húzás balra/jobbra = tekerés, koppintás = nyomás, nyomva tartás = vissza
@@ -162,7 +172,7 @@ választható; ez a knobokra és a panelre is érvényes. Új nyelv:
   át nem érhetők el. Ha egy gomb kapcsolata nem titkosított, a Home Assistant javítási
   értesítést mutat, és a gomb a képek helyett ikonokat jelenít meg. A gomb hozzáférése a
   képekhez megújítható: panel → **Beállítások → Gombok → Új képkulcs**.
-- **Frissítés:** a fenti mintában a package egy adott verzióra mutat (`@v0.9.2`), így a
+- **Frissítés:** a fenti mintában a package egy adott verzióra mutat (`@v0.9.3`), így a
   gomb firmware-e csak akkor változik, amikor ezt átírod egy újabb verzióra.
 - **Nem része a projektnek:** aki fizikailag hozzáfér a gombhoz, kiolvashatja a
   flash-memóriáját (és a benne lévő titkos adatokat). Ez egy otthoni, házilag épített
@@ -251,7 +261,7 @@ substitutions:
   friendly_name: Kis Segito
 
 packages:
-  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.9.2
+  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.9.3
 
 api:
   encryption:
@@ -318,6 +328,15 @@ from automations, for one knob or all: `kis_segito.set_background`). For automat
 [docs/automations.md](docs/automations.md), for building your own knob or display
 [docs/protocol.md](docs/protocol.md).
 
+**Approval:** a task can need approval and a reward confirmation (both off by default).
+Waiting requests are shown at the top of the **Today** page. A reward's price is set aside
+until the decision and returned on rejection; a task counts as done at once, and its
+checkpoint's tokens come on approval. Every step is logged.
+
+**Own icons:** wherever an icon is chosen, your own picture can be uploaded as an icon; on
+**Settings → Icons** it can be replaced, switched off or deleted. Built-in icons can be
+switched off.
+
 **Virtual knob:** the knob screen can also be used as a dashboard card, for example on a
 trip or when the knob does not work. The same screens, pictures and animations, operated
 by touch: swipe left/right = turn, tap = press, press and hold = back (a mouse wheel and
@@ -351,7 +370,7 @@ the panel's **Settings** card; it applies to the knobs and the panel. Adding a l
   Assistant shows a repair issue and the knob shows icons instead of the pictures. A
   knob's access to the pictures can be renewed: panel → **Settings → Knobs → New picture
   key**.
-- **Updates:** in the example above the package points to a given version (`@v0.9.2`), so
+- **Updates:** in the example above the package points to a given version (`@v0.9.3`), so
   the knob's firmware changes only when you change it to a newer version.
 - **Out of scope:** anyone with physical access to the knob can read its flash memory (and
   the secrets in it). This is a DIY device for the home, so flash encryption and secure

@@ -6,6 +6,61 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.9.3] - 2026-11-05
+
+### English
+
+- Approval for tasks and rewards (both off by default):
+  - a task can need approval (a switch per task in the routine editor). It
+    counts as done at once – ticked on the knob, in the routine progress and
+    the streak. When its checkpoint is reached, the checkpoint's tokens are
+    worked out at that moment and paid only when a parent approves; when
+    rejected, the task stays done and only the tokens are withheld;
+  - a reward can need confirmation (a switch in the reward editor). When the
+    child buys it, its price is set aside at once (the same tokens cannot be
+    spent twice); confirming spends them, rejecting returns them. A piggy-bank
+    unlock opens on confirmation;
+  - waiting requests are shown at the top of the Today page with Approve and
+    Reject; they never expire. Every step (request, approval, rejection, who
+    and when) is in the history and the audit log, and notifications and
+    automations get the new events `approval_requested`,
+    `approval_approved` and `approval_rejected`.
+- Own icons: wherever an icon is chosen (tasks, checkpoints, routines,
+  rewards), your own picture can be uploaded as an icon. It is then offered
+  in every icon picker and shows on the physical and the virtual knob like the
+  built-in icons. Settings → Icons: own icons can be replaced, switched off or
+  deleted (after a confirmation that says where they are used; there a
+  built-in icon takes their place); built-in icons can be switched off. A
+  switched-off icon is no longer offered; what already uses it keeps it.
+
+### Magyar
+
+- Jóváhagyás feladatokhoz és jutalmakhoz (alapból egyik sincs bekapcsolva):
+  - egy feladathoz jóváhagyás kérhető (feladatonkénti kapcsoló a
+    rutinszerkesztőben). Azonnal késznek számít – a gombon kipipálva, a rutin
+    előrehaladásában és a napi sorozatban is. Amikor a checkpointja
+    teljesül, a checkpoint zsetonjai abban a pillanatban kiszámolódnak, de
+    csak akkor íródnak jóvá, amikor egy szülő jóváhagyja; elutasításkor a
+    feladat kész marad, csak a zsetonok maradnak el;
+  - egy jutalomhoz megerősítés kérhető (kapcsoló a jutalomszerkesztőben).
+    Amikor a gyerek megveszi, az ára azonnal félre kerül (ugyanazok a
+    zsetonok nem költhetők el kétszer); megerősítéskor elköltődnek,
+    elutasításkor visszakerülnek. A persely feloldása megerősítéskor nyílik;
+  - a jóváhagyásra váró kérések a Ma oldal tetején jelennek meg Jóváhagyás és
+    Elutasítás gombbal; nem járnak le. Minden lépés (kérés, jóváhagyás,
+    elutasítás, ki és mikor) bekerül az előzményekbe és a változásnaplóba, az
+    értesítések és automatizálások pedig megkapják az új
+    `approval_requested`, `approval_approved` és `approval_rejected`
+    eseményeket.
+- Saját ikonok: ahol ikont lehet választani (feladat, checkpoint, rutin,
+  jutalom), saját kép is feltölthető ikonnak. Ezután minden ikonválasztóban
+  felkínálja a rendszer, és a fizikai és a virtuális gombon is ugyanúgy
+  megjelenik, mint a beépítettek. Beállítások → Ikonok: a saját ikonok
+  cserélhetők, kikapcsolhatók vagy törölhetők (megerősítés után, amely
+  megmutatja, hol vannak használva; ott beépített ikon kerül a helyükre); a
+  beépített ikonok kikapcsolhatók. A kikapcsolt ikont a rendszer nem kínálja
+  fel többé; ami már használja, megtartja.
+
 ## [0.9.2] - 2026-11-04
 
 ### English

@@ -10,5 +10,8 @@
   "manual_adjustment": "{child}: {amount_signed} tokens (parent). Wallet: {wallet}.",
   "transaction_reversed": "{child}: a transaction was reversed. Wallet: {wallet}.",
   "transaction_revised": "{child}: an amount was changed ({amount_signed}). Wallet: {wallet}.",
+  "approval_requested": "{child} is waiting for approval.",
+  "approval_approved": "Approved for {child}. Wallet: {wallet}.",
+  "approval_rejected": "Rejected for {child}. Wallet: {wallet}.",
   "test": "Test message from Kis Segítő: this rule works."
 }

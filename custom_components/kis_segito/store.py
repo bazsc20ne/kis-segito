@@ -146,7 +146,14 @@ class KisSegitoStore:
         # Transactions (token movements), processed knob action ids, and the
         # events without a token movement (tasks and checkpoints, for the
         # statistics and the history page).
-        self.ledger: dict[str, Any] = {"transactions": [], "actions": {}, "events": []}
+        self.ledger: dict[str, Any] = {
+            "transactions": [],
+            "actions": {},
+            "events": [],
+            # Requests waiting for (or decided by) a parent: rewards that need
+            # confirmation, tasks that need approval.
+            "approvals": [],
+        }
 
     async def async_load(self) -> None:
         """Load both documents, starting empty when nothing is stored yet."""
@@ -158,6 +165,7 @@ class KisSegitoStore:
                 "transactions": list(ledger.get("transactions", [])),
                 "actions": dict(ledger.get("actions", {})),
                 "events": list(ledger.get("events", [])),
+                "approvals": list(ledger.get("approvals", [])),
             }
 
     async def async_save(self) -> None:

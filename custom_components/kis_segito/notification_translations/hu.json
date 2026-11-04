@@ -10,5 +10,8 @@
   "manual_adjustment": "{child}: {amount_signed} zseton (szülő). Pénztárca: {wallet}.",
   "transaction_reversed": "{child}: egy tranzakciót visszavontak. Pénztárca: {wallet}.",
   "transaction_revised": "{child}: egy összeget módosítottak ({amount_signed}). Pénztárca: {wallet}.",
+  "approval_requested": "{child} jóváhagyásra vár.",
+  "approval_approved": "Jóváhagyva ({child}). Pénztárca: {wallet}.",
+  "approval_rejected": "Elutasítva ({child}). Pénztárca: {wallet}.",
   "test": "Teszt üzenet a Kis Segítőtől: ez a szabály működik."
 }

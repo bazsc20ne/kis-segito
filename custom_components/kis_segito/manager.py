@@ -692,6 +692,8 @@ class KisSegitoManager:
         cost = int(reward.get("cost", 0))
         if self.balances(child_id)[lg.WALLET] < cost:
             raise KisSegitoError("insufficient_balance")
+        if reward.get("needs_confirmation"):
+            return await self._request_reward(child, reward, cost, source, creator)
         tx: dict[str, Any] | None = None
         if cost > 0:
             tx = self._append(
@@ -833,6 +835,348 @@ class KisSegitoManager:
             amount=delta,
         )
         return tx
+
+    # ------------------------------------------------------------ own icons
+
+    @property
+    def icon_settings(self) -> dict[str, Any]:
+        """Own (uploaded) icons and the built-in icons switched off."""
+        icons = self.data.setdefault("icons", {})
+        icons.setdefault("own", [])
+        icons.setdefault("disabled", [])
+        return icons
+
+    def own_icon(self, key: str) -> dict[str, Any] | None:
+        """An own icon by its key (``own_…``)."""
+        return next((i for i in self.icon_settings["own"] if i["key"] == key), None)
+
+    async def async_add_icon(self, image_id: str, name: str = "", *, who: str = "parent") -> str:
+        """Add an uploaded picture as an own icon; returns its key."""
+        if not re.match(r"^[a-z0-9_]{1,64}$", image_id):
+            raise KisSegitoError("invalid_image")
+        key = f"own_{lg.new_id()[:16]}"
+        self.icon_settings["own"].append(
+            {"key": key, "image": image_id, "name": name.strip(), "active": True}
+        )
+        self._audit(who, f"icon.{key}", None, image_id)
+        await self._changed()
+        return key
+
+    async def async_replace_icon(self, key: str, image_id: str, *, who: str = "parent") -> None:
+        """Give an own icon a new picture; everything using it shows the new one."""
+        icon = self.own_icon(key)
+        if icon is None:
+            raise KisSegitoError("unknown_icon")
+        if not re.match(r"^[a-z0-9_]{1,64}$", image_id):
+            raise KisSegitoError("invalid_image")
+        old = icon["image"]
+        icon["image"] = image_id
+        self._audit(who, f"icon.{key}", old, image_id)
+        await self._changed()
+
+    async def async_set_icon_active(self, key: str, active: bool, *, who: str = "parent") -> None:
+        """Offer (or stop offering) an icon in the pickers; used ones keep working."""
+        icon = self.own_icon(key)
+        if icon is not None:
+            icon["active"] = bool(active)
+        else:
+            disabled = self.icon_settings["disabled"]
+            if active and key in disabled:
+                disabled.remove(key)
+            elif not active and key not in disabled:
+                disabled.append(key)
+        self._audit(who, f"icon_active.{key}", not active, active)
+        await self._changed()
+
+    def icon_usage(self, key: str) -> list[dict[str, str]]:
+        """Where an icon is used: routines, their tasks and checkpoints, rewards."""
+        used = []
+        for routine in self.data["routines"]:
+            if routine.get("icon") == key:
+                used.append({"kind": "routine", "name": routine.get("name", "")})
+            for task in routine.get("tasks", []):
+                if task.get("icon") == key:
+                    used.append(
+                        {"kind": "task", "name": task.get("label") or routine.get("name", "")}
+                    )
+            for cp in routine.get("checkpoints", []):
+                if cp.get("icon") == key:
+                    used.append({"kind": "checkpoint", "name": cp.get("name", "")})
+        for reward in self.data["rewards"]:
+            if reward.get("icon") == key:
+                used.append({"kind": "reward", "name": reward.get("name", "")})
+        return used
+
+    async def async_delete_icon(self, key: str, *, who: str = "parent") -> int:
+        """Delete an own icon; what used it gets a built-in icon. Returns how
+        many places were changed."""
+        icon = self.own_icon(key)
+        if icon is None:
+            raise KisSegitoError("unknown_icon")
+        changed = 0
+
+        def swap(item: dict[str, Any], fallback: str) -> None:
+            nonlocal changed
+            if item.get("icon") == key:
+                item["icon"] = fallback
+                changed += 1
+
+        for routine in self.data["routines"]:
+            swap(routine, "routine_generic")
+            for task in routine.get("tasks", []):
+                swap(task, "task_generic")
+            for cp in routine.get("checkpoints", []):
+                swap(cp, "checkpoint_flag")
+        for reward in self.data["rewards"]:
+            swap(reward, "fn_rewards")
+        for overrides in self.data["overrides"].values():
+            for override in overrides.values() if isinstance(overrides, dict) else []:
+                one_day = override.get("routine") if isinstance(override, dict) else None
+                if isinstance(one_day, dict):
+                    swap(one_day, "routine_generic")
+                    for task in one_day.get("tasks", []):
+                        swap(task, "task_generic")
+                    for cp in one_day.get("checkpoints", []):
+                        swap(cp, "checkpoint_flag")
+        self.icon_settings["own"].remove(icon)
+        self._audit(who, f"icon.{key}", icon["image"], None)
+        await self._changed()
+        return changed
+
+    # ------------------------------------------------------------ approvals
+
+    @property
+    def approvals(self) -> list[dict[str, Any]]:
+        """Approval requests, oldest first."""
+        return self.store.ledger.setdefault("approvals", [])
+
+    def approval(self, approval_id: str) -> dict[str, Any] | None:
+        """One approval request by id."""
+        return next((a for a in self.approvals if a["id"] == approval_id), None)
+
+    def pending_approvals(self) -> list[dict[str, Any]]:
+        """Requests still waiting for a parent, oldest first."""
+        return [a for a in self.approvals if a["status"] == "pending"]
+
+    def _task_approval(
+        self, day: date, routine_id: str, child_id: str, checkpoint_id: str | None
+    ) -> dict[str, Any] | None:
+        """The approval request of a checkpoint's tasks on a day, if any."""
+        return next(
+            (
+                a
+                for a in self.approvals
+                if a["kind"] == "task"
+                and a["day"] == day.isoformat()
+                and a["routine_id"] == routine_id
+                and a["child_id"] == child_id
+                and a.get("checkpoint_id") == checkpoint_id
+            ),
+            None,
+        )
+
+    def _log_approval_event(
+        self, approval: dict[str, Any], event_type: str, **extra: Any
+    ) -> None:
+        """An approval step in the event log (history page and statistics)."""
+        self._log_event(
+            {
+                "timestamp": _iso(dt_util.now()),
+                "day": dt_util.now().date().isoformat(),
+                "child_id": approval["child_id"],
+                "type": event_type,
+                "approval_id": approval["id"],
+                "kind": approval["kind"],
+                "name": approval.get("reward_name")
+                or ", ".join(approval.get("task_names", []))
+                or approval.get("routine_name", ""),
+                "icon": approval.get("icon", ""),
+                "tokens": int(approval.get("amount", 0)),
+                "by": approval.get("resolved_by") or approval.get("requested_by", ""),
+            }
+            | extra
+        )
+
+    def _request_task(
+        self,
+        child_id: str,
+        routine: dict[str, Any],
+        task: dict[str, Any],
+        checkpoint: dict[str, Any] | None,
+        day: date,
+        source: str,
+    ) -> None:
+        """A task that needs approval was done: add it to its request."""
+        checkpoint_id = checkpoint["id"] if checkpoint else None
+        approval = self._task_approval(day, routine["id"], child_id, checkpoint_id)
+        if approval is not None and approval["status"] == "pending":
+            approval["task_ids"].append(task["id"])
+            approval["task_names"].append(task.get("label", ""))
+            return
+        approval = {
+            "id": lg.new_id(),
+            "kind": "task",
+            "status": "pending",
+            "child_id": child_id,
+            "day": day.isoformat(),
+            "routine_id": routine["id"],
+            "routine_name": routine.get("name", ""),
+            "checkpoint_id": checkpoint_id,
+            "checkpoint_name": (checkpoint or {}).get("name", ""),
+            "task_ids": [task["id"]],
+            "task_names": [task.get("label", "")],
+            "icon": task.get("icon", ""),
+            "amount": 0,
+            "requested_at": _iso(dt_util.now()),
+            "requested_by": source,
+        }
+        self.approvals.append(approval)
+        self._log_approval_event(approval, "approval_requested")
+        self._audit(source, f"approval.{approval['id']}", None, "requested")
+        self._fire(
+            "approval_requested",
+            child_id,
+            approval_id=approval["id"],
+            kind="task",
+            routine_id=routine["id"],
+            task_id=task["id"],
+        )
+
+    async def _request_reward(
+        self,
+        child: dict[str, Any],
+        reward: dict[str, Any],
+        cost: int,
+        source: str,
+        creator: str,
+    ) -> dict[str, Any]:
+        """A reward that needs confirmation: its price is set aside now."""
+        child_id = child["id"]
+        if reward.get("kind") == "piggy_unlock" and any(
+            a["kind"] == "reward"
+            and a["child_id"] == child_id
+            and a["reward_id"] == reward["id"]
+            for a in self.pending_approvals()
+        ):
+            raise KisSegitoError("already_requested")
+        approval: dict[str, Any] = {
+            "id": lg.new_id(),
+            "kind": "reward",
+            "status": "pending",
+            "child_id": child_id,
+            "reward_id": reward["id"],
+            "reward_name": reward.get("name", ""),
+            "icon": reward.get("icon", ""),
+            "amount": cost,
+            "requested_at": _iso(dt_util.now()),
+            "requested_by": creator if creator != "child" else source,
+        }
+        tx: dict[str, Any] | None = None
+        if cost > 0:
+            tx = self._append(
+                self._new_tx(
+                    child_id,
+                    lg.REASON_REDEMPTION,
+                    [{"account": lg.WALLET, "amount": -cost}],
+                    source=source,
+                    creator=creator,
+                    refs={
+                        "reward_id": reward["id"],
+                        "reward_name": reward.get("name", ""),
+                        "approval_id": approval["id"],
+                    },
+                    note="reserved",
+                )
+            )
+            approval["tx"] = tx["id"]
+        self.approvals.append(approval)
+        self._log_approval_event(approval, "approval_requested")
+        self._audit(creator, f"approval.{approval['id']}", None, "requested")
+        await self._changed(ledger=True)
+        self._fire(
+            "approval_requested",
+            child_id,
+            approval_id=approval["id"],
+            kind="reward",
+            reward_id=reward["id"],
+            reward_name=reward.get("name", ""),
+            amount=-cost,
+        )
+        return tx or {}
+
+    async def async_resolve_approval(
+        self, approval_id: str, approve: bool, *, who: str = "parent"
+    ) -> dict[str, Any]:
+        """Approve or reject a request (once)."""
+        approval = self.approval(approval_id)
+        if approval is None:
+            raise KisSegitoError("unknown_approval")
+        if approval["status"] != "pending":
+            raise KisSegitoError("already_resolved")
+        approval["status"] = "approved" if approve else "rejected"
+        approval["resolved_at"] = _iso(dt_util.now())
+        approval["resolved_by"] = who
+        child_id = approval["child_id"]
+        if approval["kind"] == "reward":
+            if approve:
+                reward = self.reward(approval["reward_id"]) or {}
+                if reward.get("kind") == "piggy_unlock":
+                    child = self.child(child_id)
+                    if child is not None:
+                        child["piggy_unlocked"] = True
+            elif approval.get("tx"):
+                # The set-aside price goes back to the wallet.
+                original = self.transaction(approval["tx"])
+                if original is not None and not original.get("reversed_by"):
+                    back = lg.reversal_of(
+                        original,
+                        self.corrections_of(original["id"]),
+                        timestamp=_iso(dt_util.now()),
+                        source="approval",
+                        creator=who,
+                    )
+                    original["reversed_by"] = back["id"]
+                    self._append(back)
+                    approval["return_tx"] = back["id"]
+        elif approve and int(approval.get("amount", 0)) > 0 and not approval.get("tx"):
+            # The checkpoint was reached: its reward is paid now.
+            tx = self._append(
+                self._new_tx(
+                    child_id,
+                    lg.REASON_CHECKPOINT,
+                    [{"account": lg.WALLET, "amount": int(approval["amount"])}],
+                    source="approval",
+                    creator=who,
+                    refs={
+                        "routine_id": approval["routine_id"],
+                        "checkpoint_id": approval.get("checkpoint_id"),
+                        "checkpoint_name": approval.get("checkpoint_name", ""),
+                        "approval_id": approval["id"],
+                    },
+                )
+            )
+            approval["tx"] = tx["id"]
+        event = "approval_approved" if approve else "approval_rejected"
+        self._log_approval_event(approval, event)
+        self._audit(who, f"approval.{approval_id}", "pending", approval["status"])
+        await self._changed(ledger=True)
+        self._fire(
+            event,
+            child_id,
+            approval_id=approval_id,
+            kind=approval["kind"],
+            amount=int(approval.get("amount", 0)),
+        )
+        if approve and approval["kind"] == "reward":
+            self._fire(
+                "reward_redeemed",
+                child_id,
+                transaction_id=approval.get("tx"),
+                reward_id=approval["reward_id"],
+                reward_name=approval.get("reward_name", ""),
+                amount=-int(approval.get("amount", 0)),
+            )
+        return approval
 
     # ------------------------------------------------------------ events
 
@@ -1204,6 +1548,8 @@ class KisSegitoManager:
         )
         self._fire("task_completed", child_id, routine_id=routine_id, task_id=task_id)
         checkpoint = self.task_checkpoint(routine, task)
+        if task.get("needs_approval"):
+            self._request_task(child_id, routine, task, checkpoint, day, source)
         if checkpoint is not None and applies_to(checkpoint, child_id):
             linked = [
                 t
@@ -1262,7 +1608,16 @@ class KisSegitoManager:
             "tokens": tokens,
             "on_time": now <= due,
         }
-        if tokens > 0:
+        approval = self._task_approval(day, routine["id"], child_id, checkpoint["id"])
+        if approval is not None and approval["status"] != "approved":
+            # Tasks of this checkpoint wait for a parent: the reward is worked
+            # out now and paid on approval (or not at all when rejected).
+            approval["amount"] = tokens
+            record["approval"] = approval["id"]
+            tokens_paid = 0
+        else:
+            tokens_paid = tokens
+        if tokens_paid > 0:
             tx = self._append(
                 self._new_tx(
                     child_id,
@@ -1278,6 +1633,9 @@ class KisSegitoManager:
                 )
             )
             record["tx"] = tx["id"]
+            if approval is not None:
+                approval["tx"] = tx["id"]
+                approval["amount"] = tokens
         progress["checkpoints"][checkpoint["id"]] = record
         self._log_event(
             self._checkpoint_event(child_id, routine, checkpoint, day, record)
@@ -1289,7 +1647,7 @@ class KisSegitoManager:
             checkpoint_id=checkpoint["id"],
             amount=tokens,
         )
-        return tokens > 0
+        return tokens_paid > 0
 
     def _prune_days(self) -> None:
         keep = (self.today() - timedelta(days=DAYS_KEPT)).isoformat()

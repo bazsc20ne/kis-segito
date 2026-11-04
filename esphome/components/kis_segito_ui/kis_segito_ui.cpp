@@ -55,9 +55,10 @@ static bool psram_can_spare(size_t bytes) {
 static bool psram_has(size_t bytes) { return psram_largest_block() >= bytes + 64 * 1024; }
 
 // Icons that are not compiled into the firmware (assets/device_assets.json,
-// "_online"): the knob downloads them from Home Assistant when it shows them.
+// "_online") and the own (uploaded) icons: the knob downloads them from Home
+// Assistant when it shows them.
 static bool is_online_icon(const std::string &key) {
-  static const char *const PREFIXES[] = {"routine_", "task_", "reward_", "avatar_"};
+  static const char *const PREFIXES[] = {"routine_", "task_", "reward_", "avatar_", "own_"};
   for (const char *prefix : PREFIXES) {
     if (key.rfind(prefix, 0) == 0)
       return true;

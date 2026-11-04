@@ -28,7 +28,7 @@ For another knob, write a profile for it and include it next to the core:
 
 ```yaml
 packages:
-  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito-core.yaml@v0.9.2
+  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito-core.yaml@v0.9.3
   board: !include my-board.yaml
 ```
 

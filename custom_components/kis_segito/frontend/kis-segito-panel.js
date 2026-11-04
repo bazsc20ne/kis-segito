@@ -10,7 +10,7 @@
 
 // Must equal the integration version (scripts/check_versions.py checks it):
 // a browser that still runs an older copy of this file shows a reload bar.
-const PANEL_VERSION = "0.9.2";
+const PANEL_VERSION = "0.9.3";
 const FALLBACK_LANGUAGE = "en";
 const LANGUAGE_AUTO = "auto";
 const TABS = ["today", "calendar", "children", "routines", "rewards", "tokens", "history", "notifications", "settings"];
@@ -41,7 +41,7 @@ const INPUT_KINDS = {
 };
 const REASONS = ["checkpoint_reward", "reward_redemption", "piggy_transfer", "piggy_interest", "streak_reward", "manual_adjustment", "reversal", "correction"];
 // Logged events without a token movement (history page, statistics).
-const EVENT_REASONS = ["task_done", "checkpoint_done", "checkpoint_missed"];
+const EVENT_REASONS = ["task_done", "checkpoint_done", "checkpoint_missed", "approval_requested", "approval_approved", "approval_rejected"];
 // Photo crop: the view (canvas px), the margin around the circle, and the
 // size of the uploaded square.
 const CROP_VIEW = 360;
@@ -330,6 +330,7 @@ class KisSegitoPanel extends HTMLElement {
       ]);
       this._data = data;
       this._today = today;
+      this._approvals = await this._hass.callWS({ type: "kis_segito/approvals" }).catch(() => []);
       this._shift = {};
       await this._loadForTab(this._tab);
     } catch (err) {
@@ -478,6 +479,11 @@ class KisSegitoPanel extends HTMLElement {
   }
 
   _iconUrl(name, size = 40) {
+    // An own (uploaded) icon is a picture of Home Assistant's image upload.
+    if (name.startsWith("own_")) {
+      const own = (this._data?.own_icons || []).find((i) => i.key === name);
+      return own ? `/api/image/serve/${this._e(own.image)}/256x256` : "";
+    }
     // An alias shares another icon's artwork.
     name = this._data?.icon_aliases?.[name] || name;
     // Small places use the simplified variant, when the icon has one.
@@ -570,6 +576,30 @@ class KisSegitoPanel extends HTMLElement {
   // Reads/writes a nested value in the edit buffer by path like "tasks.2.icon".
   _get(path) {
     return path.split(".").reduce((obj, key) => obj?.[key], this._edit?.item);
+  }
+
+  // Own icons (replace, switch off, delete) and the built-in ones (switch off).
+  _viewIconSettings() {
+    const dis = this._dis();
+    const own = (this._data.own_icons || [])
+      .map((i) => `<div class="icon-own ${i.active === false ? "inactive" : ""}">${this._icon(i.key, 56)}
+        <div class="row" style="gap:4px">
+          <label class="iconbtn" title="${this._e(this._t("icons.replace"))}">⟳<input type="file" accept="image/*" data-crop-upload="@replace:${this._e(i.key)}" hidden ${dis}></label>
+          <button class="iconbtn" data-act="icon-active" data-arg="${this._e(i.key)}:${i.active === false ? 1 : 0}" title="${this._e(this._t(i.active === false ? "icons.activate" : "icons.deactivate"))}" ${dis}>${i.active === false ? "👁" : "🚫"}</button>
+          <button class="iconbtn" data-act="icon-delete" data-arg="${this._e(i.key)}" title="${this._e(this._t("common.delete"))}" ${dis}>🗑</button></div></div>`)
+      .join("");
+    const disabled = new Set(this._data.disabled_icons || []);
+    const content = (n) => n.startsWith("routine_") || n.startsWith("task_") || n.startsWith("reward_") || n === "checkpoint_flag" || n === "fn_rewards" || n === "fn_piggy";
+    const builtin = this._data.icons
+      .filter(content)
+      .map((n) => `<button class="pickable ${disabled.has(n) ? "off" : ""}" data-act="icon-active" data-arg="${this._e(n)}:${disabled.has(n) ? 1 : 0}" title="${this._e(n)}" ${dis}>${this._icon(n, 44)}</button>`)
+      .join("");
+    return `<div class="card"><h3>${this._e(this._t("icons.title"))}</h3>
+      <div class="field"><span>${this._e(this._t("icons.own_title"))}</span><div class="own-icons">${own || `<span class="muted small">${this._e(this._t("icons.none"))}</span>`}
+        ${this._isAdmin ? `<label class="upload-tile" title="${this._e(this._t("icons.upload"))}"><span style="font-size:1.6rem">＋</span><span class="small">${this._e(this._t("icons.upload"))}</span><input type="file" accept="image/*" data-crop-upload="@icon" hidden></label>` : ""}</div></div>
+      <details><summary>${this._e(this._t("icons.builtin_title"))} (${disabled.size ? `${this._e(this._t("icons.off_count").replace("{n}", disabled.size))}` : this._e(this._t("icons.all_on"))})</summary>
+        <div class="icon-grid builtin" style="margin-top:10px">${builtin}</div></details>
+      <div class="hint">${this._e(this._t("icons.hint"))}</div></div>`;
   }
 
   // A knob's own options: the children usable on it (a ticked list), whether
@@ -687,7 +717,31 @@ class KisSegitoPanel extends HTMLElement {
 
   // ------------------------------------------------------------ today
 
+  // Requests waiting for a parent (rewards to confirm, tasks to approve).
+  _viewApprovals() {
+    const list = this._approvals || [];
+    if (!list.length) {
+      return "";
+    }
+    const rows = list
+      .map((a) => {
+        const child = this._data.children.find((c) => c.id === a.child_id);
+        const what = a.kind === "reward" ? a.reward_name : [a.routine_name, (a.task_names || []).filter(Boolean).join(", ")].filter(Boolean).join(" · ");
+        const coins = a.kind === "reward" ? `−${a.amount}` : `+${a.amount}`;
+        return `<div class="row wrap approval">${child ? this._avatar(child, 34) : ""}${this._icon(a.icon || (a.kind === "reward" ? "fn_rewards" : "task_generic"), 34)}
+          <div class="grow" style="min-width:140px"><b>${this._e(child?.name || "?")}</b> · ${this._e(this._t(a.kind === "reward" ? "approvals.reward" : "approvals.task"))}<div class="muted small">${this._e(what || "")} · ${this._e(new Date(a.requested_at).toLocaleString(this._locale))}</div></div>
+          <span class="tag">${this._icon("token_coin_front", 18)} ${this._e(coins)}</span>
+          ${this._isAdmin ? `<button class="btn sm primary" data-act="approval" data-arg="${this._e(a.id)}:1">✓ ${this._e(this._t("approvals.approve"))}</button><button class="btn sm" data-act="approval" data-arg="${this._e(a.id)}:0">✕ ${this._e(this._t("approvals.reject"))}</button>` : ""}</div>`;
+      })
+      .join("");
+    return `<div class="card"><h3>${this._icon("status_lock", 26)} ${this._e(this._t("approvals.title"))} <span class="tag">${list.length}</span></h3><div class="stack" style="gap:10px">${rows}</div><div class="hint">${this._e(this._t("approvals.hint"))}</div></div>`;
+  }
+
   _viewToday() {
+    return this._viewApprovals() + this._viewTodayMain();
+  }
+
+  _viewTodayMain() {
     const kids = this._data.children.filter((c) => c.active !== false);
     if (!kids.length) {
       return `<div class="card empty">${this._e(this._t("today.no_children"))}<br><br>
@@ -1362,7 +1416,7 @@ class KisSegitoPanel extends HTMLElement {
       const who = c ? `${this._avatar(c, 18)} ${this._e(c.name)}` : this._e(this._t("history.unknown_child"));
       if (tx.event) {
         html += `<div class="tx event"><span class="amt">${this._icon(tx.icon || (tx.type === "task_done" ? "routine_generic" : "checkpoint_flag"), 26)}</span>
-          <div style="min-width:0"><div class="what">${this._e(tx.task_name || tx.checkpoint_name || this._t(`reason.${tx.type}`))}</div>
+          <div style="min-width:0"><div class="what">${this._e(tx.type?.startsWith("approval_") ? `${this._t(`reason.${tx.type}`)}: ${tx.name || ""}` : tx.task_name || tx.checkpoint_name || this._t(`reason.${tx.type}`))}</div>
           <div class="meta">${this._e(this._fmtTime(tx.timestamp))} · ${who} · ${this._e(this._t(`reason.${tx.type}`))} · ${this._e(tx.routine_name || "")}</div></div><div></div></div>`;
         continue;
       }
@@ -1568,6 +1622,7 @@ class KisSegitoPanel extends HTMLElement {
           <div class="hint">${this._e(this._t("sensors.hint"))}</div>
           <div class="hint">${this._e(this._t("sensors.light_factor_hint"))}</div></div>
         <div class="card"><h3>${this._e(this._t("background.title"))}</h3>${backgrounds}<div class="hint">${this._e(this._t("background.hint"))}</div></div>
+        ${this._viewIconSettings()}
         <div class="card"><h3>${this._e(this._t("settings.knobs"))}</h3>${devices || `<div class="muted">${this._e(this._t("settings.no_knobs"))}</div>`}<div class="hint">${this._e(this._t("settings.knobs_hint"))}</div>${this._isAdmin ? `<div><button class="btn sm" data-act="virtual-add">＋ ${this._e(this._t("settings.virtual_add"))}</button></div>` : ""}</div>
         <div class="card"><h3>${this._icon("streak_flame", 26)} ${this._e(this._t("settings.streak"))}</h3><div class="form-grid">
           <label class="field"><span>${this._e(this._t("settings.streak_target"))}</span>${num("streak_target", 0, 365)}</label>
@@ -1870,6 +1925,8 @@ class KisSegitoPanel extends HTMLElement {
         <div class="field"><span>${this._e(this._t("rewards.cost"))}</span><div class="row wrap"><span class="stepper"><button data-act="cost" data-d="-1" aria-label="-1">−</button><span>${Number(r.cost) || 0}</span><button data-act="cost" data-d="1" aria-label="+1">+</button></span>
           <input type="number" class="short" min="0" data-path="cost" data-live value="${this._e(r.cost)}"><span class="grow">${this._pile(Number(r.cost) || 0, 20)}</span></div></div>
         <div class="field"><span>${this._e(this._t("rewards.kind"))}</span><div class="seg"><button class="${r.kind !== "piggy_unlock" ? "on" : ""}" data-act="set" data-path="kind" data-v="normal">${this._e(this._t("rewards.normal"))}</button><button class="${r.kind === "piggy_unlock" ? "on" : ""}" data-act="set" data-path="kind" data-v="piggy_unlock">${this._icon("fn_piggy", 20)} ${this._e(this._t("rewards.piggy_unlock"))}</button></div></div>
+        <label class="switch"><input type="checkbox" data-path="needs_confirmation" ${r.needs_confirmation ? "checked" : ""}>${this._e(this._t("approvals.reward_switch"))}</label>
+        <div class="hint">${this._e(this._t("approvals.reward_switch_hint"))}</div>
         <label class="switch"><input type="checkbox" data-path="active" ${r.active !== false ? "checked" : ""}>${this._e(this._t("common.active"))}</label>`,
     };
   }
@@ -1932,6 +1989,7 @@ class KisSegitoPanel extends HTMLElement {
         <button class="pick" data-act="pick" data-path="tasks.${i}.icon" data-arg="task">${this._icon(x.icon, 44)}</button>
         <input class="grow" style="min-width:120px" data-path="tasks.${i}.label" value="${this._e(x.label || "")}" placeholder="${this._e(this._t("routines.label_optional"))}">
         <select style="width:auto;max-width:170px" data-path="tasks.${i}.checkpoint_id">${cpOptions(x.checkpoint_id)}</select>
+        <label class="switch small" title="${this._e(this._t("approvals.task_switch_hint"))}"><input type="checkbox" data-path="tasks.${i}.needs_approval" ${x.needs_approval ? "checked" : ""}>${this._e(this._t("approvals.task_switch"))}</label>
         <button class="iconbtn" data-act="up" data-path="tasks" data-arg="${i}" ${i === 0 ? "disabled" : ""} aria-label="▲">▲</button><button class="iconbtn" data-act="down" data-path="tasks" data-arg="${i}" ${i === r.tasks.length - 1 ? "disabled" : ""} aria-label="▼">▼</button><button class="iconbtn" data-act="remove" data-path="tasks" data-arg="${i}" aria-label="✕">✕</button></div>`).join("")}
       <button class="btn sm" data-act="add" data-path="tasks" data-arg="task" style="align-self:flex-start">＋ ${this._e(this._t("routines.add_task"))}</button>`;
     const template = `<div class="field"><span>${this._e(this._t("rtemplates.save_title"))}</span><div class="row"><input id="rtpl-name" value="${this._e(r.name || "")}" placeholder="${this._e(this._t("rtemplates.name"))}"><button class="btn" data-act="save-rtemplate">${this._e(this._t("rtemplates.save"))}</button></div>
@@ -1996,13 +2054,18 @@ class KisSegitoPanel extends HTMLElement {
     };
     const filter = filters[this._picker.filter] || (() => true);
     const current = this._get(this._picker.path);
-    const icons = this._data.icons
-      .filter(filter)
-      .map((n) => `<button class="${n === current ? "on" : ""}" title="${this._e(n)}" data-act="pick-icon" data-arg="${this._e(n)}">${this._icon(n, 56)}</button>`)
+    // Switched-off icons are not offered (the current one stays visible).
+    const disabled = new Set(this._data.disabled_icons || []);
+    const own = this._picker.filter === "avatar" ? [] : (this._data.own_icons || []).filter((i) => i.active !== false || i.key === current).map((i) => i.key);
+    const icons = own
+      .concat(this._data.icons.filter((n) => filter(n) && (!disabled.has(n) || n === current)))
+      .map((n) => `<button class="${n === current ? "on" : ""}" title="${this._e(n.startsWith("own_") ? this._t("icons.own") : n)}" data-act="pick-icon" data-arg="${this._e(n)}">${this._icon(n, 56)}</button>`)
       .join("");
     const upload = this._picker.filter === "avatar"
       ? `<label class="upload-tile" title="${this._e(this._t("picture.upload"))}"><span style="font-size:1.6rem">📷</span><span class="small">${this._e(this._t("picture.upload"))}</span><input type="file" accept="image/*" data-crop-upload="avatar_image" hidden></label>`
-      : "";
+      : this._isAdmin
+        ? `<label class="upload-tile" title="${this._e(this._t("icons.upload"))}"><span style="font-size:1.6rem">＋</span><span class="small">${this._e(this._t("icons.upload"))}</span><input type="file" accept="image/*" data-crop-upload="@icon" hidden></label>`
+        : "";
     return `<div class="backdrop over" data-act="pick-close"></div><div class="dialog wide over" role="dialog" aria-modal="true">
       <div class="row"><h2 class="grow">${this._e(this._t(this._picker.filter === "avatar" ? "children.avatar_choose" : "common.choose_icon"))}</h2><button class="iconbtn" data-act="pick-close" aria-label="✕">✕</button></div>
       <div class="icon-grid">${upload}${icons}</div></div>`;
@@ -2041,9 +2104,10 @@ class KisSegitoPanel extends HTMLElement {
   _openCrop(field, file) {
     const url = URL.createObjectURL(file);
     const img = new Image();
+    const path = this._picker?.path;
     img.onload = () => {
       this._picker = null;
-      this._crop = { field, url, img, file, zoom: 1, x: 0, y: 0 };
+      this._crop = { field, url, img, file, zoom: 1, x: 0, y: 0, path };
       this._render();
     };
     img.onerror = () => {
@@ -2222,7 +2286,18 @@ class KisSegitoPanel extends HTMLElement {
     const c = this._crop;
     try {
       const id = await this._upload(blob, name);
-      if (this._edit) {
+      if (c.field === "@icon") {
+        // A new own icon: it is chosen right away where the picker was opened.
+        const key = await this._ws({ type: "kis_segito/icons/add", image_id: id });
+        (this._data.own_icons = this._data.own_icons || []).push({ key, image: id, name: "", active: true });
+        if (this._edit && c.path) {
+          this._set(c.path, key);
+        }
+      } else if (c.field.startsWith("@replace:")) {
+        await this._ws({ type: "kis_segito/icons/replace", key: c.field.slice(9), image_id: id });
+        this._toast(this._t("toast.saved"));
+        await this._load();
+      } else if (this._edit) {
         this._edit.item[c.field] = id;
       }
     } catch (err) {
@@ -2896,6 +2971,29 @@ class KisSegitoPanel extends HTMLElement {
           this._toast(this._t("toast.key"));
         });
         return;
+      case "approval": {
+        const [id, ok] = arg.split(":");
+        await this._ws({ type: "kis_segito/approval/resolve", approval_id: id, approve: ok === "1" });
+        this._toast(this._t(ok === "1" ? "approvals.approved" : "approvals.rejected"));
+        await this._load();
+        return;
+      }
+      case "icon-active": {
+        const [key, on] = arg.split(":");
+        await this._ws({ type: "kis_segito/icons/active", key, active: on === "1" });
+        await this._load();
+        return;
+      }
+      case "icon-delete": {
+        const usage = await this._ws({ type: "kis_segito/icons/usage", key: arg });
+        const where = usage.length ? usage.map((u) => `${this._t(`icons.used_${u.kind}`)}: ${u.name || "—"}`).join(", ") : this._t("icons.unused");
+        this._confirm(this._t("icons.delete_title"), `${this._t("icons.delete_confirm")} ${where}`, async () => {
+          await this._ws({ type: "kis_segito/icons/delete", key: arg });
+          this._toast(this._t("toast.deleted"));
+          await this._load();
+        }, { danger: true });
+        return;
+      }
       case "virtual-add":
         await this._ws({ type: "kis_segito/virtual/save", name: this._t("settings.virtual_default") });
         this._toast(this._t("toast.saved"));
@@ -3772,6 +3870,11 @@ const STYLE = `
   .timeline .mk { position: absolute; top: 0; transform: translateX(-50%); text-align: center; font-size: .7rem; font-weight: 700; color: var(--muted); white-space: nowrap; }
   .timeline .mk i { display: block; width: 16px; height: 16px; border-radius: 50%; margin: 20px auto 2px; background: var(--surface); border: 3px solid var(--ink); }
   .bgs { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 10px; }
+  .own-icons { display: flex; flex-wrap: wrap; gap: 10px; align-items: stretch; }
+  .icon-own { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px; border-radius: 14px; background: var(--surface-2); }
+  .own-icons .upload-tile { width: 96px; min-height: 96px; border: 2px dashed var(--line); border-radius: 16px; display: grid; place-items: center; text-align: center; cursor: pointer; background: var(--surface-2); padding: 6px; }
+  .icon-own.inactive img { opacity: .4; filter: grayscale(1); }
+  .icon-grid.builtin .pickable.off img { opacity: .3; filter: grayscale(1); }
   .knob-card .bgs { grid-template-columns: repeat(auto-fill, minmax(56px, 64px)); gap: 8px; }
   .knob-card .bg { font-size: .65rem; }
   .bg { aspect-ratio: 1; border-radius: 50%; border: 3px solid transparent; cursor: pointer; background-size: cover; background-position: center; box-shadow: var(--shadow); position: relative; display: grid; place-items: center; text-align: center; font-size: .75rem; font-weight: 700; color: var(--muted); background-color: var(--surface-2); transition: transform .2s; padding: 4px; }

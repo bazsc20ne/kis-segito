@@ -33,6 +33,9 @@ EVENT_TYPES = (
     "manual_adjustment",
     "transaction_reversed",
     "transaction_revised",
+    "approval_requested",
+    "approval_approved",
+    "approval_rejected",
 )
 
 
