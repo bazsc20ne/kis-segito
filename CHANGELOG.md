@@ -6,6 +6,47 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.9.2] - 2026-11-04
+
+### English
+
+- Virtual knob card: after a full page reload it no longer shows
+  "Configuration error". The card now registers once the Home Assistant
+  frontend has loaded, so dashboards always find it.
+- Panel: an open expandable section (e.g. a knob's children or background)
+  stays open after a save and after new data arrives. Opening another section
+  closes it.
+- Knob updates over the network are encrypted with the API key
+  (`ota: encryption:`) instead of an OTA password; ESPHome no longer warns
+  about it, and the firmware is smaller. The example config, the README and
+  docs/security.md show the new setting and how to move an existing knob
+  over (one install with both, then encryption only); an `ota_password` is no
+  longer needed.
+- The knob's text font no longer asks for Greek letters it does not have (no
+  more warning when compiling); Latin and Cyrillic texts are unchanged.
+- Home Assistant no longer warns about a blocking file access when a virtual
+  knob card connects (the icon lists are read once, outside the event loop).
+
+### Magyar
+
+- Virtuális gomb kártya: teljes oldalfrissítés után már nem mutat
+  „Configuration error”-t. A kártya most a Home Assistant felületének
+  betöltése után jegyzi be magát, így az irányítópultok mindig megtalálják.
+- Panel: egy nyitott lenyíló rész (pl. egy gomb gyerekei vagy háttere)
+  mentés után és új adatok érkezésekor is nyitva marad. Egy másik rész
+  megnyitása bezárja.
+- A gomb hálózati frissítése OTA-jelszó helyett az API kulcsával titkosított
+  (`ota: encryption:`); az ESPHome már nem figyelmeztet miatta, és a
+  firmware kisebb. A mintakonfiguráció, a README és a docs/security.md
+  mutatja az új beállítást és a meglévő gomb átállítását (egy telepítés
+  mindkettővel, utána csak titkosítással); `ota_password` már nem kell.
+- A gomb szövegbetűtípusa már nem kér görög betűket, amelyek nincsenek benne
+  (nincs több figyelmeztetés fordításkor); a latin és cirill szövegek nem
+  változnak.
+- A Home Assistant már nem figyelmeztet blokkoló fájlhozzáférésre, amikor egy
+  virtuális gomb kártya csatlakozik (az ikonlisták egyszer, az eseményhurkon
+  kívül olvasódnak be).
+
 ## [0.9.1] - 2026-11-04
 
 ### English

@@ -1414,10 +1414,36 @@ class KisSegitoKnobCardEditor extends HTMLElement {
   }
 }
 
-if (!customElements.get("kis-segito-knob-card")) {
-  customElements.define("kis-segito-knob-card", KisSegitoKnobCard);
-  customElements.define("kis-segito-knob-card-editor", KisSegitoKnobCardEditor);
-  window.customCards = window.customCards || [];
+// The Home Assistant frontend can replace the custom element registry after
+// this module has run; a card defined before that is unknown to the
+// dashboards. So the elements are defined once the frontend's root element
+// exists, when the registry is final.
+const register = () => {
+  const registry = window.customElements;
+  if (!registry.get("kis-segito-knob-card")) {
+    registry.define("kis-segito-knob-card", KisSegitoKnobCard);
+  }
+  if (!registry.get("kis-segito-knob-card-editor")) {
+    registry.define("kis-segito-knob-card-editor", KisSegitoKnobCardEditor);
+  }
+};
+const frontendReady = () => Boolean(window.customElements.get("home-assistant"));
+if (frontendReady()) {
+  register();
+} else {
+  window.customElements.whenDefined("home-assistant").then(register);
+  // Also checks the current registry now and then, in case it was replaced
+  // after this module ran.
+  const timer = setInterval(() => {
+    if (frontendReady()) {
+      clearInterval(timer);
+      register();
+    }
+  }, 250);
+  setTimeout(() => clearInterval(timer), 120000);
+}
+window.customCards = window.customCards || [];
+if (!window.customCards.some((c) => c.type === "kis-segito-knob-card")) {
   window.customCards.push({
     type: "kis-segito-knob-card",
     name: "Kis Segítő",

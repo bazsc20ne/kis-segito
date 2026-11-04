@@ -10,7 +10,7 @@
 
 // Must equal the integration version (scripts/check_versions.py checks it):
 // a browser that still runs an older copy of this file shows a reload bar.
-const PANEL_VERSION = "0.9.1";
+const PANEL_VERSION = "0.9.2";
 const FALLBACK_LANGUAGE = "en";
 const LANGUAGE_AUTO = "auto";
 const TABS = ["today", "calendar", "children", "routines", "rewards", "tokens", "history", "notifications", "settings"];
@@ -2299,6 +2299,11 @@ class KisSegitoPanel extends HTMLElement {
     const drawerScroll = this._drawerScroll ?? drawer?.scrollTop ?? 0;
     this._drawerScroll = null;
     // The field being edited keeps the focus and the cursor across a redraw.
+    // Open expandable sections stay open across a redraw (e.g. after a save).
+    const details = [...this.shadowRoot.querySelectorAll("details")];
+    if (details.length) {
+      this._openDetails = { tab: this._shownTab, open: details.flatMap((d, i) => (d.open ? [i] : [])) };
+    }
     const focused = this.shadowRoot.activeElement;
     const focusKey = focused?.matches?.("input, textarea, select") ? this._fieldKey(focused) : null;
     const selection = focusKey && typeof focused.selectionStart === "number" ? [focused.selectionStart, focused.selectionEnd] : null;
@@ -2332,6 +2337,24 @@ class KisSegitoPanel extends HTMLElement {
     if (newPage) {
       newPage.scrollTop = scroll;
     }
+    if (this._openDetails?.tab === this._tab && this._openDetails.open.length) {
+      const all = this.shadowRoot.querySelectorAll("details");
+      // Their "toggle" events come later: they must not close each other.
+      this._restoring = true;
+      clearTimeout(this._restoringTimer);
+      this._restoringTimer = setTimeout(() => {
+        this._restoring = false;
+      }, 100);
+      for (const i of this._openDetails.open) {
+        if (all[i]) {
+          all[i].open = true;
+        }
+      }
+      if (newPage) {
+        newPage.scrollTop = scroll;
+      }
+    }
+    this._shownTab = this._tab;
     const newDrawer = this.shadowRoot.querySelector(".drawer-b");
     if (newDrawer) {
       newDrawer.scrollTop = drawerScroll;
@@ -3379,6 +3402,23 @@ class KisSegitoPanel extends HTMLElement {
       this._onClick(ev).catch(() => {});
     });
     root.addEventListener("input", (ev) => this._onInput(ev));
+    // Opening a section closes the other open one (only the user does this;
+    // a redraw restores what was open).
+    root.addEventListener(
+      "toggle",
+      (ev) => {
+        const opened = ev.target;
+        if (!(opened instanceof HTMLDetailsElement) || !opened.open || this._restoring) {
+          return;
+        }
+        for (const other of root.querySelectorAll("details[open]")) {
+          if (other !== opened && !other.contains(opened) && !opened.contains(other)) {
+            other.open = false;
+          }
+        }
+      },
+      true,
+    );
     root.addEventListener("change", (ev) => {
       if (ev.target.dataset?.path !== undefined && ev.target.type !== "checkbox" && ev.target.tagName !== "SELECT" && ev.target.type !== "color") {
         return; // typed values are already in the edit buffer

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import asyncio
+import functools
 import time
 from datetime import date, timedelta
 from typing import Any
@@ -221,14 +222,24 @@ def _manager(hass: HomeAssistant) -> KisSegitoManager:
     return hass.data[DOMAIN].manager
 
 
+# The shipped icon files do not change while Home Assistant runs: read once
+# (in an executor, see async_load_icon_lists), then served from memory.
+@functools.cache
 def _icons() -> list[str]:
     return sorted(path.stem for path in (FRONTEND_DIR / "icons").glob("*.png"))
 
 
+@functools.cache
 def _small_icons() -> list[str]:
     return sorted(
         path.stem for path in (FRONTEND_DIR / "icons" / "small").glob("*.png")
     )
+
+
+async def async_load_icon_lists(hass: HomeAssistant) -> None:
+    """Read the icon lists outside the event loop."""
+    await hass.async_add_executor_job(_icons)
+    await hass.async_add_executor_job(_small_icons)
 
 
 def _own_entity(hass: HomeAssistant, device_id: str, key: str) -> str | None:

@@ -30,7 +30,7 @@ from .panel import (
 )
 from .services import async_register_services
 from .store import KisSegitoStore
-from .websocket_api import async_register_commands
+from .websocket_api import async_load_icon_lists, async_register_commands
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
@@ -70,6 +70,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     hass.data[DOMAIN] = KisSegitoData(
         version=str(integration.version), store=store, manager=manager
     )
+    await async_load_icon_lists(hass)
     async_register_commands(hass)
     hass.http.register_view(KnobImageView(hass))
     async_register_services(hass, manager)

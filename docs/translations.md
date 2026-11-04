@@ -11,8 +11,8 @@ only translation files, one per part, named by the Home Assistant language code
 3. `device_translations/` – the knob's display
 4. `notification_translations/` – notification messages
 
-Missing texts fall back to English. The knob's fonts cover Latin, Greek and
-Cyrillic letters. The logo exists in two variants: Hungarian for Hungarian and
+Missing texts fall back to English. The knob's fonts cover Latin and Cyrillic
+letters (not Greek). The logo exists in two variants: Hungarian for Hungarian and
 English ("Little Helper") for every other language.
 
 A Kis Segítő a Home Assistant nyelvén mutatja a szövegeit (angol és magyar van

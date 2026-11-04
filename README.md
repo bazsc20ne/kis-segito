@@ -59,7 +59,7 @@ substitutions:
   friendly_name: Kis Segito
 
 packages:
-  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.9.1
+  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.9.2
 
 api:
   encryption:
@@ -67,7 +67,8 @@ api:
 
 ota:
   - id: !extend kis_segito_ota
-    password: !secret ota_password
+    # Updates use the API key above (encrypted and authenticated).
+    encryption:
 
 wifi:
   ssid: !secret wifi_ssid
@@ -148,8 +149,9 @@ választható; ez a knobokra és a panelre is érvényes. Új nyelv:
 
 - **Kötelező titkos adatok** gombonként, a saját ESPHome `secrets.yaml`-odban:
   `kis_segito_api_key` – az API titkosítási kulcsa, **minden gombnak külön**;
-  `ota_password` – a hálózati firmware-frissítés jelszava; `ap_password` – a tartalék
-  hozzáférési pont jelszava. A tartalék hozzáférési pont csak akkor indul el, ha a gomb
+  `ap_password` – a tartalék hozzáférési pont jelszava. A hálózati firmware-frissítés is
+  az API kulcsával titkosított (`ota: encryption:`); OTA-jelszó nem kell. Átállás a
+  korábbi jelszavas frissítésről: [docs/security.md](docs/security.md). A tartalék hozzáférési pont csak akkor indul el, ha a gomb
   nem tud csatlakozni a WiFi-hez; a beállítóoldala firmware-feltöltést is fogad, ezért kell
   hozzá jelszó.
 - **Kész firmware:** a release-ben lévő gyári firmware-ben nincs titkos adat (titkosítatlan
@@ -160,7 +162,7 @@ választható; ez a knobokra és a panelre is érvényes. Új nyelv:
   át nem érhetők el. Ha egy gomb kapcsolata nem titkosított, a Home Assistant javítási
   értesítést mutat, és a gomb a képek helyett ikonokat jelenít meg. A gomb hozzáférése a
   képekhez megújítható: panel → **Beállítások → Gombok → Új képkulcs**.
-- **Frissítés:** a fenti mintában a package egy adott verzióra mutat (`@v0.9.1`), így a
+- **Frissítés:** a fenti mintában a package egy adott verzióra mutat (`@v0.9.2`), így a
   gomb firmware-e csak akkor változik, amikor ezt átírod egy újabb verzióra.
 - **Nem része a projektnek:** aki fizikailag hozzáfér a gombhoz, kiolvashatja a
   flash-memóriáját (és a benne lévő titkos adatokat). Ez egy otthoni, házilag épített
@@ -249,7 +251,7 @@ substitutions:
   friendly_name: Kis Segito
 
 packages:
-  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.9.1
+  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.9.2
 
 api:
   encryption:
@@ -257,7 +259,8 @@ api:
 
 ota:
   - id: !extend kis_segito_ota
-    password: !secret ota_password
+    # Updates use the API key above (encrypted and authenticated).
+    encryption:
 
 wifi:
   ssid: !secret wifi_ssid
@@ -334,8 +337,9 @@ the panel's **Settings** card; it applies to the knobs and the panel. Adding a l
 
 - **Required secrets** for each knob, in your own ESPHome `secrets.yaml`:
   `kis_segito_api_key` – the API encryption key, **a separate one for each
-  knob**; `ota_password` – the password for firmware updates over the network;
-  `ap_password` – the password of the fallback access point. The fallback access point
+  knob**; `ap_password` – the password of the fallback access point. Firmware
+  updates over the network are encrypted with the API key too (`ota: encryption:`); no
+  OTA password is needed. Moving from the earlier password: [docs/security.md](docs/security.md). The fallback access point
   opens only when the knob cannot join Wi-Fi; its setup page also accepts a firmware
   upload, which is why it needs a password.
 - **Ready-made firmware:** the factory firmware in a release has no secrets (unencrypted
@@ -347,7 +351,7 @@ the panel's **Settings** card; it applies to the knobs and the panel. Adding a l
   Assistant shows a repair issue and the knob shows icons instead of the pictures. A
   knob's access to the pictures can be renewed: panel → **Settings → Knobs → New picture
   key**.
-- **Updates:** in the example above the package points to a given version (`@v0.9.1`), so
+- **Updates:** in the example above the package points to a given version (`@v0.9.2`), so
   the knob's firmware changes only when you change it to a newer version.
 - **Out of scope:** anyone with physical access to the knob can read its flash memory (and
   the secrets in it). This is a DIY device for the home, so flash encryption and secure

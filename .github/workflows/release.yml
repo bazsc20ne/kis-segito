@@ -58,7 +58,7 @@ jobs:
         id: build
         with:
           yaml-file: esphome/kis-segito-factory.yaml
-          version: 2026.10.1
+          version: 2026.10.2
       - name: Rename firmware files
         run: |
           mkdir dist

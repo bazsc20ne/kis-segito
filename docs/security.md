@@ -12,7 +12,6 @@ Put these in the ESPHome `secrets.yaml` next to your device config; see
 | Secret | Used for |
 |---|---|
 | `kis_segito_api_key` | Encryption of the connection to Home Assistant. Use a **separate key for each knob**. |
-| `ota_password` | Password for firmware updates over the network. |
 | `ap_password` | Password of the knob's fallback access point. |
 | `wifi_ssid`, `wifi_password` | Your Wi-Fi. |
 
@@ -23,7 +22,8 @@ api:
 
 ota:
   - id: !extend kis_segito_ota
-    password: !secret ota_password
+    # Updates use the API key above (encrypted and authenticated).
+    encryption:
 
 wifi:
   ssid: !secret wifi_ssid
@@ -36,6 +36,30 @@ A new encryption key can be generated on <https://esphome.io/components/api/>
 (or with `openssl rand -base64 32`). After installing a config with a new or
 changed key, enter the same key in Home Assistant: the ESPHome integration asks
 for it, or use **Reconfigure** on the knob's ESPHome entry.
+
+**Updates over the network** use the same API key: with `encryption:` under
+`ota`, every firmware upload is encrypted and only an uploader with the key is
+accepted. No OTA password is needed (and it cannot be combined with
+`encryption`). Keep the key safe: a knob whose key is lost can only be flashed
+again over USB, and the key cannot be changed over the air.
+
+**Moving from an OTA password** (configs before 0.9.2 had
+`password: !secret ota_password`). The knob still running the old firmware asks
+for the password once more, so the first install after the change carries both:
+
+```yaml
+ota:
+  - id: !extend kis_segito_ota
+    password: !secret ota_password
+    encryption:
+      allow_plaintext_upload: true   # only for this one install
+```
+
+After that install the knob accepts encrypted uploads only. Then remove the
+`password` and `allow_plaintext_upload` lines, so the block is just
+`encryption:` as above, and delete `ota_password` from `secrets.yaml`. If you
+skip the first step, the upload fails with an authentication error and the
+knob keeps its firmware; nothing breaks.
 
 **Ready-made firmware.** The firmware attached to a release has no secrets: until
 you adopt it, its connection is not encrypted and updates need no password. Adopt
