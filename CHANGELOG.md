@@ -6,6 +6,75 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.9.4] - 2026-11-05
+
+### English
+
+- Dashboard cards for parents: nine cards come with the integration, each with
+  a visual editor, the dashboard theme's colours and texts in the user's
+  language (English and Hungarian): child (wallet, piggy bank, streak, today's
+  routines – choose which), today's routine (tasks can be ticked; a parent's
+  tick is logged with their name; or status only), reward shop (for one child,
+  or per reward which children can afford it), approvals, weekly statistics
+  (per day and per routine, with the streak), quick +/− tokens with a note,
+  event log (the last N events), knob status (brightness, light, presence,
+  firmware version; wake, screensaver and night light buttons) and children
+  at a glance. See docs/cards.md.
+- Assist: Home Assistant's assistants answer questions about a child, read
+  only: tokens, whether there is a task now, the time until the next
+  checkpoint, the tokens still to earn today, and the streak. The built-in
+  agent understands English and Hungarian sentences with the child's name or
+  another name set in the child editor; LLM agents get a read-only tool when a
+  Kis Segítő entity is exposed. The child sensors have the same data as new
+  attributes (`task_status`, `tasks_left`, `next_checkpoint_minutes`,
+  `tokens_earnable_now`, `tokens_earnable_today`). See docs/assist.md.
+- Knob firmware for other hardware: the screen is driven by generic inputs
+  (next, previous, select, back, wake); the encoder and button handling is an
+  input profile, and an example profile uses three push buttons. The screen
+  is laid out for 480 px and scaled to the display (240, 360, 466 or 480 px).
+  With the VIEWE MD80E nothing changes. Own knobs that include
+  `kis-segito-core.yaml` directly now also include an input profile (see
+  docs/boards.md).
+- Home Assistant serves knob backgrounds for these screen sizes, and avatars
+  and photos at any icon size.
+- The history shows who ticked a task for a child.
+- Deleting an own icon used by a task replaced it with a missing picture; a
+  built-in task icon is used now.
+
+### Magyar
+
+- Irányítópult-kártyák szülőknek: kilenc kártya jön az integrációval, mindegyik
+  vizuális szerkesztővel, a téma színeivel és a felhasználó nyelvén (magyarul
+  és angolul): gyerek (tárca, persely, sorozat, mai rutinok – választható),
+  mai rutin (a feladatok kipipálhatók, a szülő pipája a nevével kerül a
+  naplóba; vagy csak állapot), jutalombolt (egy gyereknek, vagy jutalmanként,
+  kinek van rá elég zsetonja), jóváhagyások, heti statisztika (naponként és
+  rutinonként, a sorozattal), gyors +/− zseton megjegyzéssel, eseménynapló (az
+  utolsó N esemény), gomb állapota (fényerő, fény, jelenlét, firmware-verzió;
+  ébresztés, képernyővédő és éjszakai fény gomb) és gyerekek röviden. Lásd
+  docs/cards.md.
+- Assist: a Home Assistant asszisztensei válaszolnak egy gyerekről, csak
+  olvasva: zsetonok, van-e most feladata, mennyi idő van a következő
+  checkpointig, hány zsetont szerezhet még ma, és a sorozat. A beépített ügynök
+  magyar és angol mondatokat ért a gyerek nevével vagy a gyerekszerkesztőben
+  megadott másik nevével; az LLM-ügynökök egy csak olvasó eszközt kapnak, ha
+  egy Kis Segítő entitás ki van téve. A gyerekszenzorok új attribútumai
+  ugyanezt tartalmazzák (`task_status`, `tasks_left`,
+  `next_checkpoint_minutes`, `tokens_earnable_now`, `tokens_earnable_today`).
+  Lásd docs/assist.md.
+- Gomb-firmware más hardverhez: a képernyőt általános bemenetek vezérlik
+  (következő, előző, kiválasztás, vissza, ébresztés); az enkóder és a gomb
+  kezelése bemeneti profil lett, egy példaprofil három nyomógombot használ. A
+  képernyő 480 pixelre van tervezve, és a kijelzőhöz skálázódik (240, 360, 466
+  vagy 480 pixel). A VIEWE MD80E-vel semmi nem változik. Azok a saját gombok,
+  amelyek közvetlenül a `kis-segito-core.yaml`-t használják, mostantól egy
+  bemeneti profilt is felvesznek (lásd docs/boards.md).
+- A Home Assistant ezekhez a képernyőméretekhez is adja a gombok hátterét, az
+  avatarokat és fényképeket pedig bármilyen ikonméretben.
+- Az előzmények mutatják, ki pipálta ki a gyerek helyett a feladatot.
+- Egy feladat által használt saját ikon törlése után hiányzó kép jelent meg;
+  most egy beépített feladatikon kerül a helyére.
+
 ## [0.9.3] - 2026-11-05
 
 ### English
