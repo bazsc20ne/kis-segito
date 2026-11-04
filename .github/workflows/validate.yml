@@ -38,14 +38,17 @@ jobs:
         with:
           python-version: "3.14"
       - run: pip install -r requirements_test.txt
-      - name: Install the matching Home Assistant frontend
+      - name: Install the matching Home Assistant frontend and Assist libraries
         run: |
-          pip install "$(python - <<'PY'
-          import json, pathlib, homeassistant.components.frontend as f
-          manifest = json.loads((pathlib.Path(f.__file__).parent / "manifest.json").read_text())
-          print(next(r for r in manifest["requirements"] if r.startswith("home-assistant-frontend")))
+          pip install $(python - <<'PY'
+          import json, pathlib
+          import homeassistant.components as components
+          root = pathlib.Path(components.__file__).parent
+          for name, prefix in (("frontend", "home-assistant-frontend"), ("conversation", "")):
+              manifest = json.loads((root / name / "manifest.json").read_text())
+              print(" ".join(r for r in manifest["requirements"] if r.startswith(prefix)))
           PY
-          )"
+          )
       - run: pytest
 
   versions:

@@ -139,6 +139,11 @@ jönnek. Minden lépés naplózva van.
 **Beállítások → Ikonok** részen cserélhető, kikapcsolható vagy törölhető. A beépített ikonok
 kikapcsolhatók.
 
+**Assist:** a Home Assistant hangasszisztense megmondja egy gyerekről, hány zsetonja van,
+van-e most feladata, mennyi idő van a következő checkpointig és hány zsetont szerezhet még
+ma (magyarul és angolul, a gyerek nevével vagy egy másik nevével). Csak olvas, nem
+változtat semmit. Beállítás és példamondatok: [docs/assist.md](docs/assist.md).
+
 **Virtuális gomb:** a gomb képernyője irányítópult-kártyaként is használható, például
 utazáskor vagy ha a gomb nem működik. Ugyanazok a képernyők, képek és animációk, csak
 érintéssel: húzás balra/jobbra = tekerés, koppintás = nyomás, nyomva tartás = vissza
@@ -336,6 +341,12 @@ checkpoint's tokens come on approval. Every step is logged.
 **Own icons:** wherever an icon is chosen, your own picture can be uploaded as an icon; on
 **Settings → Icons** it can be replaced, switched off or deleted. Built-in icons can be
 switched off.
+
+**Assist:** Home Assistant's voice assistant tells about a child how many tokens they
+have, whether they have a task now, how long until the next checkpoint and how many tokens
+they can still earn today (in English and Hungarian, by the child's name or another name).
+It only reads, it changes nothing. Setup and example sentences:
+[docs/assist.md](docs/assist.md).
 
 **Virtual knob:** the knob screen can also be used as a dashboard card, for example on a
 trip or when the knob does not work. The same screens, pictures and animations, operated

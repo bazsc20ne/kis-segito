@@ -36,6 +36,8 @@
   "children.avatar": "Avatar",
   "children.any_knob": "Bármelyik gomb",
   "children.piggy_unlocked": "Persely feloldva",
+  "children.aliases": "Más nevek (az Assisthoz)",
+  "children.aliases_hint": "Vesszővel elválasztva, nem kötelező",
   "routines.none": "Még nincs rutin.",
   "routines.add": "Rutin hozzáadása",
   "routines.edit": "Rutin szerkesztése",

@@ -36,6 +36,8 @@
   "children.avatar": "Avatar",
   "children.any_knob": "Any knob",
   "children.piggy_unlocked": "Piggy bank unlocked",
+  "children.aliases": "Other names (for Assist)",
+  "children.aliases_hint": "Comma separated, optional",
   "routines.none": "No routines yet.",
   "routines.add": "Add routine",
   "routines.edit": "Edit routine",

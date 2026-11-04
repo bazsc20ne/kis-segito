@@ -15,6 +15,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_time_interval
 
+from .assist import child_status
 from .const import DOMAIN
 from .entity_helpers import next_checkpoint, running_routines
 from .manager import KisSegitoManager
@@ -154,6 +155,7 @@ class ChildSensor(_Base):
             ),
             None,
         )
+        status = child_status(self.manager, self.child_id)
         return {
             "child_id": self.child_id,
             "piggy_balance": self.manager.balances(self.child_id)["piggy"],
@@ -164,6 +166,11 @@ class ChildSensor(_Base):
             "current_task": current_task,
             "routine_progress": progress,
             "next_checkpoint": next_checkpoint(self.manager, self.child_id),
+            "next_checkpoint_minutes": status["next_checkpoint_minutes"],
+            "task_status": status["task_status"],
+            "tasks_left": status["tasks_left"],
+            "tokens_earnable_now": status["tokens_earnable_now"],
+            "tokens_earnable_today": status["tokens_earnable_today"],
             "last_transaction": (
                 {
                     "reason": last["reason"],

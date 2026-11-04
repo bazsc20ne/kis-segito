@@ -2,7 +2,9 @@
   "domain": "kis_segito",
   "name": "Kis Segítő",
   "after_dependencies": [
-    "esphome"
+    "conversation",
+    "esphome",
+    "llm"
   ],
   "codeowners": [
     "@bazsc20ne"

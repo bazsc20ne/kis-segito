@@ -16,6 +16,7 @@ from homeassistant.helpers.typing import ConfigType
 from homeassistant.loader import async_get_integration
 from homeassistant.util import dt as dt_util
 
+from .assist import async_setup_assist
 from .const import CONF_DEVICE_ID, DOMAIN
 from .device_link import DeviceLink, unencrypted_issue_id
 from .knob_images import KnobImageView
@@ -74,6 +75,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     async_register_commands(hass)
     hass.http.register_view(KnobImageView(hass))
     async_register_services(hass, manager)
+    async_setup_assist(hass, manager)
     _async_schedule_jobs(hass, manager)
     return True
 

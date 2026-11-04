@@ -1902,7 +1902,8 @@ class KisSegitoPanel extends HTMLElement {
       nav,
       body: `<div class="row wrap" style="gap:16px">${this._avatarField(c)}<div class="grow stack" style="gap:10px;min-width:200px">
           <label class="field"><span>${this._e(this._t("common.name"))}</span><input data-path="name" value="${this._e(c.name)}"></label>
-          <label class="field"><span>${this._e(this._t("children.birth_date"))}</span><input type="date" data-path="birth_date" value="${this._e(c.birth_date || "")}"></label></div></div>
+          <label class="field"><span>${this._e(this._t("children.birth_date"))}</span><input type="date" data-path="birth_date" value="${this._e(c.birth_date || "")}"></label>
+          <label class="field"><span>${this._e(this._t("children.aliases"))}</span><input data-path="aliases" value="${this._e(c.aliases || "")}" placeholder="${this._e(this._t("children.aliases_hint"))}"></label></div></div>
         <div class="field"><span>${this._e(this._t("children.color"))}</span><div class="row wrap">${PRESET_COLORS.map((x) => `<button class="swatch ${x === c.color ? "on" : ""}" style="background:${x}" data-act="set" data-path="color" data-v="${x}" aria-label="${x}"></button>`).join("")}<input type="color" data-path="color" data-rerender value="${this._e(c.color)}"></div>
           ${close ? `<div class="warnbox">${this._e(this._t("children.color_warning"))}</div>` : ""}</div>
         <label class="switch"><input type="checkbox" data-path="piggy_unlocked" ${c.piggy_unlocked ? "checked" : ""}>${this._icon("fn_piggy", 26)} ${this._e(this._t("children.piggy_unlocked"))}</label>
