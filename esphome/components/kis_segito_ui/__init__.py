@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-only
-"""Kis Segito child UI for the round 480x480 knob display (LVGL 9).
+"""Kis Segito child UI for round knob displays (LVGL 9), laid out for 480x480
+and scaled to the display (240, 360, 466 or 480 px).
 
 The component draws every screen itself (carousels, token piles, routine time
 track, confirmation) and is driven from YAML through its C++ methods:
@@ -22,6 +23,8 @@ AUTO_LOAD = ["json"]
 CONF_IMAGES = "images"
 CONF_NUMBER_FONT = "number_font"
 CONF_ACTION_SENSOR = "action_sensor"
+CONF_SCREEN_SIZE = "screen_size"
+SCREEN_SIZES = (240, 360, 466, 480)
 
 CACHE_PARTITION_SIZE = 0x400000  # 4 MB
 INV_AREAS = 128
@@ -37,6 +40,8 @@ CONFIG_SCHEMA = cv.Schema(
         cv.Required(CONF_NUMBER_FONT): cv.use_id(font.Font),
         # Text sensor the child's actions are published on for Home Assistant.
         cv.Optional(CONF_ACTION_SENSOR): cv.use_id(text_sensor.TextSensor),
+        # Width and height of the round display in pixels.
+        cv.Optional(CONF_SCREEN_SIZE, default=480): cv.one_of(*SCREEN_SIZES, int=True),
     }
 ).extend(cv.COMPONENT_SCHEMA)
 
@@ -70,6 +75,7 @@ async def to_code(config):
     for key, image_id in config[CONF_IMAGES].items():
         img = await cg.get_variable(image_id)
         cg.add(var.add_image(key, img))
+    cg.add(var.set_screen_size(config[CONF_SCREEN_SIZE]))
     number_font = await cg.get_variable(config[CONF_NUMBER_FONT])
     cg.add(var.set_number_font(number_font))
     if CONF_ACTION_SENSOR in config:

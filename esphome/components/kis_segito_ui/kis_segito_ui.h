@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 //
-// Kis Segito child UI for the round 480x480 knob display (LVGL 9).
+// Kis Segito child UI for round knob displays (LVGL 9), laid out for 480x480
+// and scaled to the display.
 // Input: rotate(+1/-1) per UI step, click(), long_press() (= back one level).
 
 #pragma once
@@ -171,6 +172,8 @@ class KisSegitoUI : public Component {
 
   void add_image(const std::string &key, image::Image *img) { this->images_[key] = img; }
   void set_number_font(font::Font *f) { this->number_font_ = f->get_lv_font(); }
+  // Display width and height in pixels (the screen is laid out for 480).
+  void set_screen_size(int size);
 
   // Called from YAML. Input is queued and handled in loop(), so the input
   // callbacks return at once.

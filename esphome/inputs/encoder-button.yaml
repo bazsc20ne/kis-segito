@@ -1,0 +1,178 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# Input profile: a rotary encoder with a push button (the VIEWE MD80E and
+# similar knobs). Turning steps the screen, a click selects, a long press goes
+# back; held longer, it returns to the child selector.
+#
+# Needs from the board profile: knob_encoder (a rotary_encoder sensor at its
+# finest resolution, resolution: 4), knob_button (a binary_sensor, pressed =
+# on) and the substitution encoder_counts_per_click (encoder counts per
+# mechanical click).
+
+substitutions:
+  # "true": log every raw encoder count (to check the encoder's detents).
+  encoder_debug: "false"
+
+globals:
+  # Encoder: raw count of the last committed step (a detent rest position),
+  # the last raw count and when it changed (see knob_encoder).
+  - id: encoder_base
+    type: int
+    initial_value: "0"
+  - id: encoder_last_pos
+    type: int
+    initial_value: "0"
+  - id: encoder_last_ms
+    type: uint32_t
+    initial_value: "0"
+  # Encoder: direction of the last count (+1/-1) and the clicks counted since
+  # the last UI step in that direction.
+  - id: encoder_dir
+    type: int
+    initial_value: "0"
+  - id: encoder_clicks
+    type: int
+    initial_value: "0"
+  # The detent that wakes the screen is not a step.
+  - id: encoder_swallow
+    type: bool
+    initial_value: "false"
+  # A press that woke the screen does not also act as a click.
+  - id: swallow_click
+    type: bool
+    initial_value: "false"
+  # The current press already acted as a long press.
+  - id: long_press_fired
+    type: bool
+    initial_value: "false"
+
+script:
+  # Long press: acts as soon as the button has been held for the set time,
+  # without waiting for the release.
+  - id: long_press_timer
+    mode: restart
+    then:
+      - delay: !lambda return (uint32_t) id(long_press_time).state;
+      - lambda: |-
+          if (id(knob_button).state && !id(swallow_click)) {
+            id(long_press_fired) = true;
+            id(last_input_ms) = millis();
+            id(ui).long_press();
+          }
+      # Still held until three times the long-press time: straight back to
+      # the child selector.
+      - delay: !lambda return (uint32_t) (2 * id(long_press_time).state);
+      - lambda: |-
+          if (id(knob_button).state && id(long_press_fired)) {
+            id(last_input_ms) = millis();
+            id(ui).go_home();
+          }
+
+sensor:
+  # The board profile's encoder (raw counts at the finest resolution).
+  - id: !extend knob_encoder
+    # Detent-aware stepping, count by count. A detent is counts_per_click raw
+    # counts while the knob keeps turning one way, but the first detent after
+    # a change of direction arrives one count earlier (the encoder's
+    # hysteresis). `encoder_base` is the count of the detent the knob is in,
+    # `encoder_dir` the direction of the last detent. The first click after a
+    # reversal or a rest makes a UI step at once; after that every "Encoder
+    # clicks per step" clicks do. Steps are queued; the screen handles them in
+    # the UI's own loop.
+    on_value:
+      - lambda: |-
+          const int pos = (int) x;
+          const uint32_t now = millis();
+          const int cpc = ${encoder_counts_per_click};
+          int &ref = id(encoder_base);
+          int &dir = id(encoder_dir);
+          if (now - id(encoder_last_ms) > 1000) {
+            id(encoder_clicks) = 0;  // after a rest the first click steps at once
+            // At rest the knob sits in a detent: counts lost while the knob was
+            // busy must not shift the detent grid.
+            ref = id(encoder_last_pos);
+          }
+          id(encoder_last_ms) = now;
+          int cur = id(encoder_last_pos);
+          id(encoder_last_pos) = pos;
+          id(last_input_ms) = now;
+          // Input while the screen is dimmed or off only wakes it; the detent
+          // of that turn is not a step. The detent tracking goes on, so the
+          // next detent counts in either direction.
+          if (id(screen_state) != 0 || !id(backlight).current_values.is_on()) {
+            ESP_LOGI("kis_segito", "Woken by the knob");
+            id(wake_screen).execute();
+            id(encoder_swallow) = true;
+          }
+          const int per_step = std::max(1, (int) id(encoder_clicks_per_step).state);
+          while (cur != pos) {
+            const int u = pos > cur ? 1 : -1;
+            cur += u;
+            const int target = ref + u * (dir != 0 && u != dir ? std::max(1, cpc - 1) : cpc);
+            if (u != dir && dir != 0 && cur == ref)
+              continue;  // back in the detent it came from
+            if (cur != target)
+              continue;
+            ref = cur;
+            if (u != dir)
+              id(encoder_clicks) = 0;  // a reversal: the first click steps at once
+            dir = u;
+            if (id(encoder_swallow)) {
+              id(encoder_swallow) = false;  // the detent that woke the screen
+              continue;
+            }
+            if (id(encoder_clicks) % per_step == 0) {
+              if (u > 0)
+                id(knob_step_up).execute();
+              else
+                id(knob_step_down).execute();
+            }
+            id(encoder_clicks)++;
+          }
+          if (${encoder_debug})
+            ESP_LOGD("kis_segito", "Encoder raw %d: detent %d, direction %d", pos, ref, dir);
+
+number:
+  # Encoder sensitivity, adjustable from Home Assistant and kept across reboots.
+  - platform: template
+    id: encoder_clicks_per_step
+    name: Encoder clicks per step
+    icon: mdi:knob
+    entity_category: config
+    mode: box
+    min_value: 1
+    max_value: 5
+    step: 1
+    initial_value: 1
+    optimistic: true
+    restore_value: true
+
+binary_sensor:
+  # The board profile's push button.
+  - id: !extend knob_button
+    # Pressing while the screensaver runs or the screen is dimmed or off wakes
+    # it at once (on the press, not the release); that press is not a click or
+    # long press. Otherwise a release before the long press time is a click,
+    # holding it is a long press (back one level; on the home screen it
+    # connects to Home Assistant again).
+    on_press:
+      - lambda: |-
+          id(last_input_ms) = millis();
+          id(long_press_fired) = false;
+          ESP_LOGD("kis_segito", "Button pressed (screen state %d)", id(screen_state));
+          if (id(screen_state) != 0 || !id(backlight).current_values.is_on()) {
+            ESP_LOGI("kis_segito", "Woken by the button");
+            id(swallow_click) = true;
+            id(wake_screen).execute();
+            return;
+          }
+          id(swallow_click) = false;
+          id(long_press_timer).execute();
+    on_release:
+      - script.stop: long_press_timer
+      - lambda: |-
+          id(last_input_ms) = millis();
+          if (!id(swallow_click) && !id(long_press_fired))
+            id(ui).click();
+          id(swallow_click) = false;
+          id(long_press_fired) = false;

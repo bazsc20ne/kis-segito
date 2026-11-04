@@ -8,7 +8,8 @@ resized copy in LVGL's RGB565A8 layout:
     b"KSI1" + width (uint16 LE) + height (uint16 LE)
     + width*height RGB565 pixels (LE) + width*height alpha bytes
 
-Backgrounds (size 480, the whole round screen) are opaque, without alpha:
+Backgrounds (the size of the whole round screen: 240, 360, 466 or 480) are
+opaque, without alpha:
 
     b"KSI2" + width (uint16 LE) + height (uint16 LE)
     + width*height RGB565 pixels (LE)
@@ -50,8 +51,8 @@ from .const import DOMAIN
 
 URL = "/api/kis_segito/knob_image/{image_id}/{size}"
 TOKEN_HEADER = "X-Kis-Segito-Token"
-SIZES = (64, 160, 180)
-BACKGROUND_SIZE = 480
+# The display sizes of the knobs: a background is the whole screen.
+BACKGROUND_SIZES = (240, 360, 466, 480)
 PRESETS_DIR = Path(__file__).parent / "frontend" / "backgrounds"
 PRESET_ID = re.compile(r"^bg_[1-6]$")
 AVATARS_DIR = Path(__file__).parent / "knob_avatars"
@@ -98,7 +99,7 @@ def convert(path: Path, size: int) -> bytes:
     image = ImageOps.fit(image, (size, size), Image.LANCZOS)
     pixels, alpha = _rgb565(image)
     header = struct.pack("<HH", size, size)
-    if size == BACKGROUND_SIZE:
+    if size in BACKGROUND_SIZES:
         return b"KSI2" + header + pixels
     return b"KSI1" + header + pixels + alpha
 
@@ -174,13 +175,13 @@ class KnobImageView(HomeAssistantView):
             return web.Response(status=403)
         if not IMAGE_ID.match(image_id) or not size.isdigit():
             return web.Response(status=404)
-        if int(size) == BACKGROUND_SIZE:
+        if int(size) in BACKGROUND_SIZES:
             path = (
                 PRESETS_DIR / f"{image_id}.jpg"
                 if PRESET_ID.match(image_id)
                 else Path(self.hass.config.path("image", image_id, "original"))
             )
-        elif AVATAR_ID.match(image_id) and int(size) in SIZES:
+        elif AVATAR_ID.match(image_id) and int(size) in ICON_SIZES:
             path = AVATARS_DIR / f"{image_id}.png"
         elif image_id.startswith("own_") and int(size) in ICON_SIZES:
             # An own (uploaded) icon, at any size the knob shows icons.
@@ -194,7 +195,7 @@ class KnobImageView(HomeAssistantView):
             )
         ) is not None:
             path = icon
-        elif int(size) in SIZES:
+        elif int(size) in ICON_SIZES:
             path = Path(self.hass.config.path("image", image_id, "original"))
         else:
             return web.Response(status=404)

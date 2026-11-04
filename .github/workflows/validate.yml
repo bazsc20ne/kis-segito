@@ -76,3 +76,4 @@ jobs:
           esphome config tests/diagnostics.yaml
           esphome config tests/pin-probe.yaml
           esphome config tests/sensors.yaml
+          esphome config tests/buttons-360.yaml

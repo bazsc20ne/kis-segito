@@ -85,8 +85,8 @@ epoch seconds, colours `#RRGGBB`):
   the matching input (see [sensors.md](sensors.md)).
 - `bg`: background of every screen: `""` (none), a built-in preset
   (`bg_1` … `bg_6`) or an uploaded picture id. The knob
-  downloads it like a picture, at size 480, as `KSI2` (RGB565 without alpha,
-  the whole screen).
+  downloads it like a picture, at the size of its screen (240, 360, 466 or
+  480), as `KSI2` (RGB565 without alpha, the whole screen).
 - `bgs`: counts the background changes. When `bg` or
   `bgs` changes while the knob runs, it stores the new background in its flash
   cache and restarts after 1 minute without input, then shows it from there.
@@ -98,12 +98,13 @@ epoch seconds, colours `#RRGGBB`):
 - `bg`, `bgs`: this knob's background (its own, or the common one).
 - Icons of routines, tasks and rewards (`routine_…`, `task_…`, `reward_…`) are
   not part of the firmware: the knob downloads them like a picture, at the size
-  it shows them (`knob_image/<icon>/<size>`).
+  it shows them (sizes up to 240) (`knob_image/<icon>/<size>`).
 - Every picture answer carries an `ETag`. The knob stores the pictures in its
   flash cache and, once after each start, asks again with `If-None-Match`; an
   unchanged picture is answered with `304 Not Modified`.
 - `children[].a`: the built-in avatars `avatar_01` … `avatar_12` are not part of
-  the firmware; the knob downloads them like a picture, at size 180.
+  the firmware; the knob downloads them like a picture, at size 180 (scaled
+  with the screen: 180 × screen size / 480).
 - `children[].a`, `rewards[].i`, `routines[].i`, `cp[].i`, `t[].i`: icon ids of
   the shared icon set (the file names in `assets/device/` without the size).
 - `routines`: today's routines shown on knobs. `ch` empty = every child.

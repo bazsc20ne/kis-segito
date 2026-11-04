@@ -4,7 +4,8 @@
 
 The generated package declares one ESPHome image per device asset (loaded from
 ${kis_segito_assets}, a local folder or a raw GitHub URL) and hands them to the
-kis_segito_ui component by key (<icon>_<size>). Icons whose id starts with one
+kis_segito_ui component by key (<icon>_<size>), resized for the display
+(${screen_size}; the sizes are for a 480 px screen). Icons whose id starts with one
 of the "_online" prefixes are left out (served by the integration instead).
 
 Usage: gen_esphome_images.py
@@ -44,13 +45,22 @@ def main() -> int:
         "    files:",
     ]
     for key in keys:
-        lines += [f"      - id: ks_img_{key}", f"        file: ${{kis_segito_assets}}/{key}.png"]
+        # Square images drawn for the 480 px screen, scaled to the display
+        # (unchanged at 480 px).
+        size = int(key.rsplit("_", 1)[1])
+        scaled = f"${{ ({size} * screen_size | int + 240) // 480 }}"
+        lines += [
+            f"      - id: ks_img_{key}",
+            f"        file: ${{kis_segito_assets}}/{key}.png",
+            f"        resize: {scaled}x{scaled}",
+        ]
     lines += [
         "",
         "kis_segito_ui:",
         "  id: ui",
         "  number_font: font_number",
         "  action_sensor: knob_action",
+        "  screen_size: ${screen_size}",
         "  images:",
     ]
     lines += [f"    {key}: ks_img_{key}" for key in keys]

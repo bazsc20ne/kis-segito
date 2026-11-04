@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# CI only: the core with the example button input profile and the screen laid
+# out for a 360 px display, on the MD80E board profile, to prove both build.
+# Not meant to be flashed.
+
+substitutions:
+  name: kis-segito
+  friendly_name: Kis Segito
+  kis_segito_components: components
+  kis_segito_assets: ../assets/device
+  screen_size: "360"
+  next_pin: GPIO4
+  previous_pin: GPIO15
+  select_pin: GPIO16
+
+packages:
+  board: !include ../hardware/board.yaml
+  input: !include ../inputs/buttons-example.yaml
+  core: !include ../kis-segito-core.yaml

@@ -27,7 +27,8 @@
 # knob.
 #
 # This package is the core (kis-segito-core.yaml) together with the board
-# profile of this knob (hardware/board.yaml). For another knob, see
+# profile of this knob (hardware/board.yaml) and its input profile, an encoder
+# with a push button (inputs/encoder-button.yaml). For another knob, see
 # docs/boards.md.
 #
 # Note: the knob button is on GPIO0, a strapping pin. Holding it down while the
@@ -35,4 +36,5 @@
 
 packages:
   board: !include hardware/board.yaml
+  input: !include inputs/encoder-button.yaml
   core: !include kis-segito-core.yaml

@@ -176,7 +176,7 @@ async def test_knob_image(hass: HomeAssistant, hass_client_no_auth) -> None:
     ok = await client.get(f"{url}/64", headers={header: token})
     assert ok.status == 200
     assert await ok.read() == raw
-    assert (await client.get(f"{url}/99", headers={header: token})).status == 404
+    assert (await client.get(f"{url}/300", headers={header: token})).status == 404
 
     # A rotated key replaces the old one at once.
     await manager.async_rotate_device_token("dev")
@@ -244,6 +244,10 @@ async def test_knob_background(hass: HomeAssistant, hass_client_no_auth) -> None
     assert ok.status == 200
     raw = await ok.read()
     assert raw[:4] == b"KSI2" and len(raw) == 8 + 480 * 480 * 2
+    # Smaller knobs get it at their own screen size.
+    small = await client.get("/api/kis_segito/knob_image/bg_3/360", headers=header)
+    raw = await small.read()
+    assert raw[:4] == b"KSI2" and len(raw) == 8 + 360 * 360 * 2
     assert (
         await client.get("/api/kis_segito/knob_image/bg_9/480", headers=header)
     ).status == 404

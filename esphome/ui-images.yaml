@@ -10,57 +10,82 @@ image:
     files:
       - id: ks_img_brand_mark_48
         file: ${kis_segito_assets}/brand_mark_48.png
+        resize: ${ (48 * screen_size | int + 240) // 480 }x${ (48 * screen_size | int + 240) // 480 }
       - id: ks_img_brand_mark_240
         file: ${kis_segito_assets}/brand_mark_240.png
+        resize: ${ (240 * screen_size | int + 240) // 480 }x${ (240 * screen_size | int + 240) // 480 }
       - id: ks_img_brand_mark_en_48
         file: ${kis_segito_assets}/brand_mark_en_48.png
+        resize: ${ (48 * screen_size | int + 240) // 480 }x${ (48 * screen_size | int + 240) // 480 }
       - id: ks_img_brand_mark_en_240
         file: ${kis_segito_assets}/brand_mark_en_240.png
+        resize: ${ (240 * screen_size | int + 240) // 480 }x${ (240 * screen_size | int + 240) // 480 }
       - id: ks_img_fn_rewards_160
         file: ${kis_segito_assets}/fn_rewards_160.png
+        resize: ${ (160 * screen_size | int + 240) // 480 }x${ (160 * screen_size | int + 240) // 480 }
       - id: ks_img_fn_piggy_160
         file: ${kis_segito_assets}/fn_piggy_160.png
+        resize: ${ (160 * screen_size | int + 240) // 480 }x${ (160 * screen_size | int + 240) // 480 }
       - id: ks_img_fn_tokens_160
         file: ${kis_segito_assets}/fn_tokens_160.png
+        resize: ${ (160 * screen_size | int + 240) // 480 }x${ (160 * screen_size | int + 240) // 480 }
       - id: ks_img_checkpoint_flag_28
         file: ${kis_segito_assets}/checkpoint_flag_28.png
+        resize: ${ (28 * screen_size | int + 240) // 480 }x${ (28 * screen_size | int + 240) // 480 }
       - id: ks_img_checkpoint_flag_32
         file: ${kis_segito_assets}/checkpoint_flag_32.png
+        resize: ${ (32 * screen_size | int + 240) // 480 }x${ (32 * screen_size | int + 240) // 480 }
       - id: ks_img_token_coin_front_28
         file: ${kis_segito_assets}/token_coin_front_28.png
+        resize: ${ (28 * screen_size | int + 240) // 480 }x${ (28 * screen_size | int + 240) // 480 }
       - id: ks_img_token_coin_tilt_left_28
         file: ${kis_segito_assets}/token_coin_tilt_left_28.png
+        resize: ${ (28 * screen_size | int + 240) // 480 }x${ (28 * screen_size | int + 240) // 480 }
       - id: ks_img_token_coin_tilt_right_28
         file: ${kis_segito_assets}/token_coin_tilt_right_28.png
+        resize: ${ (28 * screen_size | int + 240) // 480 }x${ (28 * screen_size | int + 240) // 480 }
       - id: ks_img_piggy_large_180
         file: ${kis_segito_assets}/piggy_large_180.png
+        resize: ${ (180 * screen_size | int + 240) // 480 }x${ (180 * screen_size | int + 240) // 480 }
       - id: ks_img_action_check_88
         file: ${kis_segito_assets}/action_check_88.png
+        resize: ${ (88 * screen_size | int + 240) // 480 }x${ (88 * screen_size | int + 240) // 480 }
       - id: ks_img_action_x_88
         file: ${kis_segito_assets}/action_x_88.png
+        resize: ${ (88 * screen_size | int + 240) // 480 }x${ (88 * screen_size | int + 240) // 480 }
       - id: ks_img_action_check_small_24
         file: ${kis_segito_assets}/action_check_small_24.png
+        resize: ${ (24 * screen_size | int + 240) // 480 }x${ (24 * screen_size | int + 240) // 480 }
       - id: ks_img_status_lock_64
         file: ${kis_segito_assets}/status_lock_64.png
+        resize: ${ (64 * screen_size | int + 240) // 480 }x${ (64 * screen_size | int + 240) // 480 }
       - id: ks_img_status_disconnected_28
         file: ${kis_segito_assets}/status_disconnected_28.png
+        resize: ${ (28 * screen_size | int + 240) // 480 }x${ (28 * screen_size | int + 240) // 480 }
       - id: ks_img_streak_flame_64
         file: ${kis_segito_assets}/streak_flame_64.png
+        resize: ${ (64 * screen_size | int + 240) // 480 }x${ (64 * screen_size | int + 240) // 480 }
       - id: ks_img_ball_base_48
         file: ${kis_segito_assets}/ball_base_48.png
+        resize: ${ (48 * screen_size | int + 240) // 480 }x${ (48 * screen_size | int + 240) // 480 }
       - id: ks_img_ball_dent_48
         file: ${kis_segito_assets}/ball_dent_48.png
+        resize: ${ (48 * screen_size | int + 240) // 480 }x${ (48 * screen_size | int + 240) // 480 }
       - id: ks_img_ball_highlight_48
         file: ${kis_segito_assets}/ball_highlight_48.png
+        resize: ${ (48 * screen_size | int + 240) // 480 }x${ (48 * screen_size | int + 240) // 480 }
       - id: ks_img_hand_cartoon_64
         file: ${kis_segito_assets}/hand_cartoon_64.png
+        resize: ${ (64 * screen_size | int + 240) // 480 }x${ (64 * screen_size | int + 240) // 480 }
       - id: ks_img_badge_piggy_plus_48
         file: ${kis_segito_assets}/badge_piggy_plus_48.png
+        resize: ${ (48 * screen_size | int + 240) // 480 }x${ (48 * screen_size | int + 240) // 480 }
 
 kis_segito_ui:
   id: ui
   number_font: font_number
   action_sensor: knob_action
+  screen_size: ${screen_size}
   images:
     brand_mark_48: ks_img_brand_mark_48
     brand_mark_240: ks_img_brand_mark_240

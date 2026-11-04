@@ -8,12 +8,13 @@
 #
 #   packages:
 #     kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito-core.yaml@v0.9.3
+#     input: github://bazsc20ne/kis-segito/esphome/inputs/encoder-button.yaml@v0.9.3
 #     board: !include my-board.yaml
 #
-# The board profile provides these IDs: knob_display (the display, 480x480),
-# backlight (a light), knob_encoder (a rotary_encoder sensor), knob_button (a
-# binary_sensor, pressed = on), and the substitution encoder_counts_per_click.
-# The core adds the knob's behaviour to them.
+# The board profile provides knob_display (the round display), backlight (a
+# light) and the substitution screen_size (240, 360, 466 or 480 px). An input
+# profile (esphome/inputs/) drives the screen through the generic inputs
+# below: input_next, input_previous, input_select, input_back and input_wake.
 #
 # The child UI is drawn by the kis_segito_ui external component (esphome/components)
 # with the icons from assets/device. On-screen texts are not hard-coded: Home
@@ -27,8 +28,10 @@ substitutions:
   # version of this package; CI and local builds point them at the repository.
   kis_segito_components: github://bazsc20ne/kis-segito@v0.9.3
   kis_segito_assets: https://raw.githubusercontent.com/bazsc20ne/kis-segito/v0.9.3/assets/device
-  # "true": log every raw encoder count (to check the encoder's detents).
-  encoder_debug: "false"
+  # Width and height of the round display in pixels: 240, 360, 466 or 480.
+  # The screen is laid out for 480 px and scaled to it. Set by the board
+  # profile.
+  screen_size: "480"
   # Loading animation: highlight layer offset from the ball centre, in pixels
   # of the 48 px source image (negative = left / up). 0 keeps it where the
   # highlight image draws it.
@@ -197,37 +200,6 @@ wifi:
 captive_portal:
 
 globals:
-  # Encoder: raw count of the last committed step (a detent rest position),
-  # the last raw count and when it changed (see knob_encoder).
-  - id: encoder_base
-    type: int
-    initial_value: "0"
-  - id: encoder_last_pos
-    type: int
-    initial_value: "0"
-  - id: encoder_last_ms
-    type: uint32_t
-    initial_value: "0"
-  # Encoder: direction of the last count (+1/-1) and the clicks counted since
-  # the last UI step in that direction.
-  - id: encoder_dir
-    type: int
-    initial_value: "0"
-  - id: encoder_clicks
-    type: int
-    initial_value: "0"
-  # The detent that wakes the screen is not a step.
-  - id: encoder_swallow
-    type: bool
-    initial_value: "false"
-  # A press that woke the screen does not also act as a click.
-  - id: swallow_click
-    type: bool
-    initial_value: "false"
-  # The current press already acted as a long press.
-  - id: long_press_fired
-    type: bool
-    initial_value: "false"
   # Translated UI strings, filled by Home Assistant (key -> text).
   - id: ui_strings
     type: std::map<std::string, std::string>
@@ -375,16 +347,18 @@ script:
             int dent;        // ticks left showing the dented image
             float nx, ny;    // direction of the last contact point
           };
+          // Laid out for a 480 px screen, scaled to the display.
+          constexpr float K = ${screen_size} / 480.0f;
           static Ball balls[] = {
-              {id(ball_1), id(ball_1_hl), 240, 170, 4.6f, 2.1f, 22, 0, 0, 1},
-              {id(ball_2), id(ball_2_hl), 190, 280, -3.2f, 3.9f, 18, 0, 0, 1},
-              {id(ball_3), id(ball_3_hl), 300, 260, 2.4f, -4.4f, 15, 0, 0, 1},
-              {id(ball_4), id(ball_4_hl), 250, 320, -4.1f, -2.7f, 20, 0, 0, 1},
-              {id(ball_5), id(ball_5_hl), 160, 200, 3.7f, 3.3f, 17, 0, 0, 1},
+              {id(ball_1), id(ball_1_hl), 240 * K, 170 * K, 4.6f * K, 2.1f * K, (int) (22 * K), 0, 0, 1},
+              {id(ball_2), id(ball_2_hl), 190 * K, 280 * K, -3.2f * K, 3.9f * K, (int) (18 * K), 0, 0, 1},
+              {id(ball_3), id(ball_3_hl), 300 * K, 260 * K, 2.4f * K, -4.4f * K, (int) (15 * K), 0, 0, 1},
+              {id(ball_4), id(ball_4_hl), 250 * K, 320 * K, -4.1f * K, -2.7f * K, (int) (20 * K), 0, 0, 1},
+              {id(ball_5), id(ball_5_hl), 160 * K, 200 * K, 3.7f * K, 3.3f * K, (int) (17 * K), 0, 0, 1},
           };
           static const lv_image_dsc_t *round_img = id(ks_img_ball_base_48)->get_lv_image_dsc();
           static const lv_image_dsc_t *dent_img = id(ks_img_ball_dent_48)->get_lv_image_dsc();
-          constexpr int IMG = 48;  // source image size of all layers
+          static const int IMG = round_img->header.w;  // image size of all layers
           for (auto &b : balls) {
             const int scale = 2 * b.r * 256 / IMG;
             lv_image_set_scale(b.base, scale);
@@ -392,10 +366,11 @@ script:
           }
           id(loading_anim) = lv_timer_create(
               [](lv_timer_t *) {
-                constexpr float CX = 240, CY = 240, EDGE = 234;
-                constexpr int IMG = 48;
+                constexpr float K = ${screen_size} / 480.0f;
+                constexpr float CX = 240 * K, CY = 240 * K, EDGE = 234 * K;
                 constexpr int DENT_TICKS = 4;
-                // Highlight offset from the ball centre, in source image pixels.
+                // Highlight offset from the ball centre, in pixels of the 48 px
+                // source image.
                 constexpr float HL_DX = ${ball_highlight_dx}, HL_DY = ${ball_highlight_dy};
                 constexpr size_t N = sizeof(balls) / sizeof(balls[0]);
                 auto hit = [](Ball &b, float nx, float ny) {
@@ -461,9 +436,9 @@ script:
                   if (b.dent > 0)
                     b.dent--;
                   const int px = (int) b.x - IMG / 2, py = (int) b.y - IMG / 2;
-                  const float k = 2.0f * b.r / IMG;
                   lv_obj_set_pos(b.base, px, py);
-                  lv_obj_set_pos(b.highlight, px + (int) (HL_DX * k), py + (int) (HL_DY * k));
+                  const float hk = 2.0f * b.r / 48.0f;
+                  lv_obj_set_pos(b.highlight, px + (int) (HL_DX * hk), py + (int) (HL_DY * hk));
                 }
               },
               30, nullptr);
@@ -519,27 +494,6 @@ script:
             - lvgl.page.show: loading_page
             - script.execute: start_balls
 
-  # Long press: acts as soon as the button has been held for the set time,
-  # without waiting for the release.
-  - id: long_press_timer
-    mode: restart
-    then:
-      - delay: !lambda return (uint32_t) id(long_press_time).state;
-      - lambda: |-
-          if (id(knob_button).state && !id(swallow_click)) {
-            id(long_press_fired) = true;
-            id(last_input_ms) = millis();
-            id(ui).long_press();
-          }
-      # Still held until three times the long-press time: straight back to
-      # the child selector.
-      - delay: !lambda return (uint32_t) (2 * id(long_press_time).state);
-      - lambda: |-
-          if (id(knob_button).state && id(long_press_fired)) {
-            id(last_input_ms) = millis();
-            id(ui).go_home();
-          }
-
   # One UI step clockwise / anticlockwise.
   - id: knob_step_up
     then:
@@ -547,6 +501,47 @@ script:
   - id: knob_step_down
     then:
       - lambda: id(ui).rotate(-1);
+
+  # Generic inputs, for any input hardware (see docs/boards.md). While the
+  # screen is dimmed, off or shows the screensaver, each one only wakes it.
+  - id: input_next
+    then:
+      - lambda: |-
+          id(last_input_ms) = millis();
+          if (id(screen_state) != 0 || !id(backlight).current_values.is_on())
+            id(wake_screen).execute();
+          else
+            id(knob_step_up).execute();
+  - id: input_previous
+    then:
+      - lambda: |-
+          id(last_input_ms) = millis();
+          if (id(screen_state) != 0 || !id(backlight).current_values.is_on())
+            id(wake_screen).execute();
+          else
+            id(knob_step_down).execute();
+  # Select = a click, back = a long press.
+  - id: input_select
+    then:
+      - lambda: |-
+          id(last_input_ms) = millis();
+          if (id(screen_state) != 0 || !id(backlight).current_values.is_on())
+            id(wake_screen).execute();
+          else
+            id(ui).click();
+  - id: input_back
+    then:
+      - lambda: |-
+          id(last_input_ms) = millis();
+          if (id(screen_state) != 0 || !id(backlight).current_values.is_on())
+            id(wake_screen).execute();
+          else
+            id(ui).long_press();
+  - id: input_wake
+    then:
+      - lambda: |-
+          id(last_input_ms) = millis();
+          id(wake_screen).execute();
 
   # Night light: the screen goes dark, the white background with the moon
   # appears, then the backlight fades up.
@@ -681,68 +676,6 @@ script:
 # --- Input ----------------------------------------------------------------------
 
 sensor:
-  # The board profile's encoder (raw counts at the finest resolution).
-  - id: !extend knob_encoder
-    # Detent-aware stepping, count by count. A detent is counts_per_click raw
-    # counts while the knob keeps turning one way, but the first detent after
-    # a change of direction arrives one count earlier (the encoder's
-    # hysteresis). `encoder_base` is the count of the detent the knob is in,
-    # `encoder_dir` the direction of the last detent. The first click after a
-    # reversal or a rest makes a UI step at once; after that every "Encoder
-    # clicks per step" clicks do. Steps are queued; the screen handles them in
-    # the UI's own loop.
-    on_value:
-      - lambda: |-
-          const int pos = (int) x;
-          const uint32_t now = millis();
-          const int cpc = ${encoder_counts_per_click};
-          int &ref = id(encoder_base);
-          int &dir = id(encoder_dir);
-          if (now - id(encoder_last_ms) > 1000) {
-            id(encoder_clicks) = 0;  // after a rest the first click steps at once
-            // At rest the knob sits in a detent: counts lost while the knob was
-            // busy must not shift the detent grid.
-            ref = id(encoder_last_pos);
-          }
-          id(encoder_last_ms) = now;
-          int cur = id(encoder_last_pos);
-          id(encoder_last_pos) = pos;
-          id(last_input_ms) = now;
-          // Input while the screen is dimmed or off only wakes it; the detent
-          // of that turn is not a step. The detent tracking goes on, so the
-          // next detent counts in either direction.
-          if (id(screen_state) != 0 || !id(backlight).current_values.is_on()) {
-            ESP_LOGI("kis_segito", "Woken by the knob");
-            id(wake_screen).execute();
-            id(encoder_swallow) = true;
-          }
-          const int per_step = std::max(1, (int) id(encoder_clicks_per_step).state);
-          while (cur != pos) {
-            const int u = pos > cur ? 1 : -1;
-            cur += u;
-            const int target = ref + u * (dir != 0 && u != dir ? std::max(1, cpc - 1) : cpc);
-            if (u != dir && dir != 0 && cur == ref)
-              continue;  // back in the detent it came from
-            if (cur != target)
-              continue;
-            ref = cur;
-            if (u != dir)
-              id(encoder_clicks) = 0;  // a reversal: the first click steps at once
-            dir = u;
-            if (id(encoder_swallow)) {
-              id(encoder_swallow) = false;  // the detent that woke the screen
-              continue;
-            }
-            if (id(encoder_clicks) % per_step == 0) {
-              if (u > 0)
-                id(knob_step_up).execute();
-              else
-                id(knob_step_down).execute();
-            }
-            id(encoder_clicks)++;
-          }
-          if (${encoder_debug})
-            ESP_LOGD("kis_segito", "Encoder raw %d: detent %d, direction %d", pos, ref, dir);
   # Sensor inputs. Route any sensor to them in your device config (see
   # docs/sensors.md), e.g. on_value -> sensor.template.publish; Home Assistant
   # can also forward one of its own entities.
@@ -807,19 +740,6 @@ number:
     initial_value: 400
     optimistic: true
     restore_value: true
-  # Encoder sensitivity, adjustable from Home Assistant and kept across reboots.
-  - platform: template
-    id: encoder_clicks_per_step
-    name: Encoder clicks per step
-    icon: mdi:knob
-    entity_category: config
-    mode: box
-    min_value: 1
-    max_value: 5
-    step: 1
-    initial_value: 1
-    optimistic: true
-    restore_value: true
 
 select:
   # Animation level of the child UI, adjustable from Home Assistant.
@@ -836,34 +756,6 @@ select:
       - lambda: id(ui).set_animation_mode(std::string(x.c_str(), x.size()));
 
 binary_sensor:
-  # The board profile's push button.
-  - id: !extend knob_button
-    # Pressing while the screensaver runs or the screen is dimmed or off wakes
-    # it at once (on the press, not the release); that press is not a click or
-    # long press. Otherwise a release before the long press time is a click,
-    # holding it is a long press (back one level; on the home screen it
-    # connects to Home Assistant again).
-    on_press:
-      - lambda: |-
-          id(last_input_ms) = millis();
-          id(long_press_fired) = false;
-          ESP_LOGD("kis_segito", "Button pressed (screen state %d)", id(screen_state));
-          if (id(screen_state) != 0 || !id(backlight).current_values.is_on()) {
-            ESP_LOGI("kis_segito", "Woken by the button");
-            id(swallow_click) = true;
-            id(wake_screen).execute();
-            return;
-          }
-          id(swallow_click) = false;
-          id(long_press_timer).execute();
-    on_release:
-      - script.stop: long_press_timer
-      - lambda: |-
-          id(last_input_ms) = millis();
-          if (!id(swallow_click) && !id(long_press_fired))
-            id(ui).click();
-          id(swallow_click) = false;
-          id(long_press_fired) = false;
   # Presence input (see the sensor inputs above).
   - platform: template
     id: ks_presence
@@ -914,13 +806,13 @@ font:
   # translations pushed from Home Assistant render without a firmware change.
   - file: "gfonts://Nunito@700"
     id: font_text
-    size: 26
+    size: ${ (26 * screen_size | int + 240) // 480 }
     bpp: 4
     glyphsets: [GF_Latin_Core, GF_Cyrillic_Core]
   # Numbers (token counts, prices).
   - file: "gfonts://Baloo 2@800"
     id: font_number
-    size: 34
+    size: ${ (34 * screen_size | int + 240) // 480 }
     bpp: 4
     glyphs: "0123456789+-/"
 
@@ -943,72 +835,72 @@ lvgl:
         - image:
             id: ball_1
             src: ks_img_ball_base_48
-            x: 216
-            y: 216
+            x: ${ (216 * screen_size | int + 240) // 480 }
+            y: ${ (216 * screen_size | int + 240) // 480 }
             image_recolor: 0xFFC94A
             image_recolor_opa: 70%
         - image:
             id: ball_1_hl
             src: ks_img_ball_highlight_48
-            x: 216
-            y: 216
+            x: ${ (216 * screen_size | int + 240) // 480 }
+            y: ${ (216 * screen_size | int + 240) // 480 }
         - image:
             id: ball_2
             src: ks_img_ball_base_48
-            x: 216
-            y: 216
+            x: ${ (216 * screen_size | int + 240) // 480 }
+            y: ${ (216 * screen_size | int + 240) // 480 }
             image_recolor: 0xFF8FB1
             image_recolor_opa: 70%
         - image:
             id: ball_2_hl
             src: ks_img_ball_highlight_48
-            x: 216
-            y: 216
+            x: ${ (216 * screen_size | int + 240) // 480 }
+            y: ${ (216 * screen_size | int + 240) // 480 }
         - image:
             id: ball_3
             src: ks_img_ball_base_48
-            x: 216
-            y: 216
+            x: ${ (216 * screen_size | int + 240) // 480 }
+            y: ${ (216 * screen_size | int + 240) // 480 }
             image_recolor: 0x6CB8FF
             image_recolor_opa: 70%
         - image:
             id: ball_3_hl
             src: ks_img_ball_highlight_48
-            x: 216
-            y: 216
+            x: ${ (216 * screen_size | int + 240) // 480 }
+            y: ${ (216 * screen_size | int + 240) // 480 }
         - image:
             id: ball_4
             src: ks_img_ball_base_48
-            x: 216
-            y: 216
+            x: ${ (216 * screen_size | int + 240) // 480 }
+            y: ${ (216 * screen_size | int + 240) // 480 }
             image_recolor: 0x6BCB77
             image_recolor_opa: 70%
         - image:
             id: ball_4_hl
             src: ks_img_ball_highlight_48
-            x: 216
-            y: 216
+            x: ${ (216 * screen_size | int + 240) // 480 }
+            y: ${ (216 * screen_size | int + 240) // 480 }
         - image:
             id: ball_5
             src: ks_img_ball_base_48
-            x: 216
-            y: 216
+            x: ${ (216 * screen_size | int + 240) // 480 }
+            y: ${ (216 * screen_size | int + 240) // 480 }
             image_recolor: 0xFF9F43
             image_recolor_opa: 70%
         - image:
             id: ball_5_hl
             src: ks_img_ball_highlight_48
-            x: 216
-            y: 216
+            x: ${ (216 * screen_size | int + 240) // 480 }
+            y: ${ (216 * screen_size | int + 240) // 480 }
         - image:
             id: boot_mark
             src: ks_img_brand_mark_en_240
             align: CENTER
-            y: -30
+            y: ${ -((30 * screen_size | int + 240) // 480) }
         - label:
             id: lbl_loading
             align: CENTER
-            y: 140
+            y: ${ (140 * screen_size | int + 240) // 480 }
             text_font: font_text
             text_color: 0xFFFFFF
             text: ""

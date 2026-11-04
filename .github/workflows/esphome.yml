@@ -71,3 +71,13 @@ jobs:
         with:
           yaml-file: esphome/tests/sensors.yaml
           version: 2026.10.2
+
+  build-buttons:
+    name: Compile button input example (360 px layout)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: esphome/build-action@76cd6898550762b189215bbe6e50e29080fd2c33 # v7.0.0
+        with:
+          yaml-file: esphome/tests/buttons-360.yaml
+          version: 2026.10.2

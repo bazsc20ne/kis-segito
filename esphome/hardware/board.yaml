@@ -14,6 +14,8 @@
 # device config without changing this file.
 
 substitutions:
+  # The round display is 480x480 pixels.
+  screen_size: "480"
   # Panel controller init sequence: gc9503 (MD80E panel per its datasheet and
   # the factory demo) or st7701 (the vendor example's active table).
   display_controller: gc9503

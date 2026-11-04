@@ -34,6 +34,14 @@ namespace esphome::kis_segito_ui {
 
 static const char *const TAG = "kis_segito_ui";
 
+// The screen is laid out on a 480 px canvas and scaled to the display's size
+// (240, 360, 466 or 480 px). At 480 px nothing is scaled.
+static int g_screen = 480;
+static inline int S(int v) { return g_screen == 480 ? v : (v * g_screen + (v < 0 ? -240 : 240)) / 480; }
+static inline float SF(float v) { return g_screen == 480 ? v : v * static_cast<float>(g_screen) / 480.0f; }
+
+void KisSegitoUI::set_screen_size(int size) { g_screen = size; }
+
 // PSRAM kept free for LVGL's own work (layers, image transforms) besides a
 // picture: as much as the picture itself, at least 64 KB, at most this. (A
 // fixed large reserve made every small picture "not fit" once the memory was
@@ -70,7 +78,9 @@ static bool is_online_icon(const std::string &key) {
 // Carousel slots are drawn inside this window: everything outside it is under
 // the opaque band of the time track, so it never needs drawing while a
 // carousel slides.
-static constexpr int WIN_X = 44, WIN_Y = 44, WIN_END = 436;
+#define WIN_X S(44)
+#define WIN_Y S(44)
+#define WIN_END S(436)
 
 // A carousel item is drawn once into this ARGB8888 buffer (allocated once)
 // and kept as a picture cropped to its content (ItemPic).
@@ -249,8 +259,8 @@ static void log_memory(const char *when = "") {
   g_frames_since_ms = now;
 }
 
-static constexpr int SCREEN = 480;
-static constexpr int CENTER = SCREEN / 2;
+#define SCREEN g_screen
+#define CENTER (g_screen / 2)
 static constexpr uint32_t BASE_BG = 0x1B2140;  // deep navy
 static constexpr uint32_t TRACK_DIM = 0x3A4066;
 static constexpr uint32_t ZONE_OK = 0x6BCB77;
@@ -260,14 +270,14 @@ static constexpr uint32_t ZONE_DEPOSIT = 0x6BCB77;   // tokens into the piggy ba
 static constexpr uint32_t ZONE_WITHDRAW = 0xFF9F43;  // tokens out of it
 // Time track geometry: outer edge radius and width of each arc (an LVGL arc is
 // drawn inwards from its outer edge).
-static constexpr int OUTER_R = 222;  // outer (shared) track
-static constexpr int OUTER_W = 14;
-static constexpr int OUTER_MID = OUTER_R - OUTER_W / 2;
-static constexpr int INNER_R = 203;  // inner (child) track, 5 px inside the outer one
-static constexpr int INNER_W = 6;
-static constexpr int INNER_MID = INNER_R - INNER_W / 2;
-static constexpr int BAND_R = 196;   // the track band is solid from here outwards
-static constexpr int FADE_W = 6;     // soft inner edge of the band
+#define OUTER_R S(222)  // outer (shared) track
+#define OUTER_W S(14)
+#define OUTER_MID (OUTER_R - OUTER_W / 2)
+#define INNER_R S(203)  // inner (child) track, 5 px inside the outer one
+#define INNER_W S(6)
+#define INNER_MID (INNER_R - INNER_W / 2)
+#define BAND_R S(196)  // the track band is solid from here outwards
+#define FADE_W S(6)    // soft inner edge of the band
 
 // Deterministic pseudo-random numbers for pile jitter.
 static uint32_t hash32(uint32_t x) {
@@ -463,7 +473,7 @@ static void slot_x_cb(void *var, int32_t centre_x) {
   // into a layer on every frame, which makes the slide stutter or jump.
   if (lv_obj_has_flag(slot, LV_OBJ_FLAG_USER_1) && lv_obj_get_child_count(slot) > 0) {
     const int dist = std::abs(centre_x - CENTER);
-    const int opa = 255 - std::min(dist, 240) * 150 / 240;
+    const int opa = 255 - std::min(dist, CENTER) * 150 / CENTER;
     lv_obj_set_style_image_opa(lv_obj_get_child(slot, 0), static_cast<lv_opa_t>(std::max(opa, 0)), 0);
   }
 }
@@ -1017,7 +1027,7 @@ void KisSegitoUI::refuse_offline_(lv_obj_t *target) {
     lv_anim_t a;
     lv_anim_init(&a);
     lv_anim_set_var(&a, target);
-    lv_anim_set_values(&a, -10, 10);
+    lv_anim_set_values(&a, -S(10), S(10));
     lv_anim_set_duration(&a, 60);
     lv_anim_set_reverse_duration(&a, 60);
     lv_anim_set_repeat_count(&a, 2);
@@ -1096,7 +1106,7 @@ void KisSegitoUI::start() {
   // Always visible while offline, at the right edge of the top gap.
   this->offline_icon_ = lv_image_create(lv_layer_top());
   lv_image_set_src(this->offline_icon_, this->img_("status_disconnected_28"));
-  lv_obj_set_pos(this->offline_icon_, CENTER + 50, 18);
+  lv_obj_set_pos(this->offline_icon_, CENTER + S(50), S(18));
   lv_obj_add_flag(this->offline_icon_, LV_OBJ_FLAG_HIDDEN);
 
   this->last_input_ms_ = millis();
@@ -1255,9 +1265,9 @@ void KisSegitoUI::apply_background_(const std::string &id) {
   this->wanted_bg_ = id;
   const std::string &use = id.empty() ? this->general_bg_ : id;
   const lv_image_dsc_t *dsc = this->background_(id);
-  if (dsc == nullptr && !use.empty() && !this->photo_failed_.count("@" + use + "_480"))
+  if (dsc == nullptr && !use.empty() && !this->photo_failed_.count("@" + use + "_" + std::to_string(SCREEN)))
     return;  // still loading: keep what is shown
-  this->shown_bg_ = dsc != nullptr ? "@" + use + "_480" : "";
+  this->shown_bg_ = dsc != nullptr ? "@" + use + "_" + std::to_string(SCREEN) : "";
   if (lv_obj_get_style_bg_image_src(this->root_, LV_PART_MAIN) != dsc) {
     lv_obj_set_style_bg_image_src(this->root_, dsc, 0);
     this->update_ring_();  // the ring shows the background too
@@ -1272,7 +1282,7 @@ const lv_image_dsc_t *KisSegitoUI::background_(const std::string &id) {
   const std::string &use = id.empty() ? this->general_bg_ : id;
   if (use.empty())
     return nullptr;
-  return this->img_("@" + use + "_480");
+  return this->img_("@" + use + "_" + std::to_string(SCREEN));
 }
 
 void KisSegitoUI::request_photo_(const std::string &key) {
@@ -1284,8 +1294,12 @@ void KisSegitoUI::request_photo_(const std::string &key) {
   const size_t sep = key.rfind('_');
   if (sep == std::string::npos || sep < 2)
     return;
+  // The key names the size on the 480 px canvas; a background is the whole
+  // screen already.
+  const int nominal = atoi(key.c_str() + sep + 1);
+  const int pixels = nominal >= SCREEN ? nominal : S(nominal);
   const std::string url =
-      this->img_base_ + "/api/kis_segito/knob_image/" + key.substr(1, sep - 1) + "/" + key.substr(sep + 1);
+      this->img_base_ + "/api/kis_segito/knob_image/" + key.substr(1, sep - 1) + "/" + std::to_string(pixels);
   {
     std::lock_guard<std::mutex> lock(this->photo_mutex_);
     this->photo_queue_.push_back({key, url, this->img_token_});
@@ -1461,9 +1475,9 @@ void KisSegitoUI::start_background_change_(const std::string &bg) {
   this->bg_target_ = bg;
   {
     this->bg_store_ = BG_PENDING;
-    const std::string key = "@" + bg + "_480";
+    const std::string key = "@" + bg + "_" + std::to_string(SCREEN);
     const size_t sep = key.rfind('_');
-    PhotoJob job{key, this->img_base_ + "/api/kis_segito/knob_image/" + key.substr(1, sep - 1) + "/480",
+    PhotoJob job{key, this->img_base_ + "/api/kis_segito/knob_image/" + key.substr(1, sep - 1) + "/" + std::to_string(SCREEN),
                  this->img_token_};
     job.store = true;
     job.gen = gen;
@@ -1710,12 +1724,12 @@ lv_obj_t *KisSegitoUI::image_(lv_obj_t *parent, const std::string &key, int cx, 
 lv_obj_t *KisSegitoUI::number_pill_(lv_obj_t *parent, int cx, int cy, int value, bool with_coin) {
   lv_obj_t *pill = lv_obj_create(parent);
   remove_defaults(pill);
-  lv_obj_set_size(pill, LV_SIZE_CONTENT, 48);
-  lv_obj_set_style_radius(pill, 24, 0);
+  lv_obj_set_size(pill, LV_SIZE_CONTENT, S(48));
+  lv_obj_set_style_radius(pill, S(24), 0);
   lv_obj_set_style_bg_color(pill, lv_color_hex(0x0F1330), 0);
   lv_obj_set_style_bg_opa(pill, 200, 0);
-  lv_obj_set_style_pad_hor(pill, 14, 0);
-  lv_obj_set_style_pad_column(pill, 6, 0);
+  lv_obj_set_style_pad_hor(pill, S(14), 0);
+  lv_obj_set_style_pad_column(pill, S(6), 0);
   lv_obj_set_flex_flow(pill, LV_FLEX_FLOW_ROW);
   lv_obj_set_flex_align(pill, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
   if (with_coin) {
@@ -1728,7 +1742,7 @@ lv_obj_t *KisSegitoUI::number_pill_(lv_obj_t *parent, int cx, int cy, int value,
     lv_obj_set_style_text_font(label, this->number_font_, 0);
   lv_obj_set_style_text_color(label, lv_color_hex(0xFFE08A), 0);
   lv_obj_update_layout(pill);
-  lv_obj_set_pos(pill, cx - lv_obj_get_width(pill) / 2, cy - 24);
+  lv_obj_set_pos(pill, cx - lv_obj_get_width(pill) / 2, cy - S(24));
   return pill;
 }
 
@@ -1844,16 +1858,16 @@ void KisSegitoUI::pile_(lv_obj_t *parent, int cx, int base_y, int count, uint32_
   std::vector<Coin> coins;
   for (size_t idx : order) {
     const Row &row = rows[idx];
-    if (row.y - 14 > SCREEN + 16)
+    if (row.y - S(14) > SCREEN + S(16))
       continue;  // below the screen: counted, not drawn
     for (int i = 0; i < row.n; i++) {
       const uint32_t h = hash32(seed * 7919u + idx * 131u + i);
-      const int jx = static_cast<int>(h % 7) - 3;
-      const int jy = static_cast<int>((h >> 8) % 5) - 2;
+      const int jx = S(static_cast<int>(h % 7) - 3);
+      const int jy = S(static_cast<int>((h >> 8) % 5) - 2);
       const int x = cx + static_cast<int>((i - (row.n - 1) / 2.0f) * dx) + jx;
       const lv_image_dsc_t *dsc = dscs[(h >> 16) % 3];
       if (dsc != nullptr)
-        coins.push_back({x - 14, row.y + jy - 14, dsc});
+        coins.push_back({x - S(14), row.y + jy - S(14), dsc});
     }
   }
   if (coins.empty())
@@ -2181,8 +2195,8 @@ void KisSegitoUI::do_rotate_(int dir, bool animate) {
       this->confirm_yes_ = !this->confirm_yes_;
       lv_obj_t *target = this->confirm_yes_ ? this->confirm_yes_obj_ : this->confirm_no_;
       lv_obj_t *other = this->confirm_yes_ ? this->confirm_no_ : this->confirm_yes_obj_;
-      lv_obj_set_pos(this->confirm_ring_, lv_obj_get_x(target) + lv_obj_get_width(target) / 2 - 58,
-                     lv_obj_get_y(target) + lv_obj_get_height(target) / 2 - 58);
+      lv_obj_set_pos(this->confirm_ring_, lv_obj_get_x(target) + lv_obj_get_width(target) / 2 - S(58),
+                     lv_obj_get_y(target) + lv_obj_get_height(target) / 2 - S(58));
       lv_obj_set_style_image_opa(target, LV_OPA_COVER, 0);
       lv_obj_set_style_image_opa(other, 140, 0);
       break;
@@ -2198,7 +2212,7 @@ void KisSegitoUI::shake_(lv_obj_t *target) {
   lv_anim_t a;
   lv_anim_init(&a);
   lv_anim_set_var(&a, target);
-  lv_anim_set_values(&a, -10, 10);
+  lv_anim_set_values(&a, -S(10), S(10));
   lv_anim_set_duration(&a, 60);
   lv_anim_set_reverse_duration(&a, 60);
   lv_anim_set_repeat_count(&a, 2);
@@ -2278,11 +2292,11 @@ void KisSegitoUI::do_click_() {
       this->busy_ = true;
       const int flying = std::min(r.cost, 40);
       for (int i = 0; i < flying; i++) {
-        lv_obj_t *coin = this->image_(this->screen_obj_, "token_coin_front_28", CENTER, 420);
+        lv_obj_t *coin = this->image_(this->screen_obj_, "token_coin_front_28", CENTER, S(420));
         lv_anim_t a;
         lv_anim_init(&a);
         lv_anim_set_var(&a, coin);
-        lv_anim_set_values(&a, lv_obj_get_y(coin), 150 + static_cast<int>(hash32(i) % 30));
+        lv_anim_set_values(&a, lv_obj_get_y(coin), S(150 + static_cast<int>(hash32(i) % 30)));
         lv_anim_set_delay(&a, i * 45);
         lv_anim_set_duration(&a, this->anim_ms_(450));
         lv_anim_set_exec_cb(&a, [](void *var, int32_t v) { lv_obj_set_y(static_cast<lv_obj_t *>(var), v); });
@@ -2327,13 +2341,13 @@ void KisSegitoUI::do_click_() {
       this->busy_ = true;
       const int flying = std::min(std::abs(amount), 40);
       for (int i = 0; i < flying; i++) {
-        const int from = amount > 0 ? 410 : 185;
-        const int to = amount > 0 ? 185 : 410;
+        const int from = S(amount > 0 ? 410 : 185);
+        const int to = S(amount > 0 ? 185 : 410);
         lv_obj_t *coin = this->image_(this->screen_obj_, "token_coin_front_28", CENTER, from);
         lv_anim_t a;
         lv_anim_init(&a);
         lv_anim_set_var(&a, coin);
-        lv_anim_set_values(&a, from - 14, to - 14 + static_cast<int>(hash32(i) % 20) - 10);
+        lv_anim_set_values(&a, from - S(14), to - S(14) + S(static_cast<int>(hash32(i) % 20) - 10));
         lv_anim_set_delay(&a, i * 45);
         lv_anim_set_duration(&a, this->anim_ms_(450));
         lv_anim_set_exec_cb(&a, [](void *var, int32_t v) { lv_obj_set_y(static_cast<lv_obj_t *>(var), v); });
@@ -2437,23 +2451,23 @@ void KisSegitoUI::build_children_() {
   this->carousel_.create(
       // Slot from y = 60 to 340: avatar and the token count. Each slot is
       // drawn once into a picture, so it slides smoothly (#10).
-      this->screen_obj_, static_cast<int>(this->children_.size()), this->child_, 300, 280, 60, 250,
+      this->screen_obj_, static_cast<int>(this->children_.size()), this->child_, S(300), S(280), S(60), S(250),
       [this](lv_obj_t *slot, int index) {
         const Child &c = this->children_[index];
-        const int cx = 150;  // slot centre
+        const int cx = S(150);  // slot centre
         // Children of another knob: visible but greyed and locked here.
         const lv_color_t disc = c.selectable ? lv_color_hex(c.color) : lv_color_hex(0x4A4F6A);
-        this->disc_(slot, cx, 105, 190, disc);
-        lv_obj_t *avatar = this->image_(slot, c.avatar + "_180", cx, 105);
+        this->disc_(slot, cx, S(105), S(190), disc);
+        lv_obj_t *avatar = this->image_(slot, c.avatar + "_180", cx, S(105));
         // The tokens as one coin and the number (the full pile is on the
         // token screen).
-        this->number_pill_(slot, cx, 236, c.wallet, true);
+        this->number_pill_(slot, cx, S(236), c.wallet, true);
         if (c.pending_interest > 0 && c.piggy_unlocked)
-          this->image_(slot, "badge_piggy_plus_48", cx - 72, 40);  // interest waiting
+          this->image_(slot, "badge_piggy_plus_48", cx - S(72), S(40));  // interest waiting
         if (!c.selectable) {
           lv_obj_set_style_image_recolor(avatar, lv_color_hex(0x8C96A5), 0);
           lv_obj_set_style_image_recolor_opa(avatar, 150, 0);
-          this->image_(slot, "status_lock_64", cx + 70, 170);
+          this->image_(slot, "status_lock_64", cx + S(70), S(170));
         }
       },
       this->anim_ms_(260), true);
@@ -2481,10 +2495,10 @@ void KisSegitoUI::build_functions_() {
     return "f|" + this->pic_state_(icon + "_160") + "|" + std::to_string(this->children_[this->child_].color);
   };
   this->carousel_.create(
-      this->screen_obj_, static_cast<int>(fns.size()), this->function_, 240, 240, 145, 230,
+      this->screen_obj_, static_cast<int>(fns.size()), this->function_, S(240), S(240), S(145), S(230),
       [this, fns](lv_obj_t *slot, int index) {
         const Child &c = this->children_[this->child_];
-        this->disc_(slot, 120, 120, 210, lv_color_mix(lv_color_hex(c.color), lv_color_white(), 90));
+        this->disc_(slot, S(120), S(120), S(210), lv_color_mix(lv_color_hex(c.color), lv_color_white(), 90));
         const FnItem &fn = fns[index];
         std::string icon;
         switch (fn.type) {
@@ -2503,12 +2517,12 @@ void KisSegitoUI::build_functions_() {
         }
         if (!this->has_image_(icon + "_160"))
           icon = "fn_rewards";
-        this->image_(slot, icon + "_160", 120, 120);
+        this->image_(slot, icon + "_160", S(120), S(120));
       },
       this->anim_ms_(240), true);
   // Small child marker at the top centre: context only, not the focus.
-  this->disc_(this->screen_obj_, CENTER, 96, 76, lv_color_hex(child.color));
-  lv_obj_t *avatar = this->image_(this->screen_obj_, child.avatar + "_180", CENTER, 96);
+  this->disc_(this->screen_obj_, CENTER, S(96), S(76), lv_color_hex(child.color));
+  lv_obj_t *avatar = this->image_(this->screen_obj_, child.avatar + "_180", CENTER, S(96));
   lv_image_set_scale(avatar, 92);  // 180 px -> ~65 px
 }
 
@@ -2529,23 +2543,23 @@ void KisSegitoUI::build_rewards_() {
            (r.cost > c.wallet ? "l" : "") + "|" + std::to_string(c.color);
   };
   this->carousel_.create(
-      this->screen_obj_, static_cast<int>(shop.size()), position, 260, 290, 60, 240,
+      this->screen_obj_, static_cast<int>(shop.size()), position, S(260), S(290), S(60), S(240),
       [this, shop](lv_obj_t *slot, int index) {
         const Reward &r = this->rewards_[shop[index]];
         const Child &c = this->children_[this->child_];
         // The lock only means "not enough tokens".
         const bool locked = r.cost > c.wallet;
-        this->disc_(slot, 130, 120, 200,
+        this->disc_(slot, S(130), S(120), S(200),
                     locked ? lv_color_hex(0x4A4F6A) : lv_color_mix(lv_color_hex(c.color), lv_color_white(), 80));
-        lv_obj_t *icon = this->image_(slot, r.icon + "_160", 130, 120);
+        lv_obj_t *icon = this->image_(slot, r.icon + "_160", S(130), S(120));
         if (locked) {
           lv_obj_set_style_image_recolor(icon, lv_color_hex(0x8C96A5), 0);
           lv_obj_set_style_image_recolor_opa(icon, 150, 0);
-          this->image_(slot, "status_lock_64", 205, 190);
+          this->image_(slot, "status_lock_64", S(205), S(190));
         }
         // The price as a small pile of exactly that many tokens.
         // The price as one coin and the number.
-        this->number_pill_(slot, 130, 252, r.cost, true);
+        this->number_pill_(slot, S(130), S(252), r.cost, true);
       },
       this->anim_ms_(240), true);
   // Current wallet below the carousel.
@@ -2555,39 +2569,39 @@ void KisSegitoUI::build_rewards_() {
 void KisSegitoUI::build_confirm_() {
   const Reward &r = this->rewards_[this->reward_ % this->rewards_.size()];
   const Child &child = this->children_[this->child_];
-  this->disc_(this->screen_obj_, CENTER, 160, 180, lv_color_mix(lv_color_hex(child.color), lv_color_white(), 80));
-  this->image_(this->screen_obj_, r.icon + "_160", CENTER, 160);
-  this->number_pill_(this->screen_obj_, CENTER, 272, r.cost, true);
-  this->confirm_no_ = this->image_(this->screen_obj_, "action_x_88", 160, 345);
-  this->confirm_yes_obj_ = this->image_(this->screen_obj_, "action_check_88", 320, 345);
+  this->disc_(this->screen_obj_, CENTER, S(160), S(180), lv_color_mix(lv_color_hex(child.color), lv_color_white(), 80));
+  this->image_(this->screen_obj_, r.icon + "_160", CENTER, S(160));
+  this->number_pill_(this->screen_obj_, CENTER, S(272), r.cost, true);
+  this->confirm_no_ = this->image_(this->screen_obj_, "action_x_88", S(160), S(345));
+  this->confirm_yes_obj_ = this->image_(this->screen_obj_, "action_check_88", S(320), S(345));
   // The selected choice is circled (not only coloured).
   this->confirm_ring_ = lv_obj_create(this->screen_obj_);
   remove_defaults(this->confirm_ring_);
-  lv_obj_set_size(this->confirm_ring_, 116, 116);
+  lv_obj_set_size(this->confirm_ring_, S(116), S(116));
   lv_obj_set_style_radius(this->confirm_ring_, LV_RADIUS_CIRCLE, 0);
-  lv_obj_set_style_border_width(this->confirm_ring_, 6, 0);
+  lv_obj_set_style_border_width(this->confirm_ring_, S(6), 0);
   lv_obj_set_style_border_color(this->confirm_ring_, lv_color_white(), 0);
   lv_obj_set_style_border_opa(this->confirm_ring_, LV_OPA_COVER, 0);
-  lv_obj_set_pos(this->confirm_ring_, 160 - 58, 345 - 58);
+  lv_obj_set_pos(this->confirm_ring_, S(160 - 58), S(345 - 58));
   lv_obj_set_style_image_opa(this->confirm_yes_obj_, 140, 0);
   this->number_pill_(this->screen_obj_, CENTER, 420, child.wallet, true);
 }
 
 void KisSegitoUI::build_tokens_() {
   const Child &child = this->children_[this->child_];
-  this->pile_(this->screen_obj_, CENTER, 290, child.wallet, 500u + this->child_, 11, 18, 19, 10);
-  this->number_pill_(this->screen_obj_, CENTER, 335, child.wallet, true);
+  this->pile_(this->screen_obj_, CENTER, S(290), child.wallet, 500u + this->child_, 11, 18, S(19), S(10));
+  this->number_pill_(this->screen_obj_, CENTER, S(335), child.wallet, true);
   // Streak: flame + one marker per day of the target.
-  this->image_(this->screen_obj_, "streak_flame_64", CENTER, 100);
+  this->image_(this->screen_obj_, "streak_flame_64", CENTER, S(100));
   const int n = std::max(child.streak_target, 1);
-  const int step = 30;
+  const int step = S(30);
   const int x0 = CENTER - (n - 1) * step / 2;
   for (int i = 0; i < n; i++) {
     const int x = x0 + i * step;
     if (i < child.streak) {
-      this->image_(this->screen_obj_, "action_check_small_24", x, 392);
+      this->image_(this->screen_obj_, "action_check_small_24", x, S(392));
     } else {
-      lv_obj_t *dot = this->disc_(this->screen_obj_, x, 392, 22, lv_color_hex(BASE_BG));
+      lv_obj_t *dot = this->disc_(this->screen_obj_, x, S(392), S(22), lv_color_hex(BASE_BG));
       lv_obj_set_style_border_width(dot, 3, 0);
       lv_obj_set_style_border_color(dot, lv_color_hex(0x8C96A5), 0);
     }
@@ -2605,11 +2619,11 @@ void KisSegitoUI::build_piggy_() {
     this->send_action_("seen", "");
     if (this->anim_ms_(500) > 0) {
       for (int i = 0; i < coins; i++) {
-        lv_obj_t *coin = this->image_(this->screen_obj_, "token_coin_front_28", CENTER - 40 + static_cast<int>(hash32(i) % 80), 60);
+        lv_obj_t *coin = this->image_(this->screen_obj_, "token_coin_front_28", CENTER + S(static_cast<int>(hash32(i) % 80) - 40), S(60));
         lv_anim_t a;
         lv_anim_init(&a);
         lv_anim_set_var(&a, coin);
-        lv_anim_set_values(&a, 46, 160);
+        lv_anim_set_values(&a, S(46), S(160));
         lv_anim_set_delay(&a, 200 + i * 80);
         lv_anim_set_duration(&a, this->anim_ms_(500));
         lv_anim_set_exec_cb(&a, [](void *var, int32_t v) { lv_obj_set_y(static_cast<lv_obj_t *>(var), v); });
@@ -2621,15 +2635,15 @@ void KisSegitoUI::build_piggy_() {
       }
     }
   }
-  this->image_(this->screen_obj_, "piggy_large_180", CENTER, 175);
-  this->number_pill_(this->screen_obj_, CENTER, 268, child.piggy, true);
+  this->image_(this->screen_obj_, "piggy_large_180", CENTER, S(175));
+  this->number_pill_(this->screen_obj_, CENTER, S(268), child.piggy, true);
   // The amount to move, chosen by turning; pressing moves it.
   this->piggy_label_ = lv_label_create(this->screen_obj_);
   if (this->number_font_ != nullptr)
     lv_obj_set_style_text_font(this->piggy_label_, this->number_font_, 0);
   this->update_piggy_amount_();
   // The wallet is a separate thing: shown at the bottom.
-  this->number_pill_(this->screen_obj_, CENTER, 410, child.wallet, true);
+  this->number_pill_(this->screen_obj_, CENTER, S(410), child.wallet, true);
 }
 
 void KisSegitoUI::cancel_idle_anim_() {
@@ -2660,13 +2674,13 @@ static int lerp(int a, int b, int t, int t0, int t1) {
 
 static void idle_coin_cb(void *var, int32_t t) {
   auto *coin = static_cast<lv_obj_t *>(var);
-  const int x0 = CENTER - 14, x1 = CENTER + 56, rest_y = 346 - 14, top = idle_top_y - 14;
+  const int x0 = CENTER - S(14), x1 = CENTER + S(56), rest_y = S(346 - 14), top = idle_top_y - S(14);
   int x, y;
   if (t < IDLE_CARRY) {
     x = lerp(x0, x1, t, 0, IDLE_ROLL_END);
     // Falling with a small bounce at the end.
     const int fall = lerp(top, rest_y, t, 0, IDLE_ROLL_END - 150);
-    const int bounce = (t > IDLE_ROLL_END - 150 && t < IDLE_ROLL_END) ? -8 : 0;
+    const int bounce = (t > IDLE_ROLL_END - 150 && t < IDLE_ROLL_END) ? -S(8) : 0;
     y = fall + bounce;
     lv_image_set_rotation(coin, lerp(0, 7200, t, 0, IDLE_ROLL_END));
   } else {
@@ -2678,14 +2692,14 @@ static void idle_coin_cb(void *var, int32_t t) {
 
 static void idle_hand_cb(void *var, int32_t t) {
   auto *hand = static_cast<lv_obj_t *>(var);
-  const int out = SCREEN + 8, x1 = CENTER + 56, x0 = CENTER - 14;
+  const int out = SCREEN + S(8), x1 = CENTER + S(56), x0 = CENTER - S(14);
   int x;
   if (t < IDLE_CARRY)
-    x = lerp(out, x1 + 4, t, IDLE_HAND_IN, IDLE_HAND_IN + 500);
+    x = lerp(out, x1 + S(4), t, IDLE_HAND_IN, IDLE_HAND_IN + 500);
   else if (t < IDLE_HAND_OUT)
-    x = lerp(x1 + 4, x0 + 4, t, IDLE_CARRY, IDLE_BACK);
+    x = lerp(x1 + S(4), x0 + S(4), t, IDLE_CARRY, IDLE_BACK);
   else
-    x = lerp(x0 + 4, out, t, IDLE_HAND_OUT, IDLE_END);
+    x = lerp(x0 + S(4), out, t, IDLE_HAND_OUT, IDLE_END);
   lv_obj_set_x(hand, x);
 }
 
@@ -2695,10 +2709,10 @@ void KisSegitoUI::idle_pile_anim_() {
   const Child &c = this->children_[this->child_];
   if (c.wallet <= 0 || this->idle_coin_ != nullptr)
     return;
-  idle_top_y = 300 - std::min(c.wallet, 12) * 4;
+  idle_top_y = S(300 - std::min(c.wallet, 12) * 4);
   this->idle_coin_ = this->image_(this->screen_obj_, "token_coin_front_28", CENTER, idle_top_y);
-  lv_image_set_pivot(this->idle_coin_, 14, 14);
-  this->idle_hand_ = this->image_(this->screen_obj_, "hand_cartoon_64", SCREEN + 40, 346);
+  lv_image_set_pivot(this->idle_coin_, S(14), S(14));
+  this->idle_hand_ = this->image_(this->screen_obj_, "hand_cartoon_64", SCREEN + S(40), S(346));
   for (lv_obj_t *obj : {this->idle_coin_, this->idle_hand_}) {
     lv_anim_t a;
     lv_anim_init(&a);
@@ -2731,7 +2745,7 @@ void KisSegitoUI::update_piggy_amount_() {
   }
   lv_obj_update_layout(this->piggy_label_);
   lv_obj_set_pos(this->piggy_label_, CENTER - lv_obj_get_width(this->piggy_label_) / 2,
-                 340 - lv_obj_get_height(this->piggy_label_) / 2);
+                 S(340) - lv_obj_get_height(this->piggy_label_) / 2);
 }
 
 // ---------------------------------------------------------------- Routine
@@ -2768,8 +2782,8 @@ void KisSegitoUI::build_routine_() {
     }
   }
   this->task_big_ =
-      this->image_(this->screen_obj_, current >= 0 ? r.tasks[current].icon + "_150" : "action_check_88", CENTER, 205);
-  lv_image_set_pivot(this->task_big_, 75, 75);
+      this->image_(this->screen_obj_, current >= 0 ? r.tasks[current].icon + "_150" : "action_check_88", CENTER, S(205));
+  lv_image_set_pivot(this->task_big_, S(75), S(75));
 
   // Completed tasks collect on the left (grey), future ones on the right.
   int done_slot = 0, future_slot = 0;
@@ -2779,8 +2793,8 @@ void KisSegitoUI::build_routine_() {
     const bool done = this->is_done_(r, r.tasks[i].id);
     const float deg = done ? 90.0f + 30.0f + 20.0f * done_slot++ : 90.0f - 30.0f - 20.0f * future_slot++;
     const float rad = deg * static_cast<float>(M_PI) / 180.0f;
-    const int tx = CENTER + static_cast<int>(150 * std::cos(rad));
-    const int ty = CENTER + static_cast<int>(150 * std::sin(rad));
+    const int tx = CENTER + static_cast<int>(S(150) * std::cos(rad));
+    const int ty = CENTER + static_cast<int>(S(150) * std::sin(rad));
     lv_obj_t *icon = this->image_(this->timeline_, r.tasks[i].icon + "_40", tx, ty);
     if (done) {
       lv_obj_set_style_image_recolor(icon, lv_color_hex(0x8C96A5), 0);
@@ -2829,7 +2843,7 @@ struct TrackTile {
 static std::vector<TrackTile> g_track_tiles;
 // A glow in the selected child's colour around the inner track and the
 // shared track: this wide on each side, at most this opaque.
-static constexpr int GLOW_W = INNER_W;
+#define GLOW_W INNER_W
 static constexpr int GLOW_MAX = 115;  // of 255: well under half the colour
 
 static float smooth01(float x) {
@@ -2934,8 +2948,8 @@ void KisSegitoUI::render_ring_tile_(int index, float r_min, float r_max) {
   const lv_image_dsc_t *bg = spec.bg_image;
   const bool bg_ok = bg != nullptr && bg->header.w == SCREEN && bg->header.h == SCREEN &&
                      bg->header.cf == LV_COLOR_FORMAT_RGB565;
-  constexpr float FADE_FROM = BAND_R - FADE_W;
-  constexpr float ARC_IN = INNER_R - INNER_W - GLOW_W - 2, ARC_OUT = OUTER_R + GLOW_W + 2;
+  const float FADE_FROM = BAND_R - FADE_W;
+  const float ARC_IN = INNER_R - INNER_W - GLOW_W - 2, ARC_OUT = OUTER_R + GLOW_W + 2;
   const uint16_t bg_color = to565(spec.bg_color), dim_color = to565(TRACK_DIM), inner_color = to565(spec.inner_color);
   uint16_t zone565[RingSpec::MAX_ZONES];
   for (int z = 0; z < spec.zone_count; z++)
@@ -3144,14 +3158,14 @@ void KisSegitoUI::build_track_() {
         lv_obj_set_style_image_recolor_opa(icon, 200, 0);
       }
     }
-    this->now_dot_ = this->disc_(this->track_layer_, 0, 0, 18, lv_color_white());
+    this->now_dot_ = this->disc_(this->track_layer_, 0, 0, S(18), lv_color_white());
   }
 
   // Top gap: the brand mark, or the reward available now on a routine screen.
   this->top_gap_ = lv_obj_create(this->track_layer_);
   remove_defaults(this->top_gap_);
-  lv_obj_set_size(this->top_gap_, 160, 56);
-  lv_obj_set_pos(this->top_gap_, CENTER - 80, 4);
+  lv_obj_set_size(this->top_gap_, S(160), S(56));
+  lv_obj_set_pos(this->top_gap_, CENTER - S(80), S(4));
   this->update_track_();
 }
 
@@ -3208,12 +3222,12 @@ void KisSegitoUI::update_track_() {
     lv_obj_clean(this->top_gap_);
     if (reward > 0) {
       // The reward available now, as that many tokens.
-      const int step = 18;
-      const int x0 = 80 - (reward - 1) * step / 2;
+      const int step = S(18);
+      const int x0 = S(80) - (reward - 1) * step / 2;
       for (int i = 0; i < reward; i++)
-        this->image_(this->top_gap_, "token_coin_front_28", x0 + i * step, 30);
+        this->image_(this->top_gap_, "token_coin_front_28", x0 + i * step, S(30));
     } else {
-      this->image_(this->top_gap_, this->language_ == "hu" ? "brand_mark_48" : "brand_mark_en_48", 80, 28);
+      this->image_(this->top_gap_, this->language_ == "hu" ? "brand_mark_48" : "brand_mark_en_48", S(80), S(28));
     }
   }
 }
@@ -3268,7 +3282,7 @@ void KisSegitoUI::complete_task_() {
     lv_anim_set_exec_cb(&a, [](void *var, int32_t v) { lv_image_set_scale(static_cast<lv_obj_t *>(var), v); });
     lv_anim_start(&a);
   }
-  this->image_(this->screen_obj_, "action_check_88", CENTER, 205);
+  this->image_(this->screen_obj_, "action_check_88", CENTER, S(205));
   lv_timer_t *t = lv_timer_create(
       [](lv_timer_t *timer) {
         auto *self = static_cast<KisSegitoUI *>(lv_timer_get_user_data(timer));
@@ -3295,15 +3309,15 @@ void KisSegitoUI::celebrate_(int tokens) {
     const uint32_t h = hash32(i + 77);
     lv_obj_t *piece = lv_obj_create(lv_layer_top());
     remove_defaults(piece);
-    lv_obj_set_size(piece, 8, 14);
+    lv_obj_set_size(piece, S(8), S(14));
     lv_obj_set_style_radius(piece, 2, 0);
     lv_obj_set_style_bg_color(piece, lv_color_hex(COLORS[i % 6]), 0);
     lv_obj_set_style_bg_opa(piece, LV_OPA_COVER, 0);
-    lv_obj_set_pos(piece, 60 + static_cast<int>(h % 360), -20);
+    lv_obj_set_pos(piece, S(60 + static_cast<int>(h % 360)), -S(20));
     lv_anim_t a;
     lv_anim_init(&a);
     lv_anim_set_var(&a, piece);
-    lv_anim_set_values(&a, -20, 300 + static_cast<int>((h >> 8) % 180));
+    lv_anim_set_values(&a, -S(20), S(300 + static_cast<int>((h >> 8) % 180)));
     lv_anim_set_delay(&a, (h >> 16) % 400);
     lv_anim_set_duration(&a, 1200);
     lv_anim_set_exec_cb(&a, [](void *var, int32_t v) { lv_obj_set_y(static_cast<lv_obj_t *>(var), v); });
@@ -3374,14 +3388,14 @@ static lv_draw_buf_t *make_star(int size, uint32_t color) {
 }
 
 void KisSegitoUI::spawn_piece_(Piece &p, bool anywhere) {
-  p.x = frand(10, SCREEN - 10 - p.w);
-  p.y = anywhere ? frand(-40, SCREEN - 20) : frand(-60, -p.h - 2.0f);
-  p.vy = frand(150, 215);
-  p.drift = frand(-45, 45);
-  p.drift_to = frand(-60, 60);
+  p.x = frand(SF(10), SCREEN - SF(10) - p.w);
+  p.y = anywhere ? frand(-SF(40), SCREEN - SF(20)) : frand(-SF(60), -p.h - 2.0f);
+  p.vy = frand(SF(150), SF(215));
+  p.drift = frand(-SF(45), SF(45));
+  p.drift_to = frand(-SF(60), SF(60));
   p.drift_ms = millis() + 500 + random_uint32() % 2000;
   p.gust = p.gust_vy = 0;
-  p.sway = frand(14, 40);
+  p.sway = frand(SF(14), SF(40));
   p.sway_hz = frand(0.3f, 0.9f);
   p.phase = frand(0, 6.283f);
   p.on_screen = true;
@@ -3435,8 +3449,8 @@ void KisSegitoUI::start_confetti() {
       Piece &p = this->confetti_[i];
       const int c = i % 6, wide = random_uint32() & 1, sz = random_uint32() % 3;
       const float k = 0.85f + 0.15f * sz;  // size within about +/-15-20 %
-      p.w = static_cast<int>(std::lround((wide ? 12 : 7) * k));
-      p.h = static_cast<int>(std::lround((wide ? 7 : 12) * k));
+      p.w = static_cast<int>(std::lround(SF(wide ? 12 : 7) * k));
+      p.h = static_cast<int>(std::lround(SF(wide ? 7 : 12) * k));
       if (pieces[c][wide][sz] == nullptr)
         pieces[c][wide][sz] = make_piece(p.w, p.h, CONFETTI_COLORS[c]);
       p.obj = lv_image_create(this->saver_screen_);
@@ -3475,7 +3489,7 @@ void KisSegitoUI::spawn_star_(Star &st, bool first) {
   if (img != nullptr)
     lv_image_set_src(st.obj, img);
   // Anywhere inside the round screen.
-  const float a = frand(0, 6.283f), rad = 205.0f * std::sqrt(frand(0, 1));
+  const float a = frand(0, 6.283f), rad = SF(205.0f) * std::sqrt(frand(0, 1));
   lv_obj_set_pos(st.obj, static_cast<int>(CENTER + rad * cosf(a)) - STAR_SIZES[sz] / 2,
                  static_cast<int>(CENTER + rad * sinf(a)) - STAR_SIZES[sz] / 2);
   st.fade_in = frand(1.5f, 3.0f);
@@ -3518,11 +3532,11 @@ void KisSegitoUI::stars_step_() {
   if (this->shoot_start_ms_ == 0 && static_cast<int32_t>(now - this->next_shoot_ms_) >= 0) {
     this->shoot_start_ms_ = now;
     this->shoot_ms_ = 1300 + random_uint32() % 600;
-    const float off = ((random_uint32() & 1) ? 1.0f : -1.0f) * frand(50, 80);
-    this->shoot_p_[0] = 400;
-    this->shoot_p_[1] = 110 + off;
-    this->shoot_p_[4] = 80;
-    this->shoot_p_[5] = 370 + off * 0.5f;
+    const float off = ((random_uint32() & 1) ? 1.0f : -1.0f) * frand(SF(50), SF(80));
+    this->shoot_p_[0] = SF(400);
+    this->shoot_p_[1] = SF(110) + off;
+    this->shoot_p_[4] = SF(80);
+    this->shoot_p_[5] = SF(370) + off * 0.5f;
     // An arc bending up and left: the star starts almost level, high, and
     // curves down to the left; the control point is at the start's height,
     // so it never climbs.
@@ -3557,9 +3571,9 @@ void KisSegitoUI::confetti_step_() {
   if (static_cast<int32_t>(now - this->next_gust_ms_) >= 0) {
     // A gust: 5-7 pieces closest to a random point, in a random direction.
     this->next_gust_ms_ = now + 3500 + random_uint32() % 6000;
-    const float gx = frand(60, SCREEN - 60), gy = frand(40, SCREEN - 160);
+    const float gx = frand(SF(60), SCREEN - SF(60)), gy = frand(SF(40), SCREEN - SF(160));
     const float dir = (random_uint32() & 1) ? 1.0f : -1.0f;
-    const float lift = frand(-90, 30);  // a little up or down, different each gust
+    const float lift = frand(-SF(90), SF(30));  // a little up or down, different each gust
     std::vector<std::pair<float, int>> near;
     for (int i = 0; i < CONFETTI; i++) {
       const Piece &p = this->confetti_[i];
@@ -3570,7 +3584,7 @@ void KisSegitoUI::confetti_step_() {
     const size_t n = std::min<size_t>(near.size(), 5 + random_uint32() % 3);
     for (size_t j = 0; j < n; j++) {
       Piece &p = this->confetti_[near[j].second];
-      p.gust = dir * frand(200, 560);  // each one blown a little differently
+      p.gust = dir * frand(SF(200), SF(560));  // each one blown a little differently
       p.gust_vy = lift * frand(0.4f, 1.6f);
     }
   }
@@ -3588,7 +3602,7 @@ void KisSegitoUI::confetti_step_() {
       continue;
     }
     if (static_cast<int32_t>(now - p.drift_ms) >= 0) {
-      p.drift_to = frand(-60, 60);  // the air around it turns
+      p.drift_to = frand(-SF(60), SF(60));  // the air around it turns
       p.drift_ms = now + 700 + random_uint32() % 2200;
     }
     p.drift += (p.drift_to - p.drift) * std::min(1.0f, 1.2f * dt);
@@ -3596,12 +3610,12 @@ void KisSegitoUI::confetti_step_() {
     p.gust *= drag;
     p.gust_vy *= drag;
     p.x += (p.drift + p.gust + p.sway * 6.283f * p.sway_hz * cosf(p.phase)) * dt;
-    p.y += std::max(20.0f, p.vy + p.gust_vy) * dt;
-    if (p.x < -p.w - 4 || p.x > SCREEN + 4) {
+    p.y += std::max(SF(20.0f), p.vy + p.gust_vy) * dt;
+    if (p.x < -p.w - SF(4) || p.x > SCREEN + SF(4)) {
       p.on_screen = false;  // blown off the screen; it stays there for now
       continue;
     }
-    if (p.y > SCREEN + 4) {
+    if (p.y > SCREEN + SF(4)) {
       this->spawn_piece_(p, false);  // fell out at the bottom: again from the top
       continue;
     }

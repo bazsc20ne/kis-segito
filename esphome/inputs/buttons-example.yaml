@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# Example input profile: three push buttons instead of a rotary encoder.
+# "Next" and "previous" step the screen, "select" selects; holding "select"
+# goes back. Any press wakes a dimmed or dark screen first.
+#
+# Use it in place of inputs/encoder-button.yaml and set the GPIOs:
+#
+#   substitutions:
+#     next_pin: GPIO1
+#     previous_pin: GPIO2
+#     select_pin: GPIO3
+#   packages:
+#     kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito-core.yaml@vX.Y.Z
+#     input: github://bazsc20ne/kis-segito/esphome/inputs/buttons-example.yaml@vX.Y.Z
+#     board: !include my-board.yaml
+#
+# The buttons connect the GPIO to GND when pressed (internal pull-ups).
+
+binary_sensor:
+  - platform: gpio
+    id: button_next
+    name: Next button
+    pin:
+      number: ${next_pin}
+      mode: INPUT_PULLUP
+      inverted: true
+    filters:
+      - delayed_on_off: 20ms
+    on_press:
+      - script.execute: input_next
+  - platform: gpio
+    id: button_previous
+    name: Previous button
+    pin:
+      number: ${previous_pin}
+      mode: INPUT_PULLUP
+      inverted: true
+    filters:
+      - delayed_on_off: 20ms
+    on_press:
+      - script.execute: input_previous
+  - platform: gpio
+    id: button_select
+    name: Select button
+    pin:
+      number: ${select_pin}
+      mode: INPUT_PULLUP
+      inverted: true
+    filters:
+      - delayed_on_off: 20ms
+    on_click:
+      # A short press selects, a long one goes back.
+      - min_length: 20ms
+        max_length: 600ms
+        then:
+          - script.execute: input_select
+      - min_length: 600ms
+        max_length: 5s
+        then:
+          - script.execute: input_back
