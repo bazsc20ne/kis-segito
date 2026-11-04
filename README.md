@@ -139,6 +139,10 @@ jönnek. Minden lépés naplózva van.
 **Beállítások → Ikonok** részen cserélhető, kikapcsolható vagy törölhető. A beépített ikonok
 kikapcsolhatók.
 
+**Irányítópult-kártyák:** a szülőknek kilenc kártya jön az integrációval (gyerek, mai
+rutin, jutalombolt, jóváhagyások, heti statisztika, gyors +/−, eseménynapló, gomb
+állapota, gyerekek röviden), vizuális szerkesztővel: [docs/cards.md](docs/cards.md).
+
 **Assist:** a Home Assistant hangasszisztense megmondja egy gyerekről, hány zsetonja van,
 van-e most feladata, mennyi idő van a következő checkpointig és hány zsetont szerezhet még
 ma (magyarul és angolul, a gyerek nevével vagy egy másik nevével). Csak olvas, nem
@@ -341,6 +345,10 @@ checkpoint's tokens come on approval. Every step is logged.
 **Own icons:** wherever an icon is chosen, your own picture can be uploaded as an icon; on
 **Settings → Icons** it can be replaced, switched off or deleted. Built-in icons can be
 switched off.
+
+**Dashboard cards:** nine cards for parents come with the integration (child, today's
+routine, reward shop, approvals, weekly statistics, quick +/−, event log, knob status,
+children at a glance), with a visual editor: [docs/cards.md](docs/cards.md).
 
 **Assist:** Home Assistant's voice assistant tells about a child how many tokens they
 have, whether they have a task now, how long until the next checkpoint and how many tokens

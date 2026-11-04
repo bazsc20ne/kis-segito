@@ -44,8 +44,9 @@ async def async_register_panel(hass: HomeAssistant, version: str) -> None:
 
 
 def async_register_card(hass: HomeAssistant, version: str) -> None:
-    """Load the virtual knob card on every dashboard (no separate install)."""
+    """Load the dashboard cards on every dashboard (no separate install)."""
     frontend.add_extra_js_url(hass, f"{STATIC_URL}/kis-segito-knob-card.js?v={version}")
+    frontend.add_extra_js_url(hass, f"{STATIC_URL}/kis-segito-cards.js?v={version}")
 
 
 def async_unregister_panel(hass: HomeAssistant) -> None:

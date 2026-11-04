@@ -271,6 +271,10 @@ class DeviceLink:
             return None
         return service
 
+    def esphome_action(self, action: str) -> str | None:
+        """The ESPHome service of one of the knob's API actions, if present."""
+        return self._service(action)
+
     async def async_push_strings(self) -> None:
         """Send the on-screen strings in the chosen language."""
         service = self._service(ESPHOME_ACTION_SET_UI_STRINGS)

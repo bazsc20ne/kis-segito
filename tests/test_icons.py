@@ -75,7 +75,7 @@ async def test_own_icons(hass: HomeAssistant, hass_ws_client, hass_client_no_aut
     assert (await call(type=f"{DOMAIN}/icons/delete", key=key))["result"] == 4
     saved = manager.routine(routine["id"])
     assert saved["icon"] == "routine_generic"
-    assert saved["tasks"][0]["icon"] == "task_generic"
+    assert saved["tasks"][0]["icon"] == "task_clothes"
     assert saved["checkpoints"][0]["icon"] == "checkpoint_flag"
     assert manager.reward(reward["id"])["icon"] == "fn_rewards"
     assert manager.own_icon(key) is None

@@ -728,7 +728,7 @@ class KisSegitoPanel extends HTMLElement {
         const child = this._data.children.find((c) => c.id === a.child_id);
         const what = a.kind === "reward" ? a.reward_name : [a.routine_name, (a.task_names || []).filter(Boolean).join(", ")].filter(Boolean).join(" · ");
         const coins = a.kind === "reward" ? `−${a.amount}` : `+${a.amount}`;
-        return `<div class="row wrap approval">${child ? this._avatar(child, 34) : ""}${this._icon(a.icon || (a.kind === "reward" ? "fn_rewards" : "task_generic"), 34)}
+        return `<div class="row wrap approval">${child ? this._avatar(child, 34) : ""}${this._icon(a.icon || (a.kind === "reward" ? "fn_rewards" : "task_clothes"), 34)}
           <div class="grow" style="min-width:140px"><b>${this._e(child?.name || "?")}</b> · ${this._e(this._t(a.kind === "reward" ? "approvals.reward" : "approvals.task"))}<div class="muted small">${this._e(what || "")} · ${this._e(new Date(a.requested_at).toLocaleString(this._locale))}</div></div>
           <span class="tag">${this._icon("token_coin_front", 18)} ${this._e(coins)}</span>
           ${this._isAdmin ? `<button class="btn sm primary" data-act="approval" data-arg="${this._e(a.id)}:1">✓ ${this._e(this._t("approvals.approve"))}</button><button class="btn sm" data-act="approval" data-arg="${this._e(a.id)}:0">✕ ${this._e(this._t("approvals.reject"))}</button>` : ""}</div>`;
@@ -1417,7 +1417,7 @@ class KisSegitoPanel extends HTMLElement {
       if (tx.event) {
         html += `<div class="tx event"><span class="amt">${this._icon(tx.icon || (tx.type === "task_done" ? "routine_generic" : "checkpoint_flag"), 26)}</span>
           <div style="min-width:0"><div class="what">${this._e(tx.type?.startsWith("approval_") ? `${this._t(`reason.${tx.type}`)}: ${tx.name || ""}` : tx.task_name || tx.checkpoint_name || this._t(`reason.${tx.type}`))}</div>
-          <div class="meta">${this._e(this._fmtTime(tx.timestamp))} · ${who} · ${this._e(this._t(`reason.${tx.type}`))} · ${this._e(tx.routine_name || "")}</div></div><div></div></div>`;
+          <div class="meta">${this._e(this._fmtTime(tx.timestamp))} · ${who} · ${this._e(this._t(`reason.${tx.type}`))} · ${this._e(tx.routine_name || "")}${tx.by && tx.type === "task_done" ? ` · ${this._e(tx.by)}` : ""}</div></div><div></div></div>`;
         continue;
       }
       const amounts = tx.lines.map((l) => `<span class="amt ${l.amount < 0 ? "neg" : "pos"}">${sign(l.amount)}${l.account === "piggy" ? this._icon("fn_piggy", 18) : ""}</span>`).join("");

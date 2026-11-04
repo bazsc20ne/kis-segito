@@ -924,7 +924,7 @@ class KisSegitoManager:
         for routine in self.data["routines"]:
             swap(routine, "routine_generic")
             for task in routine.get("tasks", []):
-                swap(task, "task_generic")
+                swap(task, "task_clothes")
             for cp in routine.get("checkpoints", []):
                 swap(cp, "checkpoint_flag")
         for reward in self.data["rewards"]:
@@ -935,7 +935,7 @@ class KisSegitoManager:
                 if isinstance(one_day, dict):
                     swap(one_day, "routine_generic")
                     for task in one_day.get("tasks", []):
-                        swap(task, "task_generic")
+                        swap(task, "task_clothes")
                     for cp in one_day.get("checkpoints", []):
                         swap(cp, "checkpoint_flag")
         self.icon_settings["own"].remove(icon)
@@ -1191,9 +1191,15 @@ class KisSegitoManager:
         del self.events[:-EVENTS_KEPT]
 
     def _task_event(
-        self, child_id: str, routine: dict[str, Any], task: dict[str, Any], at: str
+        self,
+        child_id: str,
+        routine: dict[str, Any],
+        task: dict[str, Any],
+        at: str,
+        by: str | None = None,
     ) -> dict[str, Any]:
-        return {
+        event = {"by": by} if by else {}
+        return event | {
             "timestamp": at,
             "day": at[:10],
             "child_id": child_id,
@@ -1527,8 +1533,11 @@ class KisSegitoManager:
         task_id: str,
         *,
         source: str = "service",
+        by: str | None = None,
     ) -> None:
-        """Mark a task done; finishing a checkpoint's tasks completes it."""
+        """Mark a task done; finishing a checkpoint's tasks completes it.
+
+        ``by`` names the person who ticked it for the child (a parent)."""
         self._require_child(child_id)
         routine = self.routine_for_day(routine_id, self.today()) or self.routine(
             routine_id
@@ -1544,7 +1553,9 @@ class KisSegitoManager:
             return
         progress["tasks"][task_id] = _iso(dt_util.now())
         self._log_event(
-            self._task_event(child_id, routine, task, progress["tasks"][task_id])
+            self._task_event(
+                child_id, routine, task, progress["tasks"][task_id], by
+            )
         )
         self._fire("task_completed", child_id, routine_id=routine_id, task_id=task_id)
         checkpoint = self.task_checkpoint(routine, task)
@@ -1754,6 +1765,57 @@ class KisSegitoManager:
             )
         if paid:
             await self._changed(ledger=True)
+
+    def week_stats(self, child_id: str, last_day: date) -> dict[str, Any]:
+        """Tasks done of the tasks due on the 7 days up to ``last_day``: per
+        day and per routine (percent is None where nothing was due)."""
+
+        def percent(done: int, total: int) -> int | None:
+            return round(done * 100 / total) if total else None
+
+        days = []
+        routines: dict[str, dict[str, Any]] = {}
+        for offset in range(6, -1, -1):
+            day = last_day - timedelta(days=offset)
+            done_day = total_day = 0
+            for routine in self.routines_on_day(day):
+                if not applies_to(routine, child_id):
+                    continue
+                tasks = routine.get("tasks", [])
+                done = self.progress(day, routine["id"], child_id)["tasks"]
+                count = sum(1 for t in tasks if t["id"] in done)
+                done_day += count
+                total_day += len(tasks)
+                entry = routines.setdefault(
+                    routine["id"],
+                    {
+                        "id": routine["id"],
+                        "name": routine.get("name", ""),
+                        "icon": routine.get("icon", "routine_generic"),
+                        "done": 0,
+                        "total": 0,
+                    },
+                )
+                entry["done"] += count
+                entry["total"] += len(tasks)
+            days.append(
+                {
+                    "date": day.isoformat(),
+                    "done": done_day,
+                    "total": total_day,
+                    "percent": percent(done_day, total_day),
+                }
+            )
+        done_all = sum(d["done"] for d in days)
+        total_all = sum(d["total"] for d in days)
+        return {
+            "days": days,
+            "routines": [
+                r | {"percent": percent(r["done"], r["total"])}
+                for r in routines.values()
+            ],
+            "percent": percent(done_all, total_all),
+        }
 
     def streak(self, child_id: str) -> int:
         """Current streak length of a child."""
@@ -2034,7 +2096,7 @@ class KisSegitoManager:
                     "t": [
                         {
                             "id": t["id"],
-                            "i": stored_icon(t.get("icon", "task_generic")),
+                            "i": stored_icon(t.get("icon", "task_clothes")),
                             "cp": (self.task_checkpoint(routine, t) or {}).get(
                                 "id", ""
                             ),
