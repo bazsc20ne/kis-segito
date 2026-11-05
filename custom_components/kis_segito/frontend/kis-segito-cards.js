@@ -314,7 +314,9 @@ class KsCard extends HTMLElement {
     const look = this.data?.look;
     const vars = {};
     if (look) {
-      const p = look.panel?.[this._hass?.themes?.darkMode ? "dark" : "light"] || {};
+      // A card of one child with its own theme: that theme's colours.
+      const own = this._config?.child ? this.child(this._config.child)?.look : null;
+      const p = (own || look).panel?.[this._hass?.themes?.darkMode ? "dark" : "light"] || {};
       const map = {
         "--ha-card-background": "--surface", "--card-background-color": "--surface", "--primary-text-color": "--ink",
         "--secondary-text-color": "--muted", "--primary-color": "--accent", "--text-primary-color": "--accent-ink",
@@ -731,14 +733,17 @@ class KnobCard extends KsCard {
       if (!s || ["unknown", "unavailable"].includes(s.state)) {
         return "\u2014";
       }
-      return `${s.state}${unit || s.attributes?.unit_of_measurement ? ` ${unit || s.attributes.unit_of_measurement}` : ""}`;
+      // Readable numbers: two decimals below 10, whole numbers above.
+      const number = Number(s.state);
+      const shown = Number.isFinite(number) && s.state !== "" ? String(number < 10 ? Math.round(number * 100) / 100 : Math.round(number)) : s.state;
+      return `${shown}${unit || s.attributes?.unit_of_measurement ? ` ${unit || s.attributes.unit_of_measurement}` : ""}`;
     };
     const on = (id) => this.state(id)?.state === "on";
     return knobs
       .map((k) => {
         const e = k.entities;
         const presence = this.state(e.presence);
-        return `<div class="list"><div class="row"><b class="grow">${esc(k.name)}</b><span class="muted small">${esc(k.sw_version || "")}</span></div>
+        return `<div class="list"><div><b>${esc(k.name)}</b>${k.sw_version ? `<div class="muted small">${esc(String(k.sw_version).replace(/ \((ESPHome [^)]*)\)$/, " \u00b7 $1"))}</div>` : ""}</div>
           <div class="row wrap small" style="gap:16px">
             <span>${esc(this.t("cards.brightness"))}: <b>${esc(value(e.brightness))}</b></span>
             <span>${esc(this.t("cards.illuminance"))}: <b>${esc(value(e.illuminance))}</b></span>

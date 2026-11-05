@@ -135,6 +135,13 @@ def ws_cards(
                     if (own := manager.child_theme_id(child))
                     else None
                 ),
+                # Its colours for the cards in the theme's look (fonts stay
+                # the common theme's).
+                "look": (
+                    {"panel": theme_of(own)["panel"]}
+                    if own and manager.settings.get("cards_themed")
+                    else None
+                ),
                 "today": _today(manager, child_id),
                 "week": manager.week_stats(child_id, today),
             }

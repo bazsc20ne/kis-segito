@@ -144,3 +144,13 @@ async def test_cards_look(hass: HomeAssistant, hass_ws_client) -> None:
     # The default theme's colours, for light and dark dashboards.
     assert look["panel"]["light"]["--surface"] == "#FFFFFF"
     assert look["panel"]["dark"]["--accent"] == "#7DB2FF"
+
+    # A child with its own theme: its cards get that theme's colours (#52).
+    manager = hass.data[DOMAIN].manager
+    kid = await manager.async_save_item("children", {"name": "Kid", "theme": "frozen"})
+    other = await manager.async_save_item("children", {"name": "Other"})
+    children = {
+        c["id"]: c for c in (await call(type=f"{DOMAIN}/cards"))["result"]["children"]
+    }
+    assert children[kid["id"]]["look"]["panel"]["light"]["--bg"] == "#EEF6FD"
+    assert children[other["id"]]["look"] is None
