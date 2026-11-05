@@ -6,6 +6,78 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.9.6] - 2026-11-05
+
+### English
+
+- Assist: Home Assistant's voice assistant understands many more ways of
+  asking, in Hungarian and English: other words (coins, money, points,
+  balance; checkpoint, deadline; task, job), free word order, the child's
+  name with its Hungarian endings, and some common speech-recognition
+  mistakes. A question without a name ("how many tokens do the kids have")
+  is answered for every child. A name Kis Segítő does not know is left to
+  the other agents.
+- Assist answers are made to be spoken: numbers and times are words ("in a
+  quarter of an hour, at half past seven"), without digits or symbols, so
+  every text-to-speech voice reads them right. Each answer has a few
+  wordings. Other languages are answered in English.
+- Assist with an LLM: the Kis Segítő tool also answers about every child at
+  once and gives the LLM all the data (other names, the next checkpoint's
+  time, tasks left, tokens still to earn, streak). The children's sensors
+  are shared with Assist once by default; turning one off is kept. The
+  README lists the sentences that work without an LLM and which agent
+  answers in which setup (docs/assist.md).
+- Approvals: a checkpoint whose tasks need approval pays only when none of
+  its requests is waiting or rejected. It waits for the last approval, and
+  pays nothing when a task is rejected. Waiting requests show the tokens
+  they would bring.
+- A knob that is restarting or offline no longer logs errors when Home
+  Assistant sends it data; it gets everything again when it reconnects. The
+  knob buttons of the status card answer "not available" then.
+- Dashboard cards in the theme's look: a card of one child with its own
+  theme takes that theme's colours.
+- Knob status card: the light value is rounded (two decimals below 10,
+  whole numbers above) and the firmware version is on its own line.
+- The theme picture lists are read only once, outside Home Assistant's
+  event loop.
+- The knob firmware has not changed; updating it is not needed.
+
+### Magyar
+
+- Assist: a Home Assistant hangasszisztense sokkal többféle kérdést ért,
+  magyarul és angolul: más szavakat (zseton, pénz, pont, érme, egyenleg;
+  ellenőrzőpont, csekkpont, határidő; feladat, teendő), szabad szórendet, a
+  gyerek nevét ragozva, és néhány gyakori beszédfelismerési hibát. A név
+  nélküli kérdésre („kinek mennyi zsetonja van”) minden gyerekről
+  válaszol. Ha a Kis Segítő nem ismeri a nevet, a kérdés a többi ügynökhöz
+  kerül.
+- Az Assist válaszai felolvasásra készülnek: a számok és az időpontok szóval
+  szerepelnek („negyed óra múlva, fél nyolckor”), számjegyek és jelek nélkül,
+  így minden felolvasó jól mondja ki őket. Minden válasznak több
+  megfogalmazása van. Más nyelveken angolul válaszol.
+- Assist LLM-mel: a Kis Segítő eszköze minden gyerekről egyszerre is
+  válaszol, és minden adatot megad az LLM-nek (más nevek, a következő
+  ellenőrzőpont ideje, hátralévő feladatok, még szerezhető zsetonok,
+  sorozat). A gyerekek szenzorai alapból egyszer meg vannak osztva az
+  Assisttal; ha valamelyiket kikapcsolod, az úgy marad. A README felsorolja
+  az LLM nélkül is működő mondatokat, és hogy melyik beállításban melyik
+  ügynök válaszol (docs/assist.md).
+- Jóváhagyások: az az ellenőrzőpont, amelynek feladatai jóváhagyásra
+  várnak, csak akkor fizet, ha egyik kérése sem vár és egyiket sem
+  utasították el. Megvárja az utolsó jóváhagyást, és nem fizet, ha egy
+  feladatot elutasítottak. A várakozó kéréseknél látszik, hány zsetont
+  hoznának.
+- Az újrainduló vagy nem elérhető gomb már nem okoz hibát a naplóban, amikor
+  a Home Assistant adatot küld neki; újracsatlakozáskor mindent újra
+  megkap. Ilyenkor az állapotkártya gombjai „nem elérhető” választ adnak.
+- Irányítópult-kártyák a téma kinézetével: a saját témájú gyerek kártyája a
+  gyerek témájának színeit kapja.
+- Gomb-állapotkártya: a fényérték kerekítve jelenik meg (10 alatt két
+  tizedes, fölötte egész szám), a firmware verziója külön sorban.
+- A témák képlistáit a Home Assistant csak egyszer olvassa be, az
+  eseményhurkon kívül.
+- A gomb firmware-je nem változott, nem kell frissíteni.
+
 ## [0.9.5] - 2026-11-05
 
 ### English

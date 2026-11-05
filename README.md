@@ -59,7 +59,7 @@ substitutions:
   friendly_name: Kis Segito
 
 packages:
-  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.9.5
+  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.9.6
 
 api:
   encryption:
@@ -150,10 +150,24 @@ visszatölteni, a többi a beépített marad. Útmutató: [docs/themes.md](docs/
 rutin, jutalombolt, jóváhagyások, heti statisztika, gyors +/−, eseménynapló, gomb
 állapota, gyerekek röviden), vizuális szerkesztővel: [docs/cards.md](docs/cards.md).
 
-**Assist:** a Home Assistant hangasszisztense megmondja egy gyerekről, hány zsetonja van,
-van-e most feladata, mennyi idő van a következő checkpointig és hány zsetont szerezhet még
-ma (magyarul és angolul, a gyerek nevével vagy egy másik nevével). Csak olvas, nem
-változtat semmit. Beállítás és példamondatok: [docs/assist.md](docs/assist.md).
+**Assist:** a Home Assistant hangasszisztense megmondja egy gyerekről (vagy mindegyikről),
+hány zsetonja van, van-e most feladata, mikor van a következő ellenőrzőpontja, hány zsetont
+szerezhet még ma és hogy áll a sorozata. Magyarul és angolul érti, a gyerek nevével vagy egy
+másik nevével, ragozva is. A válaszokban a számok és az időpontok szóval szerepelnek
+(„negyed óra múlva, fél nyolckor”), így minden felolvasó jól mondja ki őket. Csak olvas,
+nem változtat semmit. Néhány mondat, amely beállítás nélkül, LLM nélkül is működik:
+
+- „Hány zsetonja van Alexnek?” · „Mennyi pénze van Alexnek?” · „Kinek mennyi zsetonja van?”
+- „Van most feladata Alexnek?” · „Mit kell most csinálnia Alexnek?”
+- „Mikor van Alex következő ellenőrzőpontja?” · „Mennyi idő van még a következő
+  ellenőrzőpontig?”
+- „Hány zsetont kaphat még ma Alex?” · „Hány napja hibátlan Alex?”
+
+Ha csak a beépített ügynök fut, ezekre a mondatokra az válaszol. LLM-ügynöknél a
+„Helyi parancsok előnyben részesítése” (Prefer handling commands locally) bekapcsolva a fenti mondatokra szintén a Kis
+Segítő válaszol, minden másra az LLM; kikapcsolva az LLM kérdezi le a Kis Segítő eszközét.
+A gyerekek szenzorai alapból meg vannak osztva az Assisttal (kikapcsolható). Teljes
+mondatlista és beállítás: [docs/assist.md](docs/assist.md).
 
 **Virtuális gomb:** a gomb képernyője irányítópult-kártyaként is használható, például
 utazáskor vagy ha a gomb nem működik. Ugyanazok a képernyők, képek és animációk, csak
@@ -188,7 +202,7 @@ választható; ez a knobokra és a panelre is érvényes. Új nyelv:
   át nem érhetők el. Ha egy gomb kapcsolata nem titkosított, a Home Assistant javítási
   értesítést mutat, és a gomb a képek helyett ikonokat jelenít meg. A gomb hozzáférése a
   képekhez megújítható: panel → **Beállítások → Gombok → Új képkulcs**.
-- **Frissítés:** a fenti mintában a package egy adott verzióra mutat (`@v0.9.5`), így a
+- **Frissítés:** a fenti mintában a package egy adott verzióra mutat (`@v0.9.6`), így a
   gomb firmware-e csak akkor változik, amikor ezt átírod egy újabb verzióra.
 - **Nem része a projektnek:** aki fizikailag hozzáfér a gombhoz, kiolvashatja a
   flash-memóriáját (és a benne lévő titkos adatokat). Ez egy otthoni, házilag épített
@@ -277,7 +291,7 @@ substitutions:
   friendly_name: Kis Segito
 
 packages:
-  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.9.5
+  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.9.6
 
 api:
   encryption:
@@ -364,10 +378,24 @@ Guide: [docs/themes.md](docs/themes.md).
 routine, reward shop, approvals, weekly statistics, quick +/−, event log, knob status,
 children at a glance), with a visual editor: [docs/cards.md](docs/cards.md).
 
-**Assist:** Home Assistant's voice assistant tells about a child how many tokens they
-have, whether they have a task now, how long until the next checkpoint and how many tokens
-they can still earn today (in English and Hungarian, by the child's name or another name).
-It only reads, it changes nothing. Setup and example sentences:
+**Assist:** Home Assistant's voice assistant tells about a child (or every child) how
+many tokens they have, whether they have a task now, when the next checkpoint is, how many
+tokens they can still earn today and how their streak is going. It understands English
+and Hungarian, by the child's name or another name. Numbers and times are spoken as words
+("in a quarter of an hour, at half past seven"), so every text-to-speech voice reads them
+right. It only reads, it changes nothing. Some sentences that work without any setup and
+without an LLM:
+
+- "How many tokens does Alex have?" · "What's Alex's balance?" · "How many tokens do the
+  kids have?"
+- "Does Alex have a task now?" · "What should Alex be doing now?"
+- "When is Alex's next checkpoint?" · "How long until the next checkpoint?"
+- "How many coins can Alex still earn today?" · "What is Alex's streak?"
+
+With only the built-in agent, it answers these sentences. With an LLM agent and "Prefer
+handling commands locally" on, Kis Segítő still answers these sentences and the LLM
+everything else; with it off, the LLM asks Kis Segítő's tool. The children's sensors are
+shared with Assist by default (this can be turned off). Full sentence list and setup:
 [docs/assist.md](docs/assist.md).
 
 **Virtual knob:** the knob screen can also be used as a dashboard card, for example on a
@@ -403,7 +431,7 @@ the panel's **Settings** card; it applies to the knobs and the panel. Adding a l
   Assistant shows a repair issue and the knob shows icons instead of the pictures. A
   knob's access to the pictures can be renewed: panel → **Settings → Knobs → New picture
   key**.
-- **Updates:** in the example above the package points to a given version (`@v0.9.5`), so
+- **Updates:** in the example above the package points to a given version (`@v0.9.6`), so
   the knob's firmware changes only when you change it to a newer version.
 - **Out of scope:** anyone with physical access to the knob can read its flash memory (and
   the secrets in it). This is a DIY device for the home, so flash encryption and secure
