@@ -6,6 +6,68 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.9.5] - 2026-11-05
+
+### English
+
+- Themes: the look of the panel, the dashboard cards and the knobs – colours,
+  fonts, icons, avatars, backgrounds, logos and the knob's loading screen.
+  Choose one under Settings → Theme. The physical knobs download a theme's
+  pictures from Home Assistant at the size they show them (the firmware does
+  not grow) and restart once to switch, after a minute without use.
+- Two bundled style themes: "The Simpsons style" and "Frozen style". They are
+  fan-made style homages with original artwork: each has its own 135 pictures
+  (icons, avatars, coins, logos, knob pictures) and 6 backgrounds, its own
+  colours for the panel (light and dark) and the knob, and a free display
+  font (Luckiest Guy, Apache 2.0; Berkshire Swash, OFL). See the disclaimer
+  in the README.
+- A theme per child: in the child editor, "Theme on the knob". That child's
+  screens show its theme; the child selector and the background stay the
+  knob's theme. The virtual knob and the single-child cards follow it too.
+- Own themes: download a template (theme.json, a short guide and every
+  picture under its file name), replace any pictures and upload the ZIP under
+  Settings → Theme → Manage themes. Home Assistant renders every size;
+  pictures left out stay the built-in ones. Any theme can be switched off,
+  own themes deleted, and uploading again updates a theme. Own themes are
+  kept in Home Assistant's configuration folder. Guide: docs/themes.md.
+- Dashboard cards: a switch gives them the theme's colours and fonts (off by
+  default: they follow the dashboard's theme).
+- The panel's buttons use plain symbols instead of emoji, so they take the
+  theme's colours; edit marks use the theme's edit picture. The knob's streak
+  row and the cards' task checks and approve/reject buttons are pictures now.
+- The knob firmware needs an update (OTA) for themes.
+
+### Magyar
+
+- Témák: a panel, az irányítópult-kártyák és a gombok kinézete – színek,
+  betűk, ikonok, avatarok, hátterek, logók és a gomb betöltőképernyője. A
+  Beállítások → Téma részen választható. A fizikai gombok a téma képeit a
+  Home Assistantból töltik le a kirajzolt méretben (a firmware nem nő), és
+  a váltáshoz egyszer újraindulnak, egy perc használaton kívüli idő után.
+- Két beépített stílustéma: „A Simpson család stílus” és „Jégvarázs stílus”.
+  Rajongói stílus-tisztelgések eredeti rajzokkal: mindegyiknek saját 135
+  képe (ikonok, avatarok, zsetonok, logók, gombképek) és 6 háttere van,
+  saját színei a panelhez (világos és sötét mód) és a gombhoz, és egy
+  ingyenes címbetűje (Luckiest Guy, Apache 2.0; Berkshire Swash, OFL). Lásd
+  a jogi nyilatkozatot a README-ben.
+- Gyerekenkénti téma: a gyerekszerkesztőben „Téma a gombon”. A gyerek
+  képernyői a saját témáját mutatják; a gyerekválasztó és a háttér a gomb
+  témája marad. A virtuális gomb és az egy gyerekhez tartozó kártyák is
+  követik.
+- Saját témák: a Beállítások → Téma → Témák kezelése részen letölthető egy
+  sablon (theme.json, rövid útmutató és minden kép a fájlnevével); bármelyik
+  kép lecserélhető, a ZIP visszatölthető. A Home Assistant elkészít minden
+  méretet; a kihagyott képek a beépítettek maradnak. Bármelyik téma
+  kikapcsolható, a sajátok törölhetők, és újra feltöltve a téma frissül. A
+  saját témák a Home Assistant konfigurációs mappájában vannak. Útmutató:
+  docs/themes.md.
+- Irányítópult-kártyák: egy kapcsolóval a téma színeit és betűit kapják
+  (alapból kikapcsolva: az irányítópult témáját követik).
+- A panel gombjain emoji helyett egyszerű jelek vannak, így a téma színét
+  kapják; a szerkesztés-jel a téma szerkesztés-képe. A gomb sorozatsora és a
+  kártyák feladatpipái, jóváhagyás/elutasítás gombjai most képek.
+- A témákhoz a gomb firmware-ét frissíteni kell (OTA).
+
 ## [0.9.4] - 2026-11-05
 
 ### English

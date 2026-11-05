@@ -59,7 +59,7 @@ substitutions:
   friendly_name: Kis Segito
 
 packages:
-  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.9.4
+  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.9.5
 
 api:
   encryption:
@@ -140,9 +140,11 @@ jönnek. Minden lépés naplózva van.
 kikapcsolhatók.
 
 **Témák:** a **Beállítások → Téma** részen választható a kinézet (színek, betűk, ikonok,
-avatarok, hátterek) a panelen, a kártyákon és a gombokon. Saját téma is készíthető: a sablont
-letöltve elég néhány képet lecserélni és visszatölteni, a többi a beépített marad. Útmutató:
-[docs/themes.md](docs/themes.md).
+avatarok, hátterek) a panelen és a gombokon; a kártyák kapcsolóval vehetik át. Beépített
+stílustémák: „A Simpson család stílus” és „Jégvarázs stílus” (rajongói stílus-tisztelgések,
+eredeti rajzokkal, lásd a jogi nyilatkozatot lent). Gyerekenként külön téma is választható a
+gombra. Saját téma is készíthető: a sablont letöltve elég néhány képet lecserélni és
+visszatölteni, a többi a beépített marad. Útmutató: [docs/themes.md](docs/themes.md).
 
 **Irányítópult-kártyák:** a szülőknek kilenc kártya jön az integrációval (gyerek, mai
 rutin, jutalombolt, jóváhagyások, heti statisztika, gyors +/−, eseménynapló, gomb
@@ -186,7 +188,7 @@ választható; ez a knobokra és a panelre is érvényes. Új nyelv:
   át nem érhetők el. Ha egy gomb kapcsolata nem titkosított, a Home Assistant javítási
   értesítést mutat, és a gomb a képek helyett ikonokat jelenít meg. A gomb hozzáférése a
   képekhez megújítható: panel → **Beállítások → Gombok → Új képkulcs**.
-- **Frissítés:** a fenti mintában a package egy adott verzióra mutat (`@v0.9.4`), így a
+- **Frissítés:** a fenti mintában a package egy adott verzióra mutat (`@v0.9.5`), így a
   gomb firmware-e csak akkor változik, amikor ezt átírod egy újabb verzióra.
 - **Nem része a projektnek:** aki fizikailag hozzáfér a gombhoz, kiolvashatja a
   flash-memóriáját (és a benne lévő titkos adatokat). Ez egy otthoni, házilag épített
@@ -275,7 +277,7 @@ substitutions:
   friendly_name: Kis Segito
 
 packages:
-  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.9.4
+  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.9.5
 
 api:
   encryption:
@@ -352,9 +354,11 @@ checkpoint's tokens come on approval. Every step is logged.
 switched off.
 
 **Themes:** under **Settings → Theme** you choose the look (colours, fonts, icons, avatars,
-backgrounds) of the panel, the cards and the knobs. You can make your own: download the
-template, replace a few pictures and upload it; the rest stays built-in. Guide:
-[docs/themes.md](docs/themes.md).
+backgrounds) of the panel and the knobs; the cards can take it with a switch. Bundled style
+themes: "The Simpsons style" and "Frozen style" (fan-made style homages with original artwork,
+see the disclaimer below). Each child can have its own theme on the knob. You can make your own
+theme: download the template, replace a few pictures and upload it; the rest stays built-in.
+Guide: [docs/themes.md](docs/themes.md).
 
 **Dashboard cards:** nine cards for parents come with the integration (child, today's
 routine, reward shop, approvals, weekly statistics, quick +/−, event log, knob status,
@@ -399,7 +403,7 @@ the panel's **Settings** card; it applies to the knobs and the panel. Adding a l
   Assistant shows a repair issue and the knob shows icons instead of the pictures. A
   knob's access to the pictures can be renewed: panel → **Settings → Knobs → New picture
   key**.
-- **Updates:** in the example above the package points to a given version (`@v0.9.4`), so
+- **Updates:** in the example above the package points to a given version (`@v0.9.5`), so
   the knob's firmware changes only when you change it to a newer version.
 - **Out of scope:** anyone with physical access to the knob can read its flash memory (and
   the secrets in it). This is a DIY device for the home, so flash encryption and secure
@@ -426,3 +430,20 @@ complete source code under the same license.
 
 Third-party material keeps its own license (e.g. VIEWESMART – MIT, see
 [NOTICE](NOTICE); ESPHome – GPLv3/MIT).
+
+---
+
+**Jogi nyilatkozat:** a Kis Segítő nem áll kapcsolatban a The Walt Disney Company, a Disney
+Enterprises, Inc., a Pixar, a 20th Television, a 20th Century Studios (korábban Twentieth
+Century Fox) vagy más jogtulajdonos vállalattal, és azok nem támogatják vagy szponzorálják. A
+The Simpsons, a Frozen, a Cars, a Toy Story, a Planes és a Winnie the Pooh a jogtulajdonosaik
+védjegyei. A nevek csak azt a vizuális stílust jelölik, amelyből egy téma ihletet merít. A
+témák minden rajza eredeti: nem tartalmaznak szereplőket, logókat vagy más elemeket az
+eredetiekből.
+
+**Disclaimer:** Kis Segítő is not affiliated with, endorsed by or sponsored by The Walt Disney
+Company, Disney Enterprises, Inc., Pixar, 20th Television, 20th Century Studios (formerly
+Twentieth Century Fox) or any other rights holder. The Simpsons, Frozen, Cars, Toy Story,
+Planes and Winnie the Pooh are trademarks of their respective owners. The names are used only
+to describe the visual style that a theme is inspired by. All artwork in the themes is
+original, and no characters, logos or other elements from the originals are included.
