@@ -32,7 +32,7 @@ from .manager import (
 )
 from .notify import EVENT_TYPES
 from .panel import FRONTEND_DIR, panel_language_names
-from .themes import load_themes
+from .themes import load_themes, theme_assets
 from .themes import theme as theme_of
 from .store import DEFAULT_SETTINGS
 
@@ -258,9 +258,22 @@ async def async_load_icon_lists(hass: HomeAssistant) -> None:
     await hass.async_add_executor_job(load_themes)
 
 
-def _themes() -> list[dict[str, Any]]:
-    """The themes that can be chosen (id and names)."""
-    return [{"id": t["id"], "name": t["name"]} for t in load_themes().values()]
+def _themes(manager: KisSegitoManager) -> list[dict[str, Any]]:
+    """Every theme for the picker and the theme manager."""
+    off = set(manager.settings.get("themes_off", []))
+    return [
+        {
+            "id": t["id"],
+            "name": t["name"],
+            "own": t.get("own", False),
+            "base": t.get("base", ""),
+            "rev": t.get("rev", 0),
+            "count": t.get("count"),
+            "total": t.get("total"),
+            "active": t["id"] not in off,
+        }
+        for t in load_themes().values()
+    ]
 
 
 def _own_entity(hass: HomeAssistant, device_id: str, key: str) -> str | None:
@@ -590,7 +603,7 @@ async def ws_data(
             "disabled_icons": _manager(hass).icon_settings["disabled"],
             "icon_aliases": ICON_ALIASES,
             "backgrounds": list(BACKGROUND_PRESETS),
-            "themes": _themes(),
+            "themes": _themes(manager),
             "theme": theme_of(manager.settings.get("theme")),
         },
     )
@@ -1209,6 +1222,7 @@ def _virtual_state(hass: HomeAssistant, device_id: str) -> dict[str, Any]:
         "version": data.version,
         "long_press_ms": 500,
         "small_icons": _small_icons(),
+        "theme": theme_assets(_manager(hass).theme),
         "own_icons": {
             i["key"]: i["image"] for i in data.manager.icon_settings["own"]
         },

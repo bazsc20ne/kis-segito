@@ -24,6 +24,8 @@ from functools import cache
 from pathlib import Path
 from typing import Any
 
+from .theme_build import source_names
+
 THEMES_DIR = Path(__file__).parent / "frontend" / "themes"
 ICONS_DIR = Path(__file__).parent / "frontend" / "icons"
 DEFAULT_THEME = "kis_segito"
@@ -101,22 +103,130 @@ def _clean(theme: str, data: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+# Themes made by the user (uploaded in the panel) live in Home Assistant's
+# configuration folder, so an update of the integration keeps them; they are
+# served under OWN_URL. Their ids start with OWN_PREFIX. They may be partial:
+# a picture they lack is the built-in one.
+OWN_URL = "/kis_segito_own_themes"
+OWN_PREFIX = "my_"
+_own_dir: Path | None = None
+
+
+def set_own_dir(path: Path | None) -> None:
+    """Where the user's own themes are (set up by the integration)."""
+    global _own_dir
+    _own_dir = path
+    reload()
+
+
+def own_dir() -> Path | None:
+    return _own_dir
+
+
+def reload() -> None:
+    """Read the themes again (after an own theme was added or removed)."""
+    _scan.cache_clear()
+
+
+def _describe(theme_id: str, folder: Path, base: str, own: bool) -> dict[str, Any]:
+    data = _clean(theme_id, _read_json(folder / "theme.json"))
+    required = required_files()
+    present = [name for name in required if (folder / name).is_file()]
+    # Counted in pictures (as in the template), not in rendered files.
+    names = source_names()
+    own_pictures = sum(
+        1
+        for name in names
+        if (folder / "icons" / f"{name}.png").is_file()
+        or (folder / "icons" / f"{name}.webp").is_file()
+        or (folder / "backgrounds" / f"{name}.jpg").is_file()
+        or any((folder / "knob").glob(f"{name}_[0-9]*.png"))
+    )
+    data |= {
+        "own": own,
+        "base": base,
+        # Changes when the theme is uploaded again (the browsers' copies go).
+        "rev": (folder / "theme.json").stat().st_mtime_ns // 1_000_000,
+        "complete": len(present) == len(required),
+        "count": own_pictures,
+        "total": len(names),
+    }
+    if not data["complete"]:
+        # What the theme has; everything else is the built-in picture.
+        data["has"] = present
+    return data
+
+
 @cache
-def load_themes() -> dict[str, dict[str, Any]]:
-    """All themes whose pictures are complete, the default one first."""
+def _scan() -> tuple[dict[str, dict[str, Any]], dict[str, Path]]:
     themes: dict[str, dict[str, Any]] = {}
+    folders: dict[str, Path] = {}
     for folder in sorted(THEMES_DIR.iterdir()) if THEMES_DIR.is_dir() else []:
-        meta = folder / "theme.json"
-        if not folder.is_dir() or not THEME_ID.match(folder.name) or not meta.is_file():
+        if (
+            not folder.is_dir()
+            or not THEME_ID.match(folder.name)
+            or folder.name.startswith(OWN_PREFIX)
+            or not (folder / "theme.json").is_file()
+        ):
+            continue
+        if folder.name == DEFAULT_THEME:
+            themes[DEFAULT_THEME] = _clean(
+                DEFAULT_THEME, _read_json(folder / "theme.json")
+            )
+            themes[DEFAULT_THEME] |= {"own": False, "base": "", "complete": True}
             continue
         if missing_files(folder.name):
-            continue
-        themes[folder.name] = _clean(folder.name, _read_json(meta))
-    default = themes.pop(DEFAULT_THEME, _clean(DEFAULT_THEME, {}))
-    return {DEFAULT_THEME: default} | themes
+            continue  # a bundled theme is offered only when it is complete
+        themes[folder.name] = _describe(
+            folder.name, folder, f"/kis_segito_static/themes/{folder.name}", own=False
+        )
+        folders[folder.name] = folder
+    if _own_dir is not None and _own_dir.is_dir():
+        for folder in sorted(_own_dir.iterdir()):
+            if (
+                folder.is_dir()
+                and THEME_ID.match(folder.name)
+                and folder.name.startswith(OWN_PREFIX)
+                and (folder / "theme.json").is_file()
+            ):
+                themes[folder.name] = _describe(
+                    folder.name, folder, f"{OWN_URL}/{folder.name}", own=True
+                )
+                folders[folder.name] = folder
+    default = themes.pop(DEFAULT_THEME, None) or (
+        _clean(DEFAULT_THEME, {}) | {"own": False, "base": "", "complete": True}
+    )
+    return {DEFAULT_THEME: default} | themes, folders
+
+
+def load_themes() -> dict[str, dict[str, Any]]:
+    """All themes that can be chosen, the default one first."""
+    return _scan()[0]
+
+
+def theme_folder(theme_id: str) -> Path | None:
+    """The folder of a theme's pictures (None for the default theme)."""
+    return _scan()[1].get(theme_id)
 
 
 def theme(theme_id: str | None) -> dict[str, Any]:
     """A theme by id; the default one when it is unknown or incomplete."""
     themes = load_themes()
     return themes.get(theme_id or DEFAULT_THEME) or themes[DEFAULT_THEME]
+
+
+def has_file(theme_id: str, name: str) -> bool:
+    """Whether a theme has its own version of a picture (e.g. "backgrounds/bg_2.jpg")."""
+    folder = theme_folder(theme_id)
+    return folder is not None and (folder / name).is_file()
+
+
+def theme_assets(theme_data: dict[str, Any]) -> dict[str, Any] | None:
+    """Where a theme's pictures are, for the cards and the virtual knob
+    (None: the built-in ones)."""
+    if theme_data["id"] == DEFAULT_THEME or not theme_data.get("base"):
+        return None
+    assets = {"base": theme_data["base"], "rev": theme_data.get("rev", 0)}
+    if not theme_data.get("complete"):
+        assets["has"] = theme_data.get("has", [])
+    return assets

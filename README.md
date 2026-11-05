@@ -139,6 +139,11 @@ jönnek. Minden lépés naplózva van.
 **Beállítások → Ikonok** részen cserélhető, kikapcsolható vagy törölhető. A beépített ikonok
 kikapcsolhatók.
 
+**Témák:** a **Beállítások → Téma** részen választható a kinézet (színek, betűk, ikonok,
+avatarok, hátterek) a panelen, a kártyákon és a gombokon. Saját téma is készíthető: a sablont
+letöltve elég néhány képet lecserélni és visszatölteni, a többi a beépített marad. Útmutató:
+[docs/themes.md](docs/themes.md).
+
 **Irányítópult-kártyák:** a szülőknek kilenc kártya jön az integrációval (gyerek, mai
 rutin, jutalombolt, jóváhagyások, heti statisztika, gyors +/−, eseménynapló, gomb
 állapota, gyerekek röviden), vizuális szerkesztővel: [docs/cards.md](docs/cards.md).
@@ -345,6 +350,11 @@ checkpoint's tokens come on approval. Every step is logged.
 **Own icons:** wherever an icon is chosen, your own picture can be uploaded as an icon; on
 **Settings → Icons** it can be replaced, switched off or deleted. Built-in icons can be
 switched off.
+
+**Themes:** under **Settings → Theme** you choose the look (colours, fonts, icons, avatars,
+backgrounds) of the panel, the cards and the knobs. You can make your own: download the
+template, replace a few pictures and upload it; the rest stays built-in. Guide:
+[docs/themes.md](docs/themes.md).
 
 **Dashboard cards:** nine cards for parents come with the integration (child, today's
 routine, reward shop, approvals, weekly statistics, quick +/−, event log, knob status,

@@ -232,6 +232,7 @@ class KisSegitoKnobCard extends HTMLElement {
     this._state = msg.state;
     applyThemeColours(this._state?.tc, this);
     this._small = new Set(msg.small_icons || []);
+    this._theme = msg.theme || null;
     this._ownIcons = msg.own_icons || {};
     this._receivedAt = Date.now();
     if (first) {
@@ -408,13 +409,17 @@ class KisSegitoKnobCard extends HTMLElement {
     name = this._aliases[name] || name;
     // Small places use the simplified variant, when the icon has one.
     const small = size <= 44 && this._small?.has(name) ? "small/" : "";
-    return `${this._assetBase}/icons/${small}${name}.png?v=${this._version}`;
+    return this._asset(`icons/${small}${name}.png`);
   }
 
-  // Where the chosen theme's pictures are (state "th"; empty: the built-in ones).
-  get _assetBase() {
-    const theme = this._state?.th || "";
-    return /^[a-z0-9_]+$/.test(theme) ? `${this._staticUrl}/themes/${theme}` : this._staticUrl;
+  // A picture of the chosen theme, or the built-in one (an own theme may
+  // leave pictures out).
+  _asset(path) {
+    const theme = this._theme;
+    if (theme?.base && (!theme.has || theme.has.includes(path))) {
+      return `${theme.base}/${path}?v=${this._version}&r=${theme.rev || 0}`;
+    }
+    return `${this._staticUrl}/${path}?v=${this._version}`;
   }
 
   _img(parent, name, cx, cy, size, cls = "") {
@@ -488,7 +493,7 @@ class KisSegitoKnobCard extends HTMLElement {
     // A theme's preset: "t_<theme>__bg_<n>".
     const themed = /^t_([a-z0-9_]+?)__(bg_[1-6])$/.exec(bg);
     if (themed) {
-      return `${this._staticUrl}/themes/${themed[1]}/backgrounds/${themed[2]}.jpg?v=${this._version}`;
+      return this._asset(`backgrounds/${themed[2]}.jpg`);
     }
     return bg.startsWith("bg_") ? `${this._staticUrl}/backgrounds/${bg}.jpg?v=${this._version}` : `/api/image/serve/${encodeURIComponent(bg)}/512x512`;
   }

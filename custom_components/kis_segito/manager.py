@@ -33,7 +33,7 @@ from .logic import (
     routine_with_override,
     child_on_device,
 )
-from .themes import DEFAULT_THEME
+from .themes import DEFAULT_THEME, has_file
 from .themes import theme as theme_of
 from .store import AUDIT_KEPT, DEFAULT_AVATAR, DEFAULT_SETTINGS, KisSegitoStore
 
@@ -561,6 +561,15 @@ class KisSegitoManager:
             return
         await self._changed()
 
+    async def async_theme_updated(self) -> None:
+        """The chosen theme's pictures changed: every knob restarts to show
+        them (like after a background change)."""
+        self.settings["background_seq"] = int(self.settings.get("background_seq", 0)) + 1
+        for device in self.data["devices"].values():
+            if "background_seq" in device:
+                device["background_seq"] = int(device["background_seq"]) + 1
+        await self._changed()
+
     @property
     def theme(self) -> dict[str, Any]:
         """The chosen theme (the default one when it is not available)."""
@@ -570,7 +579,11 @@ class KisSegitoManager:
         """A background preset in the chosen theme's style; uploaded pictures
         and the default theme stay as they are."""
         theme_id = self.theme["id"]
-        if theme_id == DEFAULT_THEME or not re.match(r"^bg_[1-6]$", background):
+        if (
+            theme_id == DEFAULT_THEME
+            or not re.match(r"^bg_[1-6]$", background)
+            or not has_file(theme_id, f"backgrounds/{background}.jpg")
+        ):
             return background
         return f"t_{theme_id}__{background}"
 

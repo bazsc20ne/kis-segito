@@ -15,7 +15,7 @@ from .assist import child_status
 from .const import CONF_DEVICE_ID, DOMAIN, STATIC_URL
 from .logic import applies_to
 from .manager import KisSegitoError, KisSegitoManager
-from .themes import DEFAULT_THEME
+from .themes import theme_assets
 
 # The knob's own entities a card shows: (domain, object id ending).
 KNOB_ENTITIES = {
@@ -155,7 +155,7 @@ def ws_cards(
             "knobs": _knobs(hass),
             "own_icons": manager.icon_settings["own"],
             # Pictures of the chosen theme ("": the built-in ones).
-            "theme": "" if manager.theme["id"] == DEFAULT_THEME else manager.theme["id"],
+            "theme": theme_assets(manager.theme),
         },
     )
 

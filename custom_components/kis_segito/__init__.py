@@ -4,8 +4,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from functools import partial
+from pathlib import Path
 from datetime import datetime, timedelta
 
+from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EVENT_HOMEASSISTANT_STOP, Platform
 from homeassistant.core import Event, HomeAssistant, callback
@@ -17,6 +20,8 @@ from homeassistant.loader import async_get_integration
 from homeassistant.util import dt as dt_util
 
 from .assist import async_setup_assist
+from .theme_api import async_register_theme_api
+from .themes import OWN_URL, set_own_dir
 from .cards_api import async_register_card_commands
 from .const import CONF_DEVICE_ID, DOMAIN
 from .device_link import DeviceLink, unencrypted_issue_id
@@ -72,9 +77,18 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     hass.data[DOMAIN] = KisSegitoData(
         version=str(integration.version), store=store, manager=manager
     )
+    # The user's own themes: in the configuration folder, served like the
+    # bundled ones.
+    own_themes = Path(hass.config.path(DOMAIN, "themes"))
+    await hass.async_add_executor_job(partial(own_themes.mkdir, parents=True, exist_ok=True))
+    set_own_dir(own_themes)
+    await hass.http.async_register_static_paths(
+        [StaticPathConfig(OWN_URL, str(own_themes), cache_headers=False)]
+    )
     await async_load_icon_lists(hass)
     async_register_commands(hass)
     async_register_card_commands(hass)
+    async_register_theme_api(hass)
     hass.http.register_view(KnobImageView(hass))
     async_register_services(hass, manager)
     async_setup_assist(hass, manager)

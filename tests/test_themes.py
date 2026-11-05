@@ -12,7 +12,7 @@ from homeassistant.helpers import device_registry as dr
 from PIL import Image
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.kis_segito import knob_images, themes
+from custom_components.kis_segito import themes
 from custom_components.kis_segito.const import CONF_DEVICE_ID, DOMAIN
 
 
@@ -46,10 +46,9 @@ def theme_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     shutil.copy(themes.THEMES_DIR / "knob_pictures.json", root)
     shutil.copytree(themes.THEMES_DIR / "kis_segito", root / "kis_segito")
     monkeypatch.setattr(themes, "THEMES_DIR", root)
-    monkeypatch.setattr(knob_images, "THEMES_DIR", root)
-    themes.load_themes.cache_clear()
+    themes.reload()
     yield root
-    themes.load_themes.cache_clear()
+    themes.reload()
 
 
 def test_discovery(theme_dir: Path) -> None:
@@ -68,7 +67,7 @@ def test_discovery(theme_dir: Path) -> None:
 
 
 def test_shipped_default_theme() -> None:
-    themes.load_themes.cache_clear()
+    themes.reload()
     default = themes.load_themes()["kis_segito"]
     assert default["name"] == {"en": "Little Helper", "hu": "Kis Segítő"}
     assert set(default["knob"]) == set(themes.KNOB_COLORS)
@@ -141,3 +140,148 @@ async def test_theme_setting(
         "/api/kis_segito/knob_image/t_test__nothing/150",
     ):
         assert (await http.get(url, headers=header)).status == 404
+
+
+async def test_own_theme(
+    hass: HomeAssistant,
+    hass_ws_client,
+    hass_client,
+    hass_client_no_auth,
+    theme_dir: Path,
+) -> None:
+    import io
+    import json
+    import zipfile
+
+    esphome_entry = MockConfigEntry(
+        domain="esphome", data={"host": "192.0.2.1", "device_name": "test-knob"}
+    )
+    esphome_entry.add_to_hass(hass)
+    device = dr.async_get(hass).async_get_or_create(
+        config_entry_id=esphome_entry.entry_id,
+        connections={(dr.CONNECTION_NETWORK_MAC, "00:00:00:00:00:0a")},
+        name="Knob",
+    )
+    entry = MockConfigEntry(
+        domain=DOMAIN, unique_id=device.id, data={CONF_DEVICE_ID: device.id}
+    )
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    manager = hass.data[DOMAIN].manager
+    http = await hass_client()
+    ws = await hass_ws_client(hass)
+
+    async def call(**msg):
+        await ws.send_json_auto_id(msg)
+        return await ws.receive_json()
+
+    # The template: theme.json, the guide and a picture for every source.
+    response = await http.get("/api/kis_segito/theme/template")
+    assert response.status == 200
+    template = zipfile.ZipFile(io.BytesIO(await response.read()))
+    names = template.namelist()
+    assert "theme.json" in names and "README.txt" in names
+    assert "pictures/task_shoes.png" in names and "pictures/bg_1.jpg" in names
+
+    # A theme of a few pictures (the rest stays built-in).
+    def package(meta: dict, pictures: dict[str, tuple[int, int]]) -> bytes:
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w") as zf:
+            zf.writestr("my theme/theme.json", json.dumps(meta))
+            for name, size in pictures.items():
+                img = io.BytesIO()
+                Image.new("RGBA", size, (0, 120, 200, 255)).save(img, "PNG")
+                zf.writestr(f"my theme/pictures/{name}", img.getvalue())
+            zf.writestr("my theme/notes.txt", "ignored")
+        return buf.getvalue()
+
+    async def upload(data: bytes):
+        from aiohttp import FormData
+
+        form = FormData()
+        form.add_field("file", data, filename="theme.zip")
+        return await http.post("/api/kis_segito/theme/upload", data=form)
+
+    data = package(
+        {"name": {"en": "Ocean Fun", "hu": "Óceán"}, "knob": {"bg": "#003366"}},
+        {
+            "task_shoes.png": (512, 512),
+            "bg_2.png": (600, 600),
+            "brand_logo.png": (300, 100),
+        },
+    )
+    response = await upload(data)
+    assert response.status == 200, await response.text()
+    result = await response.json()
+    assert result["id"] == "my_ocean_fun"
+    assert 0 < result["count"] < result["total"]
+
+    listed = (await call(type=f"{DOMAIN}/data"))["result"]["themes"]
+    own = next(t for t in listed if t["id"] == "my_ocean_fun")
+    assert (
+        own["own"]
+        and own["active"]
+        and own["base"] == "/kis_segito_own_themes/my_ocean_fun"
+    )
+
+    assert (await call(type=f"{DOMAIN}/settings/update", theme="my_ocean_fun"))[
+        "success"
+    ]
+    state = manager.snapshot(device.id, "en")
+    assert state["th"] == "my_ocean_fun" and state["tc"] == {"bg": "#003366"}
+    assert state["bg"] == "t_my_ocean_fun__bg_2"  # the theme has this background
+    data_theme = (await call(type=f"{DOMAIN}/data"))["result"]["theme"]
+    assert "icons/task_shoes.png" in data_theme["has"]
+    assert "icons/task_socks.png" not in data_theme["has"]
+
+    # The knob gets the theme's pictures; a missing one is the built-in one.
+    header = {"X-Kis-Segito-Token": manager.device_token(device.id)}
+    plain = await hass_client_no_auth()
+    ok = await plain.get(
+        "/api/kis_segito/knob_image/t_my_ocean_fun__task_shoes/150", headers=header
+    )
+    assert ok.status == 200
+    missing = await plain.get(
+        "/api/kis_segito/knob_image/t_my_ocean_fun__task_socks/150", headers=header
+    )
+    assert missing.status == 404
+    # The panel serves the pictures from the configuration folder.
+    assert (
+        await http.get("/kis_segito_own_themes/my_ocean_fun/icons/task_shoes.png")
+    ).status == 200
+
+    # Uploading it again updates it; the knobs restart for the new pictures.
+    seq = manager.settings.get("background_seq", 0)
+    assert (await upload(data)).status == 200
+    assert manager.settings["background_seq"] == seq + 1
+
+    # Switched off: not the chosen theme any more.
+    assert (
+        await call(
+            type=f"{DOMAIN}/themes/active", theme_id="my_ocean_fun", active=False
+        )
+    )["success"]
+    assert manager.settings["theme"] == "kis_segito"
+    assert manager.settings["themes_off"] == ["my_ocean_fun"]
+    # Only own themes can be deleted.
+    result = await call(type=f"{DOMAIN}/themes/delete", theme_id="kis_segito")
+    assert result["error"]["code"] == "not_own_theme"
+    assert (await call(type=f"{DOMAIN}/themes/delete", theme_id="my_ocean_fun"))[
+        "success"
+    ]
+    assert "my_ocean_fun" not in themes.load_themes()
+    assert manager.settings["themes_off"] == []
+
+    # Packages that cannot be installed.
+    for bad, code in (
+        (b"not a zip", "not_a_zip"),
+        (package({"name": {}}, {}), "no_name"),
+        (
+            package({"name": {"en": "Big"}}, {"task_shoes.png": (5000, 10)}),
+            "picture_too_large",
+        ),
+    ):
+        response = await upload(bad)
+        assert response.status == 400
+        assert (await response.json())["code"] == code

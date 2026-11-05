@@ -281,7 +281,7 @@ class KisSegitoPanel extends HTMLElement {
     const vars = { ...(look.panel?.[this._night ? "dark" : "light"] || {}) };
     const fonts = look.fonts || {};
     if (this._look && (fonts.display || fonts.body)) {
-      const base = `${this._staticUrl}/themes/${this._look}/fonts`;
+      const base = `${look.base}/fonts`;
       const faces = [];
       if (fonts.display) {
         faces.push(`@font-face{font-family:"KS Theme Display";src:url("${base}/${fonts.display}") format("woff2");font-weight:300 900;font-display:swap}`);
@@ -523,7 +523,7 @@ class KisSegitoPanel extends HTMLElement {
     name = this._data?.icon_aliases?.[name] || name;
     // Small places use the simplified variant, when the icon has one.
     const small = size <= 44 && this._data?.small_icons?.includes(name) ? "small/" : "";
-    return `${this._assetBase}/icons/${small}${this._e(name)}.png?v=${this._version}`;
+    return this._asset(`icons/${small}${this._e(name)}.png`);
   }
 
   // The chosen theme's id ("" for the built-in look) and where its pictures are.
@@ -532,8 +532,14 @@ class KisSegitoPanel extends HTMLElement {
     return id && id !== "kis_segito" ? id : "";
   }
 
-  get _assetBase() {
-    return this._look ? `${this._staticUrl}/themes/${this._look}` : this._staticUrl;
+  // A picture's URL: the chosen theme's own one, or the built-in one (an own
+  // theme may leave pictures out).
+  _asset(path) {
+    const look = this._data?.theme;
+    if (this._look && look?.base && (look.complete || (look.has || []).includes(path))) {
+      return `${look.base}/${path}?v=${this._version}&r=${look.rev || 0}`;
+    }
+    return `${this._staticUrl}/${path}?v=${this._version}`;
   }
 
   _icon(name, size = 40, cls = "") {
@@ -549,7 +555,7 @@ class KisSegitoPanel extends HTMLElement {
       return "";
     }
     return value.startsWith("bg_")
-      ? `${this._assetBase}/backgrounds/${this._e(value)}.jpg?v=${this._version}`
+      ? this._asset(`backgrounds/${this._e(value)}.jpg`)
       : `/api/image/serve/${this._e(value)}/512x512`;
   }
 
@@ -624,23 +630,43 @@ class KisSegitoPanel extends HTMLElement {
   }
 
   // Own icons (replace, switch off, delete) and the built-in ones (switch off).
-  // Settings: the theme picker (look of the panel, the cards and the knobs).
+  // Settings: the theme picker (look of the panel, the cards and the knobs)
+  // and the theme manager (own themes: template, upload, delete; any theme
+  // can be switched off).
   _viewThemes() {
     const themes = this._data.themes || [];
     const current = this._data.theme?.id || "kis_segito";
     const dis = this._isAdmin ? "" : "disabled";
     const lang = (this._language || "en").startsWith("hu") ? "hu" : "en";
-    const preview = (id, name) => {
-      const base = id === "kis_segito" ? this._staticUrl : `${this._staticUrl}/themes/${this._e(id)}`;
-      return `<img src="${base}/icons/${name}.png?v=${this._version}" width="40" height="40" alt="">`;
+    const name = (t) => this._e(t.name?.[lang] || t.name?.en || t.name?.hu || t.id);
+    // An own theme without this picture shows the built-in one.
+    const preview = (t, icon) => {
+      const builtin = `${this._staticUrl}/icons/${icon}.png?v=${this._version}`;
+      const url = t.base ? `${t.base}/icons/${icon}.png?v=${this._version}&r=${t.rev || 0}` : builtin;
+      return `<img src="${url}" width="40" height="40" alt="" onerror="this.onerror=null;this.src='${builtin}'">`;
     };
     const cards = themes
+      .filter((t) => t.active || t.id === current)
       .map((t) => `<button class="theme ${t.id === current ? "on" : ""}" data-act="theme-set" data-arg="${this._e(t.id)}" ${dis}>
-        <span class="previews">${["fn_rewards", "routine_morning", "avatar_01"].map((n) => preview(t.id, n)).join("")}</span>
-        <b>${this._e(t.name?.[lang] || t.name?.en || t.id)}</b></button>`)
+        <span class="previews">${["fn_rewards", "routine_morning", "avatar_01"].map((n) => preview(t, n)).join("")}</span>
+        <b>${name(t)}</b>${t.own ? `<span class="tag">${this._e(this._t("theme.own"))}</span>` : ""}</button>`)
       .join("");
+    const rows = themes
+      .filter((t) => t.id !== "kis_segito")
+      .map((t) => `<div class="row wrap theme-row"><b class="grow">${name(t)}</b>
+        ${t.own ? `<span class="tag">${this._e(this._t("theme.own"))}</span><span class="muted small">${this._e(this._t("theme.pictures").replace("{n}", t.count).replace("{total}", t.total))}</span>` : `<span class="tag">${this._e(this._t("theme.builtin"))}</span>`}
+        <label class="switch"><input type="checkbox" data-act="theme-active" data-arg="${this._e(t.id)}" ${t.active ? "checked" : ""} ${dis}>${this._e(this._t("common.active"))}</label>
+        ${t.own && this._isAdmin ? `<button class="btn sm danger" data-act="theme-delete" data-arg="${this._e(t.id)}">${this._e(this._t("common.delete"))}</button>` : ""}</div>`)
+      .join("");
+    const tools = this._isAdmin
+      ? `<div class="row wrap"><button class="btn sm" data-act="theme-template">⬇ ${this._e(this._t("theme.template"))}</button>
+          <label class="btn sm primary">⬆ ${this._e(this._t("theme.upload"))}<input type="file" accept=".zip,application/zip" data-upload-theme hidden></label></div>`
+      : "";
     return `<div class="card"><h3>${this._e(this._t("theme.title"))}</h3><div class="themes">${cards}</div>
       <div class="hint">${this._e(this._t("theme.hint"))}</div>
+      <details data-key="themes"><summary>${this._e(this._t("theme.manage"))}</summary>
+        <div class="stack" style="gap:8px;margin-top:10px">${rows || `<div class="muted small">${this._e(this._t("theme.none"))}</div>`}
+        ${tools}<div class="hint">${this._e(this._t("theme.own_hint"))}</div></div></details>
       ${themes.length > 1 ? `<div class="hint">${this._e(this._t("theme.disclaimer"))}</div>` : ""}</div>`;
   }
 
@@ -2454,7 +2480,7 @@ class KisSegitoPanel extends HTMLElement {
         <header class="hero" style="background-image:url('${this._backgroundUrl(night ? "bg_6" : "bg_2")}')">
           <div class="topbar">
             ${this._isNarrow ? `<ha-menu-button></ha-menu-button>` : ""}
-            <div class="brand"><img class="logo" src="${this._assetBase}/icons/${logo}.webp?v=${this._version}" alt="${this._e(this._t("panel.title"))}"></div>
+            <div class="brand"><img class="logo" src="${this._asset(`icons/${logo}.webp`)}" alt="${this._e(this._t("panel.title"))}"></div>
             <div class="top-actions">
               ${languages.length > 1 ? `<div class="pill-switch" role="group" aria-label="${this._e(this._t("settings.language"))}">${languages.map((l) => `<button class="${languageNow.split("-")[0] === l.code ? "on" : ""}" data-act="lang" data-arg="${this._e(l.code)}" title="${this._e(l.name)}">${this._e(l.code.toUpperCase())}</button>`).join("")}</div>` : ""}
               <button class="daynight ${night ? "night" : ""}" data-act="theme" aria-label="${this._e(this._t(night ? "theme.day" : "theme.night"))}" title="${this._e(this._t(night ? "theme.night" : "theme.day"))}">${stars}<span class="knob"></span></button>
@@ -3027,6 +3053,26 @@ class KisSegitoPanel extends HTMLElement {
         this._toast(this._t("toast.saved"));
         await this._load();
         return;
+      case "theme-active":
+        await this._ws({ type: "kis_segito/themes/active", theme_id: arg, active: el.checked });
+        await this._load();
+        return;
+      case "theme-delete":
+        this._confirm(this._t("common.delete"), this._t("theme.delete_confirm"), async () => {
+          await this._ws({ type: "kis_segito/themes/delete", theme_id: arg });
+          await this._load();
+        });
+        return;
+      case "theme-template": {
+        const response = await this._hass.fetchWithAuth("/api/kis_segito/theme/template");
+        const url = URL.createObjectURL(await response.blob());
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "kis-segito-theme.zip";
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
+        return;
+      }
       case "theme-set":
         await this._ws({ type: "kis_segito/settings/update", theme: arg });
         this._toast(this._t("theme.changed"));
@@ -3194,6 +3240,26 @@ class KisSegitoPanel extends HTMLElement {
     }
     if (el.dataset.cropUpload && el.files?.length) {
       this._openCrop(el.dataset.cropUpload, el.files[0]);
+      return;
+    }
+    if (el.dataset.uploadTheme !== undefined && el.files?.length) {
+      const form = new FormData();
+      form.append("file", el.files[0]);
+      this._toast(this._t("theme.uploading"));
+      try {
+        const response = await this._hass.fetchWithAuth("/api/kis_segito/theme/upload", { method: "POST", body: form });
+        const result = await response.json();
+        if (!response.ok) {
+          throw new Error(result.code || response.status);
+        }
+        this._toast(this._t("theme.uploaded").replace("{n}", result.count).replace("{total}", result.total));
+        await this._load();
+      } catch (err) {
+        const code = String(err.message || err);
+        this._error = this._t(`theme.error_${code}`, this._t("theme.error"));
+        console.warn("Kis Segito: theme upload failed", err);
+        this._render();
+      }
       return;
     }
     if (el.dataset.uploadBg !== undefined && el.files?.length) {
@@ -3673,6 +3739,7 @@ const STYLE = `
   .theme.on { border-color: var(--accent); background: var(--accent-soft); }
   .theme .previews { display: flex; gap: 4px; }
   .theme:disabled { cursor: default; }
+  .theme-row { gap: 10px; padding: 8px 10px; border-radius: 12px; background: var(--surface-2); }
   button, input, select, textarea { font: inherit; color: inherit; }
   h1, h2, h3 { font-family: var(--f-display); line-height: 1.1; margin: 0; font-weight: 700; }
   h2 { font-size: 1.45rem; }

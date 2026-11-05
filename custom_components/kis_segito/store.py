@@ -45,6 +45,8 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "background": "bg_2",
     # Look of the panel, the cards and the knobs (frontend/themes/<id>).
     "theme": "kis_segito",
+    # Themes switched off in the theme manager (not offered in the picker).
+    "themes_off": [],
     # Knob screen power (seconds, 0 = never; dim_level in percent); each knob
     # can override any of them.
     "screen": {

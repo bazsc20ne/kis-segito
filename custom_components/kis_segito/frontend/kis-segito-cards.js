@@ -229,8 +229,13 @@ class KsCard extends HTMLElement {
       return own ? `/api/image/serve/${esc(own.image)}/256x256` : "";
     }
     name = store.aliases[name] || name;
-    const base = this.data?.theme ? `${STATIC_URL}/themes/${esc(this.data.theme)}` : STATIC_URL;
-    return `${base}/icons/${esc(name)}.png?v=${esc(this.data?.version || "")}`;
+    // The theme's picture; an own theme may leave some out (built-in ones then).
+    const path = `icons/${esc(name)}.png`;
+    const theme = this.data?.theme;
+    if (theme?.base && (!theme.has || theme.has.includes(path))) {
+      return `${theme.base}/${path}?v=${esc(this.data?.version || "")}&r=${esc(theme.rev || 0)}`;
+    }
+    return `${STATIC_URL}/${path}?v=${esc(this.data?.version || "")}`;
   }
 
   icon(name, size = 24) {

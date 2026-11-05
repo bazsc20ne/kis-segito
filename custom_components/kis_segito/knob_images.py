@@ -48,7 +48,7 @@ from homeassistant.helpers.network import is_cloud_connection
 from homeassistant.util.network import is_local
 
 from .const import DOMAIN
-from .themes import DEFAULT_THEME, THEMES_DIR, load_themes
+from .themes import theme_folder
 
 URL = "/api/kis_segito/knob_image/{image_id}/{size}"
 TOKEN_HEADER = "X-Kis-Segito-Token"
@@ -160,9 +160,9 @@ def _theme_path(image_id: str, size: int) -> Path | None:
     if match is None:
         return None
     theme_id, name = match.groups()
-    if theme_id not in load_themes() or theme_id == DEFAULT_THEME:
-        return None
-    folder = THEMES_DIR / theme_id
+    folder = theme_folder(theme_id)
+    if folder is None:
+        return None  # the default theme, or one that cannot be chosen
     if PRESET_ID.match(name):
         path = folder / "backgrounds" / f"{name}.jpg"
         return path if size in BACKGROUND_SIZES and path.is_file() else None

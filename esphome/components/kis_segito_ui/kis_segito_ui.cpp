@@ -1211,15 +1211,17 @@ void KisSegitoUI::start() {
 // ---------------------------------------------------------------- Helpers
 
 std::string KisSegitoUI::photo_key_(const std::string &key) const {
-  if (!key.empty() && key[0] == '@') {
-    // A theme draws the built-in avatars and icons too; uploaded pictures
-    // stay as they are.
-    if (!this->theme_.empty() && is_theme_icon(key.substr(1)))
-      return "@t_" + this->theme_ + "__" + key.substr(1);
-    return key;
+  // A theme draws the built-in avatars and icons too; uploaded pictures stay
+  // as they are. A picture the theme does not have (an own theme may leave
+  // some out) is the built-in one.
+  const std::string plain = !key.empty() && key[0] == '@' ? key.substr(1) : key;
+  if (!this->theme_.empty() && is_theme_icon(plain)) {
+    const std::string themed = "@t_" + this->theme_ + "__" + plain;
+    if (!this->photo_failed_.count(themed))
+      return themed;
   }
-  if (!this->theme_.empty() && is_theme_icon(key))
-    return "@t_" + this->theme_ + "__" + key;  // the theme's own picture
+  if (!key.empty() && key[0] == '@')
+    return key;
   if (this->images_.count(key) == 0 && is_online_icon(key))
     return "@" + key;  // downloaded from Home Assistant
   return "";
@@ -1775,6 +1777,10 @@ void KisSegitoUI::loop() {
     if (d.data == nullptr || d.size < 8 || (!opaque && memcmp(d.data, "KSI1", 4) != 0)) {
       ESP_LOGW(TAG, "Picture %s could not be downloaded", d.key.c_str());
       this->photo_failed_.insert(d.key);
+      // A theme without this picture: the screen is drawn again with the
+      // built-in one.
+      if (d.key.rfind("@t_", 0) == 0 && this->started_)
+        this->pending_rebuild_ = true;
       if (d.data != nullptr)
         heap_caps_free(d.data);
       if (this->started_)
