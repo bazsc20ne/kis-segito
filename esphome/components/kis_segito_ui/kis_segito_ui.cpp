@@ -2777,9 +2777,7 @@ void KisSegitoUI::build_tokens_() {
     if (i < child.streak) {
       this->image_(this->screen_obj_, "action_check_small_24", x, S(392));
     } else {
-      lv_obj_t *dot = this->disc_(this->screen_obj_, x, S(392), S(22), lv_color_hex(BASE_BG));
-      lv_obj_set_style_border_width(dot, 3, 0);
-      lv_obj_set_style_border_color(dot, lv_color_hex(0x8C96A5), 0);
+      this->image_(this->screen_obj_, "streak_day_empty_24", x, S(392));
     }
   }
 }

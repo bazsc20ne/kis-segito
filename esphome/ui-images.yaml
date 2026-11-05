@@ -80,6 +80,9 @@ image:
       - id: ks_img_badge_piggy_plus_48
         file: ${kis_segito_assets}/badge_piggy_plus_48.png
         resize: ${ (48 * screen_size | int + 240) // 480 }x${ (48 * screen_size | int + 240) // 480 }
+      - id: ks_img_streak_day_empty_24
+        file: ${kis_segito_assets}/streak_day_empty_24.png
+        resize: ${ (24 * screen_size | int + 240) // 480 }x${ (24 * screen_size | int + 240) // 480 }
 
 kis_segito_ui:
   id: ui
@@ -111,3 +114,4 @@ kis_segito_ui:
     ball_highlight_48: ks_img_ball_highlight_48
     hand_cartoon_64: ks_img_hand_cartoon_64
     badge_piggy_plus_48: ks_img_badge_piggy_plus_48
+    streak_day_empty_24: ks_img_streak_day_empty_24

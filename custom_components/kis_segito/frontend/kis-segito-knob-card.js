@@ -1081,9 +1081,7 @@ class KisSegitoKnobCard extends HTMLElement {
       if (i < child.s) {
         this._img(layer, "action_check_small", x, 392, 24);
       } else {
-        const dot = this._disc(layer, x, 392, 22, BASE_BG);
-        dot.style.boxSizing = "border-box";
-        dot.style.border = `3px solid ${hex(GREY)}`;
+        this._img(layer, "streak_day_empty", x, 392, 24);
       }
     }
   }

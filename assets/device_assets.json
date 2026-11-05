@@ -316,5 +316,8 @@
     "task_",
     "reward_",
     "avatar_"
+  ],
+  "streak_day_empty": [
+    24
   ]
 }

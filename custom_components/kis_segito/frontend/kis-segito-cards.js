@@ -153,8 +153,9 @@ button.bad { background: var(--error-color, #db4437); }
 button:disabled { opacity: 0.45; cursor: default; }
 button.chip { padding: 2px 4px 2px 2px; display: inline-flex; align-items: center; gap: 6px; background: transparent; color: var(--primary-text-color); border: 2px solid transparent; }
 button.chip.on { border-color: var(--primary-color); }
-.check { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--divider-color, rgba(127,127,127,.5)); display: inline-flex; align-items: center; justify-content: center; padding: 0; background: transparent; color: var(--primary-color); flex: none; }
-.check.on { background: var(--success-color, #43a047); border-color: var(--success-color, #43a047); color: #fff; }
+.check { width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; padding: 0; background: transparent; border: none; flex: none; }
+.check:disabled { opacity: 1; }
+button.pic { padding: 0; background: transparent; border: none; display: inline-flex; }
 input, select { font: inherit; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--divider-color, rgba(127,127,127,.4)); background: var(--card-background-color); color: var(--primary-text-color); min-width: 0; }
 .chart { display: flex; align-items: flex-end; gap: 6px; height: 110px; }
 .chart .col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; }
@@ -390,8 +391,8 @@ class RoutineCard extends KsCard {
             .map(
               (t) => `<div class="item ${t.done ? "done" : ""}">${this.icon(t.icon, 32)}<span class="grow">${esc(t.label)}</span>${
                 readonly
-                  ? `<span class="check ${t.done ? "on" : ""}">${t.done ? "\u2713" : ""}</span>`
-                  : `<button class="check ${t.done ? "on" : ""}" ${t.done ? "disabled" : ""} data-act="tick" data-routine="${esc(r.id)}" data-task="${esc(t.id)}" title="${esc(this.t("cards.tick"))}">${t.done ? "\u2713" : ""}</button>`
+                  ? `<span class="check">${this.icon(t.done ? "streak_day_done" : "streak_day_empty", 28)}</span>`
+                  : `<button class="check" ${t.done ? "disabled" : ""} data-act="tick" data-routine="${esc(r.id)}" data-task="${esc(t.id)}" title="${esc(this.t("cards.tick"))}">${this.icon(t.done ? "streak_day_done" : "streak_day_empty", 28)}</button>`
               }</div>`,
             )
             .join("")}
@@ -492,7 +493,7 @@ class ApprovalsCard extends KsCard {
         const what = a.kind === "reward" ? a.reward_name : `${a.routine_name}: ${(a.task_names || []).join(", ")}`;
         const amount = a.kind === "reward" ? `\u2212${a.amount}` : a.amount ? `+${a.amount}` : "";
         return `<div class="item">${this.avatar(c, 32)}${this.icon(a.icon, 32)}<div class="grow"><div>${esc(what)}</div><div class="muted small">${esc(c.name)} \u00b7 ${esc(this.t(a.kind === "reward" ? "cards.kind_reward" : "cards.kind_task"))}${amount ? ` \u00b7 ${esc(amount)}` : ""}</div></div>
-          <button class="ok" data-act="resolve" data-id="${esc(a.id)}" data-ok="1" title="${esc(this.t("cards.approve"))}">\u2713</button><button class="bad" data-act="resolve" data-id="${esc(a.id)}" data-ok="" title="${esc(this.t("cards.reject"))}">\u2715</button></div>`;
+          <button class="pic" data-act="resolve" data-id="${esc(a.id)}" data-ok="1" title="${esc(this.t("cards.approve"))}">${this.icon("action_check", 36)}</button><button class="pic" data-act="resolve" data-id="${esc(a.id)}" data-ok="" title="${esc(this.t("cards.reject"))}">${this.icon("action_x", 36)}</button></div>`;
       })
       .join("")}</div>`;
   }
