@@ -1,0 +1,56 @@
+{
+  "name": {
+    "en": "Frozen style",
+    "hu": "Jégvarázs stílus"
+  },
+  "order": 2,
+  "panel": {
+    "light": {
+      "--bg": "#EEF6FD",
+      "--surface": "#FFFFFF",
+      "--surface-2": "#E3F0FB",
+      "--surface-3": "#D3E6F8",
+      "--ink": "#17305A",
+      "--muted": "#5873A0",
+      "--faint": "#8EA4C6",
+      "--line": "#CFE0F3",
+      "--accent": "#3B82D6",
+      "--accent-ink": "#FFFFFF",
+      "--accent-soft": "#DCEBFC",
+      "--sun": "#9B7BE8",
+      "--sun-soft": "#EEE6FF",
+      "--shadow": "0 1px 2px rgb(23 48 90 / .06), 0 8px 24px rgb(59 130 214 / .14)",
+      "--shadow-lg": "0 20px 60px rgb(23 48 90 / .25)",
+      "--hero-veil": "linear-gradient(180deg, rgb(238 246 253 / 0) 0%, rgb(238 246 253 / .6) 60%, var(--bg) 100%)",
+      "--r-lg": "26px"
+    },
+    "dark": {
+      "--bg": "#0B1430",
+      "--surface": "#131F45",
+      "--surface-2": "#1A2A5A",
+      "--surface-3": "#22356D",
+      "--ink": "#EAF3FF",
+      "--muted": "#A9BCE0",
+      "--faint": "#7184AE",
+      "--line": "#2A3D78",
+      "--accent": "#8EC5FF",
+      "--accent-ink": "#0B1430",
+      "--accent-soft": "#22406E",
+      "--sun": "#C3A9FF",
+      "--sun-soft": "#2E2550",
+      "--hero-veil": "linear-gradient(180deg, rgb(11 20 48 / .1) 0%, rgb(11 20 48 / .6) 60%, var(--bg) 100%)",
+      "--r-lg": "26px"
+    }
+  },
+  "fonts": {
+    "display": "berkshire-swash.woff2"
+  },
+  "knob": {
+    "bg": "#1B3A6E",
+    "track": "#6E8FC4",
+    "pill": "#132650",
+    "number": "#E6F3FF",
+    "deposit": "#5FD3C8",
+    "withdraw": "#B79CFF"
+  }
+}

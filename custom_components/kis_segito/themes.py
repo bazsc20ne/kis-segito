@@ -78,8 +78,11 @@ def _clean(theme: str, data: dict[str, Any]) -> dict[str, Any]:
     panel = data.get("panel") or {}
     fonts = data.get("fonts") or {}
     knob = data.get("knob") or {}
+    order = data.get("order")
     return {
         "id": theme,
+        # Place in the picker (bundled themes; own themes come after them).
+        "order": order if isinstance(order, int) else 1000,
         "name": {k: str(v) for k, v in names.items() if isinstance(v, str)},
         "panel": {
             mode: {
@@ -196,7 +199,8 @@ def _scan() -> tuple[dict[str, dict[str, Any]], dict[str, Path]]:
     default = themes.pop(DEFAULT_THEME, None) or (
         _clean(DEFAULT_THEME, {}) | {"own": False, "base": "", "complete": True}
     )
-    return {DEFAULT_THEME: default} | themes, folders
+    ordered = sorted(themes.values(), key=lambda t: (t["own"], t["order"], t["id"]))
+    return {DEFAULT_THEME: default} | {t["id"]: t for t in ordered}, folders
 
 
 def load_themes() -> dict[str, dict[str, Any]]:
