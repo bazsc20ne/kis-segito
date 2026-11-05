@@ -179,6 +179,7 @@ async def ws_settings(
         vol.Optional("notification_label"): str,
         vol.Optional("background"): vol.Match(BACKGROUND_VALUE),
         vol.Optional("theme"): str,
+        vol.Optional("cards_themed"): bool,
         vol.Optional("screen"): SCREEN_SCHEMA,
     }
 )
@@ -216,6 +217,7 @@ async def ws_settings_update(
             "notification_label",
             "background",
             "theme",
+            "cards_themed",
         )
         if key in msg
     }

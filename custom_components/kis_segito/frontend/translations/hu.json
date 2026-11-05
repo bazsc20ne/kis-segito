@@ -520,5 +520,7 @@
   "theme.error_bad_picture": "Az egyik képet nem sikerült beolvasni.",
   "theme.error_picture_too_large": "Egy kép nagyobb 4096 pixelnél.",
   "theme.error_too_large": "A téma túl nagy.",
-  "theme.error_file_too_large": "A ZIP egyik fájlja túl nagy."
+  "theme.error_file_too_large": "A ZIP egyik fájlja túl nagy.",
+  "theme.cards_themed": "Irányítópult-kártyák a téma kinézetével",
+  "theme.cards_themed_hint": "Bekapcsolva: az irányítópultokon a Kis Segítő kártyái a téma színeit és betűit kapják. Kikapcsolva: az irányítópult saját témáját követik, mint a többi kártya. A képeik mindig a témából jönnek."
 }

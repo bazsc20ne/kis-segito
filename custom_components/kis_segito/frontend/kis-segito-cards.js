@@ -124,18 +124,43 @@ const store = {
   },
 };
 
+// The fonts of the cards' themed look (declared in the page: a font face
+// only works there).
+const loadFonts = (look) => {
+  const faces = [
+    `@font-face{font-family:"KS Baloo 2";src:url("${STATIC_URL}/fonts/baloo2.woff2") format("woff2");font-weight:400 800;font-display:swap}`,
+    `@font-face{font-family:"KS Figtree";src:url("${STATIC_URL}/fonts/figtree.woff2") format("woff2");font-weight:300 900;font-display:swap}`,
+  ];
+  if (look.base && look.fonts?.display) {
+    faces.push(`@font-face{font-family:"KS Theme Display";src:url("${look.base}/fonts/${look.fonts.display}") format("woff2");font-display:swap}`);
+  }
+  if (look.base && look.fonts?.body) {
+    faces.push(`@font-face{font-family:"KS Theme Body";src:url("${look.base}/fonts/${look.fonts.body}") format("woff2");font-display:swap}`);
+  }
+  const text = faces.join("\n");
+  let style = document.getElementById("kis-segito-card-fonts");
+  if (!style) {
+    style = document.createElement("style");
+    style.id = "kis-segito-card-fonts";
+    document.head.appendChild(style);
+  }
+  if (style.textContent !== text) {
+    style.textContent = text;
+  }
+};
+
 // ---------------------------------------------------------------- base card
 
 const STYLE = `
 :host { display: block; }
-ha-card { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-h2 { margin: 0; font-size: 1.15em; font-weight: 500; display: flex; align-items: center; gap: 8px; }
+ha-card { padding: 16px; display: flex; flex-direction: column; gap: 12px; font-family: var(--ks-font-body, inherit); }
+h2 { margin: 0; font-size: 1.15em; font-weight: 500; font-family: var(--ks-font-display, inherit); display: flex; align-items: center; gap: 8px; }
 .row { display: flex; align-items: center; gap: 10px; }
 .grow { flex: 1; min-width: 0; }
 .wrap { flex-wrap: wrap; }
 .muted { color: var(--secondary-text-color); }
 .small { font-size: 0.86em; }
-.big { font-size: 1.6em; font-weight: 600; line-height: 1.1; }
+.big { font-size: 1.6em; font-weight: 600; line-height: 1.1; font-family: var(--ks-font-display, inherit); }
 .av { flex: none; border-radius: 50%; overflow: hidden; background: var(--c, var(--primary-color)); display: inline-flex; align-items: center; justify-content: center; }
 .av img { width: 100%; height: 100%; object-fit: cover; }
 .ic { flex: none; object-fit: contain; }
@@ -266,6 +291,7 @@ class KsCard extends HTMLElement {
     } else {
       inner = this.body();
     }
+    this._applyLook();
     const title = this._config.title ?? this.defaultTitle();
     this.shadowRoot.innerHTML = `<style>${STYLE}</style><ha-card>${title ? `<h2>${esc(title)}</h2>` : ""}${inner}</ha-card>`;
     this.shadowRoot.querySelectorAll("[data-act]").forEach((el) => {
@@ -276,6 +302,42 @@ class KsCard extends HTMLElement {
 
   defaultTitle() {
     return "";
+  }
+
+  // With "cards in the theme's look" on (panel settings): the theme's colours
+  // and fonts over the dashboard's, through the dashboard's own variables.
+  _applyLook() {
+    const look = this.data?.look;
+    const vars = {};
+    if (look) {
+      const p = look.panel?.[this._hass?.themes?.darkMode ? "dark" : "light"] || {};
+      const map = {
+        "--ha-card-background": "--surface", "--card-background-color": "--surface", "--primary-text-color": "--ink",
+        "--secondary-text-color": "--muted", "--primary-color": "--accent", "--text-primary-color": "--accent-ink",
+        "--divider-color": "--line", "--secondary-background-color": "--surface-2", "--ha-card-border-radius": "--r-lg",
+        "--ha-card-box-shadow": "--shadow", "--success-color": "--good", "--error-color": "--bad",
+      };
+      for (const [ha, ks] of Object.entries(map)) {
+        if (p[ks]) {
+          vars[ha] = p[ks];
+        }
+      }
+      if (p["--surface"]) {
+        vars["--ha-card-border-color"] = p["--line"] || "transparent";
+      }
+      loadFonts(look);
+      vars["--ks-font-display"] = look.fonts?.display ? '"KS Theme Display", "KS Baloo 2", sans-serif' : '"KS Baloo 2", sans-serif';
+      vars["--ks-font-body"] = look.fonts?.body ? '"KS Theme Body", "KS Figtree", sans-serif' : '"KS Figtree", sans-serif';
+    }
+    for (const name of this._lookVars || []) {
+      if (!(name in vars)) {
+        this.style.removeProperty(name);
+      }
+    }
+    for (const [name, value] of Object.entries(vars)) {
+      this.style.setProperty(name, value);
+    }
+    this._lookVars = Object.keys(vars);
   }
 
   // A child chosen in the config that no longer exists.

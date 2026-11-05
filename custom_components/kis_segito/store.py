@@ -47,6 +47,9 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "theme": "kis_segito",
     # Themes switched off in the theme manager (not offered in the picker).
     "themes_off": [],
+    # Dashboard cards: the chosen theme's colours and fonts (True) or the
+    # dashboard's own (False).
+    "cards_themed": False,
     # Knob screen power (seconds, 0 = never; dim_level in percent); each knob
     # can override any of them.
     "screen": {

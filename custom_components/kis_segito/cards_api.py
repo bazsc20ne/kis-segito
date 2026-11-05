@@ -156,6 +156,16 @@ def ws_cards(
             "own_icons": manager.icon_settings["own"],
             # Pictures of the chosen theme ("": the built-in ones).
             "theme": theme_assets(manager.theme),
+            # The theme's look for the cards, when they take it.
+            "look": (
+                {
+                    "panel": manager.theme["panel"],
+                    "fonts": manager.theme.get("fonts", {}),
+                    "base": manager.theme.get("base") or "",
+                }
+                if manager.settings.get("cards_themed")
+                else None
+            ),
         },
     )
 

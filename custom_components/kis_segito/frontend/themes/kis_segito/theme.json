@@ -1,6 +1,44 @@
 {
-  "name": {"en": "Little Helper", "hu": "Kis Segítő"},
-  "panel": {"light": {}, "dark": {}},
+  "name": {
+    "en": "Little Helper",
+    "hu": "Kis Segítő"
+  },
+  "panel": {
+    "light": {
+      "--bg": "#F2F6FC",
+      "--surface": "#FFFFFF",
+      "--surface-2": "#EAF1FA",
+      "--surface-3": "#DFE9F6",
+      "--ink": "#18213D",
+      "--muted": "#5A6684",
+      "--faint": "#8C96B0",
+      "--line": "#D9E2EF",
+      "--accent": "#2C78F0",
+      "--accent-ink": "#FFFFFF",
+      "--accent-soft": "#DCE9FF",
+      "--good": "#2FA866",
+      "--bad": "#DD4248",
+      "--r-lg": "24px",
+      "--shadow": "0 1px 2px rgb(24 33 61 / .06), 0 6px 20px rgb(24 33 61 / .07)"
+    },
+    "dark": {
+      "--bg": "#0A0F24",
+      "--surface": "#131A35",
+      "--surface-2": "#1A2244",
+      "--surface-3": "#232D57",
+      "--ink": "#EDF0FF",
+      "--muted": "#A2ABCF",
+      "--faint": "#6F79A3",
+      "--line": "#29335F",
+      "--accent": "#7DB2FF",
+      "--accent-ink": "#0A1230",
+      "--accent-soft": "#1F3466",
+      "--good": "#5BD38F",
+      "--bad": "#FF7A7F",
+      "--r-lg": "24px",
+      "--shadow": "0 1px 2px rgb(0 0 0 / .3), 0 8px 24px rgb(0 0 0 / .25)"
+    }
+  },
   "fonts": {},
   "knob": {
     "bg": "#1B2140",

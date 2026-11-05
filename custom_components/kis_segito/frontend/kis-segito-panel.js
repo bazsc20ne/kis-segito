@@ -664,6 +664,8 @@ class KisSegitoPanel extends HTMLElement {
       : "";
     return `<div class="card"><h3>${this._e(this._t("theme.title"))}</h3><div class="themes">${cards}</div>
       <div class="hint">${this._e(this._t("theme.hint"))}</div>
+      <label class="switch"><input type="checkbox" data-act="cards-themed" ${this._data.settings?.cards_themed ? "checked" : ""} ${dis}>${this._e(this._t("theme.cards_themed"))}</label>
+      <div class="hint">${this._e(this._t("theme.cards_themed_hint"))}</div>
       <details data-key="themes"><summary>${this._e(this._t("theme.manage"))}</summary>
         <div class="stack" style="gap:8px;margin-top:10px">${rows || `<div class="muted small">${this._e(this._t("theme.none"))}</div>`}
         ${tools}<div class="hint">${this._e(this._t("theme.own_hint"))}</div></div></details>
@@ -3051,6 +3053,10 @@ class KisSegitoPanel extends HTMLElement {
       case "saver":
         await this._ws({ type: "kis_segito/settings/update", screen: { saver_type: arg } });
         this._toast(this._t("toast.saved"));
+        await this._load();
+        return;
+      case "cards-themed":
+        await this._ws({ type: "kis_segito/settings/update", cards_themed: el.checked });
         await this._load();
         return;
       case "theme-active":
