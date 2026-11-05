@@ -52,6 +52,7 @@ def _read_json(path: Path) -> Any:
         return json.load(file)
 
 
+@cache
 def required_files() -> list[str]:
     """Every picture a theme must have, relative to its folder."""
     files = [f"icons/{path.name}" for path in ICONS_DIR.glob("*.png")]
@@ -117,9 +118,9 @@ _own_dir: Path | None = None
 
 def set_own_dir(path: Path | None) -> None:
     """Where the user's own themes are (set up by the integration)."""
-    global _own_dir
+    global _own_dir  # noqa: PLW0603 - one folder per Home Assistant
     _own_dir = path
-    reload()
+    _scan.cache_clear()  # read again in an executor (async_load_icon_lists)
 
 
 def own_dir() -> Path | None:
@@ -127,8 +128,11 @@ def own_dir() -> Path | None:
 
 
 def reload() -> None:
-    """Read the themes again (after an own theme was added or removed)."""
+    """Read the themes again (after an own theme was added or removed). Runs
+    in an executor: the folders are read right away, not later in the event
+    loop."""
     _scan.cache_clear()
+    _scan()
 
 
 def _describe(theme_id: str, folder: Path, base: str, own: bool) -> dict[str, Any]:

@@ -18,6 +18,7 @@ and a Lanczos filter, with light sharpening on small sizes.
 from __future__ import annotations
 
 import json
+from functools import cache
 from collections.abc import Mapping
 from pathlib import Path
 
@@ -34,22 +35,31 @@ BACKGROUNDS = tuple(f"bg_{n}" for n in range(1, 7))
 EXTENSIONS = (".png", ".jpg", ".jpeg", ".webp")
 
 
+@cache
+def knob_list() -> tuple[str, ...]:
+    """The knob picture files of a theme (read once; files do not change
+    while Home Assistant runs)."""
+    return tuple(json.loads(KNOB_LIST.read_text("utf-8")))
+
+
+@cache
 def source_names() -> list[str]:
     """Every source picture a theme can have (without the _small variants)."""
     names = {path.stem for path in ICONS_DIR.glob("*.png")}
-    for item in json.loads(KNOB_LIST.read_text("utf-8")):
+    for item in knob_list():
         names.add(item.rsplit("_", 1)[0])
     names.update(LOGOS)
     names.update(BACKGROUNDS)
     return sorted(names)
 
 
+@cache
 def small_names() -> list[str]:
     """Pictures with a simplified variant for small places (<name>_small)."""
     small = {path.stem for path in (ICONS_DIR / "small").glob("*.png")}
     small.update(
         item.rsplit("_", 1)[0]
-        for item in json.loads(KNOB_LIST.read_text("utf-8"))
+        for item in knob_list()
         if int(item.rsplit("_", 1)[1][:-4]) <= SMALL_MAX
     )
     return sorted(small)
@@ -137,7 +147,7 @@ def build(sources: Mapping[str, Path], out: Path) -> list[str]:
             resize(img, WEB_SMALL_SIZE).save(
                 out / "icons" / "small" / path.name, optimize=True
             )
-    for item in json.loads(KNOB_LIST.read_text("utf-8")):
+    for item in knob_list():
         name, size = item.rsplit("_", 1)
         size_px = int(size[:-4])
         img = (open_(f"{name}_small") if size_px <= SMALL_MAX else None) or open_(name)

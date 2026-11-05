@@ -998,22 +998,19 @@ class KisSegitoManager:
         """Requests still waiting for a parent, oldest first."""
         return [a for a in self.approvals if a["status"] == "pending"]
 
-    def _task_approval(
+    def _task_approvals(
         self, day: date, routine_id: str, child_id: str, checkpoint_id: str | None
-    ) -> dict[str, Any] | None:
-        """The approval request of a checkpoint's tasks on a day, if any."""
-        return next(
-            (
-                a
-                for a in self.approvals
-                if a["kind"] == "task"
-                and a["day"] == day.isoformat()
-                and a["routine_id"] == routine_id
-                and a["child_id"] == child_id
-                and a.get("checkpoint_id") == checkpoint_id
-            ),
-            None,
-        )
+    ) -> list[dict[str, Any]]:
+        """The approval requests of a checkpoint's tasks on a day."""
+        return [
+            a
+            for a in self.approvals
+            if a["kind"] == "task"
+            and a["day"] == day.isoformat()
+            and a["routine_id"] == routine_id
+            and a["child_id"] == child_id
+            and a.get("checkpoint_id") == checkpoint_id
+        ]
 
     def _log_approval_event(
         self, approval: dict[str, Any], event_type: str, **extra: Any
@@ -1048,8 +1045,15 @@ class KisSegitoManager:
     ) -> None:
         """A task that needs approval was done: add it to its request."""
         checkpoint_id = checkpoint["id"] if checkpoint else None
-        approval = self._task_approval(day, routine["id"], child_id, checkpoint_id)
-        if approval is not None and approval["status"] == "pending":
+        approval = next(
+            (
+                a
+                for a in self._task_approvals(day, routine["id"], child_id, checkpoint_id)
+                if a["status"] == "pending"
+            ),
+            None,
+        )
+        if approval is not None:
             approval["task_ids"].append(task["id"])
             approval["task_names"].append(task.get("label", ""))
             return
@@ -1144,6 +1148,49 @@ class KisSegitoManager:
         )
         return tx or {}
 
+    def _settle_checkpoint(self, approval: dict[str, Any], who: str) -> None:
+        """A task request was resolved: the checkpoint's reward is paid once
+        the checkpoint was reached and none of its requests is waiting or was
+        rejected; a rejection withholds it."""
+        day = date.fromisoformat(approval["day"])
+        record = (
+            self.progress(day, approval["routine_id"], approval["child_id"])["checkpoints"]
+        ).get(approval.get("checkpoint_id") or "")
+        if record is None or record.get("tx"):
+            return  # not reached yet (decided then), or paid already
+        approvals = self._task_approvals(
+            day, approval["routine_id"], approval["child_id"], approval.get("checkpoint_id")
+        )
+        if any(a["status"] == "rejected" for a in approvals):
+            record["withheld"] = True
+            record.pop("approval", None)
+            return
+        if any(a["status"] == "pending" for a in approvals):
+            return
+        tokens = int(record.get("tokens", 0))
+        record.pop("approval", None)
+        if tokens <= 0:
+            return
+        tx = self._append(
+            self._new_tx(
+                approval["child_id"],
+                lg.REASON_CHECKPOINT,
+                [{"account": lg.WALLET, "amount": tokens}],
+                source="approval",
+                creator=who,
+                refs={
+                    "routine_id": approval["routine_id"],
+                    "checkpoint_id": approval.get("checkpoint_id"),
+                    "checkpoint_name": approval.get("checkpoint_name", ""),
+                    "approval_id": approval["id"],
+                },
+            )
+        )
+        record["tx"] = tx["id"]
+        for item in approvals:
+            item["tx"] = tx["id"]
+            item["amount"] = tokens
+
     async def async_resolve_approval(
         self, approval_id: str, approve: bool, *, who: str = "parent"
     ) -> dict[str, Any]:
@@ -1178,24 +1225,8 @@ class KisSegitoManager:
                     original["reversed_by"] = back["id"]
                     self._append(back)
                     approval["return_tx"] = back["id"]
-        elif approve and int(approval.get("amount", 0)) > 0 and not approval.get("tx"):
-            # The checkpoint was reached: its reward is paid now.
-            tx = self._append(
-                self._new_tx(
-                    child_id,
-                    lg.REASON_CHECKPOINT,
-                    [{"account": lg.WALLET, "amount": int(approval["amount"])}],
-                    source="approval",
-                    creator=who,
-                    refs={
-                        "routine_id": approval["routine_id"],
-                        "checkpoint_id": approval.get("checkpoint_id"),
-                        "checkpoint_name": approval.get("checkpoint_name", ""),
-                        "approval_id": approval["id"],
-                    },
-                )
-            )
-            approval["tx"] = tx["id"]
+        else:
+            self._settle_checkpoint(approval, who)
         event = "approval_approved" if approve else "approval_rejected"
         self._log_approval_event(approval, event)
         self._audit(who, f"approval.{approval_id}", "pending", approval["status"])
@@ -1659,12 +1690,18 @@ class KisSegitoManager:
             "tokens": tokens,
             "on_time": now <= due,
         }
-        approval = self._task_approval(day, routine["id"], child_id, checkpoint["id"])
-        if approval is not None and approval["status"] != "approved":
+        approvals = self._task_approvals(day, routine["id"], child_id, checkpoint["id"])
+        pending = [a for a in approvals if a["status"] == "pending"]
+        if pending:
             # Tasks of this checkpoint wait for a parent: the reward is worked
-            # out now and paid on approval (or not at all when rejected).
-            approval["amount"] = tokens
-            record["approval"] = approval["id"]
+            # out now and paid when the last of them is approved.
+            for approval in pending:
+                approval["amount"] = tokens
+            record["approval"] = pending[-1]["id"]
+            tokens_paid = 0
+        elif any(a["status"] == "rejected" for a in approvals):
+            # One of its tasks was rejected: no reward for this checkpoint.
+            record["withheld"] = True
             tokens_paid = 0
         else:
             tokens_paid = tokens
@@ -1684,7 +1721,7 @@ class KisSegitoManager:
                 )
             )
             record["tx"] = tx["id"]
-            if approval is not None:
+            for approval in approvals:
                 approval["tx"] = tx["id"]
                 approval["amount"] = tokens
         progress["checkpoints"][checkpoint["id"]] = record

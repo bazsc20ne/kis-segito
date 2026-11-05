@@ -91,3 +91,21 @@ def test_input_values() -> None:
     assert input_value("distance", "3", "parsec") is None
     assert input_value("illuminance", "12.5", "lx") == 12.5
     assert input_value("illuminance", "dark", "lx") is None
+
+
+async def test_offline_knob_is_not_an_error(hass) -> None:
+    """A knob that is restarting cannot take an action: no exception (#54)."""
+    from custom_components.kis_segito.device_link import DeviceLink
+
+    async def offline(call) -> None:
+        raise ConnectionError("Not connected")
+
+    async def online(call) -> None:
+        return None
+
+    hass.services.async_register("esphome", "knob_offline", offline)
+    hass.services.async_register("esphome", "knob_online", online)
+    link = DeviceLink(hass, "dev", manager=None)  # type: ignore[arg-type]
+    assert await link._async_call("knob_offline", {"data": "{}"}) is False
+    assert await link._async_call("knob_online", {"data": "{}"}) is True
+    link.async_stop()

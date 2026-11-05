@@ -293,10 +293,23 @@ class DeviceLink:
             "keys": list(strings),
             "values": list(strings.values()),
         }
-        await self.hass.services.async_call(
-            ESPHOME_DOMAIN, service, data, blocking=True
-        )
-        _LOGGER.debug("Sent %d UI strings (%s) to %s", len(strings), language, service)
+        if await self._async_call(service, data):
+            _LOGGER.debug(
+                "Sent %d UI strings (%s) to %s", len(strings), language, service
+            )
+
+    async def _async_call(self, service: str, data: dict[str, Any]) -> bool:
+        """Call one of the knob's API actions. A knob that is restarting or
+        offline cannot take it; it gets everything again when it reconnects
+        (see _async_state_changed), so that is not an error."""
+        try:
+            await self.hass.services.async_call(
+                ESPHOME_DOMAIN, service, data, blocking=True
+            )
+        except Exception as err:  # noqa: BLE001 - e.g. APIConnectionError from ESPHome
+            _LOGGER.debug("Knob %s did not take %s: %s", self.device_id, service, err)
+            return False
+        return True
 
     async def async_push_state(self) -> None:
         """Send the data snapshot (children, rewards, today's routines)."""
@@ -328,10 +341,8 @@ class DeviceLink:
             base_url = None
         snapshot = self.manager.snapshot(self.device_id, language, base_url)
         payload = json.dumps(snapshot, separators=(",", ":"), ensure_ascii=False)
-        await self.hass.services.async_call(
-            ESPHOME_DOMAIN, service, {"data": payload}, blocking=True
-        )
-        _LOGGER.debug("Sent state (%d bytes) to %s", len(payload), service)
+        if await self._async_call(service, {"data": payload}):
+            _LOGGER.debug("Sent state (%d bytes) to %s", len(payload), service)
 
     def _check_encryption(self) -> bool:
         """Whether the API is encrypted; raises or clears a repair issue."""
@@ -367,9 +378,7 @@ class DeviceLink:
         service = self._service(ESPHOME_ACTION_SET_SENSOR)
         if service is None:
             return
-        await self.hass.services.async_call(
-            ESPHOME_DOMAIN, service, {"kind": kind, "value": value}, blocking=True
-        )
+        await self._async_call(service, {"kind": kind, "value": value})
 
     async def async_push_inputs(self) -> None:
         """Send all forwarded inputs (after a reconnect or a new choice)."""

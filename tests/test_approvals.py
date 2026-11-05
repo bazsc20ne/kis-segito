@@ -167,3 +167,78 @@ async def test_task_without_approval_pays_at_once(
         await manager.async_complete_task(kid, routine["id"], task["id"])
     assert manager.balances(kid)["wallet"] == 3
     assert manager.pending_approvals() == []
+
+
+async def _both_need_approval(manager: KisSegitoManager) -> dict:
+    routine = await _routine(manager, True)
+    routine["tasks"][0]["needs_approval"] = True
+    return await manager.async_save_item("routines", routine)
+
+
+@pytest.mark.parametrize("approve_last", [True, False])
+async def test_checkpoint_waits_for_every_request(
+    manager: KisSegitoManager, freezer: FrozenDateTimeFactory, approve_last: bool
+) -> None:
+    """Two tasks of a checkpoint need approval, the first is approved before
+    the second is done: the checkpoint pays only when the second one is
+    approved, and nothing when it is rejected (#53)."""
+    freezer.move_to(dt_util.now().replace(hour=7, minute=20, second=0, microsecond=0))
+    kid = (await manager.async_save_item("children", {"name": "A"}))["id"]
+    routine = await _both_need_approval(manager)
+    eat, shoes = (t["id"] for t in routine["tasks"])
+    await manager.async_complete_task(kid, routine["id"], eat)
+    first = manager.pending_approvals()[0]
+    await manager.async_resolve_approval(first["id"], True)
+    assert manager.balances(kid)["wallet"] == 0
+    # The last task reaches the checkpoint: still nothing paid, and the
+    # request shows what it would bring.
+    await manager.async_complete_task(kid, routine["id"], shoes)
+    assert manager.balances(kid)["wallet"] == 0
+    second = manager.pending_approvals()[0]
+    assert second["id"] != first["id"] and second["amount"] == 3
+    await manager.async_resolve_approval(second["id"], approve_last)
+    assert manager.balances(kid)["wallet"] == (3 if approve_last else 0)
+    # Both tasks and the checkpoint stay done; paid once at most.
+    done = manager.progress(manager.today(), routine["id"], kid)
+    assert {eat, shoes} <= set(done["tasks"])
+    paid = [
+        tx for tx in manager.transactions if tx["reason"] == "checkpoint_reward"
+    ]
+    assert len(paid) == (1 if approve_last else 0)
+
+
+async def test_checkpoint_with_two_pending_requests(
+    manager: KisSegitoManager, freezer: FrozenDateTimeFactory
+) -> None:
+    """Both requests wait when the checkpoint is reached: it pays once, when
+    the last one is approved; a rejection of either withholds it."""
+    freezer.move_to(dt_util.now().replace(hour=7, minute=20, second=0, microsecond=0))
+    kid = (await manager.async_save_item("children", {"name": "A"}))["id"]
+    routine = await _both_need_approval(manager)
+    for task in routine["tasks"]:
+        await manager.async_complete_task(kid, routine["id"], task["id"])
+    # One request for the checkpoint's tasks (they are grouped).
+    pending = manager.pending_approvals()
+    assert len(pending) == 1 and pending[0]["amount"] == 3
+    await manager.async_resolve_approval(pending[0]["id"], True)
+    assert manager.balances(kid)["wallet"] == 3
+    # Already paid: nothing more happens.
+    assert len([t for t in manager.transactions if t["reason"] == "checkpoint_reward"]) == 1
+
+
+async def test_rejected_before_checkpoint(
+    manager: KisSegitoManager, freezer: FrozenDateTimeFactory
+) -> None:
+    """A rejected task: the checkpoint reached later pays nothing."""
+    freezer.move_to(dt_util.now().replace(hour=7, minute=20, second=0, microsecond=0))
+    kid = (await manager.async_save_item("children", {"name": "A"}))["id"]
+    routine = await _routine(manager, True)
+    eat, shoes = (t["id"] for t in routine["tasks"])
+    await manager.async_complete_task(kid, routine["id"], shoes)
+    await manager.async_resolve_approval(manager.pending_approvals()[0]["id"], False)
+    await manager.async_complete_task(kid, routine["id"], eat)
+    assert manager.balances(kid)["wallet"] == 0
+    cp = routine["checkpoints"][0]["id"]
+    assert manager.progress(manager.today(), routine["id"], kid)["checkpoints"][cp][
+        "withheld"
+    ]

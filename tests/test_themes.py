@@ -37,6 +37,7 @@ def _write_theme(folder: Path, skip: str | None = None) -> None:
         else:
             size = int(name.rsplit("_", 1)[1][:-4]) if name.startswith("knob/") else 96
             Image.new("RGBA", (size, size), (200, 100, 0, 255)).save(path)
+    themes.reload()
 
 
 @pytest.fixture

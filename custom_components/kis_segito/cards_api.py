@@ -275,7 +275,11 @@ async def ws_card_knob(
         data["enable"] = msg["enable"]
     if msg["action"] == "night_light":
         data |= {"brightness": 0, "kelvin": 0}
-    await hass.services.async_call("esphome", service, data, blocking=True)
+    try:
+        await hass.services.async_call("esphome", service, data, blocking=True)
+    except Exception:  # noqa: BLE001 - e.g. the knob is restarting
+        connection.send_error(msg["id"], "unavailable", "The knob is not available")
+        return
     connection.send_result(msg["id"])
 
 
