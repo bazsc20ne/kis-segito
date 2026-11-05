@@ -285,3 +285,31 @@ async def test_own_theme(
         response = await upload(bad)
         assert response.status == 400
         assert (await response.json())["code"] == code
+
+
+async def test_child_theme(hass: HomeAssistant, theme_dir: Path) -> None:
+    """A child's own theme goes to the knob with its colours; the background
+    stays the knob's."""
+    from custom_components.kis_segito.manager import KisSegitoManager
+    from custom_components.kis_segito.store import KisSegitoStore
+
+    _write_theme(theme_dir / "test")
+    store = KisSegitoStore(hass)
+    await store.async_load()
+    manager = KisSegitoManager(hass, store)
+    a = await manager.async_save_item("children", {"name": "A", "theme": "test"})
+    b = await manager.async_save_item("children", {"name": "B", "theme": "gone"})
+    await manager.async_save_item("children", {"name": "C"})
+    state = manager.snapshot("dev", "en")
+    themes_by_child = {c["id"]: c["th"] for c in state["children"]}
+    assert themes_by_child[a["id"]] == "test"
+    assert themes_by_child[b["id"]] == ""  # a theme that is not there
+    assert state["tcs"] == {"test": {"bg": "#102030"}}
+    assert state["th"] == "" and state["bg"] == "bg_2"
+    # The child's theme is the common one: nothing extra.
+    await manager.async_update_settings({"theme": "test"})
+    state = manager.snapshot("dev", "en")
+    assert all(c["th"] == "" for c in state["children"]) and state["tcs"] == {}
+    # A switched-off theme is not used for a child either.
+    await manager.async_update_settings({"theme": "kis_segito", "themes_off": ["test"]})
+    assert manager.snapshot("dev", "en")["tcs"] == {}

@@ -15,6 +15,7 @@ from .assist import child_status
 from .const import CONF_DEVICE_ID, DOMAIN, STATIC_URL
 from .logic import applies_to
 from .manager import KisSegitoError, KisSegitoManager
+from .themes import theme as theme_of
 from .themes import theme_assets
 
 # The knob's own entities a card shows: (domain, object id ending).
@@ -127,6 +128,13 @@ def ws_cards(
                 "avatar": child.get("avatar"),
                 "avatar_image": child.get("avatar_image"),
                 "status": child_status(manager, child_id),
+                # The child's own theme's pictures (None: the common theme; an empty
+                # base: the built-in pictures).
+                "theme": (
+                    (theme_assets(theme_of(own)) or {"base": ""})
+                    if (own := manager.child_theme_id(child))
+                    else None
+                ),
                 "today": _today(manager, child_id),
                 "week": manager.week_stats(child_id, today),
             }

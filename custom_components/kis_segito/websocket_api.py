@@ -1225,6 +1225,15 @@ def _virtual_state(hass: HomeAssistant, device_id: str) -> dict[str, Any]:
         "long_press_ms": 500,
         "small_icons": _small_icons(),
         "theme": theme_assets(_manager(hass).theme),
+        # Pictures of the children's own themes (by theme id).
+        "child_themes": {
+            theme_id: theme_assets(theme_of(theme_id)) or {"base": ""}
+            for theme_id in {
+                _manager(hass).child_theme_id(c)
+                for c in _manager(hass).children(active_only=True)
+            }
+            if theme_id
+        },
         "own_icons": {
             i["key"]: i["image"] for i in data.manager.icon_settings["own"]
         },

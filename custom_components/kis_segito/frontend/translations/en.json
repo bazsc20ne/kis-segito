@@ -522,5 +522,7 @@
   "theme.error_too_large": "The theme is too large.",
   "theme.error_file_too_large": "A file in the ZIP is too large.",
   "theme.cards_themed": "Dashboard cards in the theme's look",
-  "theme.cards_themed_hint": "On: the Kis Segítő cards on the dashboards take the theme's colours and fonts. Off: they follow the dashboard's own theme, like the other cards. Their pictures always come from the theme."
+  "theme.cards_themed_hint": "On: the Kis Segítő cards on the dashboards take the theme's colours and fonts. Off: they follow the dashboard's own theme, like the other cards. Their pictures always come from the theme.",
+  "children.theme": "Theme on the knob",
+  "children.theme_common": "The knob's theme"
 }

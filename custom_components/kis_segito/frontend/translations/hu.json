@@ -522,5 +522,7 @@
   "theme.error_too_large": "A téma túl nagy.",
   "theme.error_file_too_large": "A ZIP egyik fájlja túl nagy.",
   "theme.cards_themed": "Irányítópult-kártyák a téma kinézetével",
-  "theme.cards_themed_hint": "Bekapcsolva: az irányítópultokon a Kis Segítő kártyái a téma színeit és betűit kapják. Kikapcsolva: az irányítópult saját témáját követik, mint a többi kártya. A képeik mindig a témából jönnek."
+  "theme.cards_themed_hint": "Bekapcsolva: az irányítópultokon a Kis Segítő kártyái a téma színeit és betűit kapják. Kikapcsolva: az irányítópult saját témáját követik, mint a többi kártya. A képeik mindig a témából jönnek.",
+  "children.theme": "Téma a gombon",
+  "children.theme_common": "A gomb témája"
 }

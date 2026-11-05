@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <array>
 #include <deque>
 #include <functional>
 #include <map>
@@ -35,6 +36,7 @@ namespace esphome::kis_segito_ui {
 
 struct Child {
   std::string id;
+  std::string theme;   // the child's own theme ("": the knob's theme)
   std::string avatar;  // icon key without size
   uint32_t color{0x6CB8FF};
   int wallet{0};
@@ -163,6 +165,10 @@ class Carousel {
   FillFn fill_;
 };
 
+// Knob colours of a theme: bg, track, ok, warn, late, deposit, withdraw,
+// pill, number.
+using ThemeColours = std::array<uint32_t, 9>;
+
 // The theme id as kept in the preferences.
 struct ThemePref {
   char id[33];
@@ -246,6 +252,7 @@ class KisSegitoUI : public Component {
  protected:
   const lv_image_dsc_t *img_(const std::string &key);
   bool apply_theme_colours_(JsonObjectConst tc);
+  void activate_theme_(const std::string &child_theme);
   void save_theme_();
   // The downloaded-picture key ("@<id>_<size>") an image key is shown with,
   // or "" for a built-in image.
@@ -423,6 +430,9 @@ class KisSegitoUI : public Component {
   std::set<std::string> bg_keys_;
   std::set<std::string> cache_asked_;  // keys asked from the flash cache only  // picture keys of backgrounds (whole screen)
   std::string theme_;  // theme id from Home Assistant (empty: built-in look)
+  std::string active_theme_;  // theme of the screen shown (a child's own one)
+  ThemeColours global_colours_{};  // the knob theme's colours
+  std::map<std::string, ThemeColours> theme_colours_;  // children's themes
   ESPPreferenceObject theme_pref_;
   std::string wanted_bg_;   // background id the current screen asks for
   std::string shown_bg_;    // picture key of the background on screen

@@ -233,6 +233,7 @@ class KisSegitoKnobCard extends HTMLElement {
     applyThemeColours(this._state?.tc, this);
     this._small = new Set(msg.small_icons || []);
     this._theme = msg.theme || null;
+    this._childThemes = msg.child_themes || {};
     this._ownIcons = msg.own_icons || {};
     this._receivedAt = Date.now();
     if (first) {
@@ -414,8 +415,16 @@ class KisSegitoKnobCard extends HTMLElement {
 
   // A picture of the chosen theme, or the built-in one (an own theme may
   // leave pictures out).
-  _asset(path) {
-    const theme = this._theme;
+  // The theme of the screen shown: a child's own one on that child's
+  // screens, the knob's one on the child selector (the background stays the
+  // knob's).
+  _activateTheme(childTheme) {
+    const own = childTheme ? this._childThemes?.[childTheme] : null;
+    this._activeTheme = own || this._theme;
+    applyThemeColours(own ? this._state?.tcs?.[childTheme] : this._state?.tc, this);
+  }
+
+  _asset(path, theme = this._activeTheme === undefined ? this._theme : this._activeTheme) {
     if (theme?.base && (!theme.has || theme.has.includes(path))) {
       return `${theme.base}/${path}?v=${this._version}&r=${theme.rev || 0}`;
     }
@@ -493,7 +502,7 @@ class KisSegitoKnobCard extends HTMLElement {
     // A theme's preset: "t_<theme>__bg_<n>".
     const themed = /^t_([a-z0-9_]+?)__(bg_[1-6])$/.exec(bg);
     if (themed) {
-      return this._asset(`backgrounds/${themed[2]}.jpg`);
+      return this._asset(`backgrounds/${themed[2]}.jpg`, this._theme);
     }
     return bg.startsWith("bg_") ? `${this._staticUrl}/backgrounds/${bg}.jpg?v=${this._version}` : `/api/image/serve/${encodeURIComponent(bg)}/512x512`;
   }
@@ -666,6 +675,7 @@ class KisSegitoKnobCard extends HTMLElement {
     const children = this._children;
     if (!children.length) {
       this._screen = SCREENS.CHILDREN;
+      this._activateTheme("");
       this._applyBackground(BASE_BG);
       this._buildTrack();
       return;
@@ -677,6 +687,7 @@ class KisSegitoKnobCard extends HTMLElement {
       screen = this._screen = SCREENS.CHILDREN;
     }
     const child = children[this._child];
+    this._activateTheme(screen === SCREENS.CHILDREN ? "" : child.th || "");
     this._applyBackground(screen === SCREENS.CHILDREN ? BASE_BG : mix(parseColor(child.c, 0x6cb8ff), BASE_BG, 46));
     this._buildTrack();
     if (screen === SCREENS.REWARDS && previous !== SCREENS.CONFIRM && previous !== SCREENS.REWARDS && this._shop().length) {

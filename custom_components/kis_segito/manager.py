@@ -575,6 +575,18 @@ class KisSegitoManager:
         """The chosen theme (the default one when it is not available)."""
         return theme_of(self.settings.get("theme"))
 
+    def child_theme_id(self, child: dict[str, Any]) -> str:
+        """A child's own theme, when it differs from the common one ("" otherwise
+        or when that theme cannot be chosen any more)."""
+        theme_id = str(child.get("theme") or "")
+        if (
+            not theme_id
+            or theme_id == self.theme["id"]
+            or theme_id in self.settings.get("themes_off", [])
+        ):
+            return ""
+        return theme_id if theme_of(theme_id)["id"] == theme_id else ""
+
     def _themed_background(self, background: str) -> str:
         """A background preset in the chosen theme's style; uploaded pictures
         and the default theme stay as they are."""
@@ -2035,6 +2047,8 @@ class KisSegitoManager:
                     "s": self.streak(child["id"]),
                     "st": int(self.settings.get("streak_target", 7)),
                     "sel": child["id"] in selectable,
+                    # The child's own theme ("": the knob's theme).
+                    "th": self.child_theme_id(child),
                 }
             )
         rewards = [
@@ -2145,6 +2159,14 @@ class KisSegitoManager:
             # its colours replace the knob's own (empty: the built-in look).
             "th": "" if self.theme["id"] == DEFAULT_THEME else self.theme["id"],
             "tc": self.theme["knob"],
+            # Colours of the children's own themes.
+            "tcs": {
+                theme_id: theme_of(theme_id)["knob"]
+                for theme_id in {
+                    self.child_theme_id(c) for c in self.children(active_only=True)
+                }
+                if theme_id
+            },
             "scr": {
                 key: int(value)
                 for key, value in zip(

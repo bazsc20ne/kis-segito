@@ -246,7 +246,9 @@ class KsCard extends HTMLElement {
     return (this.data?.children || []).find((c) => c.id === id);
   }
 
-  iconUrl(name) {
+  // A picture in the theme of the card's child (its own theme, when it has
+  // one), else in the common theme.
+  iconUrl(name, theme = this._iconTheme) {
     if (!name) {
       return "";
     }
@@ -257,7 +259,7 @@ class KsCard extends HTMLElement {
     name = store.aliases[name] || name;
     // The theme's picture; an own theme may leave some out (built-in ones then).
     const path = `icons/${esc(name)}.png`;
-    const theme = this.data?.theme;
+    theme = theme === undefined ? this.data?.theme : theme;
     if (theme?.base && (!theme.has || theme.has.includes(path))) {
       return `${theme.base}/${path}?v=${esc(this.data?.version || "")}&r=${esc(theme.rev || 0)}`;
     }
@@ -270,7 +272,7 @@ class KsCard extends HTMLElement {
   }
 
   avatar(c, size = 36) {
-    const src = c.avatar_image ? `/api/image/serve/${esc(c.avatar_image)}/256x256` : this.iconUrl(c.avatar || "avatar_00");
+    const src = c.avatar_image ? `/api/image/serve/${esc(c.avatar_image)}/256x256` : this.iconUrl(c.avatar || "avatar_00", c.theme || this.data?.theme);
     return `<span class="av" style="--c:${esc(c.color || "")};width:${size}px;height:${size}px" title="${esc(c.name)}"><img src="${src}" alt=""></span>`;
   }
 
@@ -292,6 +294,8 @@ class KsCard extends HTMLElement {
       inner = this.body();
     }
     this._applyLook();
+    const own = this._config.child ? this.child(this._config.child)?.theme : null;
+    this._iconTheme = own || this.data?.theme;
     const title = this._config.title ?? this.defaultTitle();
     this.shadowRoot.innerHTML = `<style>${STYLE}</style><ha-card>${title ? `<h2>${esc(title)}</h2>` : ""}${inner}</ha-card>`;
     this.shadowRoot.querySelectorAll("[data-act]").forEach((el) => {

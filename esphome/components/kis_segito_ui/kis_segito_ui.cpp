@@ -298,6 +298,16 @@ static uint32_t ZONE_DEPOSIT = 0x6BCB77;   // tokens into the piggy bank
 static uint32_t ZONE_WITHDRAW = 0xFF9F43;  // tokens out of it
 static uint32_t PILL_BG = 0x0F1330;        // number pills
 static uint32_t NUMBER_FG = 0xFFE08A;      // numbers on the pills
+
+static const char *const COLOUR_NAMES[] = {"bg", "track", "ok", "warn", "late", "deposit", "withdraw", "pill", "number"};
+static uint32_t *const COLOUR_SLOTS[] = {&BASE_BG,      &TRACK_DIM,     &ZONE_OK, &ZONE_WARN, &ZONE_LATE,
+                                         &ZONE_DEPOSIT, &ZONE_WITHDRAW, &PILL_BG, &NUMBER_FG};
+static const ThemeColours BUILTIN_COLOURS = {0x1B2140, 0x3A4066, 0x6BCB77, 0xFF9F43, 0xFF6B6B,
+                                             0x6BCB77, 0xFF9F43, 0x0F1330, 0xFFE08A};
+
+static ThemeColours parse_colours(JsonObjectConst tc);
+
+
 // Time track geometry: outer edge radius and width of each arc (an LVGL arc is
 // drawn inwards from its outer edge).
 #define OUTER_R S(222)  // outer (shared) track
@@ -692,11 +702,13 @@ void KisSegitoUI::setup() {
   this->log_reset_reason_();
   log_psram("at boot");
   this->load_test_data_();
+  this->global_colours_ = BUILTIN_COLOURS;
   this->theme_pref_ = global_preferences->make_preference<ThemePref>(fnv1_hash("kis_segito_ui_theme"));
   ThemePref theme{};
   if (this->theme_pref_.load(&theme)) {
     theme.id[sizeof(theme.id) - 1] = 0;
     this->theme_ = theme.id;
+    this->active_theme_ = this->theme_ == "kis_segito" ? "" : this->theme_;
     if (!this->theme_.empty())
       ESP_LOGI(TAG, "Theme %s", this->theme_.c_str());
   }
@@ -766,6 +778,15 @@ static uint32_t parse_color(const char *hex, uint32_t fallback) {
   return end != hex ? static_cast<uint32_t>(value) : fallback;
 }
 
+static ThemeColours parse_colours(JsonObjectConst tc) {
+  ThemeColours colours = BUILTIN_COLOURS;
+  for (size_t i = 0; i < colours.size(); i++) {
+    const char *text = tc[COLOUR_NAMES[i]].is<const char *>() ? tc[COLOUR_NAMES[i]].as<const char *>() : nullptr;
+    colours[i] = parse_color(text, BUILTIN_COLOURS[i]);
+  }
+  return colours;
+}
+
 static std::vector<std::string> string_list(JsonVariantConst value) {
   std::vector<std::string> out;
   for (JsonVariantConst item : value.as<JsonArrayConst>())
@@ -824,14 +845,19 @@ void KisSegitoUI::set_state(const std::string &json) {
   // background), so every picture and colour changes together.
   const std::string theme = root["th"] | "";
   const bool colours_changed = this->apply_theme_colours_(root["tc"]);
+  this->theme_colours_.clear();
+  for (JsonPairConst kv : root["tcs"].as<JsonObjectConst>())
+    this->theme_colours_[kv.key().c_str()] = parse_colours(kv.value().as<JsonObjectConst>());
   if (first_state) {
     if (theme != this->theme_ || colours_changed) {
       this->theme_ = theme;
+      this->active_theme_ = theme;
       this->save_theme_();
-      if (this->started_) {
+      // The screen is drawn again for the new data, in the theme of the
+      // screen it shows.
+      this->activate_theme_("");
+      if (this->started_)
         lv_obj_set_style_bg_color(this->root_, lv_color_hex(BASE_BG), 0);
-        this->ring_drawn_ = false;
-      }
     }
   } else if (theme != this->theme_ || colours_changed) {
     this->theme_ = theme;
@@ -870,6 +896,7 @@ void KisSegitoUI::set_state(const std::string &json) {
     child.avatar = "@" + (is_online_icon(child.avatar) ? child.avatar : std::string("avatar_00"));
     if (c["ai"].is<const char *>() && strlen(c["ai"].as<const char *>()) > 0)
       child.avatar = std::string("@") + c["ai"].as<const char *>();
+    child.theme = c["th"] | "";
     children.push_back(child);
   }
   std::vector<Reward> rewards;
@@ -1215,8 +1242,8 @@ std::string KisSegitoUI::photo_key_(const std::string &key) const {
   // as they are. A picture the theme does not have (an own theme may leave
   // some out) is the built-in one.
   const std::string plain = !key.empty() && key[0] == '@' ? key.substr(1) : key;
-  if (!this->theme_.empty() && is_theme_icon(plain)) {
-    const std::string themed = "@t_" + this->theme_ + "__" + plain;
+  if (!this->active_theme_.empty() && is_theme_icon(plain)) {
+    const std::string themed = "@t_" + this->active_theme_ + "__" + plain;
     if (!this->photo_failed_.count(themed))
       return themed;
   }
@@ -1556,27 +1583,39 @@ void KisSegitoUI::photo_task_(void *arg) {
 // stays until then. If it cannot be stored, nothing restarts.
 // Colours of the theme ("tc": name -> "#RRGGBB"); missing ones are the
 // built-in colours. True when any colour changed.
+// Colours of the theme ("tc": name -> "#RRGGBB"); missing ones are the
+// built-in colours. True when they changed.
 bool KisSegitoUI::apply_theme_colours_(JsonObjectConst tc) {
-  struct Slot {
-    const char *name;
-    uint32_t *value;
-    uint32_t builtin;
-  };
-  static const Slot SLOTS[] = {
-      {"bg", &BASE_BG, 0x1B2140},        {"track", &TRACK_DIM, 0x3A4066},  {"ok", &ZONE_OK, 0x6BCB77},
-      {"warn", &ZONE_WARN, 0xFF9F43},    {"late", &ZONE_LATE, 0xFF6B6B},   {"deposit", &ZONE_DEPOSIT, 0x6BCB77},
-      {"withdraw", &ZONE_WITHDRAW, 0xFF9F43}, {"pill", &PILL_BG, 0x0F1330}, {"number", &NUMBER_FG, 0xFFE08A},
-  };
-  bool changed = false;
-  for (const auto &slot : SLOTS) {
-    const char *text = tc[slot.name].is<const char *>() ? tc[slot.name].as<const char *>() : nullptr;
-    const uint32_t value = parse_color(text, slot.builtin);
-    if (*slot.value != value) {
-      *slot.value = value;
+  const ThemeColours colours = parse_colours(tc);
+  const bool changed = colours != this->global_colours_;
+  this->global_colours_ = colours;
+  return changed;
+}
+
+// The theme of the screen being shown: a child's own one on that child's
+// screens, the knob's one on the child selector. Its colours and pictures are
+// used from here on; the background stays the knob's.
+void KisSegitoUI::activate_theme_(const std::string &child_theme) {
+  std::string theme = child_theme.empty() ? this->theme_ : child_theme;
+  const ThemeColours *colours = &this->global_colours_;
+  if (!child_theme.empty()) {
+    auto it = this->theme_colours_.find(child_theme);
+    if (it != this->theme_colours_.end())
+      colours = &it->second;
+  }
+  if (theme == "kis_segito")
+    theme.clear();  // the built-in look
+  bool changed = theme != this->active_theme_;
+  for (size_t i = 0; i < colours->size(); i++) {
+    if (*COLOUR_SLOTS[i] != (*colours)[i]) {
+      *COLOUR_SLOTS[i] = (*colours)[i];
       changed = true;
     }
   }
-  return changed;
+  if (changed) {
+    this->active_theme_ = theme;
+    this->ring_drawn_ = false;  // drawn again in the new colours
+  }
 }
 
 // A picture of the loading screen (an LVGL image of the YAML config) in the
@@ -2206,6 +2245,7 @@ void KisSegitoUI::show_(Screen screen) {
   this->screen_ = screen;
   if (this->children_.empty()) {
     // No children configured yet: only the track and the brand mark.
+    this->activate_theme_("");
     this->screen_ = Screen::CHILDREN;
     lv_obj_set_style_bg_color(this->root_, lv_color_hex(BASE_BG), 0);
     this->apply_background_("");
@@ -2218,6 +2258,7 @@ void KisSegitoUI::show_(Screen screen) {
   if (screen != Screen::CHILDREN && !this->children_[this->child_].selectable)
     screen = this->screen_ = Screen::CHILDREN;
   const Child &child = this->children_[this->child_];
+  this->activate_theme_(screen == Screen::CHILDREN ? std::string() : child.theme);
   const lv_color_t bg = screen == Screen::CHILDREN ? lv_color_hex(BASE_BG) : this->tint_(child.color, 46);
   lv_obj_set_style_bg_color(this->root_, bg, 0);
   // The one background on every screen; none: the plain colour. While a new
@@ -2612,9 +2653,9 @@ std::string KisSegitoUI::pic_state_(const std::string &key) const {
   // Which version of the picture an item shows; whether it is in memory right
   // now does not matter (a stored item has it drawn in already).
   if (!this->photo_seen_.count(pk))
-    return key + "@-";
+    return pk + "@-";
   auto ver = this->photo_version_.find(pk);
-  return key + "@" + std::to_string(ver != this->photo_version_.end() ? ver->second : 0u);
+  return pk + "@" + std::to_string(ver != this->photo_version_.end() ? ver->second : 0u);
 }
 
 void KisSegitoUI::build_children_() {
