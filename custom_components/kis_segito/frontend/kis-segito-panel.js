@@ -275,6 +275,41 @@ class KisSegitoPanel extends HTMLElement {
 
   _applyTheme() {
     this.setAttribute("data-theme", this._night ? "dark" : "light");
+    // The chosen theme's colours and fonts (CSS variables over the built-in
+    // ones); the built-in look sets none.
+    const look = this._data?.theme || {};
+    const vars = { ...(look.panel?.[this._night ? "dark" : "light"] || {}) };
+    const fonts = look.fonts || {};
+    if (this._look && (fonts.display || fonts.body)) {
+      const base = `${this._staticUrl}/themes/${this._look}/fonts`;
+      const faces = [];
+      if (fonts.display) {
+        faces.push(`@font-face{font-family:"KS Theme Display";src:url("${base}/${fonts.display}") format("woff2");font-weight:300 900;font-display:swap}`);
+        vars["--f-display"] = `"KS Theme Display", "KS Baloo 2", system-ui, sans-serif`;
+      }
+      if (fonts.body) {
+        faces.push(`@font-face{font-family:"KS Theme Body";src:url("${base}/${fonts.body}") format("woff2");font-weight:300 900;font-display:swap}`);
+        vars["--f-body"] = `"KS Theme Body", "KS Figtree", system-ui, sans-serif`;
+      }
+      let style = document.getElementById("kis-segito-theme-fonts");
+      if (!style) {
+        style = document.createElement("style");
+        style.id = "kis-segito-theme-fonts";
+        document.head.appendChild(style);
+      }
+      if (style.textContent !== faces.join("\n")) {
+        style.textContent = faces.join("\n");
+      }
+    }
+    for (const name of this._lookVars || []) {
+      if (!(name in vars)) {
+        this.style.removeProperty(name);
+      }
+    }
+    for (const [name, value] of Object.entries(vars)) {
+      this.style.setProperty(name, value);
+    }
+    this._lookVars = Object.keys(vars);
   }
 
   _updateLanguage() {
@@ -488,7 +523,17 @@ class KisSegitoPanel extends HTMLElement {
     name = this._data?.icon_aliases?.[name] || name;
     // Small places use the simplified variant, when the icon has one.
     const small = size <= 44 && this._data?.small_icons?.includes(name) ? "small/" : "";
-    return `${this._staticUrl}/icons/${small}${this._e(name)}.png?v=${this._version}`;
+    return `${this._assetBase}/icons/${small}${this._e(name)}.png?v=${this._version}`;
+  }
+
+  // The chosen theme's id ("" for the built-in look) and where its pictures are.
+  get _look() {
+    const id = this._data?.theme?.id || "";
+    return id && id !== "kis_segito" ? id : "";
+  }
+
+  get _assetBase() {
+    return this._look ? `${this._staticUrl}/themes/${this._look}` : this._staticUrl;
   }
 
   _icon(name, size = 40, cls = "") {
@@ -504,7 +549,7 @@ class KisSegitoPanel extends HTMLElement {
       return "";
     }
     return value.startsWith("bg_")
-      ? `${this._staticUrl}/backgrounds/${this._e(value)}.jpg?v=${this._version}`
+      ? `${this._assetBase}/backgrounds/${this._e(value)}.jpg?v=${this._version}`
       : `/api/image/serve/${this._e(value)}/512x512`;
   }
 
@@ -579,6 +624,26 @@ class KisSegitoPanel extends HTMLElement {
   }
 
   // Own icons (replace, switch off, delete) and the built-in ones (switch off).
+  // Settings: the theme picker (look of the panel, the cards and the knobs).
+  _viewThemes() {
+    const themes = this._data.themes || [];
+    const current = this._data.theme?.id || "kis_segito";
+    const dis = this._isAdmin ? "" : "disabled";
+    const lang = (this._language || "en").startsWith("hu") ? "hu" : "en";
+    const preview = (id, name) => {
+      const base = id === "kis_segito" ? this._staticUrl : `${this._staticUrl}/themes/${this._e(id)}`;
+      return `<img src="${base}/icons/${name}.png?v=${this._version}" width="40" height="40" alt="">`;
+    };
+    const cards = themes
+      .map((t) => `<button class="theme ${t.id === current ? "on" : ""}" data-act="theme-set" data-arg="${this._e(t.id)}" ${dis}>
+        <span class="previews">${["fn_rewards", "routine_morning", "avatar_01"].map((n) => preview(t.id, n)).join("")}</span>
+        <b>${this._e(t.name?.[lang] || t.name?.en || t.id)}</b></button>`)
+      .join("");
+    return `<div class="card"><h3>${this._e(this._t("theme.title"))}</h3><div class="themes">${cards}</div>
+      <div class="hint">${this._e(this._t("theme.hint"))}</div>
+      ${themes.length > 1 ? `<div class="hint">${this._e(this._t("theme.disclaimer"))}</div>` : ""}</div>`;
+  }
+
   _viewIconSettings() {
     const dis = this._dis();
     const own = (this._data.own_icons || [])
@@ -1621,6 +1686,7 @@ class KisSegitoPanel extends HTMLElement {
           }).join("")}
           <div class="hint">${this._e(this._t("sensors.hint"))}</div>
           <div class="hint">${this._e(this._t("sensors.light_factor_hint"))}</div></div>
+        ${this._viewThemes()}
         <div class="card"><h3>${this._e(this._t("background.title"))}</h3>${backgrounds}<div class="hint">${this._e(this._t("background.hint"))}</div></div>
         ${this._viewIconSettings()}
         <div class="card"><h3>${this._e(this._t("settings.knobs"))}</h3>${devices || `<div class="muted">${this._e(this._t("settings.no_knobs"))}</div>`}<div class="hint">${this._e(this._t("settings.knobs_hint"))}</div>${this._isAdmin ? `<div><button class="btn sm" data-act="virtual-add">＋ ${this._e(this._t("settings.virtual_add"))}</button></div>` : ""}</div>
@@ -2388,7 +2454,7 @@ class KisSegitoPanel extends HTMLElement {
         <header class="hero" style="background-image:url('${this._backgroundUrl(night ? "bg_6" : "bg_2")}')">
           <div class="topbar">
             ${this._isNarrow ? `<ha-menu-button></ha-menu-button>` : ""}
-            <div class="brand"><img class="logo" src="${this._staticUrl}/icons/${logo}.webp?v=${this._version}" alt="${this._e(this._t("panel.title"))}"></div>
+            <div class="brand"><img class="logo" src="${this._assetBase}/icons/${logo}.webp?v=${this._version}" alt="${this._e(this._t("panel.title"))}"></div>
             <div class="top-actions">
               ${languages.length > 1 ? `<div class="pill-switch" role="group" aria-label="${this._e(this._t("settings.language"))}">${languages.map((l) => `<button class="${languageNow.split("-")[0] === l.code ? "on" : ""}" data-act="lang" data-arg="${this._e(l.code)}" title="${this._e(l.name)}">${this._e(l.code.toUpperCase())}</button>`).join("")}</div>` : ""}
               <button class="daynight ${night ? "night" : ""}" data-act="theme" aria-label="${this._e(this._t(night ? "theme.day" : "theme.night"))}" title="${this._e(this._t(night ? "theme.night" : "theme.day"))}">${stars}<span class="knob"></span></button>
@@ -2959,6 +3025,11 @@ class KisSegitoPanel extends HTMLElement {
       case "saver":
         await this._ws({ type: "kis_segito/settings/update", screen: { saver_type: arg } });
         this._toast(this._t("toast.saved"));
+        await this._load();
+        return;
+      case "theme-set":
+        await this._ws({ type: "kis_segito/settings/update", theme: arg });
+        this._toast(this._t("theme.changed"));
         await this._load();
         return;
       case "bg-set":
@@ -3597,6 +3668,11 @@ const STYLE = `
     color-scheme: dark;
   }
   * { box-sizing: border-box; }
+  .themes { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .theme { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 8px; border-radius: 16px; border: 2px solid var(--line); background: var(--surface-2); cursor: pointer; }
+  .theme.on { border-color: var(--accent); background: var(--accent-soft); }
+  .theme .previews { display: flex; gap: 4px; }
+  .theme:disabled { cursor: default; }
   button, input, select, textarea { font: inherit; color: inherit; }
   h1, h2, h3 { font-family: var(--f-display); line-height: 1.1; margin: 0; font-weight: 700; }
   h2 { font-size: 1.45rem; }

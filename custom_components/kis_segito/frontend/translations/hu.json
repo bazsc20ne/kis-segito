@@ -496,5 +496,9 @@
   "cards.field_step": "Alapértelmezett mennyiség",
   "cards.field_count": "Események száma",
   "cards.field_title": "Cím (nem kötelező)",
-  "error.unavailable": "A gomb nem érhető el."
+  "error.unavailable": "A gomb nem érhető el.",
+  "theme.title": "Téma",
+  "theme.hint": "A panel, az irányítópult-kártyák és a gombok kinézete: színek, betűk, ikonok, képek, avatarok és hátterek. A fizikai gombok a váltáshoz egyszer újraindulnak, egy perc használaton kívüli idő után.",
+  "theme.changed": "Téma megváltozott",
+  "theme.disclaimer": "A témák rajongói stílus-tisztelgések. A Kis Segítő nem áll kapcsolatban a The Walt Disney Company, a Disney Enterprises, Inc., a Pixar, a 20th Century Studios (korábban Twentieth Century Fox) vagy más jogtulajdonos vállalattal, és azok nem támogatják vagy szponzorálják. A The Simpsons, a Frozen, a Cars, a Toy Story, a Planes és a Winnie the Pooh a jogtulajdonosaik védjegyei; a nevek csak azt a vizuális stílust jelölik, amelyből egy téma ihletet merít. A témák minden rajza eredeti: nem tartalmaznak szereplőket, logókat vagy más elemeket az eredetiekből."
 }

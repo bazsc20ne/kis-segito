@@ -40,7 +40,17 @@ AVATARS_OUT = ROOT / "custom_components" / "kis_segito" / "knob_avatars"
 AVATAR_SIZE = 180
 WEB_SMALL_SIZE = 88  # 44 px at 2x
 # Sources that are not icons for the panel.
-WEB_SKIP = ("ball_", "brand_logo", "brand_app_icon", "token_pile_shadow")
+WEB_SKIP = (
+    "ball_",
+    "brand_logo",
+    "brand_app_icon",
+    "token_pile_shadow",
+    # Not shown anywhere.
+    "arrow_flow",
+    "placeholder_image",
+    "token_coin_edge",
+    "token_coin_top",
+)
 # The panel header's wordmarks (Hungarian and every other language).
 LOGOS = ("brand_logo", "brand_logo_en")
 LOGO_HEIGHT = 160  # shown up to 80 px high

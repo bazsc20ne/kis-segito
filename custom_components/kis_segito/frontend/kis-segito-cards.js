@@ -229,7 +229,8 @@ class KsCard extends HTMLElement {
       return own ? `/api/image/serve/${esc(own.image)}/256x256` : "";
     }
     name = store.aliases[name] || name;
-    return `${STATIC_URL}/icons/${esc(name)}.png?v=${esc(this.data?.version || "")}`;
+    const base = this.data?.theme ? `${STATIC_URL}/themes/${esc(this.data.theme)}` : STATIC_URL;
+    return `${base}/icons/${esc(name)}.png?v=${esc(this.data?.version || "")}`;
   }
 
   icon(name, size = 24) {

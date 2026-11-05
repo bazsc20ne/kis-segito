@@ -22,12 +22,24 @@ const BAND_R = 196;
 const FADE_W = 6;
 const GLOW_W = INNER_W;
 
-const BASE_BG = 0x1b2140;
-const TRACK_DIM = 0x3a4066;
+// Colours; a theme replaces them (state "tc", see applyThemeColours).
+let BASE_BG = 0x1b2140;
+let TRACK_DIM = 0x3a4066;
 const LOCKED = 0x4a4f6a;
 const GREY = 0x8c96a5;
-const ZONE_DEPOSIT = 0x6bcb77;
-const ZONE_WITHDRAW = 0xff9f43;
+let ZONE_DEPOSIT = 0x6bcb77;
+let ZONE_WITHDRAW = 0xff9f43;
+const BUILTIN_COLOURS = { bg: 0x1b2140, track: 0x3a4066, deposit: 0x6bcb77, withdraw: 0xff9f43, pill: 0x0f1330, number: 0xffe08a };
+// The theme's knob colours ("#RRGGBB"); missing ones are the built-in ones.
+const applyThemeColours = (tc, root) => {
+  const c = (name) => parseColor(tc?.[name], BUILTIN_COLOURS[name]);
+  BASE_BG = c("bg");
+  TRACK_DIM = c("track");
+  ZONE_DEPOSIT = c("deposit");
+  ZONE_WITHDRAW = c("withdraw");
+  root.style.setProperty("--pill", hex(c("pill")));
+  root.style.setProperty("--num", hex(c("number")));
+};
 const CONFETTI_COLORS = [0xff6b6b, 0xffc94a, 0x6bcb77, 0x6cb8ff, 0xa78bfa, 0xff8fb1];
 
 const SCREENS = { CHILDREN: "children", FUNCTIONS: "functions", REWARDS: "rewards", CONFIRM: "confirm", ROUTINE: "routine", TOKENS: "tokens", PIGGY: "piggy" };
@@ -94,8 +106,8 @@ ha-card { overflow: visible; background: none; border: none; box-shadow: none; }
 .abs { position: absolute; }
 .disc { position: absolute; border-radius: 50%; }
 img.abs { pointer-events: none; -webkit-user-drag: none; }
-.pill { position: absolute; height: 48px; border-radius: 24px; background: rgba(15, 19, 48, 0.784); padding: 0 14px; display: flex; align-items: center; gap: 6px; transform: translateX(-50%); white-space: nowrap; }
-.num { font-family: "KS Baloo 2", "Baloo 2", system-ui, sans-serif; font-weight: 800; font-size: 34px; line-height: 1; color: #ffe08a; }
+.pill { position: absolute; height: 48px; border-radius: 24px; background: color-mix(in srgb, var(--pill, #0f1330) 78.4%, transparent); padding: 0 14px; display: flex; align-items: center; gap: 6px; transform: translateX(-50%); white-space: nowrap; }
+.num { font-family: "KS Baloo 2", "Baloo 2", system-ui, sans-serif; font-weight: 800; font-size: 34px; line-height: 1; color: var(--num, #ffe08a); }
 .window { position: absolute; overflow: hidden; }
 .slot { position: absolute; top: 0; will-change: transform, opacity; }
 .grey { filter: grayscale(1) brightness(0.85); }
@@ -218,6 +230,7 @@ class KisSegitoKnobCard extends HTMLElement {
     this._version = msg.version;
     this._longPressMs = msg.long_press_ms || 500;
     this._state = msg.state;
+    applyThemeColours(this._state?.tc, this);
     this._small = new Set(msg.small_icons || []);
     this._ownIcons = msg.own_icons || {};
     this._receivedAt = Date.now();
@@ -395,7 +408,13 @@ class KisSegitoKnobCard extends HTMLElement {
     name = this._aliases[name] || name;
     // Small places use the simplified variant, when the icon has one.
     const small = size <= 44 && this._small?.has(name) ? "small/" : "";
-    return `${this._staticUrl}/icons/${small}${name}.png?v=${this._version}`;
+    return `${this._assetBase}/icons/${small}${name}.png?v=${this._version}`;
+  }
+
+  // Where the chosen theme's pictures are (state "th"; empty: the built-in ones).
+  get _assetBase() {
+    const theme = this._state?.th || "";
+    return /^[a-z0-9_]+$/.test(theme) ? `${this._staticUrl}/themes/${theme}` : this._staticUrl;
   }
 
   _img(parent, name, cx, cy, size, cls = "") {
@@ -465,6 +484,11 @@ class KisSegitoKnobCard extends HTMLElement {
     const bg = this._state?.bg || "";
     if (!bg) {
       return "";
+    }
+    // A theme's preset: "t_<theme>__bg_<n>".
+    const themed = /^t_([a-z0-9_]+?)__(bg_[1-6])$/.exec(bg);
+    if (themed) {
+      return `${this._staticUrl}/themes/${themed[1]}/backgrounds/${themed[2]}.jpg?v=${this._version}`;
     }
     return bg.startsWith("bg_") ? `${this._staticUrl}/backgrounds/${bg}.jpg?v=${this._version}` : `/api/image/serve/${encodeURIComponent(bg)}/512x512`;
   }
