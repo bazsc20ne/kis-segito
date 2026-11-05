@@ -36,7 +36,6 @@ namespace esphome::kis_segito_ui {
 
 struct Child {
   std::string id;
-  std::string theme;   // the child's own theme ("": the knob's theme)
   std::string avatar;  // icon key without size
   uint32_t color{0x6CB8FF};
   int wallet{0};
@@ -46,6 +45,7 @@ struct Child {
   int streak_target{7};
   bool selectable{true};  // false: shown locked on this knob
   int pending_interest{0};  // interest not shown to the child yet
+  std::string theme;  // the child's own theme ("": the knob's theme)
 };
 
 struct Reward {
