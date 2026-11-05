@@ -659,8 +659,8 @@ class KisSegitoPanel extends HTMLElement {
         ${t.own && this._isAdmin ? `<button class="btn sm danger" data-act="theme-delete" data-arg="${this._e(t.id)}">${this._e(this._t("common.delete"))}</button>` : ""}</div>`)
       .join("");
     const tools = this._isAdmin
-      ? `<div class="row wrap"><button class="btn sm" data-act="theme-template">⬇ ${this._e(this._t("theme.template"))}</button>
-          <label class="btn sm primary">⬆ ${this._e(this._t("theme.upload"))}<input type="file" accept=".zip,application/zip" data-upload-theme hidden></label></div>`
+      ? `<div class="row wrap"><button class="btn sm" data-act="theme-template">↓ ${this._e(this._t("theme.template"))}</button>
+          <label class="btn sm primary">↑ ${this._e(this._t("theme.upload"))}<input type="file" accept=".zip,application/zip" data-upload-theme hidden></label></div>`
       : "";
     return `<div class="card"><h3>${this._e(this._t("theme.title"))}</h3><div class="themes">${cards}</div>
       <div class="hint">${this._e(this._t("theme.hint"))}</div>
@@ -676,8 +676,8 @@ class KisSegitoPanel extends HTMLElement {
       .map((i) => `<div class="icon-own ${i.active === false ? "inactive" : ""}">${this._icon(i.key, 56)}
         <div class="row" style="gap:4px">
           <label class="iconbtn" title="${this._e(this._t("icons.replace"))}">⟳<input type="file" accept="image/*" data-crop-upload="@replace:${this._e(i.key)}" hidden ${dis}></label>
-          <button class="iconbtn" data-act="icon-active" data-arg="${this._e(i.key)}:${i.active === false ? 1 : 0}" title="${this._e(this._t(i.active === false ? "icons.activate" : "icons.deactivate"))}" ${dis}>${i.active === false ? "👁" : "🚫"}</button>
-          <button class="iconbtn" data-act="icon-delete" data-arg="${this._e(i.key)}" title="${this._e(this._t("common.delete"))}" ${dis}>🗑</button></div></div>`)
+          <button class="iconbtn" data-act="icon-active" data-arg="${this._e(i.key)}:${i.active === false ? 1 : 0}" title="${this._e(this._t(i.active === false ? "icons.activate" : "icons.deactivate"))}" ${dis}>${i.active === false ? "○" : "◉"}</button>
+          <button class="iconbtn" data-act="icon-delete" data-arg="${this._e(i.key)}" title="${this._e(this._t("common.delete"))}" ${dis}>✕</button></div></div>`)
       .join("");
     const disabled = new Set(this._data.disabled_icons || []);
     const content = (n) => n.startsWith("routine_") || n.startsWith("task_") || n.startsWith("reward_") || n === "checkpoint_flag" || n === "fn_rewards" || n === "fn_piggy";
@@ -701,7 +701,7 @@ class KisSegitoPanel extends HTMLElement {
     const all = this._data.children;
     const summary = chosen.length === all.length ? this._t("settings.knob_children_all") : this._t("settings.knob_children_some").replace("{n}", chosen.length).replace("{total}", all.length);
     const children = all
-      .map((c) => `<button class="chip ${chosen.includes(c.id) ? "on" : ""}" data-act="knob-child" data-arg="${this._e(`${d.device_id}|${c.id}`)}" ${dis}>${chosen.includes(c.id) ? "☑" : "☐"} ${this._avatar(c, 22)}${this._e(c.name)}</button>`)
+      .map((c) => `<button class="chip ${chosen.includes(c.id) ? "on" : ""}" data-act="knob-child" data-arg="${this._e(`${d.device_id}|${c.id}`)}" ${dis}>${chosen.includes(c.id) ? "✓" : "○"} ${this._avatar(c, 22)}${this._e(c.name)}</button>`)
       .join("");
     const own = d.background;
     const bgs = [`<button class="bg ${own == null ? "on" : ""}" data-act="knob-bg" data-arg="@common" data-device="${this._e(d.device_id)}" ${dis}>${this._e(this._t("settings.knob_bg_common"))}</button>`,
@@ -947,7 +947,7 @@ class KisSegitoPanel extends HTMLElement {
     const admin = this._isAdmin;
     const nameBlock = (r, times, state) => {
       const attrs = admin ? `data-act="day-edit" data-arg="${this._e(r.id)}" data-date="${day.date}" tabindex="0" title="${this._e(this._t("modify.edit"))}"` : "";
-      return `<div class="grow row nameblk" ${attrs}>${this._icon(r.icon, 36)}<div class="grow"><b class="name">${this._e(r.name || this._t("routines.unnamed"))}</b> <span class="muted num">${this._e(times)}</span> ${state} ${admin ? `<span class="pen">✎</span>` : ""}</div></div>`;
+      return `<div class="grow row nameblk" ${attrs}>${this._icon(r.icon, 36)}<div class="grow"><b class="name">${this._e(r.name || this._t("routines.unnamed"))}</b> <span class="muted num">${this._e(times)}</span> ${state} ${admin ? `<span class="pen">${this._icon("action_edit", 18, "glyph")}</span>` : ""}</div></div>`;
     };
     const rows = scheduled
       .map((r) => {
@@ -961,7 +961,7 @@ class KisSegitoPanel extends HTMLElement {
           : shift
             ? `<span class="tag warn">${this._e(this._t("modify.shifted").replace("{n}", sign(shift)))}</span>`
             : running?.edited
-              ? `<span class="badge" title="${this._e(this._t("calendar.changed"))}">✎</span>`
+              ? `<span class="badge" title="${this._e(this._t("calendar.changed"))}">${this._icon("action_edit", 18, "glyph")}</span>`
               : "";
         // The Restore button sits left of the stepper, so "+" never moves.
         const controls = !admin
@@ -976,7 +976,7 @@ class KisSegitoPanel extends HTMLElement {
       .join("");
     const oneDay = day.routines
       .filter((r) => r.one_day)
-      .map((r) => `<div class="mod-row">${nameBlock(r, `${r.start}–${r.end}`, r.moved_from ? `<span class="badge" title="${this._e(this._t("calendar.changed"))}">✎</span>` : `<span class="badge" title="${this._e(this._t("calendar.one_day"))}">1</span>`)}</div>`)
+      .map((r) => `<div class="mod-row">${nameBlock(r, `${r.start}–${r.end}`, r.moved_from ? `<span class="badge" title="${this._e(this._t("calendar.changed"))}">${this._icon("action_edit", 18, "glyph")}</span>` : `<span class="badge" title="${this._e(this._t("calendar.one_day"))}">1</span>`)}</div>`)
       .join("");
     const templates = this._data.templates || [];
     const chosen = this._data.date_templates?.[day.date];
@@ -1080,7 +1080,7 @@ class KisSegitoPanel extends HTMLElement {
             const badge = oneDay
               ? `<span class="badge" title="${this._e(this._t("calendar.one_day"))}">1</span>`
               : changed
-                ? `<span class="badge" title="${this._e(this._t(r.moved_from ? "calendar.moved_here" : "calendar.changed"))}">✎</span>`
+                ? `<span class="badge" title="${this._e(this._t(r.moved_from ? "calendar.moved_here" : "calendar.changed"))}">${this._icon("action_edit", 18, "glyph")}</span>`
                 : "";
             return `<div class="blk ${changed ? "changed" : ""} ${oneDay ? "oneday" : ""}" style="top:${top}px;height:${h}px;--rc:${this._e(color)}"
               data-block data-routine="${this._e(r.id)}" data-date="${d.date}" data-st="${st}" data-en="${en}" data-past="${past ? 1 : ""}" tabindex="0">
@@ -1103,7 +1103,7 @@ class KisSegitoPanel extends HTMLElement {
       ${this._undo ? `<div class="banner"><span class="grow">${this._e(this._undo.text)}</span><button class="btn sm" data-act="undo">${this._e(this._t("calendar.undo"))}</button></div>` : ""}
       <div class="card" style="padding:10px 10px 14px"><div class="cal-scroll"><div class="cal ${days.length === 1 ? "n1" : ""}" style="--n:${days.length}">
         <div></div>${heads}<div class="cal-hours" style="height:${H}px">${hours}</div>${cols}</div></div></div>
-      <div class="row wrap small muted" style="margin:10px 4px;gap:14px"><span class="row" style="gap:6px"><span class="badge">✎</span>${this._e(this._t("calendar.legend_changed"))}</span><span class="row" style="gap:6px"><span class="badge">1</span>${this._e(this._t("calendar.legend_one"))}</span></div>
+      <div class="row wrap small muted" style="margin:10px 4px;gap:14px"><span class="row" style="gap:6px"><span class="badge">${this._icon("action_edit", 18, "glyph")}</span>${this._e(this._t("calendar.legend_changed"))}</span><span class="row" style="gap:6px"><span class="badge">1</span>${this._e(this._t("calendar.legend_one"))}</span></div>
       <div class="hint">${this._e(this._t(this._isAdmin ? "calendar.drag_hint" : "calendar.hint"))}</div>
       ${this._viewTemplates()}`;
   }
@@ -1111,7 +1111,7 @@ class KisSegitoPanel extends HTMLElement {
   _viewTemplates() {
     const templates = this._data.templates || [];
     const rows = templates
-      .map((x) => `<div class="mod-row"><div class="grow row nameblk" data-act="edit" data-coll="templates" data-arg="${this._e(x.id)}" tabindex="0">${this._icon(x.icon || "nav_calendar", 34)}<div class="grow"><b>${this._e(x.name)}</b> ${this._isAdmin ? `<span class="pen">✎</span>` : ""}<div class="muted small">${this._e(x.routines.map((id) => this._routine(id)?.name).filter(Boolean).join(" · ") || "—")}</div></div></div></div>`)
+      .map((x) => `<div class="mod-row"><div class="grow row nameblk" data-act="edit" data-coll="templates" data-arg="${this._e(x.id)}" tabindex="0">${this._icon(x.icon || "nav_calendar", 34)}<div class="grow"><b>${this._e(x.name)}</b> ${this._isAdmin ? `<span class="pen">${this._icon("action_edit", 18, "glyph")}</span>` : ""}<div class="muted small">${this._e(x.routines.map((id) => this._routine(id)?.name).filter(Boolean).join(" · ") || "—")}</div></div></div></div>`)
       .join("");
     const defaults = WEEKDAYS.map((d) => {
       const current = this._data.weekday_templates?.[String(d)] || "";
@@ -1612,7 +1612,7 @@ class KisSegitoPanel extends HTMLElement {
           ${mapping}
           <div class="field"><span>${this._e(this._t("notifications.events"))}</span><div class="row wrap" style="gap:6px">${events}</div></div>
           <div class="field"><span>${this._e(this._t("notifications.children"))}</span><div class="row wrap" style="gap:6px">${children}<span class="muted small">${this._e(this._t(rule.children.length ? "routines.only_these" : "routines.everyone"))}</span></div></div>
-          ${this._isAdmin ? `<div class="row wrap"><button class="btn sm" data-act="rule-test" data-arg="${i}" ${rule.service ? "" : "disabled"}>✈ ${this._e(this._t("notifications.test"))}</button>
+          ${this._isAdmin ? `<div class="row wrap"><button class="btn sm" data-act="rule-test" data-arg="${i}" ${rule.service ? "" : "disabled"}>▷ ${this._e(this._t("notifications.test"))}</button>
             ${result ? `<span class="tag ${result.ok ? "good" : "bad"}">${this._e(result.text)}</span>` : ""}</div>` : ""}
         </div>`;
       })
@@ -1667,14 +1667,14 @@ class KisSegitoPanel extends HTMLElement {
             <div class="row" style="gap:4px">${kids.length ? kids.map((c) => this._avatar(c, 30)).join("") : `<span class="tag">${this._e(this._t("settings.knob_everyone"))}</span>`}</div></div>
             <div class="hint">${this._e(this._t("settings.virtual_hint"))}</div>
             ${this._knobOptions(d)}
-            ${this._isAdmin ? `<div class="row wrap"><button class="btn sm" data-act="virtual-delete" data-arg="${this._e(d.device_id)}">🗑 ${this._e(this._t("settings.virtual_delete"))}</button></div>` : ""}</div>`;
+            ${this._isAdmin ? `<div class="row wrap"><button class="btn sm" data-act="virtual-delete" data-arg="${this._e(d.device_id)}">${this._e(this._t("settings.virtual_delete"))}</button></div>` : ""}</div>`;
         }
         return `<div class="knob-card stack" style="gap:10px"><div class="row wrap"><span class="knob-face" style="${bg ? `background-image:url('${bg}')` : ""}"></span>
           <div class="grow"><label class="field"><span>${this._e(this._t("settings.knob_name"))}</span><input data-devname="${this._e(d.device_id)}" value="${this._e(d.name)}" ${dis} style="font-weight:700"></label></div>
           <div class="row" style="gap:4px">${kids.length ? kids.map((c) => this._avatar(c, 30)).join("") : `<span class="tag">${this._e(this._t("settings.knob_everyone"))}</span>`}</div></div>
           ${d.encrypted ? "" : `<div class="warnbox">${this._e(this._t("settings.knob_unencrypted"))}</div>`}
           ${this._knobOptions(d)}
-          ${this._isAdmin ? `<div class="row wrap"><button class="btn sm" data-act="rotate-token" data-arg="${this._e(d.device_id)}">🔑 ${this._e(this._t("settings.knob_new_key"))}</button>${d.can_restart ? `<button class="btn sm" data-act="restart-knob" data-arg="${this._e(d.device_id)}">↻ ${this._e(this._t("settings.knob_restart"))}</button>` : ""}</div>` : ""}
+          ${this._isAdmin ? `<div class="row wrap"><button class="btn sm" data-act="rotate-token" data-arg="${this._e(d.device_id)}">${this._e(this._t("settings.knob_new_key"))}</button>${d.can_restart ? `<button class="btn sm" data-act="restart-knob" data-arg="${this._e(d.device_id)}">↻ ${this._e(this._t("settings.knob_restart"))}</button>` : ""}</div>` : ""}
           <details><summary>${this._e(this._t("screen.own"))}</summary><div class="hint">${this._e(this._t("screen.own_hint"))}</div>
             <div class="form-grid" style="margin-top:10px">${fields}
             <label class="field"><span>${this._e(this._t("screen.saver_type"))}</span><select data-device-screen-type data-device="${this._e(d.device_id)}" ${dis}><option value="">${this._e(this._t("screen.general"))}</option>${SAVER_TYPES.map((x) => `<option value="${x}" ${own.saver_type === x ? "selected" : ""}>${this._e(this._t(`screen.saver_${x}`))}</option>`).join("")}</select></label></div></details>
@@ -2011,7 +2011,7 @@ class KisSegitoPanel extends HTMLElement {
           <div class="rw preview"><div class="img">${this._rewardPicture(r)}</div>
           <div class="nm">${this._e(r.name || "…")}</div><div class="price">${this._icon("token_coin_front", 26)}<span class="num">${Number(r.cost) || 0}</span></div></div>
           <div class="row wrap" style="justify-content:center">${r.image ? "" : `<button class="btn sm" data-act="pick" data-path="icon" data-arg="reward">${this._e(this._t("picture.icon"))}</button>`}
-            <label class="btn sm">📷 ${this._e(this._t(r.image ? "picture.replace" : "picture.upload"))}<input type="file" accept="image/*" data-crop-upload="image" hidden></label>
+            <label class="btn sm">${this._e(this._t(r.image ? "picture.replace" : "picture.upload"))}<input type="file" accept="image/*" data-crop-upload="image" hidden></label>
             ${r.image ? `<button class="btn sm ghost" data-act="photo-icon">${this._e(this._t("picture.remove"))}</button>` : ""}</div>
           <div class="hint">${this._e(this._t("picture.hint"))}</div></div>
         <label class="field"><span>${this._e(this._t("common.name"))}</span><input data-path="name" data-live value="${this._e(r.name)}"></label>
@@ -2041,7 +2041,7 @@ class KisSegitoPanel extends HTMLElement {
     // In "only this day" mode, sections that differ from the routine are marked.
     const diff = (key) =>
       dayMode && base && JSON.stringify(r[key] ?? null) !== JSON.stringify(base[key] ?? null)
-        ? ` <span class="badge" title="${this._e(this._t("calendar.changed"))}">✎</span>`
+        ? ` <span class="badge" title="${this._e(this._t("calendar.changed"))}">${this._icon("action_edit", 18, "glyph")}</span>`
         : "";
     const templates = this._data.routine_templates || [];
     const chooser = (dayMode || ed.isNew) && !ed.readonly && templates.length
@@ -2115,7 +2115,7 @@ class KisSegitoPanel extends HTMLElement {
     const close = `<button class="btn" data-act="cancel">${this._e(this._t("common.close"))}</button>`;
     let foot;
     if (view.plain) {
-      foot = `${close}<span class="grow"></span>${this._isAdmin ? `<button class="btn primary" data-act="sec" data-arg="data">✎ ${this._e(this._t("common.edit"))}</button>` : ""}`;
+      foot = `${close}<span class="grow"></span>${this._isAdmin ? `<button class="btn primary" data-act="sec" data-arg="data">${this._icon("action_edit", 18, "glyph")} ${this._e(this._t("common.edit"))}</button>` : ""}`;
     } else if (ed.readonly) {
       foot = close;
     } else if (ed.coll === "day") {
@@ -2155,7 +2155,7 @@ class KisSegitoPanel extends HTMLElement {
       .map((n) => `<button class="${n === current ? "on" : ""}" title="${this._e(n.startsWith("own_") ? this._t("icons.own") : n)}" data-act="pick-icon" data-arg="${this._e(n)}">${this._icon(n, 56)}</button>`)
       .join("");
     const upload = this._picker.filter === "avatar"
-      ? `<label class="upload-tile" title="${this._e(this._t("picture.upload"))}"><span style="font-size:1.6rem">📷</span><span class="small">${this._e(this._t("picture.upload"))}</span><input type="file" accept="image/*" data-crop-upload="avatar_image" hidden></label>`
+      ? `<label class="upload-tile" title="${this._e(this._t("picture.upload"))}"><span style="font-size:1.6rem">＋</span><span class="small">${this._e(this._t("picture.upload"))}</span><input type="file" accept="image/*" data-crop-upload="avatar_image" hidden></label>`
       : this._isAdmin
         ? `<label class="upload-tile" title="${this._e(this._t("icons.upload"))}"><span style="font-size:1.6rem">＋</span><span class="small">${this._e(this._t("icons.upload"))}</span><input type="file" accept="image/*" data-crop-upload="@icon" hidden></label>`
         : "";
@@ -3896,6 +3896,7 @@ const STYLE = `
   .nameblk[data-act]:hover { background: var(--surface-2); }
   .nameblk .pen { opacity: 0; color: var(--accent); font-weight: 800; transition: opacity .15s; }
   .nameblk:hover .pen { opacity: 1; }
+  .ic.glyph { vertical-align: -3px; }
   .stepper { display: inline-flex; align-items: center; border: 1.5px solid var(--line); border-radius: 999px; overflow: hidden; }
   .stepper button { border: 0; background: var(--surface-2); width: 32px; height: 32px; cursor: pointer; font-weight: 800; }
   .stepper span { min-width: 62px; text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; font-size: .9rem; }
