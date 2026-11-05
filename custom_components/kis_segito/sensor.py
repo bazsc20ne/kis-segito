@@ -104,6 +104,27 @@ class ChildSensor(_Base):
         self.child_id = child_id
         self._attr_unique_id = f"{DOMAIN}_child_{child_id}"
 
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        await self._expose_once()
+
+    async def _expose_once(self) -> None:
+        """Share the sensor with Assist once, so voice assistants can answer
+        about the child from the start. Turning it off later is kept."""
+        done: list[str] = self.manager.store.data.setdefault("assist_exposed", [])
+        if self.unique_id in done:
+            return
+        try:
+            from homeassistant.components.homeassistant.exposed_entities import (
+                async_expose_entity,
+            )
+
+            async_expose_entity(self.hass, "conversation", self.entity_id, True)
+        except Exception:  # noqa: BLE001 - only the default sharing is lost
+            return
+        done.append(self.unique_id)
+        await self.manager.store.async_save()
+
     @property
     def _child(self) -> dict[str, Any] | None:
         return self.manager.child(self.child_id)

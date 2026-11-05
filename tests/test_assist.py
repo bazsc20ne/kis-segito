@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import re
+
 import pytest
 from freezegun.api import FrozenDateTimeFactory
 from homeassistant.core import Context, HomeAssistant
@@ -11,6 +13,7 @@ from homeassistant.util import dt as dt_util
 
 from custom_components.kis_segito.assist import (
     INTENT_CHILD_STATUS,
+    TOPICS,
     answer,
     async_setup_assist,
     child_status,
@@ -105,22 +108,52 @@ async def test_find_child(manager: KisSegitoManager) -> None:
     assert find_child(manager, "Nobody") is None
 
 
+@pytest.mark.parametrize("language", ["en", "hu", "de"])
+@pytest.mark.parametrize("hour", [7, 9])
+async def test_answers_are_spoken_words(
+    manager: KisSegitoManager,
+    freezer: FrozenDateTimeFactory,
+    language: str,
+    hour: int,
+) -> None:
+    """Numbers and times are words, without symbols, in every wording."""
+    freezer.move_to(
+        dt_util.now().replace(hour=hour, minute=20, second=0, microsecond=0)
+    )
+    kid, _ = await _setup(manager)
+    await manager.async_save_item("children", {"id": kid, "piggy_unlocked": True})
+    status = child_status(manager, kid)
+    for _ in range(20):
+        for topic in TOPICS:
+            text = answer(status, topic, language)
+            assert text
+            assert not re.search(r"[0-9%/:]", text), text
+
+
 async def test_answers(
     manager: KisSegitoManager, freezer: FrozenDateTimeFactory
 ) -> None:
     freezer.move_to(dt_util.now().replace(hour=7, minute=20, second=0, microsecond=0))
     kid, _ = await _setup(manager)
     status = child_status(manager, kid)
-    assert (
-        answer(status, "tokens", "en") == "Áron has 7 tokens. The piggy bank holds 0."
-    )
+    assert "seven tokens" in answer(status, "tokens", "en")
+    assert "hét zseton" in answer(status, "tokens", "hu")
     assert "Eat" in answer(status, "task", "en")
-    assert "30" in answer(status, "checkpoint", "hu")
-    assert answer(status, "earnable", "hu").startswith("Áron ma még 5 zsetont")
+    assert "Még két feladat" in answer(status, "task", "hu")
+    text = answer(status, "checkpoint", "hu").casefold()
+    assert "fél óra múlva" in text
+    assert "hét óra ötven perckor" in text
+    assert "at seven fifty" in answer(status, "checkpoint", "en")
+    assert answer(status, "earnable", "hu").startswith(
+        ("Áron ma még öt", "Áronnak ma még öt")
+    )
+    assert answer(status, "streak", "en").startswith("Áron has no streak")
     freezer.move_to(dt_util.now().replace(hour=9, minute=0))
     status = child_status(manager, kid)
-    assert answer(status, "task", "hu") == "Áron feladata most nincs."
+    assert answer(status, "task", "hu").startswith("Áronnak most nincs")
     assert answer(status, "checkpoint", "en") == "Áron has no more checkpoints today."
+    # Other languages are answered in English.
+    assert answer(status, "checkpoint", "fr") == "Áron has no more checkpoints today."
 
 
 async def test_intent(
@@ -128,6 +161,7 @@ async def test_intent(
 ) -> None:
     freezer.move_to(dt_util.now().replace(hour=7, minute=20, second=0, microsecond=0))
     await _setup(manager)
+    await manager.async_save_item("children", {"name": "Alex"})
     remove = async_setup_assist(hass, manager)
     response = await intent.async_handle(
         hass,
@@ -136,7 +170,17 @@ async def test_intent(
         {"name": {"value": "Ari"}, "topic": {"value": "tokens"}},
         language="en",
     )
-    assert response.speech["plain"]["speech"].startswith("Áron has 7 tokens.")
+    assert response.speech["plain"]["speech"].startswith("Áron has seven tokens")
+    assert response.speech_slots["wallet"] == 7
+    assert response.speech_slots["aliases"] == ["Ari", "Bogyó"]
+    assert response.speech_slots["next_checkpoint_minutes"] == 30
+    # Without a name: every child.
+    response = await intent.async_handle(
+        hass, "test", INTENT_CHILD_STATUS, {"topic": {"value": "tokens"}}, language="en"
+    )
+    speech = response.speech["plain"]["speech"]
+    assert "Áron" in speech and "Alex" in speech
+    assert [c["name"] for c in response.speech_slots["children"]] == ["Áron", "Alex"]
     response = await intent.async_handle(
         hass, "test", INTENT_CHILD_STATUS, {"name": {"value": "Xy"}}, language="hu"
     )
@@ -145,27 +189,19 @@ async def test_intent(
     assert INTENT_CHILD_STATUS not in {h.intent_type for h in intent.async_get(hass)}
 
 
-@pytest.mark.parametrize(
-    ("language", "sentence", "expected"),
-    [
-        ("en", "how many tokens does Áron have", "Áron has 7 tokens."),
-        ("en", "does Ari have a task now", "Áron is doing Morning now"),
-        ("en", "how many coins can aron still get today", "Áron can still earn 5"),
-        ("hu", "hány zsetonja van Áronnak", "Áron zsetonjai: 7."),
-        ("hu", "van most feladata Áronnak", "Áron most a(z) Morning"),
-        ("hu", "mennyi idő van Áron következő checkpointjáig", "30 perc"),
-        ("hu", "hány zsetont kaphat még ma Áron", "Áron ma még 5"),
-    ],
-)
-async def test_sentences(
-    hass: HomeAssistant,
-    manager: KisSegitoManager,
-    freezer: FrozenDateTimeFactory,
-    language: str,
-    sentence: str,
-    expected: str,
-) -> None:
+async def _converse(hass: HomeAssistant, sentence: str, language: str) -> str:
     from homeassistant.components import conversation
+
+    result = await conversation.async_converse(
+        hass, sentence, None, Context(), language
+    )
+    return result.response.speech.get("plain", {}).get("speech", "")
+
+
+@pytest.fixture
+async def assist(
+    hass: HomeAssistant, manager: KisSegitoManager, freezer: FrozenDateTimeFactory
+) -> KisSegitoManager:
     from homeassistant.setup import async_setup_component
 
     freezer.move_to(dt_util.now().replace(hour=7, minute=20, second=0, microsecond=0))
@@ -174,10 +210,88 @@ async def test_sentences(
     assert await async_setup_component(hass, "conversation", {})
     async_setup_assist(hass, manager)
     await hass.async_block_till_done()
-    result = await conversation.async_converse(
-        hass, sentence, None, Context(), language
+    return manager
+
+
+@pytest.mark.parametrize(
+    ("language", "sentence", "expected"),
+    [
+        ("en", "how many tokens does Áron have", "Áron has seven tokens"),
+        ("en", "How many coins has aron got?", "seven tokens"),
+        ("en", "what's Ari's balance", "seven tokens"),
+        ("en", "does Ari have a task now", "Áron is doing Morning now"),
+        ("en", "when is Bogyó's next checkpoint", "half an hour"),
+        ("en", "how many coins can aron still get today", "Áron can still earn five"),
+        ("en", "what is Áron's streak", "no streak"),
+        ("hu", "hány zsetonja van Áronnak", "hét zseton"),
+        ("hu", "Áronnak mennyi zsetonja van?", "hét zseton"),
+        ("hu", "mennyei zsetonja van aronnak", "hét zseton"),
+        ("hu", "hány jetonja van Bogyónak", "hét zseton"),
+        ("hu", "mennyi pénze van Arinak", "hét zseton"),
+        ("hu", "Áron egyenlege", "hét zseton"),
+        ("hu", "van most feladata Áronnak", "Morning"),
+        ("hu", "mi Áron feladata most", "Morning"),
+        ("hu", "mit kell most csinálnia Arinak", "Morning"),
+        ("hu", "mennyi idő van Áron következő ellenőrzőpontjáig", "fél óra"),
+        ("hu", "mikor van Áron következő csekkpontja", "fél óra"),
+        ("hu", "mikor jön Áronnak a következő check pontja", "fél óra"),
+        ("hu", "hány zsetont kaphat még ma Áron", "öt zseton"),
+        ("hu", "Áron hány zsetont szerezhet még", "öt zseton"),
+        ("hu", "hány napos Áron sorozata", "sorozata"),
+        ("hu", "hány napja hibátlan Áron", "sorozata"),
+    ],
+)
+async def test_sentences(
+    hass: HomeAssistant,
+    assist: KisSegitoManager,
+    language: str,
+    sentence: str,
+    expected: str,
+) -> None:
+    speech = await _converse(hass, sentence, language)
+    assert expected.casefold() in speech.casefold()
+
+
+@pytest.mark.parametrize(
+    ("language", "sentence"),
+    [
+        ("hu", "kinek mennyi zsetonja van"),
+        ("hu", "mennyi zseton van a gyerekeknek"),
+        ("hu", "mikor van a következő ellenőrzőpont"),
+        ("en", "how many tokens do the kids have"),
+        ("en", "when is the next checkpoint"),
+    ],
+)
+async def test_sentences_without_a_name(
+    hass: HomeAssistant, assist: KisSegitoManager, language: str, sentence: str
+) -> None:
+    await assist.async_save_item("children", {"name": "Alex"})
+    await hass.async_block_till_done()
+    speech = await _converse(hass, sentence, language)
+    assert "Áron" in speech and "Alex" in speech
+
+
+async def test_unknown_name_is_not_answered(
+    hass: HomeAssistant, assist: KisSegitoManager
+) -> None:
+    """A name Kis Segítő does not know is left to the other agents."""
+    speech = await _converse(hass, "hány zsetonja van Zénónak", "hu")
+    assert "zseton" not in speech
+    assert "Áron" not in speech
+
+
+async def test_sentences_follow_name_changes(
+    hass: HomeAssistant, assist: KisSegitoManager
+) -> None:
+    kid = assist.children()[0]["id"]
+    await assist.async_save_item("children", {"id": kid, "aliases": "Kid A"})
+    await hass.async_block_till_done()
+    assert "seven tokens" in await _converse(
+        hass, "how many tokens does Kid A have", "en"
     )
-    assert expected in result.response.speech["plain"]["speech"]
+    assert "seven tokens" not in await _converse(
+        hass, "how many tokens does Bogyó have", "en"
+    )
 
 
 async def test_llm_tool(hass: HomeAssistant, manager: KisSegitoManager) -> None:
@@ -206,3 +320,133 @@ async def test_llm_tool(hass: HomeAssistant, manager: KisSegitoManager) -> None:
     assert [t.name for t in tools.tools] == ["kis_segito__KisSegitoChildStatus"]
     assert tools.tools[0].annotations.read_only
     assert ks_llm.async_get_tools(hass, context, "other") is None
+
+
+async def test_child_sensor_is_shared_with_assist_once(hass: HomeAssistant) -> None:
+    from homeassistant.components.homeassistant.exposed_entities import (
+        async_expose_entity,
+        async_should_expose,
+    )
+    from homeassistant.helpers import device_registry as dr
+    from homeassistant.helpers import entity_registry as er
+    from homeassistant.setup import async_setup_component
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+    from custom_components.kis_segito.const import CONF_DEVICE_ID, DOMAIN
+
+    assert await async_setup_component(hass, "homeassistant", {})
+    esphome_entry = MockConfigEntry(domain="esphome", data={"host": "192.0.2.1"})
+    esphome_entry.add_to_hass(hass)
+    device = dr.async_get(hass).async_get_or_create(
+        config_entry_id=esphome_entry.entry_id,
+        connections={(dr.CONNECTION_NETWORK_MAC, "00:00:00:00:00:09")},
+    )
+    entry = MockConfigEntry(
+        domain=DOMAIN, unique_id=device.id, data={CONF_DEVICE_ID: device.id}
+    )
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    manager = hass.data[DOMAIN].manager
+    kid = (await manager.async_save_item("children", {"name": "Kid A"}))["id"]
+    await hass.async_block_till_done()
+    entity_id = er.async_get(hass).async_get_entity_id(
+        "sensor", DOMAIN, f"{DOMAIN}_child_{kid}"
+    )
+    assert entity_id
+    assert async_should_expose(hass, "conversation", entity_id)
+
+    # Turned off by the user: stays off after a reload.
+    async_expose_entity(hass, "conversation", entity_id, False)
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+    assert not async_should_expose(hass, "conversation", entity_id)
+
+
+DOCUMENTED = {
+    "hu": [
+        "hány zsetonja van Alexnek",
+        "mennyi zsetonja van Alexnek",
+        "Alexnek hány zsetonja van",
+        "mennyi pénze van Alexnek",
+        "mennyi pontja van Alexnek",
+        "mennyi érméje van Alexnek",
+        "Alex egyenlege",
+        "van még zsetonja Alexnek",
+        "kinek mennyi zsetonja van",
+        "mennyi zseton van a gyerekeknek",
+        "hogy állnak a gyerekek",
+        "kinek mennyi van",
+        "van most feladata Alexnek",
+        "mi Alex feladata most",
+        "mi a feladata Alexnek",
+        "mit kell most csinálnia Alexnek",
+        "mivel tart most Alex",
+        "kinek van most feladata",
+        "mik a feladatok most",
+        "mikor van Alex következő ellenőrzőpontja",
+        "mikor jön Alexnek a következő ellenőrzőpontja",
+        "mennyi idő van még Alex következő ellenőrzőpontjáig",
+        "meddig van még ideje Alexnek",
+        "mikor van a következő ellenőrzőpont",
+        "mennyi idő van még a következő ellenőrzőpontig",
+        "hány zsetont kaphat még ma Alex",
+        "hány zsetont szerezhet még ma Alex",
+        "Alex mennyit kaphat még ma",
+        "hány zsetont kaphatnak még ma a gyerekek",
+        "ki hány zsetont kaphat még ma",
+        "hány napos Alex sorozata",
+        "hány napja hibátlan Alex",
+        "hogy áll Alex sorozata",
+        "milyen hosszú a sorozat",
+        "hogy állnak a sorozatok",
+        "mikor van Alex következő checkpointja",
+        "mikor van Alex következő határideje",
+        "hány tallérja van Alexnek",
+        "mi Alex teendője most",
+        "Alexé mennyi zsetonja van",
+        "mennyi zsetonja van Alexnél",
+    ],
+    "en": [
+        "how many tokens does Alex have",
+        "how many coins does Alex have",
+        "how many points does Alex have",
+        "how many coins has Alex got",
+        "what's Alex's balance",
+        "Alex's wallet",
+        "how many tokens do the kids have",
+        "who has how many coins",
+        "how are the kids doing",
+        "does Alex have a task now",
+        "what's Alex's task",
+        "what should Alex be doing now",
+        "what is Alex doing now",
+        "does anyone have a task now",
+        "who has something to do now",
+        "when is Alex's next checkpoint",
+        "how long until Alex's next checkpoint",
+        "how much time does Alex have left",
+        "when is the next checkpoint",
+        "how long until the next checkpoint",
+        "how many tokens can Alex still earn today",
+        "how much can Alex still get",
+        "how many tokens can the kids still earn today",
+        "what is Alex's streak",
+        "how many perfect days does Alex have",
+        "what are the streaks",
+        "how are the streaks going",
+    ],
+}
+
+
+@pytest.mark.parametrize(
+    ("language", "sentence"),
+    [(lang, s) for lang, sentences in DOCUMENTED.items() for s in sentences],
+)
+async def test_documented_sentences(
+    hass: HomeAssistant, assist: KisSegitoManager, language: str, sentence: str
+) -> None:
+    await assist.async_save_item("children", {"name": "Alex"})
+    await hass.async_block_till_done()
+    speech = await _converse(hass, sentence, language)
+    assert "Alex" in speech, speech

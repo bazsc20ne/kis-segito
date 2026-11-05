@@ -107,6 +107,8 @@ def _empty_config() -> dict[str, Any]:
         "date_templates": {},
         "notifications": [],
         "audit": [],
+        # Child sensors already shared with Assist once (unique ids).
+        "assist_exposed": [],
     }
 
 

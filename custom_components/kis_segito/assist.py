@@ -4,8 +4,10 @@
 Per child: tokens (wallet, piggy bank), the task right now, the time until the
 next checkpoint, the tokens still to earn today, and the streak.
 
-- The built-in Assist agent (no LLM) gets English and Hungarian sentences with
-  the child's name in them (registered like conversation triggers).
+- The built-in Assist agent (no LLM) gets English and Hungarian sentences
+  (assist_sentences.py, registered like conversation triggers) with the
+  children's names in every form, and sentences without a name for every
+  child. A name Kis Segítő does not know is left to the other agents.
 - LLM agents get the same answers through the ``KisSegitoChildStatus`` intent
   (see llm.py), and the child sensors carry the same data as attributes.
 """
@@ -14,8 +16,10 @@ from __future__ import annotations
 
 import logging
 import math
+import random
 import unicodedata
 from collections.abc import Callable
+from datetime import datetime
 from typing import Any, ClassVar
 
 import voluptuous as vol
@@ -24,6 +28,17 @@ from homeassistant.helpers import intent
 from homeassistant.helpers.start import async_at_started
 from homeassistant.util import dt as dt_util
 
+from .assist_sentences import all_sentences, child_sentences
+from .assist_words import (
+    en_clock,
+    en_in,
+    en_number,
+    hu_article,
+    hu_clock,
+    hu_forms,
+    hu_in,
+    hu_number,
+)
 from .entity_helpers import next_checkpoint, running_routines
 from .logic import applies_to, reward_for
 from .manager import KisSegitoManager
@@ -128,180 +143,350 @@ def find_child(manager: KisSegitoManager, spoken: str) -> dict[str, Any] | None:
 
 
 # ---------------------------------------------------------------- answers
-
-TEXTS = {
-    "en": {
-        "unknown": "I don't know a child called {name} in Kis Segítő.",
-        "tokens": "{name} has {wallet} tokens.",
-        "piggy": " The piggy bank holds {piggy}.",
-        "task": "{name} is doing {routine} now: next is {task}, {left} left.",
-        "task_done": "{name} has finished every task of {routine}.",
-        "no_task": "{name} has no task right now.",
-        "checkpoint": "{name}'s next checkpoint, {checkpoint}, is in {minutes} minutes.",
-        "no_checkpoint": "{name} has no more checkpoints today.",
-        "earnable": "{name} can still earn {today} tokens today.",
-        "earnable_now": " {now} of them in the current routine.",
-        "streak": "{name}'s streak is {streak} of {target} days.",
-    },
-    "hu": {
-        "unknown": "Nem ismerek {name} nevű gyereket a Kis Segítőben.",
-        "tokens": "{name} zsetonjai: {wallet}.",
-        "piggy": " A perselyben: {piggy}.",
-        "task": "{name} most a(z) {routine} rutint csinálja: a következő feladat {task}, még {left} van hátra.",
-        "task_done": "{name} a(z) {routine} rutin minden feladatát elvégezte.",
-        "no_task": "{name} feladata most nincs.",
-        "checkpoint": "{name} következő checkpointja ({checkpoint}) {minutes} perc múlva van.",
-        "no_checkpoint": "{name} mára nincs több checkpointja.",
-        "earnable": "{name} ma még {today} zsetont szerezhet.",
-        "earnable_now": " Ebből {now} a mostani rutinban.",
-        "streak": "{name} sorozata: {streak} / {target} nap.",
-    },
-}
+#
+# Answers are made to be spoken: numbers and times are written out in words
+# and there are no symbols, so every text-to-speech engine reads them right.
+# Each answer has a few wordings, chosen at random.
 
 
-def answer(status: dict[str, Any], topic: str, language: str) -> str:
-    """One answer about a child, in English or Hungarian."""
-    t = TEXTS["hu" if language.startswith("hu") else "en"]
+def _names(child: dict[str, Any]) -> list[str]:
+    return [child.get("name", "")] + [
+        a.strip() for a in str(child.get("aliases") or "").split(",") if a.strip()
+    ]
+
+
+def _due(status: dict[str, Any]) -> datetime | None:
+    if not status.get("next_checkpoint_time"):
+        return None
+    due = dt_util.parse_datetime(status["next_checkpoint_time"])
+    return dt_util.as_local(due) if due is not None else None
+
+
+def _hu_answer(status: dict[str, Any], topic: str) -> list[str]:
     name = status["name"]
+    dative = hu_forms(name)["dative"]
     parts: list[str] = []
     if topic in ("tokens", "all"):
-        text = t["tokens"].format(name=name, wallet=status["wallet"])
-        if status["piggy_unlocked"]:
-            text += t["piggy"].format(piggy=status["piggy"])
-        parts.append(text)
-    if topic in ("task", "all"):
-        if status["task_status"] == "task":
+        wallet = status["wallet"]
+        if wallet:
+            n = hu_number(wallet)
             parts.append(
-                t["task"].format(
-                    name=name,
-                    routine=status["current_routine"],
-                    task=status["current_task"],
-                    left=len(status["tasks_left"]),
+                random.choice(
+                    [
+                        f"{dative} {n} zsetonja van.",
+                        f"{dative} most {n} zsetonja van.",
+                        f"{name} pénztárcájában {n} zseton van.",
+                    ]
                 )
             )
+        else:
+            parts.append(
+                random.choice(
+                    [f"{dative} most nincs zsetonja.", f"{name} pénztárcája most üres."]
+                )
+            )
+        if status["piggy_unlocked"]:
+            if status["piggy"]:
+                parts.append(f"A perselyében {hu_number(status['piggy'])} zseton van.")
+            else:
+                parts.append("A perselye üres.")
+    if topic in ("task", "all"):
+        routine = status["current_routine"]
+        left = status["tasks_left"]
+        if status["task_status"] == "task":
+            text = random.choice(
+                [
+                    f"{name} most {hu_article(routine)} {routine} rutint csinálja.",
+                    f"{name} most {hu_article(routine)} {routine} rutinnál tart.",
+                ]
+            )
+            task = status["current_task"]
+            text += " " + random.choice(
+                [f"A következő feladata {task}.", f"Most ez jön, {task}."]
+            )
+            if len(left) == 1:
+                text += " Ez az utolsó feladata."
+            else:
+                text += f" Még {hu_number(len(left))} feladat van hátra."
+            parts.append(text)
         elif status["task_status"] == "done":
             parts.append(
-                t["task_done"].format(name=name, routine=status["current_routine"])
+                random.choice(
+                    [
+                        f"{name} {hu_article(routine)} {routine} rutin minden feladatát elvégezte. Ügyes!",
+                        f"{name} már kész {hu_article(routine)} {routine} rutin összes feladatával.",
+                    ]
+                )
             )
         else:
-            parts.append(t["no_task"].format(name=name))
-    if topic in ("checkpoint", "all"):
-        if status["next_checkpoint_minutes"] is None:
-            parts.append(t["no_checkpoint"].format(name=name))
-        else:
             parts.append(
-                t["checkpoint"].format(
-                    name=name,
-                    checkpoint=status["next_checkpoint"],
-                    minutes=status["next_checkpoint_minutes"],
+                random.choice(
+                    [
+                        f"{dative} most nincs feladata.",
+                        f"{dative} most nincs semmi dolga.",
+                    ]
+                )
+            )
+    if topic in ("checkpoint", "all"):
+        minutes = status["next_checkpoint_minutes"]
+        due = _due(status)
+        if minutes is None or due is None:
+            parts.append(
+                random.choice(
+                    [
+                        f"{dative} mára nincs több ellenőrzőpontja.",
+                        f"{dative} ma már nincs ellenőrzőpontja.",
+                    ]
+                )
+            )
+        elif minutes == 0:
+            parts.append(
+                f"{name} ellenőrzőpontja, {hu_article(status['next_checkpoint'])} "
+                f"{status['next_checkpoint']}, most van."
+            )
+        else:
+            cp = status["next_checkpoint"]
+            parts.append(
+                random.choice(
+                    [
+                        f"{name} következő ellenőrzőpontja {hu_article(cp)} {cp}, {hu_in(minutes)}, {hu_clock(due)}.",
+                        f"{hu_in(minutes).capitalize()} jön {name} következő ellenőrzőpontja, {hu_article(cp)} {cp}. Ez {hu_clock(due)} lesz.",
+                    ]
                 )
             )
     if topic in ("earnable", "all"):
-        text = t["earnable"].format(name=name, today=status["tokens_earnable_today"])
-        if status["tokens_earnable_now"]:
-            text += t["earnable_now"].format(now=status["tokens_earnable_now"])
-        parts.append(text)
-    if topic in ("streak", "all"):
-        parts.append(
-            t["streak"].format(
-                name=name, streak=status["streak"], target=status["streak_target"]
+        today = status["tokens_earnable_today"]
+        now = status["tokens_earnable_now"]
+        if today:
+            text = random.choice(
+                [
+                    f"{name} ma még {hu_number(today)} zsetont szerezhet.",
+                    f"{dative} ma még {hu_number(today)} zseton jár, ha mindent időben megcsinál.",
+                ]
             )
-        )
-    return " ".join(parts)
+            if now and now != today:
+                text += f" Ebből {hu_number(now)} a mostani rutinban."
+            parts.append(text)
+        else:
+            parts.append(f"{name} ma már nem szerezhet több zsetont.")
+    if topic in ("streak", "all"):
+        streak = status["streak"]
+        target = status["streak_target"]
+        if streak:
+            parts.append(
+                random.choice(
+                    [
+                        f"{name} már {hu_number(streak)} napja mindent megcsinál. A cél {hu_number(target)} nap.",
+                        f"{name} {hu_number(target)} napból {hu_number(streak)} napot már teljesített.",
+                    ]
+                )
+            )
+        else:
+            parts.append(
+                f"{dative} most nincs sorozata. A cél {hu_number(target)} hibátlan nap egymás után."
+            )
+    return parts
+
+
+def _en_answer(status: dict[str, Any], topic: str) -> list[str]:
+    name = status["name"]
+    parts: list[str] = []
+
+    def tokens(n: int) -> str:
+        return f"{en_number(n)} token{'' if n == 1 else 's'}"
+
+    def days(n: int) -> str:
+        return f"{en_number(n)} day{'' if n == 1 else 's'}"
+
+    if topic in ("tokens", "all"):
+        wallet = status["wallet"]
+        if wallet:
+            parts.append(
+                random.choice(
+                    [
+                        f"{name} has {tokens(wallet)}.",
+                        f"{name} has {tokens(wallet)} right now.",
+                    ]
+                )
+            )
+        else:
+            parts.append(f"{name} has no tokens right now.")
+        if status["piggy_unlocked"]:
+            if status["piggy"]:
+                parts.append(f"The piggy bank holds {tokens(status['piggy'])}.")
+            else:
+                parts.append("The piggy bank is empty.")
+    if topic in ("task", "all"):
+        routine = status["current_routine"]
+        left = status["tasks_left"]
+        if status["task_status"] == "task":
+            text = f"{name} is doing {routine} now. Next is {status['current_task']}."
+            if len(left) == 1:
+                text += " That is the last task."
+            else:
+                text += f" {en_number(len(left)).capitalize()} tasks are left."
+            parts.append(text)
+        elif status["task_status"] == "done":
+            parts.append(
+                random.choice(
+                    [
+                        f"{name} has finished every task of {routine}. Well done!",
+                        f"{name} is done with all of {routine}.",
+                    ]
+                )
+            )
+        else:
+            parts.append(
+                random.choice(
+                    [
+                        f"{name} has no task right now.",
+                        f"{name} has nothing to do right now.",
+                    ]
+                )
+            )
+    if topic in ("checkpoint", "all"):
+        minutes = status["next_checkpoint_minutes"]
+        due = _due(status)
+        if minutes is None or due is None:
+            parts.append(f"{name} has no more checkpoints today.")
+        elif minutes == 0:
+            parts.append(f"{name}'s checkpoint, {status['next_checkpoint']}, is now.")
+        else:
+            cp = status["next_checkpoint"]
+            parts.append(
+                random.choice(
+                    [
+                        f"{name}'s next checkpoint, {cp}, is {en_in(minutes)}, {en_clock(due)}.",
+                        f"{name}'s next checkpoint is {cp}, {en_clock(due)}. That is {en_in(minutes)}.",
+                    ]
+                )
+            )
+    if topic in ("earnable", "all"):
+        today = status["tokens_earnable_today"]
+        now = status["tokens_earnable_now"]
+        if today:
+            text = f"{name} can still earn {tokens(today)} today."
+            if now and now != today:
+                text += (
+                    f" {en_number(now).capitalize()} of them in the current routine."
+                )
+            parts.append(text)
+        else:
+            parts.append(f"{name} can't earn any more tokens today.")
+    if topic in ("streak", "all"):
+        streak = status["streak"]
+        target = status["streak_target"]
+        if streak:
+            parts.append(
+                random.choice(
+                    [
+                        f"{name}'s streak is {days(streak)} out of {days(target)}.",
+                        f"{name} has done everything for {days(streak)} in a row. The goal is {days(target)}.",
+                    ]
+                )
+            )
+        else:
+            parts.append(
+                f"{name} has no streak right now. The goal is {days(target)} in a row."
+            )
+    return parts
+
+
+def answer(status: dict[str, Any], topic: str, language: str) -> str:
+    """One spoken answer about a child (Hungarian, or English for every
+    other language)."""
+    if (language or "").lower().startswith("hu"):
+        return " ".join(_hu_answer(status, topic))
+    return " ".join(_en_answer(status, topic))
+
+
+def answer_all(manager: KisSegitoManager, topic: str, language: str) -> str:
+    """The answer for every active child."""
+    children = manager.children(active_only=True)
+    if not children:
+        if (language or "").lower().startswith("hu"):
+            return "Még nincs gyerek a Kis Segítőben."
+        return "There are no children in Kis Segítő yet."
+    return " ".join(
+        answer(child_status(manager, c["id"]), topic, language) for c in children
+    )
+
+
+def unknown(name: str, language: str) -> str:
+    if (language or "").lower().startswith("hu"):
+        return f"Nem ismerek {name} nevű gyereket a Kis Segítőben."
+    return f"I don't know a child called {name} in Kis Segítő."
 
 
 def answer_for(
-    manager: KisSegitoManager, spoken: str, topic: str, language: str
+    manager: KisSegitoManager, spoken: str | None, topic: str, language: str
 ) -> str:
-    """The answer for a sentence naming a child."""
+    """The answer for a sentence naming a child (or every child)."""
+    if not spoken or not spoken.strip():
+        return answer_all(manager, topic, language)
     child = find_child(manager, spoken)
     if child is None:
-        t = TEXTS["hu" if language.startswith("hu") else "en"]
-        return t["unknown"].format(name=spoken.strip())
+        return unknown(spoken.strip(), language)
     return answer(child_status(manager, child["id"]), topic, language)
 
 
 # ---------------------------------------------------------------- built-in agent
 
-# Sentences for the built-in agent ({child}: the child's name, any words).
-SENTENCES: dict[str, list[str]] = {
-    "tokens": [
-        "how many (coins|tokens) does {child} have",
-        "how many (coins|tokens) has {child} got",
-        "what is {child}'s (balance|wallet)",
-        "hány zsetonja van {child}",
-        "{child} hány zsetonja van",
-        "mennyi zsetonja van {child}",
-        "{child} mennyi zsetonja van",
-        "hány zseton van {child}",
-    ],
-    "task": [
-        "does {child} have a task [right] now",
-        "what is {child}'s task [right] now",
-        "what (does|should) {child} (do|be doing) [right] now",
-        "van most feladata {child}",
-        "{child} van most feladata",
-        "mi {child} feladata most",
-        "mi a feladata most {child}",
-        "{child} mi a feladata most",
-        "mit kell most csinálnia {child}",
-    ],
-    "checkpoint": [
-        "how long until {child}'s next checkpoint",
-        "when is {child}'s next checkpoint",
-        "how much time does {child} have until the next checkpoint",
-        "mennyi idő van {child} következő checkpointjáig",
-        "mikor van {child} következő checkpointja",
-        "mennyi ideje van {child} a következő checkpointig",
-        "{child} mennyi ideje van a következő checkpointig",
-    ],
-    "earnable": [
-        "how many (coins|tokens) can {child} [still] (get|earn) today",
-        "how many (coins|tokens) can {child} [still] (get|earn)",
-        "hány zsetont kaphat még ma {child}",
-        "hány zsetont szerezhet még ma {child}",
-        "{child} hány zsetont kaphat még ma",
-        "{child} hány zsetont szerezhet még ma",
-        "mennyi zsetont szerezhet még ma {child}",
-    ],
-    "streak": [
-        "how long is {child}'s streak",
-        "what is {child}'s streak",
-        "hány napos {child} sorozata",
-        "milyen hosszú {child} sorozata",
-    ],
-}
+
+def _signature(manager: KisSegitoManager) -> tuple:
+    return tuple(
+        (c["id"], tuple(_names(c))) for c in manager.children(active_only=True)
+    )
 
 
 def _register_sentences(
     hass: HomeAssistant, manager: KisSegitoManager
 ) -> list[Callable[[], None]]:
-    """Register the sentences with the built-in agent (when it is there)."""
+    """Register the sentences with the built-in agent (when it is there): one
+    set per child with its names in every form, and one for every child."""
     try:
         from homeassistant.components.conversation.agent_manager import (
             get_agent_manager,
         )
     except ImportError:
         return []
-    removers = []
-    for topic, sentences in SENTENCES.items():
+    agents = get_agent_manager(hass)
+    removers: list[Callable[[], None]] = []
 
-        async def respond(
-            user_input: Any, result: Any, topic: str = topic
-        ) -> str | None:
-            entity = result.entities.get("child")
-            spoken = str(
-                getattr(entity, "text", None) or getattr(entity, "value", "") or ""
-            )
-            return answer_for(manager, spoken, topic, user_input.language or "en")
+    def add(sentences: list[str], respond: Callable[..., Any]) -> None:
+        removers.append(agents.register_trigger(sentences, respond))
 
-        try:
-            removers.append(
-                get_agent_manager(hass).register_trigger(sentences, respond)
-            )
-        except Exception:  # noqa: BLE001 - a changed agent API only loses the sentences
-            _LOGGER.warning("Kis Segítő: the Assist sentences could not be added")
-            break
+    try:
+        for child in manager.children(active_only=True):
+            child_id = child["id"]
+            per_topic: dict[str, list[str]] = {}
+            for language in ("hu", "en"):
+                for topic, sentences in child_sentences(
+                    _names(child), language
+                ).items():
+                    per_topic.setdefault(topic, []).extend(sentences)
+            for topic, sentences in per_topic.items():
+
+                async def respond(
+                    user_input: Any,
+                    result: Any,
+                    topic: str = topic,
+                    child_id: str = child_id,
+                ) -> str:
+                    status = child_status(manager, child_id)
+                    return answer(status, topic, user_input.language or "en")
+
+                add(sentences, respond)
+        for topic in TOPICS[:-1]:
+
+            async def respond_all(
+                user_input: Any, result: Any, topic: str = topic
+            ) -> str:
+                return answer_all(manager, topic, user_input.language or "en")
+
+            add(all_sentences("hu")[topic] + all_sentences("en")[topic], respond_all)
+    except Exception:  # noqa: BLE001 - a changed agent API only loses the sentences
+        _LOGGER.warning("Kis Segítő: the Assist sentences could not be added")
     return removers
 
 
@@ -309,33 +494,46 @@ def _register_sentences(
 
 
 class ChildStatusIntent(intent.IntentHandler):
-    """Read-only: what Kis Segítő knows about a child (for LLM agents)."""
+    """Read-only: what Kis Segítő knows about the children (for LLM agents)."""
 
     intent_type = INTENT_CHILD_STATUS
     description = (
         "Kis Segítő (children's routine helper): a child's tokens, current task, "
         "time to the next checkpoint, tokens still to earn today and streak. "
-        "Read only."
+        "Leave out the name to get every child. Read only."
     )
     slot_schema: ClassVar[dict[Any, Any]] = {
-        vol.Required("name"): str,
+        vol.Optional("name"): str,
         vol.Optional("topic"): vol.In(TOPICS),
     }
 
     def __init__(self, manager: KisSegitoManager) -> None:
         self.manager = manager
 
+    def _data(self, child: dict[str, Any]) -> dict[str, Any]:
+        data = child_status(self.manager, child["id"])
+        data["aliases"] = _names(child)[1:]
+        return data
+
     async def async_handle(self, intent_obj: intent.Intent) -> intent.IntentResponse:
         slots = self.async_validate_slots(intent_obj.slots)
         topic = slots.get("topic", {}).get("value", "all")
-        speech = answer_for(
-            self.manager, slots["name"]["value"], topic, intent_obj.language or "en"
-        )
+        name = str(slots.get("name", {}).get("value") or "").strip()
+        language = intent_obj.language or "en"
         response = intent_obj.create_response()
-        response.async_set_speech(speech)
-        child = find_child(self.manager, slots["name"]["value"])
-        if child is not None:
-            response.async_set_speech_slots(child_status(self.manager, child["id"]))
+        response.async_set_speech(answer_for(self.manager, name, topic, language))
+        if name:
+            child = find_child(self.manager, name)
+            if child is not None:
+                response.async_set_speech_slots(self._data(child))
+        else:
+            response.async_set_speech_slots(
+                {
+                    "children": [
+                        self._data(c) for c in self.manager.children(active_only=True)
+                    ]
+                }
+            )
         return response
 
 
@@ -343,20 +541,39 @@ class ChildStatusIntent(intent.IntentHandler):
 def async_setup_assist(
     hass: HomeAssistant, manager: KisSegitoManager
 ) -> Callable[[], None]:
-    """Add the intent and, once Home Assistant runs, the sentences."""
+    """Add the intent and, once Home Assistant runs, the sentences (added
+    again when a child's names change)."""
     intent.async_register(hass, ChildStatusIntent(manager))
+    sentences: list[Callable[[], None]] = []
     removers: list[Callable[[], None]] = []
+    state: dict[str, Any] = {"signature": None, "started": False}
+
+    @callback
+    def refresh() -> None:
+        if not state["started"]:
+            return
+        signature = _signature(manager)
+        if signature == state["signature"]:
+            return
+        state["signature"] = signature
+        while sentences:
+            sentences.pop()()
+        sentences.extend(_register_sentences(hass, manager))
 
     @callback
     def started(_hass: HomeAssistant) -> None:
-        removers.extend(_register_sentences(hass, manager))
+        state["started"] = True
+        refresh()
 
     removers.append(async_at_started(hass, started))
+    removers.append(manager.async_add_listener(refresh))
 
     @callback
     def remove() -> None:
         while removers:
             removers.pop()()
+        while sentences:
+            sentences.pop()()
         intent.async_remove(hass, INTENT_CHILD_STATUS)
 
     return remove
