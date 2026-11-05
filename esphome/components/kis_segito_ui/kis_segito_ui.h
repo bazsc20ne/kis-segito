@@ -23,6 +23,8 @@
 #include "esphome/core/component.h"
 #include "esphome/core/preferences.h"
 
+#include "esphome/components/json/json_util.h"
+
 #include "picture_cache.h"
 
 namespace esphome::kis_segito_ui {
@@ -161,6 +163,11 @@ class Carousel {
   FillFn fill_;
 };
 
+// The theme id as kept in the preferences.
+struct ThemePref {
+  char id[33];
+};
+
 class KisSegitoUI : public Component {
  public:
   void setup() override;
@@ -172,6 +179,12 @@ class KisSegitoUI : public Component {
 
   void add_image(const std::string &key, image::Image *img) { this->images_[key] = img; }
   void set_number_font(font::Font *f) { this->number_font_ = f->get_lv_font(); }
+  // A loading screen picture in the theme's style (see the .cpp file).
+  void theme_picture(lv_obj_t *obj, const std::string &key, int cx, int cy);
+  // A picture in the theme's style (nullptr: use the built-in one).
+  const lv_image_dsc_t *picture(const std::string &key);
+  // Screen size in pixels (for the YAML lambdas).
+  int screen_size() const;
   // Display width and height in pixels (the screen is laid out for 480).
   void set_screen_size(int size);
 
@@ -232,6 +245,8 @@ class KisSegitoUI : public Component {
 
  protected:
   const lv_image_dsc_t *img_(const std::string &key);
+  bool apply_theme_colours_(JsonObjectConst tc);
+  void save_theme_();
   // The downloaded-picture key ("@<id>_<size>") an image key is shown with,
   // or "" for a built-in image.
   std::string photo_key_(const std::string &key) const;
@@ -405,6 +420,10 @@ class KisSegitoUI : public Component {
   std::string img_base_;   // Home Assistant address for pictures
   std::string img_token_;  // this knob's picture secret
   std::string general_bg_;  // general background picture id (empty: none)
+  std::set<std::string> bg_keys_;
+  std::set<std::string> cache_asked_;  // keys asked from the flash cache only  // picture keys of backgrounds (whole screen)
+  std::string theme_;  // theme id from Home Assistant (empty: built-in look)
+  ESPPreferenceObject theme_pref_;
   std::string wanted_bg_;   // background id the current screen asks for
   std::string shown_bg_;    // picture key of the background on screen
   std::map<std::string, Photo> photos_;

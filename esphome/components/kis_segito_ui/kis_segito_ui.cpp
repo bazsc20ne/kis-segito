@@ -41,6 +41,7 @@ static inline int S(int v) { return g_screen == 480 ? v : (v * g_screen + (v < 0
 static inline float SF(float v) { return g_screen == 480 ? v : v * static_cast<float>(g_screen) / 480.0f; }
 
 void KisSegitoUI::set_screen_size(int size) { g_screen = size; }
+int KisSegitoUI::screen_size() const { return g_screen; }
 
 // PSRAM kept free for LVGL's own work (layers, image transforms) besides a
 // picture: as much as the picture itself, at least 64 KB, at most this. (A
@@ -65,8 +66,34 @@ static bool psram_has(size_t bytes) { return psram_largest_block() >= bytes + 64
 // Icons that are not compiled into the firmware (assets/device_assets.json,
 // "_online") and the own (uploaded) icons: the knob downloads them from Home
 // Assistant when it shows them.
+// Whether a theme has its own version of a picture: every built-in picture
+// and built-in avatar and icon, not uploaded pictures (own icons included).
+static bool is_theme_icon(const std::string &key);
+
 static bool is_online_icon(const std::string &key) {
   static const char *const PREFIXES[] = {"routine_", "task_", "reward_", "avatar_", "own_"};
+  for (const char *prefix : PREFIXES) {
+    if (key.rfind(prefix, 0) == 0)
+      return true;
+  }
+  return false;
+}
+
+static bool is_theme_icon(const std::string &key) {
+  if (key.rfind("own_", 0) == 0)
+    return false;
+  // "<icon>_<size>": an id of lower-case letters, digits and underscores.
+  const size_t sep = key.rfind('_');
+  if (sep == std::string::npos || sep == 0 || key.find_first_not_of("0123456789", sep + 1) != std::string::npos)
+    return false;
+  for (size_t i = 0; i < sep; i++) {
+    const char c = key[i];
+    if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_'))
+      return false;
+  }
+  static const char *const PREFIXES[] = {"routine_", "task_", "reward_", "avatar_", "fn_", "token_", "piggy_",
+                                         "action_", "status_", "streak_", "checkpoint_", "ball_", "hand_",
+                                         "badge_", "brand_"};
   for (const char *prefix : PREFIXES) {
     if (key.rfind(prefix, 0) == 0)
       return true;
@@ -261,13 +288,16 @@ static void log_memory(const char *when = "") {
 
 #define SCREEN g_screen
 #define CENTER (g_screen / 2)
-static constexpr uint32_t BASE_BG = 0x1B2140;  // deep navy
-static constexpr uint32_t TRACK_DIM = 0x3A4066;
-static constexpr uint32_t ZONE_OK = 0x6BCB77;
-static constexpr uint32_t ZONE_WARN = 0xFF9F43;
-static constexpr uint32_t ZONE_LATE = 0xFF6B6B;
-static constexpr uint32_t ZONE_DEPOSIT = 0x6BCB77;   // tokens into the piggy bank
-static constexpr uint32_t ZONE_WITHDRAW = 0xFF9F43;  // tokens out of it
+// Colours; a theme from Home Assistant replaces them ("tc", see set_state).
+static uint32_t BASE_BG = 0x1B2140;  // deep navy
+static uint32_t TRACK_DIM = 0x3A4066;
+static uint32_t ZONE_OK = 0x6BCB77;
+static uint32_t ZONE_WARN = 0xFF9F43;
+static uint32_t ZONE_LATE = 0xFF6B6B;
+static uint32_t ZONE_DEPOSIT = 0x6BCB77;   // tokens into the piggy bank
+static uint32_t ZONE_WITHDRAW = 0xFF9F43;  // tokens out of it
+static uint32_t PILL_BG = 0x0F1330;        // number pills
+static uint32_t NUMBER_FG = 0xFFE08A;      // numbers on the pills
 // Time track geometry: outer edge radius and width of each arc (an LVGL arc is
 // drawn inwards from its outer edge).
 #define OUTER_R S(222)  // outer (shared) track
@@ -662,6 +692,14 @@ void KisSegitoUI::setup() {
   this->log_reset_reason_();
   log_psram("at boot");
   this->load_test_data_();
+  this->theme_pref_ = global_preferences->make_preference<ThemePref>(fnv1_hash("kis_segito_ui_theme"));
+  ThemePref theme{};
+  if (this->theme_pref_.load(&theme)) {
+    theme.id[sizeof(theme.id) - 1] = 0;
+    this->theme_ = theme.id;
+    if (!this->theme_.empty())
+      ESP_LOGI(TAG, "Theme %s", this->theme_.c_str());
+  }
   // The last selected child is kept across reboots (as a hash of its id).
   this->child_pref_ = global_preferences->make_preference<uint32_t>(fnv1_hash("kis_segito_ui_child_id"));
   uint32_t saved = 0;
@@ -780,6 +818,31 @@ void KisSegitoUI::set_state(const std::string &json) {
   } else if (bg_seq != this->bg_seq_ || bg != (this->bg_change_ ? this->bg_target_ : this->general_bg_)) {
     this->bg_seq_ = bg_seq;
     this->start_background_change_(bg);
+  }
+  // The theme: its colours, and its pictures from Home Assistant. A change
+  // restarts the knob once it has not been used for a minute (like a new
+  // background), so every picture and colour changes together.
+  const std::string theme = root["th"] | "";
+  const bool colours_changed = this->apply_theme_colours_(root["tc"]);
+  if (first_state) {
+    if (theme != this->theme_ || colours_changed) {
+      this->theme_ = theme;
+      this->save_theme_();
+      if (this->started_) {
+        lv_obj_set_style_bg_color(this->root_, lv_color_hex(BASE_BG), 0);
+        this->ring_drawn_ = false;
+      }
+    }
+  } else if (theme != this->theme_ || colours_changed) {
+    this->theme_ = theme;
+    this->save_theme_();
+    if (!this->bg_change_) {
+      this->bg_change_ = true;
+      this->bg_target_ = this->general_bg_;
+      this->bg_store_ = BG_STORED;  // nothing to store: just the restart
+      this->restart_at_ms_ = 0;
+      ESP_LOGI(TAG, "Theme changed: restarting after %u s without use", (unsigned) (BG_RESTART_IDLE_MS / 1000));
+    }
   }
   const std::string token = root["img"]["t"] | "";
   if (token != this->img_token_) {
@@ -1105,8 +1168,16 @@ void KisSegitoUI::start() {
 
   // Always visible while offline, at the right edge of the top gap.
   this->offline_icon_ = lv_image_create(lv_layer_top());
-  lv_image_set_src(this->offline_icon_, this->img_("status_disconnected_28"));
-  lv_obj_set_pos(this->offline_icon_, CENTER + S(50), S(18));
+  {
+    const lv_image_dsc_t *dsc = this->img_("status_disconnected_28");
+    if (dsc != nullptr)
+      lv_image_set_src(this->offline_icon_, dsc);
+    lv_obj_set_pos(this->offline_icon_, CENTER + S(50), S(18));
+    // A theme's picture may still be on its way.
+    const std::string pk = this->photo_key_("status_disconnected_28");
+    if (!pk.empty())
+      this->bind_(this->offline_icon_, pk, CENTER + S(50) + S(14), S(18) + S(14));
+  }
   lv_obj_add_flag(this->offline_icon_, LV_OBJ_FLAG_HIDDEN);
 
   this->last_input_ms_ = millis();
@@ -1140,8 +1211,15 @@ void KisSegitoUI::start() {
 // ---------------------------------------------------------------- Helpers
 
 std::string KisSegitoUI::photo_key_(const std::string &key) const {
-  if (!key.empty() && key[0] == '@')
+  if (!key.empty() && key[0] == '@') {
+    // A theme draws the built-in avatars and icons too; uploaded pictures
+    // stay as they are.
+    if (!this->theme_.empty() && is_theme_icon(key.substr(1)))
+      return "@t_" + this->theme_ + "__" + key.substr(1);
     return key;
+  }
+  if (!this->theme_.empty() && is_theme_icon(key))
+    return "@t_" + this->theme_ + "__" + key;  // the theme's own picture
   if (this->images_.count(key) == 0 && is_online_icon(key))
     return "@" + key;  // downloaded from Home Assistant
   return "";
@@ -1209,17 +1287,22 @@ void KisSegitoUI::unbind_cb_(lv_event_t *e) {
 // rebuilding the screen.
 void KisSegitoUI::picture_ready_(const std::string &key) {
   auto it = this->photos_.find(key);
-  if (it == this->photos_.end() || !this->started_)
+  if (it == this->photos_.end())
     return;
   const lv_image_dsc_t *dsc = it->second.dsc;
-  if (key == this->shown_bg_)
-    lv_obj_set_style_bg_image_src(this->root_, dsc, 0);  // a newer version of it
   for (const auto &b : this->bindings_) {
     if (b.key != key)
       continue;
     lv_image_set_src(b.obj, dsc);
     lv_obj_set_pos(b.obj, b.cx - dsc->header.w / 2, b.cy - dsc->header.h / 2);
   }
+  if (!this->started_)
+    return;  // the loading screen's pictures only
+  // Token piles are drawn into one picture: drawn again with the coin.
+  if (key.find("token_coin_") != std::string::npos)
+    this->pending_rebuild_ = true;
+  if (key == this->shown_bg_)
+    lv_obj_set_style_bg_image_src(this->root_, dsc, 0);  // a newer version of it
   this->carousel_.refill_key(key);
   this->apply_background_(this->wanted_bg_);
 }
@@ -1282,11 +1365,25 @@ const lv_image_dsc_t *KisSegitoUI::background_(const std::string &id) {
   const std::string &use = id.empty() ? this->general_bg_ : id;
   if (use.empty())
     return nullptr;
-  return this->img_("@" + use + "_" + std::to_string(SCREEN));
+  const std::string key = "@" + use + "_" + std::to_string(SCREEN);
+  this->bg_keys_.insert(key);
+  return this->img_(key);
 }
 
 void KisSegitoUI::request_photo_(const std::string &key) {
-  if (this->img_base_.empty() || this->photo_requested_.count(key))
+  if (this->img_base_.empty()) {
+    // Before Home Assistant's address is known (the loading screen after a
+    // restart): only the flash cache is asked, once.
+    if (this->cache_asked_.insert(key).second) {
+      {
+        std::lock_guard<std::mutex> lock(this->photo_mutex_);
+        this->photo_queue_.push_back({key, "", ""});
+      }
+      this->start_photo_task_();
+    }
+    return;
+  }
+  if (this->photo_requested_.count(key))
     return;
   this->photo_requested_.insert(key);
   // "@<id>_<size>" -> <base>/api/kis_segito/knob_image/<id>/<size>; the token goes
@@ -1294,10 +1391,10 @@ void KisSegitoUI::request_photo_(const std::string &key) {
   const size_t sep = key.rfind('_');
   if (sep == std::string::npos || sep < 2)
     return;
-  // The key names the size on the 480 px canvas; a background is the whole
-  // screen already.
+  // The key names the size on the 480 px canvas; a background's key names the
+  // screen size already.
   const int nominal = atoi(key.c_str() + sep + 1);
-  const int pixels = nominal >= SCREEN ? nominal : S(nominal);
+  const int pixels = this->bg_keys_.count(key) ? nominal : S(nominal);
   const std::string url =
       this->img_base_ + "/api/kis_segito/knob_image/" + key.substr(1, sep - 1) + "/" + std::to_string(pixels);
   {
@@ -1365,6 +1462,12 @@ void KisSegitoUI::photo_task_(void *arg) {
       if (size > 0 && !psram_can_spare(size))
         self->need_memory_ = size;
       cached = self->cache_.read(job.key, &cached_size, &cached_etag);
+    }
+    if (job.url.empty()) {
+      // Only the flash cache was asked (no Home Assistant address yet).
+      if (cached != nullptr)
+        deliver(job.key, cached, cached_size, false);
+      continue;
     }
     uint32_t cached_crc = 0;
     if (cached != nullptr) {
@@ -1449,6 +1552,68 @@ void KisSegitoUI::photo_task_(void *arg) {
 // flash cache (no picture memory needed), then the knob restarts once it has
 // not been used for a minute and shows it from there. The picture on screen
 // stays until then. If it cannot be stored, nothing restarts.
+// Colours of the theme ("tc": name -> "#RRGGBB"); missing ones are the
+// built-in colours. True when any colour changed.
+bool KisSegitoUI::apply_theme_colours_(JsonObjectConst tc) {
+  struct Slot {
+    const char *name;
+    uint32_t *value;
+    uint32_t builtin;
+  };
+  static const Slot SLOTS[] = {
+      {"bg", &BASE_BG, 0x1B2140},        {"track", &TRACK_DIM, 0x3A4066},  {"ok", &ZONE_OK, 0x6BCB77},
+      {"warn", &ZONE_WARN, 0xFF9F43},    {"late", &ZONE_LATE, 0xFF6B6B},   {"deposit", &ZONE_DEPOSIT, 0x6BCB77},
+      {"withdraw", &ZONE_WITHDRAW, 0xFF9F43}, {"pill", &PILL_BG, 0x0F1330}, {"number", &NUMBER_FG, 0xFFE08A},
+  };
+  bool changed = false;
+  for (const auto &slot : SLOTS) {
+    const char *text = tc[slot.name].is<const char *>() ? tc[slot.name].as<const char *>() : nullptr;
+    const uint32_t value = parse_color(text, slot.builtin);
+    if (*slot.value != value) {
+      *slot.value = value;
+      changed = true;
+    }
+  }
+  return changed;
+}
+
+// A picture of the loading screen (an LVGL image of the YAML config) in the
+// theme's style, centred on (cx, cy); nothing changes without a theme. The
+// picture comes from the flash cache, or from Home Assistant later.
+void KisSegitoUI::theme_picture(lv_obj_t *obj, const std::string &key, int cx, int cy) {
+  if (this->theme_.empty() || obj == nullptr)
+    return;
+  const std::string pk = this->photo_key_(key);
+  // Called again on a language change: one binding per object.
+  auto &b = this->bindings_;
+  b.erase(std::remove_if(b.begin(), b.end(), [obj](const Binding &x) { return x.obj == obj; }), b.end());
+  lv_obj_set_align(obj, LV_ALIGN_TOP_LEFT);
+  const lv_image_dsc_t *dsc = this->img_(key);
+  if (dsc != nullptr) {
+    lv_image_set_src(obj, dsc);
+    lv_obj_set_pos(obj, cx - dsc->header.w / 2, cy - dsc->header.h / 2);
+  }
+  this->bind_(obj, pk, cx, cy);
+}
+
+// A picture in the theme's style, nullptr without a theme or while it is
+// still on its way (the built-in one is used then).
+const lv_image_dsc_t *KisSegitoUI::picture(const std::string &key) {
+  if (this->theme_.empty())
+    return nullptr;
+  return this->img_(key);
+}
+
+// The theme id is kept across restarts, so the loading screen shows the
+// theme's pictures (from the flash cache) before Home Assistant answers.
+void KisSegitoUI::save_theme_() {
+  char buf[33] = {0};
+  strncpy(buf, this->theme_.c_str(), sizeof(buf) - 1);
+  ThemePref pref;
+  memcpy(pref.id, buf, sizeof(pref.id));
+  this->theme_pref_.save(&pref);
+}
+
 void KisSegitoUI::start_background_change_(const std::string &bg) {
   const uint32_t gen = ++this->bg_gen_;
   this->restart_at_ms_ = 0;
@@ -1726,7 +1891,7 @@ lv_obj_t *KisSegitoUI::number_pill_(lv_obj_t *parent, int cx, int cy, int value,
   remove_defaults(pill);
   lv_obj_set_size(pill, LV_SIZE_CONTENT, S(48));
   lv_obj_set_style_radius(pill, S(24), 0);
-  lv_obj_set_style_bg_color(pill, lv_color_hex(0x0F1330), 0);
+  lv_obj_set_style_bg_color(pill, lv_color_hex(PILL_BG), 0);
   lv_obj_set_style_bg_opa(pill, 200, 0);
   lv_obj_set_style_pad_hor(pill, S(14), 0);
   lv_obj_set_style_pad_column(pill, S(6), 0);
@@ -1734,13 +1899,18 @@ lv_obj_t *KisSegitoUI::number_pill_(lv_obj_t *parent, int cx, int cy, int value,
   lv_obj_set_flex_align(pill, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
   if (with_coin) {
     lv_obj_t *coin = lv_image_create(pill);
-    lv_image_set_src(coin, this->img_("token_coin_front_28"));
+    const lv_image_dsc_t *dsc = this->img_("token_coin_front_28");
+    if (dsc != nullptr)
+      lv_image_set_src(coin, dsc);
+    const std::string pk = this->photo_key_("token_coin_front_28");
+    if (!pk.empty())
+      this->bind_(coin, pk, 0, 0);  // placed by the pill's layout
   }
   lv_obj_t *label = lv_label_create(pill);
   lv_label_set_text_fmt(label, "%d", value);
   if (this->number_font_ != nullptr)
     lv_obj_set_style_text_font(label, this->number_font_, 0);
-  lv_obj_set_style_text_color(label, lv_color_hex(0xFFE08A), 0);
+  lv_obj_set_style_text_color(label, lv_color_hex(NUMBER_FG), 0);
   lv_obj_update_layout(pill);
   lv_obj_set_pos(pill, cx - lv_obj_get_width(pill) / 2, cy - S(24));
   return pill;

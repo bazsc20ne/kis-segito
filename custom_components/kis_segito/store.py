@@ -43,6 +43,8 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     # Background of the knob and the panel: "" (none), a preset ("bg_1" …) or
     # an uploaded picture id; a child's own background overrides it.
     "background": "bg_2",
+    # Look of the panel, the cards and the knobs (frontend/themes/<id>).
+    "theme": "kis_segito",
     # Knob screen power (seconds, 0 = never; dim_level in percent); each knob
     # can override any of them.
     "screen": {

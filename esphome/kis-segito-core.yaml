@@ -356,8 +356,11 @@ script:
               {id(ball_4), id(ball_4_hl), 250 * K, 320 * K, -4.1f * K, -2.7f * K, (int) (20 * K), 0, 0, 1},
               {id(ball_5), id(ball_5_hl), 160 * K, 200 * K, 3.7f * K, 3.3f * K, (int) (17 * K), 0, 0, 1},
           };
+          // The built-in pictures; a theme's own ones replace them once they
+          // are here (see below).
           static const lv_image_dsc_t *round_img = id(ks_img_ball_base_48)->get_lv_image_dsc();
           static const lv_image_dsc_t *dent_img = id(ks_img_ball_dent_48)->get_lv_image_dsc();
+          static const lv_image_dsc_t *hl_img = id(ks_img_ball_highlight_48)->get_lv_image_dsc();
           static const int IMG = round_img->header.w;  // image size of all layers
           for (auto &b : balls) {
             const int scale = 2 * b.r * 256 / IMG;
@@ -373,6 +376,12 @@ script:
                 // source image.
                 constexpr float HL_DX = ${ball_highlight_dx}, HL_DY = ${ball_highlight_dy};
                 constexpr size_t N = sizeof(balls) / sizeof(balls[0]);
+                const lv_image_dsc_t *themed = id(ui).picture("ball_base_48");
+                const lv_image_dsc_t *base = themed != nullptr ? themed : round_img;
+                themed = id(ui).picture("ball_dent_48");
+                const lv_image_dsc_t *dent = themed != nullptr ? themed : dent_img;
+                themed = id(ui).picture("ball_highlight_48");
+                const lv_image_dsc_t *highlight = themed != nullptr ? themed : hl_img;
                 auto hit = [](Ball &b, float nx, float ny) {
                   b.dent = DENT_TICKS;
                   b.nx = nx;
@@ -427,16 +436,18 @@ script:
                     // The dent is drawn at the bottom (+90 degrees): turn it
                     // towards the contact point. LVGL rotation is in 0.1 degrees.
                     const float deg = atan2f(b.ny, b.nx) * 180.0f / (float) M_PI - 90.0f;
-                    lv_image_set_src(b.base, dent_img);
+                    lv_image_set_src(b.base, dent);
                     lv_image_set_rotation(b.base, (int32_t) (deg * 10.0f));
-                  } else if (b.dent == 0 && lv_image_get_src(b.base) != round_img) {
-                    lv_image_set_src(b.base, round_img);
+                  } else if (b.dent == 0 && lv_image_get_src(b.base) != base) {
+                    lv_image_set_src(b.base, base);
                     lv_image_set_rotation(b.base, 0);
                   }
                   if (b.dent > 0)
                     b.dent--;
                   const int px = (int) b.x - IMG / 2, py = (int) b.y - IMG / 2;
                   lv_obj_set_pos(b.base, px, py);
+                  if (lv_image_get_src(b.highlight) != highlight)
+                    lv_image_set_src(b.highlight, highlight);
                   const float hk = 2.0f * b.r / 48.0f;
                   lv_obj_set_pos(b.highlight, px + (int) (HL_DX * hk), py + (int) (HL_DY * hk));
                 }
@@ -672,6 +683,10 @@ script:
           lv_image_set_src(id(boot_mark), id(boot_language_hu)
                                               ? id(ks_img_brand_mark_240)->get_lv_image_dsc()
                                               : id(ks_img_brand_mark_en_240)->get_lv_image_dsc());
+          // With a theme: its brand mark, where the built-in one is.
+          const int size = id(ui).screen_size();
+          id(ui).theme_picture(id(boot_mark), id(boot_language_hu) ? "brand_mark_240" : "brand_mark_en_240",
+                               size / 2, size / 2 - (30 * size + 240) / 480);
 
 # --- Input ----------------------------------------------------------------------
 

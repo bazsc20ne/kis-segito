@@ -32,6 +32,8 @@ from .manager import (
 )
 from .notify import EVENT_TYPES
 from .panel import FRONTEND_DIR, panel_language_names
+from .themes import load_themes
+from .themes import theme as theme_of
 from .store import DEFAULT_SETTINGS
 
 # Knob screen power settings: seconds (0 = never), the dim level in percent.
@@ -176,6 +178,7 @@ async def ws_settings(
         ),
         vol.Optional("notification_label"): str,
         vol.Optional("background"): vol.Match(BACKGROUND_VALUE),
+        vol.Optional("theme"): str,
         vol.Optional("screen"): SCREEN_SCHEMA,
     }
 )
@@ -191,6 +194,10 @@ async def ws_settings_update(
     codes = await hass.async_add_executor_job(available_languages)
     if language is not None and language != LANGUAGE_AUTO and language not in codes:
         connection.send_error(msg["id"], "invalid_language", "Unknown language")
+        return
+    themes = await hass.async_add_executor_job(load_themes)
+    if "theme" in msg and msg["theme"] not in themes:
+        connection.send_error(msg["id"], "invalid_theme", "Unknown theme")
         return
     data = hass.data[DOMAIN]
     changes = {
@@ -208,6 +215,7 @@ async def ws_settings_update(
             "piggy_interest_max",
             "notification_label",
             "background",
+            "theme",
         )
         if key in msg
     }
@@ -244,9 +252,15 @@ def _small_icons() -> list[str]:
 
 
 async def async_load_icon_lists(hass: HomeAssistant) -> None:
-    """Read the icon lists outside the event loop."""
+    """Read the icon lists and the themes outside the event loop."""
     await hass.async_add_executor_job(_icons)
     await hass.async_add_executor_job(_small_icons)
+    await hass.async_add_executor_job(load_themes)
+
+
+def _themes() -> list[dict[str, Any]]:
+    """The themes that can be chosen (id and names)."""
+    return [{"id": t["id"], "name": t["name"]} for t in load_themes().values()]
 
 
 def _own_entity(hass: HomeAssistant, device_id: str, key: str) -> str | None:
@@ -576,6 +590,8 @@ async def ws_data(
             "disabled_icons": _manager(hass).icon_settings["disabled"],
             "icon_aliases": ICON_ALIASES,
             "backgrounds": list(BACKGROUND_PRESETS),
+            "themes": _themes(),
+            "theme": theme_of(manager.settings.get("theme")),
         },
     )
 

@@ -1,0 +1,16 @@
+{
+  "name": {"en": "Little Helper", "hu": "Kis Segítő"},
+  "panel": {"light": {}, "dark": {}},
+  "fonts": {},
+  "knob": {
+    "bg": "#1B2140",
+    "track": "#3A4066",
+    "ok": "#6BCB77",
+    "warn": "#FF9F43",
+    "late": "#FF6B6B",
+    "deposit": "#6BCB77",
+    "withdraw": "#FF9F43",
+    "pill": "#0F1330",
+    "number": "#FFE08A"
+  }
+}

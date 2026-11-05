@@ -48,6 +48,7 @@ from homeassistant.helpers.network import is_cloud_connection
 from homeassistant.util.network import is_local
 
 from .const import DOMAIN
+from .themes import DEFAULT_THEME, THEMES_DIR, load_themes
 
 URL = "/api/kis_segito/knob_image/{image_id}/{size}"
 TOKEN_HEADER = "X-Kis-Segito-Token"
@@ -55,6 +56,8 @@ TOKEN_HEADER = "X-Kis-Segito-Token"
 BACKGROUND_SIZES = (240, 360, 466, 480)
 PRESETS_DIR = Path(__file__).parent / "frontend" / "backgrounds"
 PRESET_ID = re.compile(r"^bg_[1-6]$")
+# A theme's own picture: "t_<theme>__<picture>".
+THEMED_ID = re.compile(r"^t_([a-z0-9_]+?)__([a-z0-9_]+)$")
 AVATARS_DIR = Path(__file__).parent / "knob_avatars"
 # Icons not compiled into the firmware, rendered at the sizes the knob uses
 # (knob_icons/<id>_<size>.png); other sizes are made from the nearest one.
@@ -74,7 +77,7 @@ class ImageRejected(Exception):
     """The original picture is too big or not an image."""
 
 
-def convert(path: Path, size: int) -> bytes:
+def convert(path: Path, size: int, opaque: bool | None = None) -> bytes:
     """Read an uploaded picture and return it in the knob's raw format."""
     from PIL import Image, ImageOps
 
@@ -99,7 +102,7 @@ def convert(path: Path, size: int) -> bytes:
     image = ImageOps.fit(image, (size, size), Image.LANCZOS)
     pixels, alpha = _rgb565(image)
     header = struct.pack("<HH", size, size)
-    if size in BACKGROUND_SIZES:
+    if size in BACKGROUND_SIZES if opaque is None else opaque:
         return b"KSI2" + header + pixels
     return b"KSI1" + header + pixels + alpha
 
@@ -123,29 +126,47 @@ def _rgb565(image) -> tuple[bytes, bytes]:
 
 
 @lru_cache(maxsize=64)
-def _cached(path: str, mtime: float, size: int) -> bytes | None:
+def _cached(
+    path: str, mtime: float, size: int, opaque: bool | None = None
+) -> bytes | None:
     try:
-        return convert(Path(path), size)
+        return convert(Path(path), size, opaque)
     except ImageRejected:
         return None
 
 
-def _icon_path(icon: str, size: int) -> Path | None:
+def _icon_path(icon: str, size: int, folder: Path = ICONS_DIR) -> Path | None:
     """The rendered icon for ``icon`` at ``size``, else its nearest larger size."""
     if size not in ICON_SIZES:
         return None
-    exact = ICONS_DIR / f"{icon}_{size}.png"
+    exact = folder / f"{icon}_{size}.png"
     if exact.is_file():
         return exact
     sizes = sorted(
         int(p.stem.rsplit("_", 1)[1])
-        for p in ICONS_DIR.glob(f"{icon}_*.png")
+        for p in folder.glob(f"{icon}_*.png")
         if p.stem.rsplit("_", 1)[1].isdigit() and p.stem.rsplit("_", 1)[0] == icon
     )
     if not sizes:
         return None
     best = next((s for s in sizes if s >= size), sizes[-1])
-    return ICONS_DIR / f"{icon}_{best}.png"
+    return folder / f"{icon}_{best}.png"
+
+
+def _theme_path(image_id: str, size: int) -> Path | None:
+    """A picture of a theme: "t_<theme>__<picture>" (a built-in icon, avatar or
+    background preset in that theme's style)."""
+    match = THEMED_ID.match(image_id)
+    if match is None:
+        return None
+    theme_id, name = match.groups()
+    if theme_id not in load_themes() or theme_id == DEFAULT_THEME:
+        return None
+    folder = THEMES_DIR / theme_id
+    if PRESET_ID.match(name):
+        path = folder / "backgrounds" / f"{name}.jpg"
+        return path if size in BACKGROUND_SIZES and path.is_file() else None
+    return _icon_path(name, size, folder / "knob")
 
 
 def _from_local_network(hass: HomeAssistant, request: web.Request) -> bool:
@@ -175,7 +196,16 @@ class KnobImageView(HomeAssistantView):
             return web.Response(status=403)
         if not IMAGE_ID.match(image_id) or not size.isdigit():
             return web.Response(status=404)
-        if int(size) in BACKGROUND_SIZES:
+        opaque: bool | None = None
+        if THEMED_ID.match(image_id):
+            path = await self.hass.async_add_executor_job(
+                _theme_path, image_id, int(size)
+            )
+            if path is None:
+                return web.Response(status=404)
+            # Only a background is the whole screen (stored without alpha).
+            opaque = bool(PRESET_ID.match(THEMED_ID.match(image_id).group(2)))
+        elif int(size) in BACKGROUND_SIZES:
             path = (
                 PRESETS_DIR / f"{image_id}.jpg"
                 if PRESET_ID.match(image_id)
@@ -209,7 +239,7 @@ class KnobImageView(HomeAssistantView):
         if request.headers.get("If-None-Match") == etag:
             return web.Response(status=304, headers=headers)
         data = await self.hass.async_add_executor_job(
-            _cached, str(path), mtime, int(size)
+            _cached, str(path), mtime, int(size), opaque
         )
         if data is None:
             return web.Response(status=415)

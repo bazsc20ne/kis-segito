@@ -33,6 +33,8 @@ from .logic import (
     routine_with_override,
     child_on_device,
 )
+from .themes import DEFAULT_THEME
+from .themes import theme as theme_of
 from .store import AUDIT_KEPT, DEFAULT_AVATAR, DEFAULT_SETTINGS, KisSegitoStore
 
 _LOGGER = logging.getLogger(__name__)
@@ -558,6 +560,19 @@ class KisSegitoManager:
             )
             return
         await self._changed()
+
+    @property
+    def theme(self) -> dict[str, Any]:
+        """The chosen theme (the default one when it is not available)."""
+        return theme_of(self.settings.get("theme"))
+
+    def _themed_background(self, background: str) -> str:
+        """A background preset in the chosen theme's style; uploaded pictures
+        and the default theme stay as they are."""
+        theme_id = self.theme["id"]
+        if theme_id == DEFAULT_THEME or not re.match(r"^bg_[1-6]$", background):
+            return background
+        return f"t_{theme_id}__{background}"
 
     def device_background(self, device_id: str) -> tuple[str, int]:
         """A knob's background and its change counter (see "bgs")."""
@@ -2111,8 +2126,12 @@ class KisSegitoManager:
             "v": 1,
             "now": int(now.timestamp()),
             "lang": language,
-            "bg": self.device_background(device_id)[0],
+            "bg": self._themed_background(self.device_background(device_id)[0]),
             "bgs": self.device_background(device_id)[1],
+            # The theme: its pictures come from Home Assistant ("t_<id>__…"),
+            # its colours replace the knob's own (empty: the built-in look).
+            "th": "" if self.theme["id"] == DEFAULT_THEME else self.theme["id"],
+            "tc": self.theme["knob"],
             "scr": {
                 key: int(value)
                 for key, value in zip(
