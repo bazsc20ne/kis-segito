@@ -141,7 +141,7 @@ kikapcsolhatók.
 
 **Témák:** a **Beállítások → Téma** részen választható a kinézet (színek, betűk, ikonok,
 avatarok, hátterek) a panelen és a gombokon; a kártyák kapcsolóval vehetik át. Beépített
-stílustémák: „A Simpson család stílus” és „Jégvarázs stílus” (rajongói stílus-tisztelgések,
+stílustémák: „A Simpson család stílus”, „Jégvarázs stílus” és „Verdák stílus” (rajongói stílus-tisztelgések,
 eredeti rajzokkal, lásd a jogi nyilatkozatot lent). Gyerekenként külön téma is választható a
 gombra. Saját téma is készíthető: a sablont letöltve elég néhány képet lecserélni és
 visszatölteni, a többi a beépített marad. Útmutató: [docs/themes.md](docs/themes.md).
@@ -369,7 +369,7 @@ switched off.
 
 **Themes:** under **Settings → Theme** you choose the look (colours, fonts, icons, avatars,
 backgrounds) of the panel and the knobs; the cards can take it with a switch. Bundled style
-themes: "The Simpsons style" and "Frozen style" (fan-made style homages with original artwork,
+themes: "The Simpsons style", "Frozen style" and "Cars style" (fan-made style homages with original artwork,
 see the disclaimer below). Each child can have its own theme on the knob. You can make your own
 theme: download the template, replace a few pictures and upload it; the rest stays built-in.
 Guide: [docs/themes.md](docs/themes.md).

@@ -1,0 +1,56 @@
+{
+  "name": {
+    "en": "Cars style",
+    "hu": "Verdák stílus"
+  },
+  "order": 3,
+  "panel": {
+    "light": {
+      "--bg": "#FFF5EA",
+      "--surface": "#FFFFFF",
+      "--surface-2": "#FDEBD8",
+      "--surface-3": "#F8DCC0",
+      "--ink": "#2A1712",
+      "--muted": "#7A5A4C",
+      "--faint": "#B39686",
+      "--line": "#F1D7C0",
+      "--accent": "#D42A20",
+      "--accent-ink": "#FFFFFF",
+      "--accent-soft": "#FDE0DC",
+      "--sun": "#F28A12",
+      "--sun-soft": "#FFEBCF",
+      "--shadow": "0 1px 2px rgb(42 23 18 / .06), 0 8px 24px rgb(212 42 32 / .12)",
+      "--shadow-lg": "0 20px 60px rgb(42 23 18 / .25)",
+      "--hero-veil": "linear-gradient(180deg, rgb(255 245 234 / 0) 0%, rgb(255 245 234 / .6) 60%, var(--bg) 100%)",
+      "--r-lg": "22px"
+    },
+    "dark": {
+      "--bg": "#0C1230",
+      "--surface": "#151C42",
+      "--surface-2": "#1D2654",
+      "--surface-3": "#263166",
+      "--ink": "#FFF3E8",
+      "--muted": "#C2B6C8",
+      "--faint": "#857C9C",
+      "--line": "#2C3670",
+      "--accent": "#FF5A4A",
+      "--accent-ink": "#160A08",
+      "--accent-soft": "#4A1E2A",
+      "--sun": "#FFB43C",
+      "--sun-soft": "#3E2E28",
+      "--hero-veil": "linear-gradient(180deg, rgb(12 18 48 / .1) 0%, rgb(12 18 48 / .6) 60%, var(--bg) 100%)",
+      "--r-lg": "22px"
+    }
+  },
+  "fonts": {
+    "display": "bungee.woff2"
+  },
+  "knob": {
+    "bg": "#B3221A",
+    "track": "#E07A6E",
+    "pill": "#1C1C24",
+    "number": "#FFD23C",
+    "deposit": "#3CD0C2",
+    "withdraw": "#FF9A2E"
+  }
+}
