@@ -60,6 +60,9 @@ const CAL_PX = 0.75;
 const CAL_STEP = 5;
 const THEME_KEY = "kis_segito_theme";
 const LANG_KEY = "kis_segito_language";
+const SETTINGS_TAB_KEY = "kis_segito_settings_tab";
+// The settings page's tabs, in order.
+const SETTINGS_TABS = ["general", "look", "knobs", "rewards", "data"];
 
 // Times are stored in seconds and shown in minutes.
 const secondsToMinutes = (seconds) => (seconds === null || seconds === undefined || seconds === "" ? "" : Math.round((seconds / 60) * 100) / 100);
@@ -159,6 +162,7 @@ class KisSegitoPanel extends HTMLElement {
     try {
       this._theme = localStorage.getItem(THEME_KEY) || "";
       this._localLanguage = localStorage.getItem(LANG_KEY) || "";
+      this._settingsTab = localStorage.getItem(SETTINGS_TAB_KEY) || "";
     } catch (_err) {
       this._theme = "";
       this._localLanguage = "";
@@ -549,10 +553,20 @@ class KisSegitoPanel extends HTMLElement {
     return `<img class="ic ${cls}" src="${this._iconUrl(name, size)}" width="${size}" height="${size}" alt="">`;
   }
 
-  // A background value: "" (none), a preset ("bg_1" …) or an uploaded picture id.
+  // A background value: "" (none), a preset of the chosen theme ("bg_1" …),
+  // a preset of a given theme ("t_<theme>__bg_1" …) or an uploaded picture id.
   _backgroundUrl(value) {
     if (!value) {
       return "";
+    }
+    const themed = /^t_([a-z0-9_]+?)__(bg_[1-6])$/.exec(value);
+    if (themed) {
+      const path = `backgrounds/${themed[2]}.jpg`;
+      const t = themed[1] !== "kis_segito" ? (this._data?.themes || []).find((x) => x.id === themed[1]) : null;
+      if (t?.base && (t.complete || (t.has || []).includes(path))) {
+        return `${t.base}/${path}?v=${this._version}&r=${t.rev || 0}`;
+      }
+      return `${this._staticUrl}/${path}?v=${this._version}`;
     }
     return value.startsWith("bg_")
       ? this._asset(`backgrounds/${this._e(value)}.jpg`)
@@ -708,6 +722,34 @@ class KisSegitoPanel extends HTMLElement {
       <div class="hint">${this._e(this._t("icons.hint"))}</div></div>`;
   }
 
+  // Whether a background value is a picture of a theme (not an uploaded one).
+  _isPresetBackground(value) {
+    return Boolean(value) && (value.startsWith("bg_") || value.startsWith("t_"));
+  }
+
+  // The backgrounds to choose from: the chosen theme's six (they follow the
+  // theme when it changes), then every other theme's six (they stay).
+  // bg_1 … bg_3 are day scenes, bg_4 … bg_6 night scenes.
+  _backgroundChoices(current, attrs) {
+    const dis = this._dis();
+    const lang = (this._language || "en").startsWith("hu") ? "hu" : "en";
+    const presets = this._data.backgrounds || [];
+    const tile = (value) => {
+      const n = Number(value.slice(-1));
+      const when = this._t(n <= 3 ? "background.day" : "background.night");
+      return `<button class="bg ${current === value ? "on" : ""}" style="background-image:url('${this._backgroundUrl(value)}')" ${attrs} data-arg="${this._e(value)}" title="${this._e(when)}" aria-label="${this._e(when)}" ${dis}><span class="bg-when">${n <= 3 ? "☀" : "☾"}</span></button>`;
+    };
+    const themeId = this._data.theme?.id || "kis_segito";
+    const name = (t) => this._e(t.name?.[lang] || t.name?.en || t.id);
+    const others = (this._data.themes || [])
+      .filter((t) => t.id !== themeId && (t.active || current?.startsWith(`t_${t.id}__`)))
+      .map((t) => `<div class="bg-theme"><span class="small muted">${name(t)}</span><div class="bgs">${presets.map((b) => tile(`t_${t.id}__${b}`)).join("")}</div></div>`)
+      .join("");
+    return `<div class="small"><b>${this._e(this._t("background.theme_current"))}</b> <span class="muted">${this._e(this._t("background.theme_current_hint"))}</span></div>
+      <div class="bgs">${presets.map(tile).join("")}</div>
+      <details class="bg-others" ${current?.startsWith("t_") ? "open" : ""}><summary class="small"><b>${this._e(this._t("background.other_themes"))}</b> <span class="muted">${this._e(this._t("background.other_themes_hint"))}</span></summary>${others}</details>`;
+  }
+
   // A knob's own options: the children usable on it (a ticked list), whether
   // the others are hidden or shown locked, and its background.
   _knobOptions(d) {
@@ -721,15 +763,15 @@ class KisSegitoPanel extends HTMLElement {
     const own = d.background;
     const bgs = [`<button class="bg ${own == null ? "on" : ""}" data-act="knob-bg" data-arg="@common" data-device="${this._e(d.device_id)}" ${dis}>${this._e(this._t("settings.knob_bg_common"))}</button>`,
       `<button class="bg ${own === "" ? "on" : ""}" data-act="knob-bg" data-arg="" data-device="${this._e(d.device_id)}" ${dis}>${this._e(this._t("background.none"))}</button>`]
-      .concat((this._data.backgrounds || []).map((b) => `<button class="bg ${own === b ? "on" : ""}" style="background-image:url('${this._backgroundUrl(b)}')" data-act="knob-bg" data-arg="${this._e(b)}" data-device="${this._e(d.device_id)}" aria-label="${this._e(b)}" ${dis}></button>`))
-      .concat(own && !own.startsWith("bg_") ? [`<button class="bg on" style="background-image:url('${this._backgroundUrl(own)}')" data-act="knob-bg" data-arg="${this._e(own)}" data-device="${this._e(d.device_id)}" ${dis}></button>`] : [])
-      .concat(this._data.settings?.background && !this._data.settings.background.startsWith("bg_") && this._data.settings.background !== own ? [`<button class="bg" style="background-image:url('${this._backgroundUrl(this._data.settings.background)}')" data-act="knob-bg" data-arg="${this._e(this._data.settings.background)}" data-device="${this._e(d.device_id)}" aria-label="${this._e(this._t("background.own"))}" ${dis}></button>`] : [])
+      .concat(own && !this._isPresetBackground(own) ? [`<button class="bg on" style="background-image:url('${this._backgroundUrl(own)}')" data-act="knob-bg" data-arg="${this._e(own)}" data-device="${this._e(d.device_id)}" ${dis}></button>`] : [])
+      .concat(this._data.settings?.background && !this._isPresetBackground(this._data.settings.background) && this._data.settings.background !== own ? [`<button class="bg" style="background-image:url('${this._backgroundUrl(this._data.settings.background)}')" data-act="knob-bg" data-arg="${this._e(this._data.settings.background)}" data-device="${this._e(d.device_id)}" aria-label="${this._e(this._t("background.own"))}" ${dis}></button>`] : [])
       .join("");
+    const bgChoices = this._backgroundChoices(own, `data-act="knob-bg" data-device="${this._e(d.device_id)}"`);
     return `<details><summary>${this._e(this._t("settings.knob_children"))}: ${this._e(summary)}</summary>
         <div class="row wrap" style="gap:6px;margin-top:10px">${children}</div>
         <label class="switch" style="margin-top:10px"><input type="checkbox" data-knob-hide="${this._e(d.device_id)}" ${d.hide_locked ? "checked" : ""} ${dis}>${this._e(this._t("settings.knob_hide_locked"))}</label>
         <div class="hint">${this._e(this._t("settings.knob_children_hint"))}</div></details>
-      <details><summary>${this._e(this._t("settings.knob_bg"))}</summary><div class="bgs" style="margin-top:10px">${bgs}</div><div class="hint">${this._e(this._t(d.virtual ? "settings.knob_bg_hint_virtual" : "settings.knob_bg_hint"))}</div></details>`;
+      <details><summary>${this._e(this._t("settings.knob_bg"))}</summary><div class="stack" style="gap:8px;margin-top:10px">${bgChoices}<div class="bgs">${bgs}</div></div><div class="hint">${this._e(this._t(d.virtual ? "settings.knob_bg_hint_virtual" : "settings.knob_bg_hint"))}</div></details>`;
   }
 
   _set(path, value) {
@@ -1653,6 +1695,7 @@ class KisSegitoPanel extends HTMLElement {
   // ------------------------------------------------------------ settings
 
   _viewSettings() {
+    const tab = SETTINGS_TABS.includes(this._settingsTab) ? this._settingsTab : "general";
     const s = this._data.settings;
     const sc = s.screen || {};
     const dis = this._dis();
@@ -1697,22 +1740,29 @@ class KisSegitoPanel extends HTMLElement {
             <div class="form-grid" style="margin-top:10px">${Object.keys(INPUT_KINDS).map((k) => `<label class="field"><span>${this._e(this._t(`sensors.input_${k}`))}</span><input list="ks-inputs-${k}" data-device-input="${k}" data-device="${this._e(d.device_id)}" value="${this._e((d.inputs || {})[k] || "")}" placeholder="${this._e(this._t("sensors.input_none"))}" ${dis}></label>`).join("")}</div></details></div>`;
       })
       .join("");
-    const uploaded = s.background && !s.background.startsWith("bg_") ? s.background : "";
-    const backgrounds = `<div class="bgs"><button class="bg ${!s.background ? "on" : ""}" data-act="bg-set" data-arg="" ${dis}>${this._e(this._t("background.none"))}</button>
-      ${(this._data.backgrounds || []).map((b) => `<button class="bg ${s.background === b ? "on" : ""}" style="background-image:url('${this._backgroundUrl(b)}')" data-act="bg-set" data-arg="${this._e(b)}" aria-label="${this._e(b)}" ${dis}></button>`).join("")}
+    const uploaded = s.background && !this._isPresetBackground(s.background) ? s.background : "";
+    const backgrounds = `${this._backgroundChoices(s.background || "", `data-act="bg-set"`)}<div class="bgs"><button class="bg ${!s.background ? "on" : ""}" data-act="bg-set" data-arg="" ${dis}>${this._e(this._t("background.none"))}</button>
       ${uploaded ? `<button class="bg on" style="background-image:url('${this._backgroundUrl(uploaded)}')" data-act="bg-set" data-arg="${this._e(uploaded)}" aria-label="${this._e(this._t("background.own"))}" ${dis}></button>` : ""}
       ${this._isAdmin ? `<label class="bg upload" title="${this._e(this._t("background.upload"))}">＋<br>${this._e(this._t("background.own"))}<input type="file" accept="image/*" data-upload-bg hidden></label>` : ""}</div>`;
     const weekdays = WEEKDAYS.map((d) => `<option value="${d}" ${Number(s.piggy_interest_weekday) === d ? "selected" : ""}>${this._e(this._t(`weekday.${d}`))}</option>`).join("");
     return `<div class="section-title" style="margin-top:6px">${this._icon("nav_settings", 40)}<h2>${this._e(this._t("settings.title"))}</h2></div>
       ${this._isAdmin ? "" : `<div class="banner">${this._icon("status_lock", 28)} ${this._e(this._t("settings.admin_only"))}</div>`}
+      <div class="seg settings-tabs" role="tablist">${SETTINGS_TABS.map((k) => `<button role="tab" class="${tab === k ? "on" : ""}" data-act="settings-tab" data-arg="${k}">${this._e(this._t(`settings.tab_${k}`))}</button>`).join("")}</div>
       <div class="set-grid">
+${tab === "general" ? `
         <div class="card"><h3>${this._e(this._t("settings.general"))}</h3>
           <label class="field"><span>${this._e(this._t("settings.language"))}</span><select data-setting="language" ${dis}>${languages}</select></label>
           <div class="hint">${this._e(this._t("settings.language_hint"))}</div>
           <div class="field"><span>${this._e(this._t("settings.animation"))}</span><div class="seg">${["full", "reduced", "off"].map((m) => `<button class="${s.animation_mode === m ? "on" : ""}" data-act="set-setting" data-key="animation_mode" data-arg="${m}" ${dis}>${this._e(this._t(`settings.animation_${m}`))}</button>`).join("")}</div></div>
           <label class="field"><span>${this._e(this._t("settings.inactivity"))}</span>${this._minuteInput(`data-setting="inactivity_s"`, s.inactivity_s, "", 0.5)}</label>
           <label class="field"><span>${this._e(this._t("settings.routine_menu_grace"))}</span>${this._minuteInput(`data-setting="routine_menu_grace_s"`, s.routine_menu_grace_s)}</label>
-        </div>
+        </div>` : ""}
+${tab === "look" ? `
+        ${this._viewThemes()}
+        <div class="card"><h3>${this._e(this._t("background.title"))}</h3>${backgrounds}<div class="hint">${this._e(this._t("background.hint"))}</div></div>
+        ${this._viewIconSettings()}` : ""}
+${tab === "knobs" ? `
+        <div class="card"><h3>${this._e(this._t("settings.knobs"))}</h3>${devices || `<div class="muted">${this._e(this._t("settings.no_knobs"))}</div>`}<div class="hint">${this._e(this._t("settings.knobs_hint"))}</div>${this._isAdmin ? `<div><button class="btn sm" data-act="virtual-add">＋ ${this._e(this._t("settings.virtual_add"))}</button></div>` : ""}</div>
         <div class="card"><h3>${this._e(this._t("screen.title"))}</h3>
           <div class="timeline"><div class="track"></div>${mark("saver_after", this._t("screen.saver_type"))}${mark("dim_after", "☾")}${mark("blank_after", "■")}${mark("off_after", "⏻")}</div>
           <div class="form-grid">${SCREEN_KEYS.map((k) => `<label class="field"><span>${this._e(this._t(`screen.${k}`))}</span>${k === "dim_level" ? `<input type="number" min="1" max="100" data-screen="${k}" value="${sc[k] ?? ""}" ${dis}>` : this._minuteInput(`data-screen="${k}"`, sc[k])}</label>`).join("")}</div>
@@ -1726,11 +1776,8 @@ class KisSegitoPanel extends HTMLElement {
             return lux ? `<div class="row wrap" style="gap:6px"><span class="tag">${this._e(d.name)}</span><span class="muted small" data-lux-entity="${this._e(lux)}">${this._e(this._luxText(lux))}</span></div>` : "";
           }).join("")}
           <div class="hint">${this._e(this._t("sensors.hint"))}</div>
-          <div class="hint">${this._e(this._t("sensors.light_factor_hint"))}</div></div>
-        ${this._viewThemes()}
-        <div class="card"><h3>${this._e(this._t("background.title"))}</h3>${backgrounds}<div class="hint">${this._e(this._t("background.hint"))}</div></div>
-        ${this._viewIconSettings()}
-        <div class="card"><h3>${this._e(this._t("settings.knobs"))}</h3>${devices || `<div class="muted">${this._e(this._t("settings.no_knobs"))}</div>`}<div class="hint">${this._e(this._t("settings.knobs_hint"))}</div>${this._isAdmin ? `<div><button class="btn sm" data-act="virtual-add">＋ ${this._e(this._t("settings.virtual_add"))}</button></div>` : ""}</div>
+          <div class="hint">${this._e(this._t("sensors.light_factor_hint"))}</div></div>` : ""}
+${tab === "rewards" ? `
         <div class="card"><h3>${this._icon("streak_flame", 26)} ${this._e(this._t("settings.streak"))}</h3><div class="form-grid">
           <label class="field"><span>${this._e(this._t("settings.streak_target"))}</span>${num("streak_target", 0, 365)}</label>
           <label class="field"><span>${this._e(this._t("settings.streak_reward"))}</span>${num("streak_reward", 0, 1000)}</label></div></div>
@@ -1739,8 +1786,9 @@ class KisSegitoPanel extends HTMLElement {
           <label class="field"><span>${this._e(this._t("settings.interest_day"))}</span><select data-setting="piggy_interest_weekday" ${dis}>${weekdays}</select></label>
           <label class="field"><span>${this._e(this._t("settings.interest_time"))}</span><input type="time" data-setting="piggy_interest_time" value="${this._e(s.piggy_interest_time)}" ${dis}></label>
           <label class="field"><span>${this._e(this._t("settings.interest_min"))}</span>${num("piggy_interest_min", 0, 1000)}</label>
-          <label class="field"><span>${this._e(this._t("settings.interest_max"))}</span>${num("piggy_interest_max", 0, 1000)}</label></div></div>
-        ${this._isAdmin ? `<div class="card"><h3>${this._e(this._t("settings.data"))}</h3><div class="hint">${this._e(this._t("settings.export_hint"))}</div><div><button class="btn" data-act="export">⇩ ${this._e(this._t("settings.export"))}</button></div></div>` : ""}
+          <label class="field"><span>${this._e(this._t("settings.interest_max"))}</span>${num("piggy_interest_max", 0, 1000)}</label></div></div>` : ""}
+${tab === "data" ? `
+        ${this._isAdmin ? `<div class="card"><h3>${this._e(this._t("settings.data"))}</h3><div class="hint">${this._e(this._t("settings.export_hint"))}</div><div><button class="btn" data-act="export">⇩ ${this._e(this._t("settings.export"))}</button></div></div>` : ""}` : ""}
       </div>
       ${Object.entries(INPUT_KINDS).map(([k, match]) => `<datalist id="ks-inputs-${k}">${Object.entries(this._hass?.states || {}).filter(([id, st]) => match(id, st)).map(([id, st]) => `<option value="${this._e(id)}">${this._e(st.attributes.friendly_name || id)}</option>`).join("")}</datalist>`).join("")}
       <p class="muted small">${this._e(this._t("panel.version"))}: <span class="num">${this._e(this._version)}</span></p>`;
@@ -2836,6 +2884,14 @@ class KisSegitoPanel extends HTMLElement {
           this._edit.item.avatar_image = ""; // the chosen avatar replaces the photo
         }
         this._picker = null;
+        break;
+      case "settings-tab":
+        this._settingsTab = arg;
+        try {
+          localStorage.setItem(SETTINGS_TAB_KEY, arg);
+        } catch (_err) {
+          // private mode: the tab is only remembered until the page closes
+        }
         break;
       case "pick-avatar": {
         const [name, theme] = arg.split("|");
@@ -4110,8 +4166,13 @@ const STYLE = `
   .dialog { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(440px, calc(100% - 32px)); background: var(--surface); border-radius: var(--r-lg); z-index: 61; padding: 22px; box-shadow: var(--shadow-lg); animation: pop .25s var(--ease); display: flex; flex-direction: column; gap: 12px; max-height: calc(100% - 40px); overflow: auto; }
   .dialog.wide { width: min(720px, calc(100% - 32px)); }
   .dialog.top { z-index: 71; }
+  .settings-tabs { margin: 4px 0 14px; flex-wrap: wrap; }
   .picker-scroll { max-height: 70vh; overflow-y: auto; display: grid; gap: 8px; }
   .picker-section { margin: 10px 0 0; font-size: 1rem; }
+  .bg { position: relative; }
+  .bg-when { position: absolute; right: 4px; bottom: 2px; font-size: .8rem; color: #fff; text-shadow: 0 1px 2px rgb(0 0 0 / .6); }
+  .bg-others summary { cursor: pointer; padding: 4px 0; }
+  .bg-theme { margin-top: 8px; display: grid; gap: 4px; }
   .icon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 8px; }
   .icon-grid button, .icon-grid .upload-tile { border: 2px solid transparent; background: var(--surface-2); border-radius: 16px; padding: 6px; cursor: pointer; display: grid; place-items: center; aspect-ratio: 1; transition: transform .15s; }
   .icon-grid button:hover { transform: scale(1.08) rotate(-4deg); border-color: var(--accent); }

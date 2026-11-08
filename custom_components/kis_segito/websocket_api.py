@@ -1241,6 +1241,10 @@ def _virtual_state(hass: HomeAssistant, device_id: str) -> dict[str, Any]:
         "own_icons": {
             i["key"]: i["image"] for i in data.manager.icon_settings["own"]
         },
+        # The knob's background as the knob shows it.
+        "background_url": data.manager.background_url(
+            data.manager.device_background(device_id)[0]
+        ),
         # Each child's picture (the avatar in the theme it was chosen from).
         "avatar_urls": {
             c["id"]: data.manager.avatar_url(c)

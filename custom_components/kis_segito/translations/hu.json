@@ -141,7 +141,7 @@
       "fields": {
         "background": {
           "name": "Háttér",
-          "description": "Beépített háttér (bg_1 … bg_6), egy feltöltött kép azonosítója, vagy üresen: nincs kép."
+          "description": "Háttér: bg_1 … bg_6 (a választott témáé; bg_1 … bg_3 nappali, bg_4 … bg_6 éjszakai), t_TÉMA__bg_1 … t_TÉMA__bg_6 (egy adott témáé, pl. t_frozen__bg_5), egy feltöltött kép azonosítója, vagy üresen: nincs kép."
         },
         "knob": {
           "name": "Gomb",
@@ -220,7 +220,7 @@
       "message": "Múltbeli nap nem módosítható."
     },
     "invalid_background": {
-      "message": "Ismeretlen háttér. Adj meg bg_1 … bg_6 értéket, egy feltöltött kép azonosítóját, vagy hagyd üresen."
+      "message": "Ismeretlen háttér. Adj meg bg_1 … bg_6 vagy t_TÉMA__bg_1 … t_TÉMA__bg_6 értéket, egy feltöltött kép azonosítóját, vagy hagyd üresen."
     },
     "unknown_device": {
       "message": "Ismeretlen gomb. Egy gomb nevét vagy eszközazonosítóját add meg a panel Beállítások → Gombok részéből."

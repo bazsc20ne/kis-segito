@@ -141,7 +141,7 @@
       "fields": {
         "background": {
           "name": "Background",
-          "description": "A built-in background (bg_1 … bg_6), the id of an uploaded picture, or empty for no picture."
+          "description": "A background: bg_1 … bg_6 (the chosen theme's; bg_1 … bg_3 day, bg_4 … bg_6 night), t_THEME__bg_1 … t_THEME__bg_6 (a given theme's, e.g. t_frozen__bg_5), the id of an uploaded picture, or empty for no picture."
         },
         "knob": {
           "name": "Knob",
@@ -220,7 +220,7 @@
       "message": "Past days cannot be changed."
     },
     "invalid_background": {
-      "message": "Unknown background. Use bg_1 … bg_6, the id of an uploaded picture, or leave it empty."
+      "message": "Unknown background. Use bg_1 … bg_6, t_THEME__bg_1 … t_THEME__bg_6, the id of an uploaded picture, or leave it empty."
     },
     "unknown_device": {
       "message": "Unknown knob. Use a knob's name or device id from the panel's Settings → Knobs."

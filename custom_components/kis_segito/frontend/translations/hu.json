@@ -498,7 +498,7 @@
   "cards.field_title": "Cím (nem kötelező)",
   "error.unavailable": "A gomb nem érhető el.",
   "theme.title": "Téma",
-  "theme.hint": "A panel, az irányítópult-kártyák és a gombok kinézete: színek, betűk, ikonok, képek, avatarok és hátterek. A fizikai gombok a váltáshoz egyszer újraindulnak, egy perc használaton kívüli idő után.",
+  "theme.hint": "A panel, az irányítópult-kártyák és a gombok kinézete: színek, betűk, ikonok, képek és hátterek (a gyerekek avatarja nem változik). A fizikai gombok a váltáshoz egyszer újraindulnak, egy perc használaton kívüli idő után.",
   "theme.changed": "Téma megváltozott",
   "theme.disclaimer": "A témák rajongói stílus-tisztelgések. A Kis Segítő nem áll kapcsolatban a The Walt Disney Company, a Disney Enterprises, Inc., a Pixar, a 20th Television, a 20th Century Studios (korábban Twentieth Century Fox) vagy más jogtulajdonos vállalattal, és azok nem támogatják vagy szponzorálják. A The Simpsons, a Frozen, a Cars, a Toy Story, a Planes és a Winnie the Pooh a jogtulajdonosaik védjegyei; a nevek csak azt a vizuális stílust jelölik, amelyből egy téma ihletet merít. A témák minden rajza eredeti: nem tartalmaznak szereplőket, logókat vagy más elemeket az eredetiekből.",
   "theme.own": "Saját",
@@ -524,5 +524,16 @@
   "theme.cards_themed": "Irányítópult-kártyák a téma kinézetével",
   "theme.cards_themed_hint": "Bekapcsolva: az irányítópultokon a Kis Segítő kártyái a téma színeit és betűit kapják. Kikapcsolva: az irányítópult saját témáját követik, mint a többi kártya. A képeik mindig a témából jönnek.",
   "children.theme": "Téma a gombon",
-  "children.theme_common": "A gomb témája"
+  "children.theme_common": "A gomb témája",
+  "background.day": "Nappali kép",
+  "background.night": "Éjszakai kép",
+  "background.theme_current": "A téma hátterei",
+  "background.theme_current_hint": "(témaváltáskor az új téma megfelelő háttere lesz)",
+  "background.other_themes": "Más témák hátterei",
+  "background.other_themes_hint": "(témaváltáskor is megmaradnak)",
+  "settings.tab_general": "Általános",
+  "settings.tab_look": "Kinézet és téma",
+  "settings.tab_knobs": "Gombok",
+  "settings.tab_rewards": "Jutalmak és persely",
+  "settings.tab_data": "Adatok"
 }

@@ -86,7 +86,8 @@ epoch seconds, colours `#RRGGBB`):
   uses the measured illuminance times this factor. Each works only when the knob gets
   the matching input (see [sensors.md](sensors.md)).
 - `bg`: background of every screen: `""` (none), a built-in preset
-  (`bg_1` … `bg_6`) or an uploaded picture id. The knob
+  (`bg_1` … `bg_6`), a theme's preset (`t_<theme>__bg_<n>`) or an uploaded
+  picture id. The knob
   downloads it like a picture, at the size of its screen (240, 360, 466 or
   480), as `KSI2` (RGB565 without alpha, the whole screen).
 - `bgs`: counts the background changes. When `bg` or

@@ -77,3 +77,45 @@ async def test_older_children_keep_their_look(manager: KisSegitoManager) -> None
 def test_built_in_avatar_for_the_knob() -> None:
     assert _theme_path("t_kis_segito__avatar_04", 180).name == "avatar_04.png"
     assert _theme_path("t_kis_segito__avatar_99", 180) is None
+
+
+async def test_backgrounds_of_any_theme(manager: KisSegitoManager) -> None:
+    """A theme's own background follows the theme; another theme's stays
+    (#58)."""
+    manager.settings["theme"] = "frozen"
+    await manager.async_set_background("bg_4")
+    assert manager.snapshot("knob", "en")["bg"] == "t_frozen__bg_4"
+    manager.settings["theme"] = "cars"
+    assert manager.snapshot("knob", "en")["bg"] == "t_cars__bg_4"
+    # Another theme's background stays when the theme changes.
+    await manager.async_set_background("t_pooh__bg_2")
+    manager.settings["theme"] = "simpsons"
+    assert manager.snapshot("knob", "en")["bg"] == "t_pooh__bg_2"
+    assert manager.background_url("t_pooh__bg_2").startswith(
+        "/kis_segito_static/themes/pooh/backgrounds/bg_2.jpg"
+    )
+    # The built-in look's background, and a theme that is gone.
+    await manager.async_set_background("t_kis_segito__bg_6", device_id="knob")
+    assert manager.snapshot("knob", "en")["bg"] == "bg_6"
+    assert manager.background_url("t_kis_segito__bg_6") == "/kis_segito_static/backgrounds/bg_6.jpg"
+    await manager.async_set_background("t_gone__bg_1", device_id="knob")
+    assert manager.snapshot("knob", "en")["bg"] == "t_simpsons__bg_1"
+
+
+async def test_built_in_background_order(manager: KisSegitoManager) -> None:
+    """The built-in backgrounds were reordered: a knob with the built-in look
+    keeps its picture; a theme's own order is unchanged."""
+    manager.settings.pop("background_order", None)
+    manager.settings["background"] = "bg_1"
+    manager.data["devices"]["knob"] = {"background": "bg_5"}
+    await manager.async_fix_background_order()
+    assert manager.settings["background"] == "bg_4"
+    assert manager.data["devices"]["knob"]["background"] == "bg_3"
+    await manager.async_fix_background_order()  # only once
+    assert manager.settings["background"] == "bg_4"
+
+    manager.settings.pop("background_order", None)
+    manager.settings["theme"] = "frozen"
+    manager.settings["background"] = "bg_1"
+    await manager.async_fix_background_order()
+    assert manager.settings["background"] == "bg_1"

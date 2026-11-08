@@ -236,6 +236,7 @@ class KisSegitoKnobCard extends HTMLElement {
     this._childThemes = msg.child_themes || {};
     this._ownIcons = msg.own_icons || {};
     this._avatarUrls = msg.avatar_urls || {};
+    this._bgUrl = msg.background_url || "";
     this._receivedAt = Date.now();
     if (first) {
       this._loadFonts();
@@ -506,6 +507,9 @@ class KisSegitoKnobCard extends HTMLElement {
     const bg = this._state?.bg || "";
     if (!bg) {
       return "";
+    }
+    if (this._bgUrl) {
+      return this._bgUrl; // worked out by Home Assistant (any theme's picture)
     }
     // A theme's preset: "t_<theme>__bg_<n>".
     const themed = /^t_([a-z0-9_]+?)__(bg_[1-6])$/.exec(bg);

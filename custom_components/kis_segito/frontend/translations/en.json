@@ -498,7 +498,7 @@
   "cards.field_title": "Title (optional)",
   "error.unavailable": "The knob is not available.",
   "theme.title": "Theme",
-  "theme.hint": "The look of the panel, the dashboard cards and the knobs: colours, fonts, icons, pictures, avatars and backgrounds. The physical knobs restart once, after a minute without use, to switch.",
+  "theme.hint": "The look of the panel, the dashboard cards and the knobs: colours, fonts, icons, pictures and backgrounds (the children's avatars stay as they are). The physical knobs restart once, after a minute without use, to switch.",
   "theme.changed": "Theme changed",
   "theme.disclaimer": "The themes are fan-made style homages. Kis Segítő is not affiliated with, endorsed by or sponsored by The Walt Disney Company, Disney Enterprises, Inc., Pixar, 20th Television, 20th Century Studios (formerly Twentieth Century Fox) or any other rights holder. The Simpsons, Frozen, Cars, Toy Story, Planes and Winnie the Pooh are trademarks of their respective owners; the names only describe the visual style a theme is inspired by. All artwork in the themes is original: no characters, logos or other elements of the originals are included.",
   "theme.own": "Own",
@@ -524,5 +524,16 @@
   "theme.cards_themed": "Dashboard cards in the theme's look",
   "theme.cards_themed_hint": "On: the Kis Segítő cards on the dashboards take the theme's colours and fonts. Off: they follow the dashboard's own theme, like the other cards. Their pictures always come from the theme.",
   "children.theme": "Theme on the knob",
-  "children.theme_common": "The knob's theme"
+  "children.theme_common": "The knob's theme",
+  "background.day": "Day scene",
+  "background.night": "Night scene",
+  "background.theme_current": "The theme's backgrounds",
+  "background.theme_current_hint": "(on a theme change the new theme's matching background follows)",
+  "background.other_themes": "Other themes' backgrounds",
+  "background.other_themes_hint": "(they stay when the theme changes)",
+  "settings.tab_general": "General",
+  "settings.tab_look": "Look & theme",
+  "settings.tab_knobs": "Knobs",
+  "settings.tab_rewards": "Rewards & piggy bank",
+  "settings.tab_data": "Data"
 }

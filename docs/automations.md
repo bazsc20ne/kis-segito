@@ -68,16 +68,24 @@ actions:
 ### Background / Háttér
 
 `kis_segito.set_background` chooses the background of one knob or of every
-knob, like the **Settings** page: `bg_1` … `bg_6`, the id of an uploaded
-picture (shown in the address of the picture), or empty for no picture. `knob`
+knob, like the **Settings** page: `bg_1` … `bg_6` (the chosen theme's
+backgrounds: `bg_1` … `bg_3` by day, `bg_4` … `bg_6` by night; they follow
+the theme), `t_<theme>__bg_1` … `t_<theme>__bg_6` (a given theme's
+background, for example `t_frozen__bg_5`; it stays when the theme changes,
+`t_kis_segito__…` for the built-in look), the id of an uploaded picture
+(shown in the address of the picture), or empty for no picture. `knob`
 (optional): the knob's name or device id as on **Settings → Knobs**; without
 it every knob changes. After a change a physical knob restarts once, after 1
 minute without use, to show the new picture; a virtual knob shows it at once.
 With it you can, for example, switch to a night background at sunset:
 
 A `kis_segito.set_background` egy gomb vagy minden gomb hátterét választja
-ki, mint a **Beállítások** oldal: `bg_1` … `bg_6`, egy feltöltött kép
-azonosítója, vagy üresen: nincs kép. `knob` (nem kötelező): a gomb neve vagy
+ki, mint a **Beállítások** oldal: `bg_1` … `bg_6` (a választott téma
+hátterei: a `bg_1` … `bg_3` nappali, a `bg_4` … `bg_6` éjszakai; a témával
+együtt változnak), `t_<téma>__bg_1` … `t_<téma>__bg_6` (egy adott téma
+háttere, például `t_frozen__bg_5`; témaváltáskor is megmarad, a beépített
+kinézeté `t_kis_segito__…`), egy feltöltött kép azonosítója, vagy üresen:
+nincs kép. `knob` (nem kötelező): a gomb neve vagy
 eszközazonosítója, ahogy a **Beállítások → Gombok** részen látszik; nélküle
 minden gomb vált. Csere után a fizikai gomb 1 perc használaton kívüli idő után
 egyszer újraindul, hogy az új képet mutassa; a virtuális gomb azonnal
@@ -94,7 +102,7 @@ triggers:
 actions:
   - action: kis_segito.set_background
     data:
-      background: "{{ 'bg_1' if trigger.id == 'night' else 'bg_2' }}"
+      background: "{{ 'bg_4' if trigger.id == 'night' else 'bg_1' }}"
 ```
 
 ## Knob screen / A gomb képernyője

@@ -70,8 +70,11 @@ SENSOR_KEYS = {
 # Sensor inputs a knob can take from Home Assistant entities.
 INPUT_KINDS = ("presence", "distance", "illuminance")
 BACKGROUND_PRESETS = tuple(f"bg_{n}" for n in range(1, 7))
-# The background: "" (none), a preset or an uploaded picture.
-BACKGROUND_VALUE = r"^(|bg_[1-6]|[a-z0-9]{1,64})$"
+# The background: "" (none), a preset of the chosen theme ("bg_<n>": it follows
+# the theme), a preset of a given theme ("t_<theme>__bg_<n>": it stays when the
+# theme changes) or an uploaded picture.
+BACKGROUND_VALUE = r"^(|bg_[1-6]|t_[a-z0-9_]{1,32}__bg_[1-6]|[a-z0-9]{1,64})$"
+THEMED_BACKGROUND = re.compile(r"^t_([a-z0-9_]+?)__(bg_[1-6])$")
 
 
 class KisSegitoError(Exception):
@@ -601,6 +604,22 @@ class KisSegitoManager:
         if changed:
             await self.store.async_save()
 
+    async def async_fix_background_order(self) -> None:
+        """The built-in backgrounds were reordered (bg_1 … bg_3 day, bg_4 …
+        bg_6 night, as in every theme): a knob with the built-in look keeps
+        showing the picture it showed."""
+        if int(self.settings.get("background_order", 1)) >= 2:
+            return
+        moved = {"bg_1": "bg_4", "bg_3": "bg_1", "bg_4": "bg_5", "bg_5": "bg_3"}
+        if self.theme["id"] == DEFAULT_THEME:
+            if self.settings.get("background") in moved:
+                self.settings["background"] = moved[self.settings["background"]]
+            for device in self.data["devices"].values():
+                if device.get("background") in moved:
+                    device["background"] = moved[device["background"]]
+        self.settings["background_order"] = 2
+        await self.store.async_save()
+
     def child_avatar(self, child: dict[str, Any]) -> tuple[str, str]:
         """(theme id, avatar) of a child's avatar picture; the built-in one when
         its theme is gone or lacks it."""
@@ -643,8 +662,16 @@ class KisSegitoManager:
         return theme_id if theme_of(theme_id)["id"] == theme_id else ""
 
     def _themed_background(self, background: str) -> str:
-        """A background preset in the chosen theme's style; uploaded pictures
-        and the default theme stay as they are."""
+        """The picture a knob shows: a preset of the chosen theme in its style,
+        a given theme's preset (the chosen theme's one when that theme is
+        gone), or an uploaded picture."""
+        if match := THEMED_BACKGROUND.match(background):
+            theme_id, preset = match.groups()
+            if theme_id == DEFAULT_THEME:
+                return preset  # the built-in picture
+            if has_file(theme_id, f"backgrounds/{preset}.jpg"):
+                return background
+            background = preset
         theme_id = self.theme["id"]
         if (
             theme_id == DEFAULT_THEME
@@ -653,6 +680,24 @@ class KisSegitoManager:
         ):
             return background
         return f"t_{theme_id}__{background}"
+
+    def background_url(self, background: str) -> str:
+        """The address of a knob background (as the knob shows it) for the
+        browser."""
+        shown = self._themed_background(background)
+        if not shown:
+            return ""
+        if match := THEMED_BACKGROUND.match(shown):
+            assets = theme_assets(theme_of(match.group(1)))
+            if assets:
+                return (
+                    f"{assets['base']}/backgrounds/{match.group(2)}.jpg"
+                    f"?r={assets.get('rev', 0)}"
+                )
+            shown = match.group(2)
+        if shown.startswith("bg_"):
+            return f"{STATIC_URL}/backgrounds/{shown}.jpg"
+        return f"/api/image/serve/{shown}/512x512"
 
     def device_background(self, device_id: str) -> tuple[str, int]:
         """A knob's background and its change counter (see "bgs")."""
