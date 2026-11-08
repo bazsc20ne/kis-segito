@@ -542,5 +542,19 @@
   "approvals.checkpoint": "ellenőrzőpont",
   "approvals.checkpoint_switch": "Jóváhagyás kell",
   "approvals.waiting": "jóváhagyásra vár",
-  "cards.kind_checkpoint": "ellenőrzőpont"
+  "cards.kind_checkpoint": "ellenőrzőpont",
+  "history.event_remove": "Mégsem csinálta meg",
+  "history.event_remove_confirm_task": "„{name}” újra nincs kész: kikerül a mai haladásból, a gombról és a sorozatból. A bejegyzés naplózva marad.",
+  "history.event_remove_confirm_checkpoint": "„{name}” újra nincs teljesítve: kikerül a mai haladásból, a gombról és a sorozatból, és ha zsetont hozott, az visszavonásra kerül. A bejegyzés naplózva marad.",
+  "history.event_credit": "Zseton jóváírása",
+  "history.event_credit_amount": "Zseton",
+  "history.event_removed": "visszavonva",
+  "history.event_credited": "zseton jóváírva",
+  "reason.task_removed": "Feladat visszavonva",
+  "reason.checkpoint_removed": "Ellenőrzőpont visszavonva",
+  "settings.import": "Importálás",
+  "settings.import_hint": "Egy korábban exportált fájlt tölt vissza, például új Home Assistantre költözéskor vagy egy tévedés után. Az importálás a mostani gyerekeket, rutinokat, jutalmakat, beállításokat és a teljes zseton-előzményt lecseréli a fájl tartalmára. A gombok saját kulcsai és beállításai megmaradnak.",
+  "settings.import_confirm": "A(z) „{file}” fájl lecseréli az összes mostani adatot: gyerekeket, rutinokat, jutalmakat, beállításokat és a teljes zseton-előzményt. Ez nem vonható vissza, ezért előtte érdemes egy exportot készíteni. Folytatod?",
+  "settings.import_invalid": "Ez a fájl nem Kis Segítő-export, vagy sérült. Semmi nem változott.",
+  "settings.imported": "Importálva"
 }

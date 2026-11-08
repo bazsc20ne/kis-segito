@@ -105,6 +105,9 @@ def async_register_commands(hass: HomeAssistant) -> None:
         ws_restart_device,
         ws_rename_device,
         ws_events,
+        ws_import,
+        ws_event_remove,
+        ws_event_credit,
     ):
         websocket_api.async_register_command(hass, command)
 
@@ -1004,14 +1007,69 @@ def ws_export(
 ) -> None:
     """Everything as one JSON document (configuration and token history)."""
     data = hass.data[DOMAIN]
-    connection.send_result(
+    connection.send_result(msg["id"], data.manager.export(data.version))
+
+
+@websocket_api.websocket_command(
+    {vol.Required("type"): f"{DOMAIN}/import", vol.Required("document"): dict}
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_import(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Replace all data with an exported document."""
+    user = connection.user.name if connection.user else "parent"
+    await _run(
+        connection,
         msg["id"],
-        {
-            "kis_segito_export": 1,
-            "version": data.version,
-            "config": data.store.data,
-            "ledger": data.store.ledger["transactions"],
-        },
+        _manager(hass).async_import(msg["document"], who=user or "parent"),
+    )
+
+
+@websocket_api.websocket_command(
+    {vol.Required("type"): f"{DOMAIN}/event/remove", vol.Required("event_id"): str}
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_event_remove(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """A task or checkpoint the child did not do after all: back to not done."""
+    user = connection.user.name if connection.user else "parent"
+    await _run(
+        connection,
+        msg["id"],
+        _manager(hass).async_remove_event(msg["event_id"], who=user or "parent"),
+    )
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/event/credit",
+        vol.Required("event_id"): str,
+        vol.Required("amount"): vol.All(int, vol.Range(min=1, max=100000)),
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_event_credit(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Credit the tokens a task or checkpoint would have brought in time."""
+    user = connection.user.name if connection.user else "parent"
+    await _run(
+        connection,
+        msg["id"],
+        _manager(hass).async_credit_event(
+            msg["event_id"], msg["amount"], who=user or "parent"
+        ),
     )
 
 

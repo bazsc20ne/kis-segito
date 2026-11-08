@@ -181,6 +181,16 @@ class KisSegitoStore:
         """Write the configuration document."""
         await self._store.async_save(self.data)
 
+    def replace_all(self, config: dict[str, Any], ledger: dict[str, Any]) -> None:
+        """Replace both documents (an import); call the saves afterwards."""
+        self.data = _migrate_config(config)
+        self.ledger = {
+            "transactions": list(ledger.get("transactions", [])),
+            "actions": dict(ledger.get("actions", {})),
+            "events": list(ledger.get("events", [])),
+            "approvals": list(ledger.get("approvals", [])),
+        }
+
     async def async_save_ledger(self) -> None:
         """Write the ledger document (right away: token history matters)."""
         await self._ledger_store.async_save(self.ledger)

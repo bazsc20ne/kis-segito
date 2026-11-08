@@ -1500,6 +1500,170 @@ class KisSegitoManager:
         if found:
             await self.store.async_save_ledger()
 
+    def export(self, version: str) -> dict[str, Any]:
+        """Everything as one document: the configuration and the token
+        history with its events and approvals."""
+        return {
+            "kis_segito_export": 2,
+            "version": version,
+            "config": self.store.data,
+            "ledger": self.transactions,
+            "events": self.events,
+            "approvals": self.approvals,
+        }
+
+    async def async_import(self, document: dict[str, Any], *, who: str = "parent") -> None:
+        """Replace all data with an exported document (a move to another Home
+        Assistant, or a restore). Checked before anything is replaced."""
+        if not isinstance(document, dict) or document.get("kis_segito_export") not in (1, 2):
+            raise KisSegitoError("invalid_import")
+        config = document.get("config")
+        transactions = document.get("ledger")
+        if not isinstance(config, dict) or not isinstance(transactions, list):
+            raise KisSegitoError("invalid_import")
+        for tx in transactions:
+            if not (
+                isinstance(tx, dict)
+                and isinstance(tx.get("id"), str)
+                and isinstance(tx.get("child_id"), str)
+                and isinstance(tx.get("lines"), list)
+                and all(
+                    isinstance(line, dict)
+                    and line.get("account") in (lg.WALLET, lg.PIGGY)
+                    and isinstance(line.get("amount"), int)
+                    for line in tx["lines"]
+                )
+            ):
+                raise KisSegitoError("invalid_import")
+        events = document.get("events", [])
+        approvals = document.get("approvals", [])
+        if not isinstance(events, list) or not isinstance(approvals, list):
+            raise KisSegitoError("invalid_import")
+        # This Home Assistant's knobs keep their own keys and options.
+        devices = self.data.get("devices", {})
+        self.store.replace_all(
+            config,
+            {
+                "transactions": transactions,
+                "actions": {},
+                "events": [e for e in events if isinstance(e, dict)],
+                "approvals": [a for a in approvals if isinstance(a, dict)],
+            },
+        )
+        for device_id, device in devices.items():
+            self.store.data["devices"].setdefault(device_id, device)
+        self._audit(who, "import", None, document.get("version", ""))
+        await self.async_fix_avatar_themes()
+        await self.async_fix_task_approvals()
+        await self._changed(ledger=True)
+
+    def _event(self, event_id: str) -> dict[str, Any]:
+        event = next((e for e in self.events if e.get("id") == event_id), None)
+        if event is None or event.get("type") not in ("task_done", "checkpoint_done"):
+            raise KisSegitoError("unknown_event")
+        if event.get("removed") or event.get("credit_tx"):
+            raise KisSegitoError("already_corrected")
+        return event
+
+    async def async_remove_event(self, event_id: str, *, who: str = "parent") -> None:
+        """The child did not do it after all: the task or the checkpoint goes
+        back to not done (today's progress, the knob and the streak follow).
+        Tokens it paid are reversed."""
+        event = self._event(event_id)
+        day = date.fromisoformat(event.get("day") or event["timestamp"][:10])
+        progress = self._progress(day, event["routine_id"], event["child_id"])
+        if event["type"] == "task_done":
+            progress["tasks"].pop(event["task_id"], None)
+        else:
+            record = progress["checkpoints"].get(event["checkpoint_id"])
+            if record and record.get("approval"):
+                approval = self.approval(record["approval"])
+                if approval and approval["status"] == "pending":
+                    raise KisSegitoError("waiting_for_approval")
+            if record and record.get("tx"):
+                original = self.transaction(record["tx"])
+                if original is not None and not original.get("reversed_by"):
+                    back = lg.reversal_of(
+                        original,
+                        self.corrections_of(original["id"]),
+                        timestamp=_iso(dt_util.now()),
+                        source="panel",
+                        creator=who,
+                    )
+                    original["reversed_by"] = back["id"]
+                    self._append(back)
+            progress["checkpoints"].pop(event["checkpoint_id"], None)
+        event["removed"] = {"at": _iso(dt_util.now()), "by": who}
+        self._log_event(
+            {
+                key: event[key]
+                for key in (
+                    "day", "child_id", "routine_id", "routine_name", "task_id",
+                    "task_name", "checkpoint_id", "checkpoint_name", "icon",
+                )
+                if key in event
+            }
+            | {
+                "timestamp": _iso(dt_util.now()),
+                "type": "task_removed" if event["type"] == "task_done" else "checkpoint_removed",
+                "by": who,
+                "removes": event_id,
+            }
+        )
+        self._audit(who, f"event.{event_id}", event["type"], "removed")
+        await self._changed(ledger=True)
+
+    def event_credit_suggestion(self, event: dict[str, Any]) -> int:
+        """The tokens an event would have brought in time: the best reward of
+        its checkpoint (of the task's checkpoint for a task)."""
+        routine = self.routine(event["routine_id"]) or {}
+        checkpoint = None
+        if event["type"] == "checkpoint_done":
+            checkpoint = next(
+                (c for c in routine.get("checkpoints", []) if c["id"] == event["checkpoint_id"]),
+                None,
+            )
+        else:
+            task = next(
+                (t for t in routine.get("tasks", []) if t["id"] == event.get("task_id")), None
+            )
+            if task is not None:
+                checkpoint = self.task_checkpoint(routine, task)
+        bands = (checkpoint or {}).get("reward_bands", [])
+        return max((int(b.get("tokens", 0)) for b in bands), default=0)
+
+    async def async_credit_event(
+        self, event_id: str, amount: int, *, who: str = "parent"
+    ) -> dict[str, Any]:
+        """The child did it but forgot to press it in time: credit the tokens
+        it would have brought (a normal entry: it can be corrected or
+        reversed in the history)."""
+        event = self._event(event_id)
+        if amount <= 0:
+            raise KisSegitoError("invalid_amount")
+        name = event.get("checkpoint_name") or event.get("task_name") or ""
+        tx = self._append(
+            self._new_tx(
+                event["child_id"],
+                lg.REASON_MANUAL,
+                [{"account": lg.WALLET, "amount": amount}],
+                source="panel",
+                creator=who,
+                note=name,
+                refs={
+                    "event_id": event_id,
+                    "routine_id": event.get("routine_id"),
+                    "checkpoint_name": event.get("checkpoint_name", ""),
+                    "task_name": event.get("task_name", ""),
+                },
+            )
+        )
+        event["credit_tx"] = tx["id"]
+        self._audit(who, f"event.{event_id}", None, f"credit {amount}")
+        await self._changed(ledger=True)
+        self._fire("manual_adjustment", event["child_id"], transaction_id=tx["id"], amount=amount)
+        return tx
+
     def event_list(
         self,
         child_id: str | None = None,
@@ -1532,6 +1696,11 @@ class KisSegitoManager:
                 ).casefold()
                 if needle not in text:
                     continue
+            if event.get("type") in ("task_done", "checkpoint_done") and not (
+                event.get("removed") or event.get("credit_tx")
+            ):
+                # What "give tokens" offers for it.
+                event = event | {"credit_suggestion": self.event_credit_suggestion(event)}
             result.append(event)
             if len(result) >= limit:
                 break

@@ -41,7 +41,7 @@ const INPUT_KINDS = {
 };
 const REASONS = ["checkpoint_reward", "reward_redemption", "piggy_transfer", "piggy_interest", "streak_reward", "manual_adjustment", "reversal", "correction"];
 // Logged events without a token movement (history page, statistics).
-const EVENT_REASONS = ["task_done", "checkpoint_done", "checkpoint_missed", "approval_requested", "approval_approved", "approval_rejected"];
+const EVENT_REASONS = ["task_done", "checkpoint_done", "checkpoint_missed", "task_removed", "checkpoint_removed", "approval_requested", "approval_approved", "approval_rejected"];
 // Photo crop: the view (canvas px), the margin around the circle, and the
 // size of the uploaded square.
 const CROP_VIEW = 360;
@@ -1612,7 +1612,10 @@ class KisSegitoPanel extends HTMLElement {
       if (tx.event) {
         html += `<div class="tx event"><span class="amt">${this._icon(tx.icon || (tx.type === "task_done" ? "routine_generic" : "checkpoint_flag"), 26)}</span>
           <div style="min-width:0"><div class="what">${this._e(tx.type?.startsWith("approval_") ? `${this._t(`reason.${tx.type}`)}: ${tx.name || ""}` : tx.task_name || tx.checkpoint_name || this._t(`reason.${tx.type}`))}</div>
-          <div class="meta">${this._e(this._fmtTime(tx.timestamp))} · ${who} · ${this._e(this._t(`reason.${tx.type}`))} · ${this._e(tx.routine_name || "")}${tx.by && tx.type === "task_done" ? ` · ${this._e(tx.by)}` : ""}</div></div><div></div></div>`;
+          <div class="meta">${this._e(this._fmtTime(tx.timestamp))} · ${who} · ${this._e(this._t(`reason.${tx.type}`))} · ${this._e(tx.routine_name || "")}${tx.by && tx.type === "task_done" ? ` · ${this._e(tx.by)}` : ""}${tx.removed ? ` · <span class="tag">${this._e(this._t("history.event_removed"))}</span>` : ""}${tx.credit_tx ? ` · <span class="tag">${this._e(this._t("history.event_credited"))}</span>` : ""}</div>
+          ${this._isAdmin && (tx.type === "task_done" || tx.type === "checkpoint_done") && !tx.removed && !tx.credit_tx
+            ? `<div class="tx-actions"><button class="btn sm" data-act="event-credit" data-arg="${this._e(tx.id)}">${this._icon("token_coin_front", 16)} ${this._e(this._t("history.event_credit"))}</button><button class="btn sm danger" data-act="event-remove" data-arg="${this._e(tx.id)}">${this._e(this._t("history.event_remove"))}</button></div>`
+            : ""}</div><div></div></div>`;
         continue;
       }
       const amounts = tx.lines.map((l) => `<span class="amt ${l.amount < 0 ? "neg" : "pos"}">${sign(l.amount)}${l.account === "piggy" ? this._icon("fn_piggy", 18) : ""}</span>`).join("");
@@ -1835,7 +1838,7 @@ ${tab === "rewards" ? `
           <label class="field"><span>${this._e(this._t("settings.interest_min"))}</span>${num("piggy_interest_min", 0, 1000)}</label>
           <label class="field"><span>${this._e(this._t("settings.interest_max"))}</span>${num("piggy_interest_max", 0, 1000)}</label></div></div>` : ""}
 ${tab === "data" ? `
-        ${this._isAdmin ? `<div class="card"><h3>${this._e(this._t("settings.data"))}</h3><div class="hint">${this._e(this._t("settings.export_hint"))}</div><div><button class="btn" data-act="export">⇩ ${this._e(this._t("settings.export"))}</button></div></div>` : ""}` : ""}
+        ${this._isAdmin ? `<div class="card"><h3>${this._e(this._t("settings.data"))}</h3><div class="hint">${this._e(this._t("settings.export_hint"))}</div><div class="row wrap"><button class="btn" data-act="export">⇩ ${this._e(this._t("settings.export"))}</button><label class="btn">⇧ ${this._e(this._t("settings.import"))}<input type="file" accept=".json,application/json" data-import hidden></label></div><div class="hint">${this._e(this._t("settings.import_hint"))}</div></div>` : ""}` : ""}
       </div>
       ${Object.entries(INPUT_KINDS).map(([k, match]) => `<datalist id="ks-inputs-${k}">${Object.entries(this._hass?.states || {}).filter(([id, st]) => match(id, st)).map(([id, st]) => `<option value="${this._e(id)}">${this._e(st.attributes.friendly_name || id)}</option>`).join("")}</datalist>`).join("")}
       <p class="muted small">${this._e(this._t("panel.version"))}: <span class="num">${this._e(this._version)}</span></p>`;
@@ -2331,6 +2334,10 @@ ${tab === "data" ? `
         <label class="field"><span>${this._e(this._t("history.correct_prompt"))}</span><input type="number" id="dlg-amount" value="${d.amount}"></label>
         <label class="field"><span>${this._e(this._t("history.note_prompt"))}</span><input id="dlg-note"></label>
         <div class="row wrap" style="justify-content:flex-end">${cancel}<button class="btn primary" data-act="dlg-ok">${this._e(this._t("common.save"))}</button></div>`;
+    } else if (d.type === "credit") {
+      inner = `<h2>${this._e(this._t("history.event_credit"))}</h2><p class="muted" style="margin:0">${this._e(d.name)}</p>
+        <label class="field"><span>${this._e(this._t("history.event_credit_amount"))}</span><input type="number" min="1" id="dlg-amount" value="${d.amount}"></label>
+        <div class="row wrap" style="justify-content:flex-end">${cancel}<button class="btn primary" data-act="dlg-ok">${this._e(this._t("history.event_credit"))}</button></div>`;
     } else if (d.type === "reverse") {
       inner = `<h2>${this._e(this._t("history.reverse"))} · #${d.seq}</h2><p class="muted" style="margin:0">${this._e(this._t("history.confirm_reverse"))}</p>
         <div class="row wrap" style="justify-content:flex-end">${cancel}<button class="btn danger" data-act="dlg-ok">${this._e(this._t("history.reverse"))}</button></div>`;
@@ -3251,6 +3258,42 @@ ${tab === "data" ? `
         };
         break;
       }
+      case "event-remove": {
+        const ev = this._historyEvents.find((e) => e.id === arg);
+        this._dialog = {
+          type: "confirm",
+          title: this._t("history.event_remove"),
+          text: this._t(ev?.type === "checkpoint_done" ? "history.event_remove_confirm_checkpoint" : "history.event_remove_confirm_task").replace("{name}", ev?.checkpoint_name || ev?.task_name || ""),
+          ok: this._t("history.event_remove"),
+          danger: true,
+          run: async () => {
+            await this._ws({ type: "kis_segito/event/remove", event_id: arg });
+            this._toast(this._t("toast.saved"));
+            await this._load();
+            await this._loadHistory();
+          },
+        };
+        break;
+      }
+      case "event-credit": {
+        const ev = this._historyEvents.find((e) => e.id === arg);
+        this._dialog = {
+          type: "credit",
+          name: ev?.checkpoint_name || ev?.task_name || "",
+          amount: ev?.credit_suggestion || 1,
+          run: async ({ amount }) => {
+            const n = Math.trunc(Number(amount));
+            if (!n || n < 1) {
+              return;
+            }
+            await this._ws({ type: "kis_segito/event/credit", event_id: arg, amount: n });
+            this._toast(this._t("toast.saved"));
+            await this._load();
+            await this._loadHistory();
+          },
+        };
+        break;
+      }
       // ---- notifications
       case "rule-add":
         this._rules.rules.push({ name: "", service: "", events: ["reward_redeemed"], children: [], enabled: true, message_field: "", title_field: "", extra: {} });
@@ -3491,6 +3534,38 @@ ${tab === "data" ? `
     }
     if (el.dataset.cropUpload && el.files?.length) {
       this._openCrop(el.dataset.cropUpload, el.files[0]);
+      return;
+    }
+    if (el.dataset.import !== undefined && el.files?.length) {
+      const file = el.files[0];
+      el.value = "";
+      let document_;
+      try {
+        document_ = JSON.parse(await file.text());
+      } catch (_err) {
+        this._error = this._t("settings.import_invalid");
+        this._render();
+        return;
+      }
+      // It replaces everything: ask first.
+      this._dialog = {
+        type: "confirm",
+        title: this._t("settings.import"),
+        text: this._t("settings.import_confirm").replace("{file}", file.name),
+        ok: this._t("settings.import"),
+        danger: true,
+        run: async () => {
+          try {
+            await this._hass.callWS({ type: "kis_segito/import", document: document_ });
+            this._toast(this._t("settings.imported"));
+            await this._load();
+          } catch (_err) {
+            this._error = this._t("settings.import_invalid");
+            this._render();
+          }
+        },
+      };
+      this._render();
       return;
     }
     if (el.dataset.uploadTheme !== undefined && el.files?.length) {

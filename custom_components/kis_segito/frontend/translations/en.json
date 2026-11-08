@@ -542,5 +542,19 @@
   "approvals.checkpoint": "checkpoint",
   "approvals.checkpoint_switch": "Needs approval",
   "approvals.waiting": "waiting for approval",
-  "cards.kind_checkpoint": "checkpoint"
+  "cards.kind_checkpoint": "checkpoint",
+  "history.event_remove": "Did not do it",
+  "history.event_remove_confirm_task": "“{name}” goes back to not done: it leaves today's progress, the knob and the streak. The entry stays in the log.",
+  "history.event_remove_confirm_checkpoint": "“{name}” goes back to not reached: it leaves today's progress, the knob and the streak, and the tokens it brought are reversed. The entry stays in the log.",
+  "history.event_credit": "Give tokens",
+  "history.event_credit_amount": "Tokens",
+  "history.event_removed": "removed",
+  "history.event_credited": "tokens given",
+  "reason.task_removed": "Task removed",
+  "reason.checkpoint_removed": "Checkpoint removed",
+  "settings.import": "Import",
+  "settings.import_hint": "Loads a file exported earlier, for example when moving to a new Home Assistant or after a mistake. Importing replaces the current children, routines, rewards, settings and the whole token history with the file's content. The knobs' own keys and settings stay.",
+  "settings.import_confirm": "The file “{file}” replaces all current data: children, routines, rewards, settings and the whole token history. This cannot be undone, so export first if you may need the current data. Continue?",
+  "settings.import_invalid": "This file is not a Kis Segítő export, or it is damaged. Nothing was changed.",
+  "settings.imported": "Imported"
 }
