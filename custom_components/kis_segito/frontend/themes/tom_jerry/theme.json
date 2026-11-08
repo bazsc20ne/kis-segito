@@ -1,0 +1,56 @@
+{
+  "name": {
+    "en": "Tom and Jerry style",
+    "hu": "Tom és Jerry stílus"
+  },
+  "order": 7,
+  "panel": {
+    "light": {
+      "--bg": "#FFF7E8",
+      "--surface": "#FFFFFF",
+      "--surface-2": "#FBEBD0",
+      "--surface-3": "#F4DCB2",
+      "--ink": "#2B2118",
+      "--muted": "#76624C",
+      "--faint": "#AE9A80",
+      "--line": "#EED9B6",
+      "--accent": "#3C6DB0",
+      "--accent-ink": "#FFFFFF",
+      "--accent-soft": "#DDE8F7",
+      "--sun": "#E8A010",
+      "--sun-soft": "#FFF0C8",
+      "--shadow": "0 1px 2px rgb(43 33 24 / .06), 0 8px 24px rgb(60 109 176 / .12)",
+      "--shadow-lg": "0 20px 60px rgb(43 33 24 / .25)",
+      "--hero-veil": "linear-gradient(180deg, rgb(255 247 232 / 0) 0%, rgb(255 247 232 / .6) 60%, var(--bg) 100%)",
+      "--r-lg": "24px"
+    },
+    "dark": {
+      "--bg": "#111A2E",
+      "--surface": "#19243D",
+      "--surface-2": "#212E4C",
+      "--surface-3": "#2A395B",
+      "--ink": "#FFF5E4",
+      "--muted": "#C2B9A8",
+      "--faint": "#857E70",
+      "--line": "#30406A",
+      "--accent": "#7FB0F2",
+      "--accent-ink": "#111A2E",
+      "--accent-soft": "#24406A",
+      "--sun": "#FFC23D",
+      "--sun-soft": "#3A3220",
+      "--hero-veil": "linear-gradient(180deg, rgb(17 26 46 / .1) 0%, rgb(17 26 46 / .6) 60%, var(--bg) 100%)",
+      "--r-lg": "24px"
+    }
+  },
+  "fonts": {
+    "display": "shrikhand.woff2"
+  },
+  "knob": {
+    "bg": "#3C6DB0",
+    "track": "#9CBDE8",
+    "pill": "#2B2118",
+    "number": "#FFD23A",
+    "deposit": "#6CC96B",
+    "withdraw": "#F28A3A"
+  }
+}

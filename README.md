@@ -143,7 +143,7 @@ kikapcsolhatók.
 hátterek) a panelen és a gombokon; a kártyák kapcsolóval vehetik át. A gyerek avatarja
 bármelyik téma avatarjai közül választható, és témaváltáskor sem változik. Beépített
 stílustémák: „A Simpson család stílus”, „Jégvarázs stílus”, „Verdák stílus”, „Toy Story stílus”,
-„Repcsik stílus” és „Micimackó stílus” (rajongói stílus-tisztelgések,
+„Repcsik stílus”, „Micimackó stílus” és „Tom és Jerry stílus” (rajongói stílus-tisztelgések,
 eredeti rajzokkal, lásd a jogi nyilatkozatot lent). Gyerekenként külön téma is választható a
 gombra. Saját téma is készíthető: a sablont letöltve elég néhány képet lecserélni és
 visszatölteni, a többi a beépített marad. Útmutató: [docs/themes.md](docs/themes.md).
@@ -374,7 +374,7 @@ backgrounds) of the panel and the knobs; the cards can take it with a switch. A 
 avatar can be chosen from the avatars of any theme, and it stays the same when the theme
 changes. Bundled style
 themes: "The Simpsons style", "Frozen style", "Cars style", "Toy Story style",
-"Planes style" and "Winnie the Pooh style" (fan-made style homages with original artwork,
+"Planes style", "Winnie the Pooh style" and "Tom and Jerry style" (fan-made style homages with original artwork,
 see the disclaimer below). Each child can have its own theme on the knob. You can make your own
 theme: download the template, replace a few pictures and upload it; the rest stays built-in.
 Guide: [docs/themes.md](docs/themes.md).
@@ -468,15 +468,17 @@ Third-party material keeps its own license (e.g. VIEWESMART – MIT, see
 
 **Jogi nyilatkozat:** a Kis Segítő nem áll kapcsolatban a The Walt Disney Company, a Disney
 Enterprises, Inc., a Pixar, a 20th Television, a 20th Century Studios (korábban Twentieth
-Century Fox) vagy más jogtulajdonos vállalattal, és azok nem támogatják vagy szponzorálják. A
-The Simpsons, a Frozen, a Cars, a Toy Story, a Planes és a Winnie the Pooh a jogtulajdonosaik
-védjegyei. A nevek csak azt a vizuális stílust jelölik, amelyből egy téma ihletet merít. A
+Century Fox), a Warner Bros. Discovery, a Turner Entertainment Co. vagy más jogtulajdonos
+vállalattal, és azok nem támogatják vagy szponzorálják. A
+The Simpsons, a Frozen, a Cars, a Toy Story, a Planes, a Winnie the Pooh és a Tom and Jerry a
+jogtulajdonosaik védjegyei. A nevek csak azt a vizuális stílust jelölik, amelyből egy téma ihletet merít. A
 témák minden rajza eredeti: nem tartalmaznak szereplőket, logókat vagy más elemeket az
 eredetiekből.
 
 **Disclaimer:** Kis Segítő is not affiliated with, endorsed by or sponsored by The Walt Disney
 Company, Disney Enterprises, Inc., Pixar, 20th Television, 20th Century Studios (formerly
-Twentieth Century Fox) or any other rights holder. The Simpsons, Frozen, Cars, Toy Story,
-Planes and Winnie the Pooh are trademarks of their respective owners. The names are used only
+Twentieth Century Fox), Warner Bros. Discovery, Turner Entertainment Co. or any other rights
+holder. The Simpsons, Frozen, Cars, Toy Story, Planes, Winnie the Pooh and Tom and Jerry are
+trademarks of their respective owners. The names are used only
 to describe the visual style that a theme is inspired by. All artwork in the themes is
 original, and no characters, logos or other elements from the originals are included.

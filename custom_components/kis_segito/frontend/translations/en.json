@@ -500,7 +500,7 @@
   "theme.title": "Theme",
   "theme.hint": "The look of the panel, the dashboard cards and the knobs: colours, fonts, icons, pictures and backgrounds (the children's avatars stay as they are). The physical knobs restart once, after a minute without use, to switch.",
   "theme.changed": "Theme changed",
-  "theme.disclaimer": "The themes are fan-made style homages. Kis Segítő is not affiliated with, endorsed by or sponsored by The Walt Disney Company, Disney Enterprises, Inc., Pixar, 20th Television, 20th Century Studios (formerly Twentieth Century Fox) or any other rights holder. The Simpsons, Frozen, Cars, Toy Story, Planes and Winnie the Pooh are trademarks of their respective owners; the names only describe the visual style a theme is inspired by. All artwork in the themes is original: no characters, logos or other elements of the originals are included.",
+  "theme.disclaimer": "The themes are fan-made style homages. Kis Segítő is not affiliated with, endorsed by or sponsored by The Walt Disney Company, Disney Enterprises, Inc., Pixar, 20th Television, 20th Century Studios (formerly Twentieth Century Fox), Warner Bros. Discovery, Turner Entertainment Co. or any other rights holder. The Simpsons, Frozen, Cars, Toy Story, Planes, Winnie the Pooh and Tom and Jerry are trademarks of their respective owners; the names only describe the visual style a theme is inspired by. All artwork in the themes is original: no characters, logos or other elements of the originals are included.",
   "theme.own": "Own",
   "theme.builtin": "Built-in",
   "theme.pictures": "{n} of {total} pictures",
