@@ -1,0 +1,56 @@
+{
+  "name": {
+    "en": "Toy Story style",
+    "hu": "Toy Story stílus"
+  },
+  "order": 4,
+  "panel": {
+    "light": {
+      "--bg": "#FFF8EC",
+      "--surface": "#FFFFFF",
+      "--surface-2": "#FDEFD6",
+      "--surface-3": "#F7E0B8",
+      "--ink": "#1E2A44",
+      "--muted": "#5B6A86",
+      "--faint": "#9AA6BC",
+      "--line": "#F0DDBE",
+      "--accent": "#2C6BD8",
+      "--accent-ink": "#FFFFFF",
+      "--accent-soft": "#DCE8FC",
+      "--sun": "#E8A400",
+      "--sun-soft": "#FFF1C7",
+      "--shadow": "0 1px 2px rgb(30 42 68 / .06), 0 8px 24px rgb(44 107 216 / .12)",
+      "--shadow-lg": "0 20px 60px rgb(30 42 68 / .25)",
+      "--hero-veil": "linear-gradient(180deg, rgb(255 248 236 / 0) 0%, rgb(255 248 236 / .6) 60%, var(--bg) 100%)",
+      "--r-lg": "24px"
+    },
+    "dark": {
+      "--bg": "#0F1A33",
+      "--surface": "#18264A",
+      "--surface-2": "#203259",
+      "--surface-3": "#293E6B",
+      "--ink": "#FFF6E6",
+      "--muted": "#B6C2DA",
+      "--faint": "#7A88A6",
+      "--line": "#2F4275",
+      "--accent": "#6FA8FF",
+      "--accent-ink": "#0F1A33",
+      "--accent-soft": "#223D6E",
+      "--sun": "#FFC83A",
+      "--sun-soft": "#3A3320",
+      "--hero-veil": "linear-gradient(180deg, rgb(15 26 51 / .1) 0%, rgb(15 26 51 / .6) 60%, var(--bg) 100%)",
+      "--r-lg": "24px"
+    }
+  },
+  "fonts": {
+    "display": "sour-gummy.woff2"
+  },
+  "knob": {
+    "bg": "#2C6BD8",
+    "track": "#8DB4F0",
+    "pill": "#1E2A44",
+    "number": "#FFD23A",
+    "deposit": "#4CC96B",
+    "withdraw": "#FF6B5A"
+  }
+}

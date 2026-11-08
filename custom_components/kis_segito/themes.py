@@ -24,7 +24,7 @@ from functools import cache
 from pathlib import Path
 from typing import Any
 
-from .theme_build import source_names
+from .theme_build import EXTRA_AVATARS, source_names
 
 THEMES_DIR = Path(__file__).parent / "frontend" / "themes"
 ICONS_DIR = Path(__file__).parent / "frontend" / "icons"
@@ -157,6 +157,10 @@ def _describe(theme_id: str, folder: Path, base: str, own: bool) -> dict[str, An
         "complete": len(present) == len(required),
         "count": own_pictures,
         "total": len(names),
+        # 24 when the theme has the second set of avatars, else 12.
+        "avatars": 24
+        if all((folder / "icons" / f"{n}.png").is_file() for n in EXTRA_AVATARS)
+        else 12,
     }
     if not data["complete"]:
         # What the theme has; everything else is the built-in picture.

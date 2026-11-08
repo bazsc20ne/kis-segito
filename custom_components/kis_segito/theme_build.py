@@ -9,7 +9,8 @@ rendered at every size the panel, the cards and the knob show it:
 - icons/<name>.png (96 px) and icons/small/<name>.png (88 px, from
   <name>_small when there is one), icons/brand_logo*.webp (160 px high);
 - knob/<icon>_<size>.png (themes/knob_pictures.json);
-- backgrounds/bg_<n>.jpg (1024 px).
+- backgrounds/bg_<n>.jpg (1024 px);
+- a second set of avatars (avatar_13 … avatar_24) when the theme has one.
 
 Resizing is done in linear light with premultiplied alpha (no dark fringes)
 and a Lanczos filter, with light sharpening on small sizes.
@@ -32,6 +33,9 @@ LOGOS = ("brand_logo", "brand_logo_en")
 LOGO_HEIGHT = 160
 BACKGROUND_SIZE = 1024
 BACKGROUNDS = tuple(f"bg_{n}" for n in range(1, 7))
+# A second set of avatars a theme may have (avatar_13 … avatar_24).
+EXTRA_AVATARS = tuple(f"avatar_{n:02d}" for n in range(13, 25))
+KNOB_AVATAR_SIZE = 180
 EXTENSIONS = (".png", ".jpg", ".jpeg", ".webp")
 
 
@@ -153,6 +157,13 @@ def build(sources: Mapping[str, Path], out: Path) -> list[str]:
         img = (open_(f"{name}_small") if size_px <= SMALL_MAX else None) or open_(name)
         if img is not None:
             resize(img, size_px).save(out / "knob" / item, optimize=True)
+    for name in EXTRA_AVATARS:
+        img = open_(name)
+        if img is not None:
+            resize(img, WEB_SIZE).save(out / "icons" / f"{name}.png", optimize=True)
+            resize(img, KNOB_AVATAR_SIZE).save(
+                out / "knob" / f"{name}_{KNOB_AVATAR_SIZE}.png", optimize=True
+            )
     for name in LOGOS:
         img = open_(name)
         if img is None:

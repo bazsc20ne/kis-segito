@@ -1,0 +1,56 @@
+{
+  "name": {
+    "en": "Winnie the Pooh style",
+    "hu": "Micimackó stílus"
+  },
+  "order": 6,
+  "panel": {
+    "light": {
+      "--bg": "#FFF8E7",
+      "--surface": "#FFFFFF",
+      "--surface-2": "#FBEFD2",
+      "--surface-3": "#F3E2B8",
+      "--ink": "#3A2A18",
+      "--muted": "#7A6247",
+      "--faint": "#B09A7C",
+      "--line": "#EEDDB8",
+      "--accent": "#C2452D",
+      "--accent-ink": "#FFFFFF",
+      "--accent-soft": "#F8DDD5",
+      "--sun": "#E0A11B",
+      "--sun-soft": "#FFF0C4",
+      "--shadow": "0 1px 2px rgb(58 42 24 / .06), 0 8px 24px rgb(194 69 45 / .12)",
+      "--shadow-lg": "0 20px 60px rgb(58 42 24 / .25)",
+      "--hero-veil": "linear-gradient(180deg, rgb(255 248 231 / 0) 0%, rgb(255 248 231 / .6) 60%, var(--bg) 100%)",
+      "--r-lg": "26px"
+    },
+    "dark": {
+      "--bg": "#1D1A14",
+      "--surface": "#28231A",
+      "--surface-2": "#332C20",
+      "--surface-3": "#3F3627",
+      "--ink": "#FFF4DE",
+      "--muted": "#CDBFA4",
+      "--faint": "#8F826B",
+      "--line": "#4A3F2C",
+      "--accent": "#F07A5E",
+      "--accent-ink": "#1D1A14",
+      "--accent-soft": "#4A2A22",
+      "--sun": "#F2BE45",
+      "--sun-soft": "#3B3220",
+      "--hero-veil": "linear-gradient(180deg, rgb(29 26 20 / .1) 0%, rgb(29 26 20 / .6) 60%, var(--bg) 100%)",
+      "--r-lg": "26px"
+    }
+  },
+  "fonts": {
+    "display": "grandstander.woff2"
+  },
+  "knob": {
+    "bg": "#C2452D",
+    "track": "#E8B76A",
+    "pill": "#3A2A18",
+    "number": "#FFE7A3",
+    "deposit": "#8DBB6E",
+    "withdraw": "#F2BE45"
+  }
+}
