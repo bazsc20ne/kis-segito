@@ -911,10 +911,10 @@ class KisSegitoPanel extends HTMLElement {
     const rows = list
       .map((a) => {
         const child = this._data.children.find((c) => c.id === a.child_id);
-        const what = a.kind === "reward" ? a.reward_name : [a.routine_name, (a.task_names || []).filter(Boolean).join(", ")].filter(Boolean).join(" · ");
+        const what = a.kind === "reward" ? a.reward_name : [a.routine_name, a.kind === "checkpoint" ? a.checkpoint_name : (a.task_names || []).filter(Boolean).join(", ")].filter(Boolean).join(" · ");
         const coins = a.kind === "reward" ? `−${a.amount}` : `+${a.amount}`;
         return `<div class="row wrap approval">${child ? this._avatar(child, 34) : ""}${this._icon(a.icon || (a.kind === "reward" ? "fn_rewards" : "task_clothes"), 34)}
-          <div class="grow" style="min-width:140px"><b>${this._e(child?.name || "?")}</b> · ${this._e(this._t(a.kind === "reward" ? "approvals.reward" : "approvals.task"))}<div class="muted small">${this._e(what || "")} · ${this._e(new Date(a.requested_at).toLocaleString(this._locale))}</div></div>
+          <div class="grow" style="min-width:140px"><b>${this._e(child?.name || "?")}</b> · ${this._e(this._t(`approvals.${a.kind === "reward" ? "reward" : a.kind === "checkpoint" ? "checkpoint" : "task"}`))}<div class="muted small">${this._e(what || "")} · ${this._e(new Date(a.requested_at).toLocaleString(this._locale))}</div></div>
           <span class="tag">${this._icon("token_coin_front", 18)} ${this._e(coins)}</span>
           ${this._isAdmin ? `<button class="btn sm primary" data-act="approval" data-arg="${this._e(a.id)}:1">✓ ${this._e(this._t("approvals.approve"))}</button><button class="btn sm" data-act="approval" data-arg="${this._e(a.id)}:0">✕ ${this._e(this._t("approvals.reject"))}</button>` : ""}</div>`;
       })
@@ -993,8 +993,10 @@ class KisSegitoPanel extends HTMLElement {
               .map((cp) => {
                 const d = p0.checkpoints?.[cp.id];
                 const shown = d && upTo(d.at) ? d : null;
-                const cls = shown ? (shown.on_time ? "done" : "late") : "";
-                return `<span class="cp-chip ${cls}" data-tip="${this._e(cp.name)}">${this._icon(cp.icon || "checkpoint_flag", 18)} <span class="num">${this._e(cp.time)}</span>${shown ? ` · ${shown.tokens ? `+${shown.tokens}` : "✓"}` : ""}</span>`;
+                const cls = shown ? (shown.approval ? "waiting" : shown.on_time ? "done" : "late") : "";
+                // Waiting for a parent: not earned yet.
+                const mark = !shown ? "" : shown.approval ? ` · ${this._icon("status_lock", 14)} ${this._e(this._t("approvals.waiting"))}` : ` · ${shown.tokens ? `+${shown.tokens}` : "✓"}`;
+                return `<span class="cp-chip ${cls}" data-tip="${this._e(cp.name)}">${this._icon(cp.icon || "checkpoint_flag", 18)} <span class="num">${this._e(cp.time)}</span>${mark}</span>`;
               })
               .join("");
             return `<div class="rp">${this._icon(r.icon, 34)}<div><b>${this._e(r.name || this._t("routines.unnamed"))}</b> <span class="muted num small">${this._e(r.start)}–${this._e(r.end)}</span></div>
@@ -2189,6 +2191,7 @@ ${tab === "data" ? `
           <button class="iconbtn" data-act="remove" data-path="checkpoints" data-arg="${i}" aria-label="✕">✕</button></div>
         ${this._childChips(`checkpoints.${i}.children`)}
         <label class="switch small"><input type="checkbox" data-path="checkpoints.${i}.required_for_streak" ${cp.required_for_streak ? "checked" : ""}>${this._icon("streak_flame", 20)} ${this._e(this._t("routines.streak_required"))}</label>
+        <label class="switch small"><input type="checkbox" data-path="checkpoints.${i}.needs_approval" ${cp.needs_approval ? "checked" : ""}>${this._icon("status_lock", 20)} ${this._e(this._t("approvals.checkpoint_switch"))}</label>
         <div class="lbl">${this._e(this._t("routines.bands"))}</div>
         ${cp.reward_bands.map((b, j) => `<div class="row wrap"><input type="number" class="short" data-path="checkpoints.${i}.reward_bands.${j}.min_early_min" value="${this._e(b.min_early_min)}"><span class="muted">${this._e(this._t("routines.min_early"))} →</span>
           <input type="number" class="short" min="0" data-path="checkpoints.${i}.reward_bands.${j}.tokens" data-live value="${this._e(b.tokens)}">${this._pile(Number(b.tokens) || 0, 6)}<span class="grow"></span><button class="iconbtn" data-act="remove" data-path="checkpoints.${i}.reward_bands" data-arg="${j}" aria-label="✕">✕</button></div>`).join("")}
@@ -2199,7 +2202,6 @@ ${tab === "data" ? `
         <button class="pick" data-act="pick" data-path="tasks.${i}.icon" data-arg="task">${this._icon(x.icon, 44)}</button>
         <input class="grow" style="min-width:120px" data-path="tasks.${i}.label" value="${this._e(x.label || "")}" placeholder="${this._e(this._t("routines.label_optional"))}">
         <select style="width:auto;max-width:170px" data-path="tasks.${i}.checkpoint_id">${cpOptions(x.checkpoint_id)}</select>
-        <label class="switch small" title="${this._e(this._t("approvals.task_switch_hint"))}"><input type="checkbox" data-path="tasks.${i}.needs_approval" ${x.needs_approval ? "checked" : ""}>${this._e(this._t("approvals.task_switch"))}</label>
         <button class="iconbtn" data-act="up" data-path="tasks" data-arg="${i}" ${i === 0 ? "disabled" : ""} aria-label="▲">▲</button><button class="iconbtn" data-act="down" data-path="tasks" data-arg="${i}" ${i === r.tasks.length - 1 ? "disabled" : ""} aria-label="▼">▼</button><button class="iconbtn" data-act="remove" data-path="tasks" data-arg="${i}" aria-label="✕">✕</button></div>`).join("")}
       <button class="btn sm" data-act="add" data-path="tasks" data-arg="task" style="align-self:flex-start">＋ ${this._e(this._t("routines.add_task"))}</button>`;
     const template = `<div class="field"><span>${this._e(this._t("rtemplates.save_title"))}</span><div class="row"><input id="rtpl-name" value="${this._e(r.name || "")}" placeholder="${this._e(this._t("rtemplates.name"))}"><button class="btn" data-act="save-rtemplate">${this._e(this._t("rtemplates.save"))}</button></div>
@@ -4150,6 +4152,7 @@ const STYLE = `
   .cp-chip { display: inline-flex; align-items: center; gap: 4px; font-size: .78rem; font-weight: 700; border-radius: 999px; padding: 2px 8px 2px 3px; background: var(--surface-2); color: var(--muted); }
   .cp-chip.done { background: var(--good-soft); color: var(--good); }
   .cp-chip.late { background: var(--warn-soft); color: var(--warn); }
+  .cp-chip.waiting { background: var(--sun-soft); color: var(--sun); }
   .mod-row { display: flex; align-items: center; gap: 10px; padding: 12px 0; border-top: 1px solid var(--line); flex-wrap: wrap; }
   .mod-row.skipped { opacity: .55; }
   .mod-row.skipped .name { text-decoration: line-through; }

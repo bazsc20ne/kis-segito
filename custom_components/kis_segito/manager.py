@@ -21,7 +21,7 @@ from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.util import dt as dt_util
 
 from . import ledger as lg
-from .const import EVENT_KIS_SEGITO, STATIC_URL
+from .const import DOMAIN, EVENT_KIS_SEGITO, STATIC_URL
 from .icons import stored_icon
 from .logic import (
     applies_to,
@@ -304,6 +304,7 @@ class KisSegitoManager:
                 raise KisSegitoError("unknown_item")
         if collection == "routines":
             self._normalise_routine(item)
+            self._move_task_approvals(item)
         await self._changed()
         return item
 
@@ -315,6 +316,12 @@ class KisSegitoManager:
         self.data[collection] = [i for i in self.data[collection] if i["id"] != item_id]
         if len(self.data[collection]) == before:
             raise KisSegitoError("unknown_item")
+        if collection == "children":
+            # Its sensor goes too (sensor.py): forget that it was shared.
+            exposed = self.data.get("assist_exposed", [])
+            unique_id = f"{DOMAIN}_child_{item_id}"
+            if unique_id in exposed:
+                exposed.remove(unique_id)
         await self._changed()
 
     async def async_reorder(self, collection: str, ids: list[str]) -> None:
@@ -432,6 +439,7 @@ class KisSegitoManager:
                 if k not in ("id", "weekdays", "active", "one_day")
             }
             self._normalise_routine(routine)
+            self._move_task_approvals(routine)
         day_overrides = self.data["overrides"].setdefault(day.isoformat(), {})
         if routine_id is None:
             if routine is None:
@@ -1105,7 +1113,7 @@ class KisSegitoManager:
         return [
             a
             for a in self.approvals
-            if a["kind"] == "task"
+            if a["kind"] in ("task", "checkpoint")
             and a["day"] == day.isoformat()
             and a["routine_id"] == routine_id
             and a["child_id"] == child_id
@@ -1134,59 +1142,29 @@ class KisSegitoManager:
             | extra
         )
 
-    def _request_task(
+    def _request_checkpoint(
         self,
         child_id: str,
         routine: dict[str, Any],
-        task: dict[str, Any],
-        checkpoint: dict[str, Any] | None,
+        checkpoint: dict[str, Any],
         day: date,
+        tokens: int,
         source: str,
     ) -> None:
-        """A task that needs approval was done: add it to its request."""
-        checkpoint_id = checkpoint["id"] if checkpoint else None
-        # The tokens the checkpoint would bring if it were reached now (its
-        # reward when it was reached already).
-        amount = 0
-        if checkpoint is not None:
-            reached = self.progress(day, routine["id"], child_id)["checkpoints"].get(
-                checkpoint_id
-            )
-            if reached is not None:
-                amount = int(reached.get("tokens", 0))
-            else:
-                due = self.checkpoint_time(routine, checkpoint, day)
-                amount = reward_for(
-                    checkpoint.get("reward_bands", []),
-                    (due - dt_util.now()).total_seconds(),
-                )
-        approval = next(
-            (
-                a
-                for a in self._task_approvals(day, routine["id"], child_id, checkpoint_id)
-                if a["status"] == "pending"
-            ),
-            None,
-        )
-        if approval is not None:
-            approval["task_ids"].append(task["id"])
-            approval["task_names"].append(task.get("label", ""))
-            approval["amount"] = amount
-            return
+        """A checkpoint that needs approval was reached: ask a parent."""
         approval = {
             "id": lg.new_id(),
-            "kind": "task",
+            "kind": "checkpoint",
             "status": "pending",
             "child_id": child_id,
             "day": day.isoformat(),
             "routine_id": routine["id"],
             "routine_name": routine.get("name", ""),
-            "checkpoint_id": checkpoint_id,
-            "checkpoint_name": (checkpoint or {}).get("name", ""),
-            "task_ids": [task["id"]],
-            "task_names": [task.get("label", "")],
-            "icon": task.get("icon", ""),
-            "amount": amount,
+            "checkpoint_id": checkpoint["id"],
+            "checkpoint_name": checkpoint.get("name", ""),
+            "task_names": [],
+            "icon": checkpoint.get("icon") or "checkpoint_flag",
+            "amount": tokens,
             "requested_at": _iso(dt_util.now()),
             "requested_by": source,
         }
@@ -1197,10 +1175,37 @@ class KisSegitoManager:
             "approval_requested",
             child_id,
             approval_id=approval["id"],
-            kind="task",
+            kind="checkpoint",
             routine_id=routine["id"],
-            task_id=task["id"],
+            checkpoint_id=checkpoint["id"],
+            amount=tokens,
         )
+
+    def _move_task_approvals(self, routine: dict[str, Any]) -> bool:
+        """Approval is asked for a checkpoint, not for single tasks: a task
+        that needed it hands the setting to its checkpoint."""
+        changed = False
+        for task in routine.get("tasks", []):
+            if "needs_approval" not in task:
+                continue
+            if task.pop("needs_approval"):
+                checkpoint = self.task_checkpoint(routine, task)
+                if checkpoint is not None:
+                    checkpoint["needs_approval"] = True
+            changed = True
+        return changed
+
+    async def async_fix_task_approvals(self) -> None:
+        """Routines saved when tasks needed approval: move it to checkpoints."""
+        changed = False
+        for routine in self.data["routines"]:
+            changed |= self._move_task_approvals(routine)
+        for overrides in self.data["overrides"].values():
+            for override in overrides.values():
+                if isinstance(override, dict) and isinstance(override.get("routine"), dict):
+                    changed |= self._move_task_approvals(override["routine"])
+        if changed:
+            await self.store.async_save()
 
     async def _request_reward(
         self,
@@ -1756,8 +1761,6 @@ class KisSegitoManager:
         )
         self._fire("task_completed", child_id, routine_id=routine_id, task_id=task_id)
         checkpoint = self.task_checkpoint(routine, task)
-        if task.get("needs_approval"):
-            self._request_task(child_id, routine, task, checkpoint, day, source)
         if checkpoint is not None and applies_to(checkpoint, child_id):
             linked = [
                 t
@@ -1816,6 +1819,10 @@ class KisSegitoManager:
             "tokens": tokens,
             "on_time": now <= due,
         }
+        if checkpoint.get("needs_approval") and tokens > 0:
+            # A parent approves the checkpoint: its reward is worked out now
+            # and paid on approval.
+            self._request_checkpoint(child_id, routine, checkpoint, day, tokens, source)
         approvals = self._task_approvals(day, routine["id"], child_id, checkpoint["id"])
         pending = [a for a in approvals if a["status"] == "pending"]
         if pending:

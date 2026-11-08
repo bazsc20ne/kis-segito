@@ -119,3 +119,39 @@ async def test_built_in_background_order(manager: KisSegitoManager) -> None:
     manager.settings["background"] = "bg_1"
     await manager.async_fix_background_order()
     assert manager.settings["background"] == "bg_1"
+
+
+async def test_deleted_child_leaves_nothing_behind(hass: HomeAssistant) -> None:
+    """Deleting a child removes its sensor and its Assist sharing note (#61)."""
+    from homeassistant.helpers import device_registry as dr
+    from homeassistant.helpers import entity_registry as er
+    from homeassistant.setup import async_setup_component
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+    from custom_components.kis_segito.const import CONF_DEVICE_ID, DOMAIN
+
+    assert await async_setup_component(hass, "homeassistant", {})
+    esphome_entry = MockConfigEntry(domain="esphome", data={"host": "192.0.2.1"})
+    esphome_entry.add_to_hass(hass)
+    device = dr.async_get(hass).async_get_or_create(
+        config_entry_id=esphome_entry.entry_id,
+        connections={(dr.CONNECTION_NETWORK_MAC, "00:00:00:00:00:0a")},
+    )
+    entry = MockConfigEntry(
+        domain=DOMAIN, unique_id=device.id, data={CONF_DEVICE_ID: device.id}
+    )
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    manager = hass.data[DOMAIN].manager
+    kid = (await manager.async_save_item("children", {"name": "Kid A"}))["id"]
+    await hass.async_block_till_done()
+    registry = er.async_get(hass)
+    unique_id = f"{DOMAIN}_child_{kid}"
+    entity_id = registry.async_get_entity_id("sensor", DOMAIN, unique_id)
+    assert entity_id and unique_id in manager.store.data["assist_exposed"]
+    await manager.async_delete_item("children", kid)
+    await hass.async_block_till_done()
+    assert registry.async_get_entity_id("sensor", DOMAIN, unique_id) is None
+    assert hass.states.get(entity_id) is None
+    assert unique_id not in manager.store.data["assist_exposed"]

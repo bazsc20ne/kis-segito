@@ -418,9 +418,7 @@
   "approvals.reject": "Reject",
   "approvals.approved": "Approved",
   "approvals.rejected": "Rejected",
-  "approvals.hint": "A reward's price is set aside until you decide; rejecting returns it. A task stays done either way; its checkpoint's tokens are paid only when approved.",
-  "approvals.task_switch": "Needs approval",
-  "approvals.task_switch_hint": "The task counts as done at once; the tokens of its checkpoint are paid when a parent approves it.",
+  "approvals.hint": "A reward's price is set aside until you decide and goes back to the wallet when you reject it. A checkpoint's tokens are paid only when you approve it; when you reject it, the child gets no tokens for it, but its tasks stay done.",
   "approvals.reward_switch": "Needs confirmation",
   "approvals.reward_switch_hint": "When the child buys it, the price is set aside and a parent confirms or rejects the purchase (rejecting returns the tokens).",
   "reason.approval_requested": "Waiting for approval",
@@ -540,5 +538,9 @@
   "routines.repeat_weekly": "Repeats on weekdays",
   "routines.repeat_once": "Only once, on a date",
   "info.open": "What does this mean?",
-  "info.close": "Got it"
+  "info.close": "Got it",
+  "approvals.checkpoint": "checkpoint",
+  "approvals.checkpoint_switch": "Needs approval",
+  "approvals.waiting": "waiting for approval",
+  "cards.kind_checkpoint": "checkpoint"
 }

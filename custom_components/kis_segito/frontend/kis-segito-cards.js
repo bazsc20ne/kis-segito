@@ -561,9 +561,9 @@ class ApprovalsCard extends KsCard {
     return `<div class="list">${items
       .map((a) => {
         const c = this.child(a.child_id) || { name: "?" };
-        const what = a.kind === "reward" ? a.reward_name : `${a.routine_name}: ${(a.task_names || []).join(", ")}`;
+        const what = a.kind === "reward" ? a.reward_name : `${a.routine_name}: ${a.kind === "checkpoint" ? a.checkpoint_name : (a.task_names || []).join(", ")}`;
         const amount = a.kind === "reward" ? `\u2212${a.amount}` : a.amount ? `+${a.amount}` : "";
-        return `<div class="item">${this.avatar(c, 32)}${this.icon(a.icon, 32)}<div class="grow"><div>${esc(what)}</div><div class="muted small">${esc(c.name)} \u00b7 ${esc(this.t(a.kind === "reward" ? "cards.kind_reward" : "cards.kind_task"))}${amount ? ` \u00b7 ${esc(amount)}` : ""}</div></div>
+        return `<div class="item">${this.avatar(c, 32)}${this.icon(a.icon, 32)}<div class="grow"><div>${esc(what)}</div><div class="muted small">${esc(c.name)} \u00b7 ${esc(this.t(`cards.kind_${a.kind === "reward" ? "reward" : a.kind === "checkpoint" ? "checkpoint" : "task"}`))}${amount ? ` \u00b7 ${esc(amount)}` : ""}</div></div>
           <button class="pic" data-act="resolve" data-id="${esc(a.id)}" data-ok="1" title="${esc(this.t("cards.approve"))}">${this.icon("action_check", 36)}</button><button class="pic" data-act="resolve" data-id="${esc(a.id)}" data-ok="" title="${esc(this.t("cards.reject"))}">${this.icon("action_x", 36)}</button></div>`;
       })
       .join("")}</div>`;

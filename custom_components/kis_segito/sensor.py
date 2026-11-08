@@ -12,6 +12,7 @@ from typing import Any
 
 from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_time_interval
 
@@ -44,6 +45,16 @@ async def async_setup_entry(
     def changed() -> None:
         if added := new_children():
             async_add_entities(added)
+        # A deleted child's sensor goes with it.
+        current = {child["id"] for child in manager.children()}
+        registry = er.async_get(hass)
+        for child_id in known - current:
+            known.discard(child_id)
+            entity_id = registry.async_get_entity_id(
+                "sensor", DOMAIN, f"{DOMAIN}_child_{child_id}"
+            )
+            if entity_id:
+                registry.async_remove(entity_id)
 
     entry.async_on_unload(manager.async_add_listener(changed))
 

@@ -129,11 +129,11 @@ is; cseréjekor a fizikai gomb 1 perc használaton kívüli idő után egyszer �
 [docs/automations.md](docs/automations.md), saját gombhoz vagy kijelzőhöz:
 [docs/protocol.md](docs/protocol.md).
 
-**Jóváhagyás:** egy feladatnál bekapcsolható, hogy jóváhagyás kelljen hozzá, egy
+**Jóváhagyás:** egy ellenőrzőpontnál bekapcsolható, hogy jóváhagyás kelljen hozzá, egy
 jutalomnál, hogy megerősítés kelljen hozzá (alapból egyik sem). A jóváhagyásra váró kérések
 a **Ma** oldal tetején jelennek meg. A jutalom ára a döntésig félre van téve, elutasításkor
-visszakerül; a feladat azonnal késznek számít, a checkpointja zsetonjai jóváhagyáskor
-jönnek. Minden lépés naplózva van.
+visszakerül; az ellenőrzőpont zsetonjai jóváhagyáskor jönnek, elutasításkor elmaradnak, a
+feladatok mindkét esetben késznek maradnak. Minden lépés naplózva van.
 
 **Saját ikonok:** ahol ikont lehet választani, saját kép is feltölthető ikonnak; a
 **Beállítások → Ikonok** részen cserélhető, kikapcsolható vagy törölhető. A beépített ikonok
@@ -360,10 +360,11 @@ from automations, for one knob or all: `kis_segito.set_background`). For automat
 [docs/automations.md](docs/automations.md), for building your own knob or display
 [docs/protocol.md](docs/protocol.md).
 
-**Approval:** a task can need approval and a reward confirmation (both off by default).
-Waiting requests are shown at the top of the **Today** page. A reward's price is set aside
-until the decision and returned on rejection; a task counts as done at once, and its
-checkpoint's tokens come on approval. Every step is logged.
+**Approval:** a checkpoint can need approval and a reward confirmation (both off by
+default). Waiting requests are shown at the top of the **Today** page. A reward's price is
+set aside until the decision and returned on rejection; a checkpoint's tokens come on
+approval and are withheld on rejection, and its tasks stay done either way. Every step is
+logged.
 
 **Own icons:** wherever an icon is chosen, your own picture can be uploaded as an icon; on
 **Settings → Icons** it can be replaced, switched off or deleted. Built-in icons can be

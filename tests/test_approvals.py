@@ -116,45 +116,53 @@ async def _routine(manager: KisSegitoManager, needs_approval: bool) -> dict:
 
 
 @pytest.mark.parametrize("approve", [True, False])
-async def test_task_needs_approval(
+async def test_checkpoint_needs_approval(
     manager: KisSegitoManager, freezer: FrozenDateTimeFactory, approve: bool
 ) -> None:
+    """A checkpoint that needs approval asks once, when it is reached; its
+    reward is paid on approval and withheld on rejection."""
     freezer.move_to(dt_util.now().replace(hour=7, minute=20, second=0, microsecond=0))
     kid = (await manager.async_save_item("children", {"name": "A"}))["id"]
     routine = await _routine(manager, True)
+    cp = routine["checkpoints"][0]["id"]
+    # The task's approval setting moved to its checkpoint.
+    assert routine["checkpoints"][0]["needs_approval"]
+    assert not any("needs_approval" in t for t in routine["tasks"])
     eat, shoes = (t["id"] for t in routine["tasks"])
     await manager.async_complete_task(kid, routine["id"], shoes)
-    # Done at once (the knob shows it ticked), waiting for a parent.
-    assert shoes in manager.progress(manager.today(), routine["id"], kid)["tasks"]
-    pending = manager.pending_approvals()
-    assert [(a["kind"], a["task_names"], a["amount"]) for a in pending] == [
-        ("task", ["Shoes"], 3)
-    ]
-    # The checkpoint is reached: its reward (worked out now) waits too.
+    assert manager.pending_approvals() == []  # tasks are not approved
     await manager.async_complete_task(kid, routine["id"], eat)
+    pending = manager.pending_approvals()
+    assert [(a["kind"], a["checkpoint_name"], a["amount"]) for a in pending] == [
+        ("checkpoint", "Ready", 3)
+    ]
     assert manager.balances(kid)["wallet"] == 0
-    assert manager.pending_approvals()[0]["amount"] == 3
-    freezer.tick(3600)  # approved much later: the amount stays as it was
+    freezer.tick(3600)  # decided much later: the amount stays as it was
     await manager.async_resolve_approval(pending[0]["id"], approve, who="Parent")
     assert manager.balances(kid)["wallet"] == (3 if approve else 0)
-    # Either way the task and the checkpoint stay done.
-    done = manager.progress(manager.today(), routine["id"], kid)
-    assert shoes in done["tasks"]
-    assert routine["checkpoints"][0]["id"] in done["checkpoints"]
+    record = manager.progress(manager.today(), routine["id"], kid)["checkpoints"][cp]
+    assert {shoes, eat} <= set(manager.progress(manager.today(), routine["id"], kid)["tasks"])
+    if approve:
+        assert record["tx"] and record["tokens"] == 3
+    else:
+        assert record["withheld"] and record["tokens"] == 0
+        events = [e for e in manager.events if e["type"] == "checkpoint_done"]
+        assert [e["tokens"] for e in events] == [0]
+    # Decided once.
+    with pytest.raises(KisSegitoError):
+        await manager.async_resolve_approval(pending[0]["id"], True)
 
 
-async def test_task_approved_before_checkpoint(
+async def test_checkpoint_without_tokens_asks_nothing(
     manager: KisSegitoManager, freezer: FrozenDateTimeFactory
 ) -> None:
-    freezer.move_to(dt_util.now().replace(hour=7, minute=20, second=0, microsecond=0))
+    """Reached too late for any reward: nothing to approve."""
+    freezer.move_to(dt_util.now().replace(hour=7, minute=55, second=0, microsecond=0))
     kid = (await manager.async_save_item("children", {"name": "A"}))["id"]
     routine = await _routine(manager, True)
-    eat, shoes = (t["id"] for t in routine["tasks"])
-    await manager.async_complete_task(kid, routine["id"], shoes)
-    await manager.async_resolve_approval(manager.pending_approvals()[0]["id"], True)
-    # Approved already: the checkpoint pays as usual when it is reached.
-    await manager.async_complete_task(kid, routine["id"], eat)
-    assert manager.balances(kid)["wallet"] == 3
+    for task in routine["tasks"]:
+        await manager.async_complete_task(kid, routine["id"], task["id"])
+    assert manager.pending_approvals() == []
 
 
 async def test_task_without_approval_pays_at_once(
@@ -169,106 +177,39 @@ async def test_task_without_approval_pays_at_once(
     assert manager.pending_approvals() == []
 
 
-async def _both_need_approval(manager: KisSegitoManager) -> dict:
-    routine = await _routine(manager, True)
-    routine["tasks"][0]["needs_approval"] = True
-    return await manager.async_save_item("routines", routine)
-
-
-@pytest.mark.parametrize("approve_last", [True, False])
-async def test_checkpoint_waits_for_every_request(
-    manager: KisSegitoManager, freezer: FrozenDateTimeFactory, approve_last: bool
-) -> None:
-    """Two tasks of a checkpoint need approval, the first is approved before
-    the second is done: the checkpoint pays only when the second one is
-    approved, and nothing when it is rejected (#53)."""
-    freezer.move_to(dt_util.now().replace(hour=7, minute=20, second=0, microsecond=0))
-    kid = (await manager.async_save_item("children", {"name": "A"}))["id"]
-    routine = await _both_need_approval(manager)
-    eat, shoes = (t["id"] for t in routine["tasks"])
-    await manager.async_complete_task(kid, routine["id"], eat)
-    first = manager.pending_approvals()[0]
-    await manager.async_resolve_approval(first["id"], True)
-    assert manager.balances(kid)["wallet"] == 0
-    # The last task reaches the checkpoint: still nothing paid, and the
-    # request shows what it would bring.
-    await manager.async_complete_task(kid, routine["id"], shoes)
-    assert manager.balances(kid)["wallet"] == 0
-    second = manager.pending_approvals()[0]
-    assert second["id"] != first["id"] and second["amount"] == 3
-    await manager.async_resolve_approval(second["id"], approve_last)
-    assert manager.balances(kid)["wallet"] == (3 if approve_last else 0)
-    # Both tasks and the checkpoint stay done; paid once at most.
-    done = manager.progress(manager.today(), routine["id"], kid)
-    assert {eat, shoes} <= set(done["tasks"])
-    paid = [
-        tx for tx in manager.transactions if tx["reason"] == "checkpoint_reward"
-    ]
-    assert len(paid) == (1 if approve_last else 0)
-
-
-async def test_checkpoint_with_two_pending_requests(
+async def test_waiting_task_request_from_before(
     manager: KisSegitoManager, freezer: FrozenDateTimeFactory
 ) -> None:
-    """Both requests wait when the checkpoint is reached: it pays once, when
-    the last one is approved; a rejection of either withholds it."""
+    """A task request made before the change still settles its checkpoint."""
     freezer.move_to(dt_util.now().replace(hour=7, minute=20, second=0, microsecond=0))
     kid = (await manager.async_save_item("children", {"name": "A"}))["id"]
-    routine = await _both_need_approval(manager)
+    routine = await _routine(manager, False)
+    cp = routine["checkpoints"][0]["id"]
+    manager.approvals.append(
+        {
+            "id": "old1", "kind": "task", "status": "pending", "child_id": kid,
+            "day": manager.today().isoformat(), "routine_id": routine["id"],
+            "checkpoint_id": cp, "task_ids": [routine["tasks"][1]["id"]],
+            "task_names": ["Shoes"], "amount": 0,
+            "requested_at": dt_util.now().isoformat(),
+        }
+    )
     for task in routine["tasks"]:
         await manager.async_complete_task(kid, routine["id"], task["id"])
-    # One request for the checkpoint's tasks (they are grouped).
-    pending = manager.pending_approvals()
-    assert len(pending) == 1 and pending[0]["amount"] == 3
-    await manager.async_resolve_approval(pending[0]["id"], True)
+    assert manager.balances(kid)["wallet"] == 0
+    await manager.async_resolve_approval("old1", True)
     assert manager.balances(kid)["wallet"] == 3
-    # Already paid: nothing more happens.
-    assert len([t for t in manager.transactions if t["reason"] == "checkpoint_reward"]) == 1
 
 
-async def test_rejected_before_checkpoint(
-    manager: KisSegitoManager, freezer: FrozenDateTimeFactory
-) -> None:
-    """A rejected task: the checkpoint reached later pays nothing."""
-    freezer.move_to(dt_util.now().replace(hour=7, minute=20, second=0, microsecond=0))
-    kid = (await manager.async_save_item("children", {"name": "A"}))["id"]
-    routine = await _routine(manager, True)
-    eat, shoes = (t["id"] for t in routine["tasks"])
-    await manager.async_complete_task(kid, routine["id"], shoes)
-    await manager.async_resolve_approval(manager.pending_approvals()[0]["id"], False)
-    await manager.async_complete_task(kid, routine["id"], eat)
-    assert manager.balances(kid)["wallet"] == 0
-    cp = routine["checkpoints"][0]["id"]
-    assert manager.progress(manager.today(), routine["id"], kid)["checkpoints"][cp][
-        "withheld"
+async def test_old_task_setting_moves_on_start(manager: KisSegitoManager) -> None:
+    manager.data["routines"] = [
+        {
+            "id": "r1", "name": "Morning", "start": "07:00", "end": "08:00",
+            "checkpoints": [{"id": "c1", "name": "Ready", "time": "07:50"}],
+            "tasks": [{"id": "t1", "label": "Shoes", "needs_approval": True}],
+        }
     ]
-
-
-async def test_request_shows_tokens_before_the_checkpoint(
-    manager: KisSegitoManager, freezer: FrozenDateTimeFactory
-) -> None:
-    """A request that holds only some tasks of a checkpoint already shows
-    the tokens the checkpoint would bring (#57)."""
-    freezer.move_to(dt_util.now().replace(hour=7, minute=20, second=0, microsecond=0))
-    kid = (await manager.async_save_item("children", {"name": "A"}))["id"]
-    routine = await _routine(manager, True)
-    await manager.async_complete_task(kid, routine["id"], routine["tasks"][1]["id"])
-    assert manager.pending_approvals()[0]["amount"] == 3
-
-
-async def test_rejected_checkpoint_records_no_tokens(
-    manager: KisSegitoManager, freezer: FrozenDateTimeFactory
-) -> None:
-    """After a rejection the checkpoint is recorded with no tokens, in the
-    day progress and in the event log (#57)."""
-    freezer.move_to(dt_util.now().replace(hour=7, minute=20, second=0, microsecond=0))
-    kid = (await manager.async_save_item("children", {"name": "A"}))["id"]
-    routine = await _both_need_approval(manager)
-    for task in routine["tasks"]:
-        await manager.async_complete_task(kid, routine["id"], task["id"])
-    await manager.async_resolve_approval(manager.pending_approvals()[0]["id"], False)
-    cp = routine["checkpoints"][0]["id"]
-    record = manager.progress(manager.today(), routine["id"], kid)["checkpoints"][cp]
-    assert record["tokens"] == 0 and record["withheld"]
-    events = [e for e in manager.events if e["type"] == "checkpoint_done"]
-    assert [e["tokens"] for e in events] == [0]
+    await manager.async_fix_task_approvals()
+    routine = manager.data["routines"][0]
+    assert routine["checkpoints"][0]["needs_approval"]
+    assert "needs_approval" not in routine["tasks"][0]

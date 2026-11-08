@@ -19,7 +19,7 @@ of the event type:
 | `manual_adjustment` | `transaction_id`, `amount` |
 | `transaction_reversed` | `transaction_id`, `reverses` |
 | `transaction_revised` | `transaction_id`, `corrects`, `amount` |
-| `approval_requested` | `approval_id`, `kind` (`reward` or `task`), plus `reward_id`, `reward_name`, `amount` (rewards) or `routine_id`, `task_id` (tasks) |
+| `approval_requested` | `approval_id`, `kind` (`reward` or `checkpoint`), plus `reward_id`, `reward_name`, `amount` (rewards) or `routine_id`, `checkpoint_id`, `amount` (checkpoints) |
 | `approval_approved`, `approval_rejected` | `approval_id`, `kind`, `amount` |
 
 Example: a notification when a reward is bought.

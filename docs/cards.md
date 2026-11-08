@@ -12,7 +12,7 @@ in the user's language.
 | **Child** (`kis-segito-child-card`) | One child: wallet, piggy bank, streak and today's routines (choose which). |
 | **Today's routine** (`kis-segito-routine-card`) | One child's routines today with their tasks. Tasks can be ticked; the tick is logged with the parent's name. With *Status only* nothing can be ticked. |
 | **Reward shop** (`kis-segito-shop-card`) | With a child chosen: what the child can afford, with a Redeem button. Without a child: for each reward, which children can afford it; choose a child, then Redeem. |
-| **Approvals** (`kis-segito-approvals-card`) | Rewards and tasks waiting for approval, with approve and reject. |
+| **Approvals** (`kis-segito-approvals-card`) | Rewards and checkpoints waiting for approval, with approve and reject. |
 | **Weekly statistics** (`kis-segito-week-card`) | One child, the last 7 days: tasks done in percent per day and per routine, and the streak. |
 | **Quick +/−** (`kis-segito-tokens-card`) | Tokens for one child, with a note; logged like every token movement. |
 | **Event log** (`kis-segito-log-card`) | The last events (tasks, checkpoints, approvals, tokens); how many is set in the card. Optionally for one child. |
@@ -46,7 +46,7 @@ felhasználó nyelvén ír.
 - **Jutalombolt:** kiválasztott gyerekkel: mit tud megvenni, Beváltás gombbal. Gyerek
   nélkül: jutalmanként, mely gyerekeknek van rá elég zsetonja; előbb gyereket kell
   választani, utána Beváltás.
-- **Jóváhagyások:** a jóváhagyásra váró jutalmak és feladatok, jóváhagyás és elutasítás
+- **Jóváhagyások:** a jóváhagyásra váró jutalmak és ellenőrzőpontok, jóváhagyás és elutasítás
   gombbal.
 - **Heti statisztika:** egy gyerek utolsó 7 napja: az elvégzett feladatok aránya
   naponként és rutinonként, és a sorozat.

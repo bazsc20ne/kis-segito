@@ -418,9 +418,7 @@
   "approvals.reject": "Elutasítás",
   "approvals.approved": "Jóváhagyva",
   "approvals.rejected": "Elutasítva",
-  "approvals.hint": "A jutalom ára a döntésig félre van téve; elutasításkor visszakerül. A feladat mindkét esetben kész marad; a checkpointja zsetonjait csak jóváhagyáskor kapja meg.",
-  "approvals.task_switch": "Jóváhagyás kell",
-  "approvals.task_switch_hint": "A feladat azonnal késznek számít; a checkpointja zsetonjai akkor jönnek, amikor egy szülő jóváhagyja.",
+  "approvals.hint": "A jutalom ára a döntésig félre van téve, elutasításkor visszakerül a pénztárcába. Az ellenőrzőpont zsetonjait a gyerek csak jóváhagyás után kapja meg; elutasításkor nem kap érte zsetont, de a feladatai késznek maradnak.",
   "approvals.reward_switch": "Megerősítés kell",
   "approvals.reward_switch_hint": "Amikor a gyerek megveszi, az ára félre kerül, és egy szülő megerősíti vagy elutasítja a vásárlást (elutasításkor a zsetonok visszakerülnek).",
   "reason.approval_requested": "Jóváhagyásra vár",
@@ -540,5 +538,9 @@
   "routines.repeat_weekly": "Ismétlődik a hét napjain",
   "routines.repeat_once": "Csak egyszer, egy adott napon",
   "info.open": "Mit jelent ez?",
-  "info.close": "Értem"
+  "info.close": "Értem",
+  "approvals.checkpoint": "ellenőrzőpont",
+  "approvals.checkpoint_switch": "Jóváhagyás kell",
+  "approvals.waiting": "jóváhagyásra vár",
+  "cards.kind_checkpoint": "ellenőrzőpont"
 }
