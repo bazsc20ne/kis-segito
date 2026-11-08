@@ -576,8 +576,21 @@ class KisSegitoPanel extends HTMLElement {
     return this._data?.routines?.find((r) => r.id === id);
   }
 
+  // An avatar in the look of the theme it was chosen from (a theme change
+  // never changes it); the built-in one when that theme is gone or lacks it.
+  _avatarUrl(name, themeId) {
+    name = name || "avatar_00";
+    const path = `icons/${name}.png`;
+    const t = themeId && themeId !== "kis_segito" ? (this._data?.themes || []).find((x) => x.id === themeId) : null;
+    if (t?.base && (t.complete || (t.has || []).includes(path))) {
+      return `${t.base}/${this._e(path)}?v=${this._version}&r=${t.rev || 0}`;
+    }
+    const builtin = (this._data?.icons || []).includes(name) ? name : "avatar_00";
+    return `${this._staticUrl}/icons/${this._e(builtin)}.png?v=${this._version}`;
+  }
+
   _avatar(child, size = 48) {
-    const src = child.avatar_image ? this._photoUrl(child.avatar_image) : this._iconUrl(child.avatar || "avatar_00", size);
+    const src = child.avatar_image ? this._photoUrl(child.avatar_image) : this._avatarUrl(child.avatar, child.avatar_theme);
     return `<span class="av" style="--c:${this._e(child.color || "#6CB8FF")};width:${size}px;height:${size}px"><img src="${src}" alt=""></span>`;
   }
 
@@ -1742,6 +1755,7 @@ class KisSegitoPanel extends HTMLElement {
           name: "",
           color: PRESET_COLORS[(this._data.children.length || 0) % PRESET_COLORS.length],
           avatar: "avatar_00",
+          avatar_theme: this._look,
           birth_date: "",
           active: true,
           // Locked when a reward can unlock it, open otherwise.
@@ -1973,7 +1987,7 @@ class KisSegitoPanel extends HTMLElement {
   _avatarField(c) {
     const picture = c.avatar_image
       ? `<img class="photo" src="${this._photoUrl(c.avatar_image)}" width="132" height="132" alt="">`
-      : this._icon(c.avatar || "avatar_00", 132);
+      : `<img class="ic" src="${this._avatarUrl(c.avatar, c.avatar_theme)}" width="132" height="132" alt="">`;
     const edit = this._t("children.avatar_change");
     return `<div class="avatar-edit" style="--c:${this._e(c.color || "#6CB8FF")}">
         <button class="plain face" data-act="pick" data-path="avatar" data-arg="avatar" title="${this._e(edit)}">${picture}</button>
@@ -2157,6 +2171,9 @@ class KisSegitoPanel extends HTMLElement {
       .concat(this._data.icons.filter((n) => filter(n) && (!disabled.has(n) || n === current)))
       .map((n) => `<button class="${n === current ? "on" : ""}" title="${this._e(n.startsWith("own_") ? this._t("icons.own") : n)}" data-act="pick-icon" data-arg="${this._e(n)}">${this._icon(n, 56)}</button>`)
       .join("");
+    if (this._picker.filter === "avatar") {
+      return this._viewAvatarPicker(current);
+    }
     const upload = this._picker.filter === "avatar"
       ? `<label class="upload-tile" title="${this._e(this._t("picture.upload"))}"><span style="font-size:1.6rem">＋</span><span class="small">${this._e(this._t("picture.upload"))}</span><input type="file" accept="image/*" data-crop-upload="avatar_image" hidden></label>`
       : this._isAdmin
@@ -2165,6 +2182,33 @@ class KisSegitoPanel extends HTMLElement {
     return `<div class="backdrop over" data-act="pick-close"></div><div class="dialog wide over" role="dialog" aria-modal="true">
       <div class="row"><h2 class="grow">${this._e(this._t(this._picker.filter === "avatar" ? "children.avatar_choose" : "common.choose_icon"))}</h2><button class="iconbtn" data-act="pick-close" aria-label="✕">✕</button></div>
       <div class="icon-grid">${upload}${icons}</div></div>`;
+  }
+
+  // The avatars of every theme, by theme: the chosen one keeps its theme's
+  // look on every screen, whatever theme is chosen later.
+  _viewAvatarPicker(current) {
+    const lang = (this._language || "en").startsWith("hu") ? "hu" : "en";
+    const currentTheme = this._edit?.item?.avatar_theme || "";
+    const themes = (this._data.themes || []).filter((t) => t.active || t.id === currentTheme || t.id === "kis_segito");
+    const sections = themes
+      .map((t) => {
+        const id = t.id === "kis_segito" ? "" : t.id;
+        const count = t.avatars || 12;
+        const names = Array.from({ length: count + 1 }, (_, i) => `avatar_${String(i).padStart(2, "0")}`);
+        const tiles = names
+          .map((n) => {
+            const on = n === current && id === currentTheme && !this._edit?.item?.avatar_image;
+            return `<button class="${on ? "on" : ""}" title="${this._e(n)}" data-act="pick-avatar" data-arg="${this._e(`${n}|${id}`)}"><img src="${this._avatarUrl(n, id)}" width="56" height="56" alt=""></button>`;
+          })
+          .join("");
+        const title = this._e(t.name?.[lang] || t.name?.en || t.id);
+        return `<h3 class="picker-section">${title}</h3><div class="icon-grid">${tiles}</div>`;
+      })
+      .join("");
+    const upload = `<div class="icon-grid"><label class="upload-tile" title="${this._e(this._t("picture.upload"))}"><span style="font-size:1.6rem">＋</span><span class="small">${this._e(this._t("picture.upload"))}</span><input type="file" accept="image/*" data-crop-upload="avatar_image" hidden></label></div>`;
+    return `<div class="backdrop over" data-act="pick-close"></div><div class="dialog wide over" role="dialog" aria-modal="true">
+      <div class="row"><h2 class="grow">${this._e(this._t("children.avatar_choose"))}</h2><button class="iconbtn" data-act="pick-close" aria-label="✕">✕</button></div>
+      <div class="picker-scroll">${upload}${sections}</div></div>`;
   }
 
   _viewDialog() {
@@ -2793,6 +2837,14 @@ class KisSegitoPanel extends HTMLElement {
         }
         this._picker = null;
         break;
+      case "pick-avatar": {
+        const [name, theme] = arg.split("|");
+        this._edit.item.avatar = name;
+        this._edit.item.avatar_theme = theme || "";
+        this._edit.item.avatar_image = ""; // the chosen avatar replaces the photo
+        this._picker = null;
+        break;
+      }
       case "photo-icon":
         // Back to an icon: the picker opens right away.
         this._edit.item.image = "";
@@ -2801,7 +2853,9 @@ class KisSegitoPanel extends HTMLElement {
       case "clear-picture":
         this._edit.item[arg] = "";
         if (arg === "avatar_image") {
-          this._edit.item.avatar = "avatar_00"; // back to the default avatar
+          // Back to the placeholder avatar, in the look shown now.
+          this._edit.item.avatar = "avatar_00";
+          this._edit.item.avatar_theme = this._look;
         }
         break;
       case "add":
@@ -4056,6 +4110,8 @@ const STYLE = `
   .dialog { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(440px, calc(100% - 32px)); background: var(--surface); border-radius: var(--r-lg); z-index: 61; padding: 22px; box-shadow: var(--shadow-lg); animation: pop .25s var(--ease); display: flex; flex-direction: column; gap: 12px; max-height: calc(100% - 40px); overflow: auto; }
   .dialog.wide { width: min(720px, calc(100% - 32px)); }
   .dialog.top { z-index: 71; }
+  .picker-scroll { max-height: 70vh; overflow-y: auto; display: grid; gap: 8px; }
+  .picker-section { margin: 10px 0 0; font-size: 1rem; }
   .icon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 8px; }
   .icon-grid button, .icon-grid .upload-tile { border: 2px solid transparent; background: var(--surface-2); border-radius: 16px; padding: 6px; cursor: pointer; display: grid; place-items: center; aspect-ratio: 1; transition: transform .15s; }
   .icon-grid button:hover { transform: scale(1.08) rotate(-4deg); border-color: var(--accent); }

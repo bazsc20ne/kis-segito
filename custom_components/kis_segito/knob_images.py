@@ -48,7 +48,7 @@ from homeassistant.helpers.network import is_cloud_connection
 from homeassistant.util.network import is_local
 
 from .const import DOMAIN
-from .themes import theme_folder
+from .themes import DEFAULT_THEME, theme_folder
 
 URL = "/api/kis_segito/knob_image/{image_id}/{size}"
 TOKEN_HEADER = "X-Kis-Segito-Token"
@@ -160,6 +160,10 @@ def _theme_path(image_id: str, size: int) -> Path | None:
     if match is None:
         return None
     theme_id, name = match.groups()
+    if theme_id == DEFAULT_THEME and AVATAR_ID.match(name):
+        # A built-in avatar, whatever the knob's theme is.
+        path = AVATARS_DIR / f"{name}.png"
+        return path if size in ICON_SIZES and path.is_file() else None
     folder = theme_folder(theme_id)
     if folder is None:
         return None  # the default theme, or one that cannot be chosen

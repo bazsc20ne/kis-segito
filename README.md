@@ -140,7 +140,8 @@ jönnek. Minden lépés naplózva van.
 kikapcsolhatók.
 
 **Témák:** a **Beállítások → Téma** részen választható a kinézet (színek, betűk, ikonok,
-avatarok, hátterek) a panelen és a gombokon; a kártyák kapcsolóval vehetik át. Beépített
+hátterek) a panelen és a gombokon; a kártyák kapcsolóval vehetik át. A gyerek avatarja
+bármelyik téma avatarjai közül választható, és témaváltáskor sem változik. Beépített
 stílustémák: „A Simpson család stílus”, „Jégvarázs stílus”, „Verdák stílus”, „Toy Story stílus”,
 „Repcsik stílus” és „Micimackó stílus” (rajongói stílus-tisztelgések,
 eredeti rajzokkal, lásd a jogi nyilatkozatot lent). Gyerekenként külön téma is választható a
@@ -368,8 +369,10 @@ checkpoint's tokens come on approval. Every step is logged.
 **Settings → Icons** it can be replaced, switched off or deleted. Built-in icons can be
 switched off.
 
-**Themes:** under **Settings → Theme** you choose the look (colours, fonts, icons, avatars,
-backgrounds) of the panel and the knobs; the cards can take it with a switch. Bundled style
+**Themes:** under **Settings → Theme** you choose the look (colours, fonts, icons,
+backgrounds) of the panel and the knobs; the cards can take it with a switch. A child's
+avatar can be chosen from the avatars of any theme, and it stays the same when the theme
+changes. Bundled style
 themes: "The Simpsons style", "Frozen style", "Cars style", "Toy Story style",
 "Planes style" and "Winnie the Pooh style" (fan-made style homages with original artwork,
 see the disclaimer below). Each child can have its own theme on the knob. You can make your own

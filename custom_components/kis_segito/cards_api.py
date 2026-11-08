@@ -127,6 +127,7 @@ def ws_cards(
                 "color": child.get("color"),
                 "avatar": child.get("avatar"),
                 "avatar_image": child.get("avatar_image"),
+                "avatar_url": manager.avatar_url(child),
                 "status": child_status(manager, child_id),
                 # The child's own theme's pictures (None: the common theme; an empty
                 # base: the built-in pictures).

@@ -62,7 +62,9 @@ epoch seconds, colours `#RRGGBB`):
 ```
 
 - `children[].ai`, `rewards[].ii`: id of an uploaded picture (empty: use the
-  icon). The knob downloads it from `img.u` +
+  icon). A child's `ai` is never empty: an uploaded photo, or the avatar in
+  the theme it was chosen from (`t_<theme>__avatar_<nn>`, `t_kis_segito__…`
+  for the built-in look), so a theme change never changes it. The knob downloads it from `img.u` +
   `/api/kis_segito/knob_image/<id>/<size>` with its own secret `img.t` in the
   `X-Kis-Segito-Token` request header (never in the URL). The answer is raw
   RGB565A8 with a `KSI1` header; the knob shows the icon until it arrives.

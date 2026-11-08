@@ -85,6 +85,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     await hass.http.async_register_static_paths(
         [StaticPathConfig(OWN_URL, str(own_themes), cache_headers=False)]
     )
+    await manager.async_fix_avatar_themes()
     await async_load_icon_lists(hass)
     async_register_commands(hass)
     async_register_card_commands(hass)

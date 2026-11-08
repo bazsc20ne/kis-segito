@@ -272,7 +272,10 @@ class KsCard extends HTMLElement {
   }
 
   avatar(c, size = 36) {
-    const src = c.avatar_image ? `/api/image/serve/${esc(c.avatar_image)}/256x256` : this.iconUrl(c.avatar || "avatar_00", c.theme || this.data?.theme);
+    // The avatar keeps the look of the theme it was chosen from.
+    const src = c.avatar_url
+      ? esc(c.avatar_url)
+      : c.avatar_image ? `/api/image/serve/${esc(c.avatar_image)}/256x256` : this.iconUrl(c.avatar || "avatar_00", c.theme || this.data?.theme);
     return `<span class="av" style="--c:${esc(c.color || "")};width:${size}px;height:${size}px" title="${esc(c.name)}"><img src="${src}" alt=""></span>`;
   }
 

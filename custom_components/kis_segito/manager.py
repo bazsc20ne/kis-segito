@@ -21,7 +21,7 @@ from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.util import dt as dt_util
 
 from . import ledger as lg
-from .const import EVENT_KIS_SEGITO
+from .const import EVENT_KIS_SEGITO, STATIC_URL
 from .icons import stored_icon
 from .logic import (
     applies_to,
@@ -33,7 +33,8 @@ from .logic import (
     routine_with_override,
     child_on_device,
 )
-from .themes import DEFAULT_THEME, has_file
+from .themes import DEFAULT_THEME, ICONS_DIR, has_file
+from .themes import theme_assets
 from .themes import theme as theme_of
 from .store import AUDIT_KEPT, DEFAULT_AVATAR, DEFAULT_SETTINGS, KisSegitoStore
 
@@ -287,6 +288,8 @@ class KisSegitoManager:
             if collection == "children" and "piggy_unlocked" not in item:
                 # Locked when it can be bought; open when nothing unlocks it.
                 item["piggy_unlocked"] = not self.has_piggy_unlock_reward()
+            if collection == "children":
+                self._assign_avatar_theme(item)
             items.append(item)
         else:
             for index, existing in enumerate(items):
@@ -574,6 +577,58 @@ class KisSegitoManager:
     def theme(self) -> dict[str, Any]:
         """The chosen theme (the default one when it is not available)."""
         return theme_of(self.settings.get("theme"))
+
+    # ------------------------------------------------------------ avatars
+    #
+    # An avatar keeps the look of the theme it was chosen from (stored as
+    # "avatar_theme"; "" is the built-in look): changing a theme never changes
+    # a child's avatar.
+
+    def _assign_avatar_theme(self, child: dict[str, Any]) -> bool:
+        """Give a child without one the theme its avatar is shown in now."""
+        if "avatar_theme" in child:
+            return False
+        theme_id = self.child_theme_id(child) or self.theme["id"]
+        child["avatar_theme"] = "" if theme_id == DEFAULT_THEME else theme_id
+        return True
+
+    async def async_fix_avatar_themes(self) -> None:
+        """Children saved before avatars kept their theme keep the look they
+        have now."""
+        changed = False
+        for child in self.data["children"]:
+            changed |= self._assign_avatar_theme(child)
+        if changed:
+            await self.store.async_save()
+
+    def child_avatar(self, child: dict[str, Any]) -> tuple[str, str]:
+        """(theme id, avatar) of a child's avatar picture; the built-in one when
+        its theme is gone or lacks it."""
+        name = str(child.get("avatar") or DEFAULT_AVATAR)
+        theme_id = str(child.get("avatar_theme") or DEFAULT_THEME)
+        if theme_id != DEFAULT_THEME and not has_file(theme_id, f"icons/{name}.png"):
+            theme_id = DEFAULT_THEME
+        if theme_id == DEFAULT_THEME and not (ICONS_DIR / f"{name}.png").is_file():
+            name = DEFAULT_AVATAR
+        return theme_id, name
+
+    def avatar_picture_id(self, child: dict[str, Any]) -> str:
+        """The picture a knob shows for a child: an uploaded photo, or the
+        avatar in its theme ("t_<theme>__<avatar>")."""
+        if child.get("avatar_image"):
+            return str(child["avatar_image"])
+        theme_id, name = self.child_avatar(child)
+        return f"t_{theme_id}__{name}"
+
+    def avatar_url(self, child: dict[str, Any]) -> str:
+        """The address of a child's picture for the browser."""
+        if child.get("avatar_image"):
+            return f"/api/image/serve/{child['avatar_image']}/256x256"
+        theme_id, name = self.child_avatar(child)
+        assets = theme_assets(theme_of(theme_id))
+        if assets:
+            return f"{assets['base']}/icons/{name}.png?r={assets.get('rev', 0)}"
+        return f"{STATIC_URL}/icons/{name}.png"
 
     def child_theme_id(self, child: dict[str, Any]) -> str:
         """A child's own theme, when it differs from the common one ("" otherwise
@@ -2102,7 +2157,9 @@ class KisSegitoManager:
                 {
                     "id": child["id"],
                     "a": child.get("avatar", DEFAULT_AVATAR),
-                    "ai": child.get("avatar_image") or "",
+                    # The picture: an uploaded photo or the avatar in the
+                    # theme it was chosen from.
+                    "ai": self.avatar_picture_id(child),
                     "c": child.get("color", "#6CB8FF"),
                     "w": bal[lg.WALLET],
                     "p": bal[lg.PIGGY],

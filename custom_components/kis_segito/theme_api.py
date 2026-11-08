@@ -57,8 +57,11 @@ English
    - Icons and avatars: square PNG with a transparent background, 512 x 512
      or larger, the subject filling most of the square.
    - <name>_small.png (optional): a simpler version for small places.
+   - avatar_13 ... avatar_24 (optional): a second set of avatars; the
+     avatar list then offers 24.
    - Backgrounds bg_1 ... bg_6: square, no transparency, 1024 x 1024 or
-     larger; keep the middle calm (the knob draws on it).
+     larger; bg_1 ... bg_3 by day, bg_4 ... bg_6 by night; keep the middle
+     calm (the knob draws on it).
    - brand_logo / brand_logo_en: the header logo, transparent, any width.
    Use only pictures you made or may use, without other brands' logos or
    characters.
@@ -77,8 +80,11 @@ Magyar
    - Ikonok és avatarok: négyzetes PNG átlátszó háttérrel, legalább 512 x 512,
      a téma töltse ki a négyzet nagy részét.
    - <név>_small.png (nem kötelező): egyszerűbb változat kis helyekre.
+   - avatar_13 ... avatar_24 (nem kötelező): második avatarkészlet; ilyenkor
+     az avatarlista 24 avatart kínál.
    - Hátterek bg_1 ... bg_6: négyzetes, átlátszóság nélkül, legalább
-     1024 x 1024; a közepe legyen nyugodt (arra rajzol a gomb).
+     1024 x 1024; bg_1 ... bg_3 nappali, bg_4 ... bg_6 éjszakai; a közepe
+     legyen nyugodt (arra rajzol a gomb).
    - brand_logo / brand_logo_en: a fejléc logója, átlátszó, bármilyen széles.
    Csak saját vagy felhasználható képet használj, más márkák logója és
    szereplői nélkül.

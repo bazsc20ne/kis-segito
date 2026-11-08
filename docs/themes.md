@@ -33,11 +33,12 @@ is then not offered), and your own themes can be uploaded and deleted.
 |---|---|---|
 | `task_…`, `routine_…`, `reward_…`, `fn_…`, `nav_…`, `checkpoint_flag`, `piggy_large`, `wallet`, `status_…`, `streak_…`, `action_…`, `celebrate_…`, `badge_piggy_plus`, `hand_cartoon` | Icons of tasks, routines, rewards, the knob's functions, the panel's tabs and status signs | Square PNG with a transparent background, 512 × 512 or larger |
 | `avatar_00` … `avatar_12` | Children's pictures (`avatar_00`: "no picture yet") | As above; head and shoulders, the face inside the middle 80 % (the knob shows them in a circle) |
+| `avatar_13` … `avatar_24` (optional) | A second set of children's pictures; the avatar list then offers 24 | As above |
 | `token_coin_front`, `token_coin_tilt_left`, `token_coin_tilt_right` | The token, from the front and turned to each side | As above; simple, it is shown small, in piles |
 | `ball_base`, `ball_dent`, `ball_highlight` | The bouncing balls of the knob's loading screen | As above; grey shading only, the knob colours them |
 | `brand_mark`, `brand_mark_en` | Round logo: knob loading screen and top bar (Hungarian / other languages) | As above |
 | `brand_logo`, `brand_logo_en` | The panel header's logo | PNG with a transparent background, any width |
-| `bg_1` … `bg_6` | Backgrounds of the panel and the knobs | Square PNG or JPEG, no transparency, 1024 × 1024 or larger |
+| `bg_1` … `bg_6` | Backgrounds of the panel and the knobs: `bg_1` … `bg_3` by day, `bg_4` … `bg_6` by night | Square PNG or JPEG, no transparency, 1024 × 1024 or larger |
 | `<name>_small` (optional) | A simpler version of a picture for small places | As the picture |
 
 Tips:
@@ -129,15 +130,18 @@ törölhetők.
 - **Ikonok** (`task_…`, `routine_…`, `reward_…`, `fn_…`, `nav_…` és a többi):
   négyzetes PNG átlátszó háttérrel, legalább 512 × 512.
 - **Avatarok** (`avatar_00` … `avatar_12`; az `avatar_00` a „még nincs kép”):
-  fej és váll, az arc a középső 80%-on belül (a gomb körben mutatja).
+  fej és váll, az arc a középső 80%-on belül (a gomb körben mutatja). Egy
+  második avatarkészlet is lehet (`avatar_13` … `avatar_24`, nem kötelező):
+  ilyenkor az avatarlista 24 avatart kínál.
 - **Zseton** (`token_coin_…`): egyszerű, mert kicsiben, kupacban látszik.
 - **Labdák** (`ball_…`): a gomb betöltőképernyőjének labdái, csak szürke
   árnyalás, a gomb színezi őket.
 - **Logók:** `brand_mark` / `brand_mark_en` (kerek, a gomb betöltőképernyőjén
   és felső sávjában), `brand_logo` / `brand_logo_en` (a panel fejléce,
   bármilyen széles).
-- **Hátterek** (`bg_1` … `bg_6`): négyzetes PNG vagy JPEG, átlátszóság nélkül,
-  legalább 1024 × 1024. A közepük legyen nyugodt: oda rajzol a gomb, a szélét
+- **Hátterek** (`bg_1` … `bg_6`; a `bg_1` … `bg_3` nappali, a `bg_4` … `bg_6`
+  éjszakai): négyzetes PNG vagy JPEG, átlátszóság nélkül, legalább
+  1024 × 1024. A közepük legyen nyugodt: oda rajzol a gomb, a szélét
   pedig az időgyűrű takarja.
 - **`<név>_small`** (nem kötelező): egyszerűbb változat kis helyekre.
 

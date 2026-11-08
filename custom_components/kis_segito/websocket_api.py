@@ -273,6 +273,10 @@ def _themes(manager: KisSegitoManager) -> list[dict[str, Any]]:
             "count": t.get("count"),
             "total": t.get("total"),
             "active": t["id"] not in off,
+            # What the avatar picker needs: how many avatars, which pictures.
+            "avatars": t.get("avatars", 12),
+            "complete": t.get("complete", True),
+            "has": t.get("has", []) if not t.get("complete", True) else [],
         }
         for t in load_themes().values()
     ]
@@ -1236,6 +1240,11 @@ def _virtual_state(hass: HomeAssistant, device_id: str) -> dict[str, Any]:
         },
         "own_icons": {
             i["key"]: i["image"] for i in data.manager.icon_settings["own"]
+        },
+        # Each child's picture (the avatar in the theme it was chosen from).
+        "avatar_urls": {
+            c["id"]: data.manager.avatar_url(c)
+            for c in data.manager.children(active_only=True)
         },
     }
 

@@ -235,6 +235,7 @@ class KisSegitoKnobCard extends HTMLElement {
     this._theme = msg.theme || null;
     this._childThemes = msg.child_themes || {};
     this._ownIcons = msg.own_icons || {};
+    this._avatarUrls = msg.avatar_urls || {};
     this._receivedAt = Date.now();
     if (first) {
       this._loadFonts();
@@ -461,6 +462,13 @@ class KisSegitoKnobCard extends HTMLElement {
   }
 
   _avatar(parent, child, cx, cy, size, cls = "") {
+    // The avatar keeps the look of the theme it was chosen from.
+    const url = this._avatarUrls?.[child.id];
+    if (url) {
+      const img = this._picture(parent, "", cx, cy, size, cls);
+      img.src = url;
+      return img;
+    }
     return child.ai ? this._picture(parent, child.ai, cx, cy, size, cls) : this._img(parent, child.a, cx, cy, size, cls);
   }
 
