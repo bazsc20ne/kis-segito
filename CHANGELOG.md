@@ -6,6 +6,91 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.9.9] - 2026-11-08
+
+### English
+
+- Approval is asked for a checkpoint, not for single tasks: when a
+  checkpoint that needs approval is reached, one request asks for it with
+  its tokens; approving pays them, rejecting withholds them, and the tasks
+  stay done either way. Routines whose tasks needed approval move the
+  setting to their checkpoint. While waiting, the Today page shows the
+  checkpoint as waiting, not as earned.
+- History: with the events shown, a task or checkpoint entry can be
+  corrected: "Did not do it" puts it back to not done (today's progress,
+  the knob and the streak follow; tokens it brought are reversed), and
+  "Give tokens" credits what it would have brought in time.
+- Settings → Data can import an exported file (after a warning that it
+  replaces all data). The export now also holds the event log and the
+  approvals.
+- Every explanation in the panel sits behind an info button right next to
+  what it explains, in full sentences; many settings got an explanation
+  for the first time (the picture key, the knob animations, every screen
+  and sensor setting, the streak, the interest, reward bands with an
+  example, and more).
+- The knob: when a task is done, the finished task shrinks to its place on
+  the left while the next one grows into the middle (also on the virtual
+  knob). This needs the knob firmware update (OTA).
+- Smoother panel: side editors no longer slide in again after every
+  change; the Today time slider moves the ring and the cards live while
+  dragged; the mouse wheel moves the time slider and a focused number
+  field.
+- Calendar: a narrow block of overlapping routines opens to the full
+  column under the pointer.
+- Assist: the sentences and answers are in language files
+  (assist_translations), so a language can be added with one file. New
+  questions: "What does … have to do?", "What's next for …?", "Mi
+  következik …nél?", and what is left of a named routine. Answers no longer
+  say "rutin rutin" and name the next task in one natural sentence.
+- Deleting a child removes its sensor and its Assist sharing note.
+- Deleting a one-day routine asks first; a new one for today starts at the
+  next quarter of an hour. A new child gets a colour that does not warn.
+- The Hungarian texts say "gomb" instead of "knob"; the virtual knob
+  card's texts come from the translation files.
+
+### Magyar
+
+- Jóváhagyást ellenőrzőpontra lehet kérni, nem egyes feladatokra: amikor
+  egy jóváhagyást kérő ellenőrzőpont teljesül, egyetlen kérés érkezik a
+  zsetonjaival; jóváhagyáskor megkapja őket a gyerek, elutasításkor nem, a
+  feladatok mindkét esetben késznek maradnak. Azoknál a rutinoknál, ahol
+  feladat kért jóváhagyást, a beállítás az ellenőrzőpontra kerül. Amíg
+  vár, a Ma oldal várakozóként mutatja, nem megszerzettként.
+- Előzmények: ha az események is látszanak, egy feladat- vagy
+  ellenőrzőpont-bejegyzés javítható: a „Mégsem csinálta meg” visszaállítja
+  nem késznek (a mai haladás, a gomb és a sorozat is követi; ha zsetont
+  hozott, az visszavonásra kerül), a „Zseton jóváírása” pedig utólag
+  megadja, amennyit időben hozott volna.
+- A Beállítások → Adatok fülön importálni is lehet egy exportált fájlt
+  (figyelmeztetés után, hogy minden adatot lecserél). Az export mostantól
+  az eseménynaplót és a jóváhagyásokat is tartalmazza.
+- A panel minden magyarázata egy infógomb mögött van, közvetlenül amellett,
+  amit magyaráz, teljes mondatokban; sok beállítás most kapott először
+  magyarázatot (képkulcs, animációk a gombon, minden képernyő- és
+  érzékelő-beállítás, sorozat, kamat, jutalomsávok példával és még sok más).
+- A gomb: egy feladat elvégzésekor a kész feladat összemegy és a helyére
+  úszik balra, közben a következő a közepére nő (a virtuális gombon is).
+  Ehhez frissíteni kell a gomb firmware-jét (OTA).
+- Simább panel: az oldalsó szerkesztők nem csúsznak be újra minden
+  változtatás után; a Ma oldal időcsúszkája húzás közben élőben mozgatja a
+  gyűrűt és a kártyákat; az egérgörgő az időcsúszkát és a kijelölt
+  számmezőt is állítja.
+- Naptár: az átfedő rutinok keskeny blokkja az egér alatt kinyílik a
+  teljes oszlopszélességre.
+- Assist: a mondatok és a válaszok nyelvi fájlokban vannak
+  (assist_translations), így egy nyelv egyetlen fájllal hozzáadható. Új
+  kérdések: „Mi következik …nél?”, „What does … have to do?”, „What's next
+  for …?”, és hogy mennyi van még hátra egy megnevezett rutinból. A
+  válaszok nem mondják kétszer, hogy „rutin”, és egy természetes mondatban
+  nevezik meg a következő feladatot.
+- Gyerek törlésekor a szenzora és az Assist-megosztási jegyzete is
+  törlődik.
+- Az egynapos rutin törlése megerősítést kér; a mára felvett új egynapos
+  rutin a következő negyedórában kezdődik. Az új gyerek olyan színt kap,
+  amely nem ad figyelmeztetést.
+- A magyar szövegekben „knob” helyett „gomb” áll; a virtuális gomb
+  kártyájának szövegei a fordítási fájlokból jönnek.
+
 ## [0.9.8] - 2026-11-08
 
 ### English
