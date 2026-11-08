@@ -25,8 +25,8 @@ Write a profile for it and include it next to the core and an input profile:
 substitutions:
   screen_size: "360"
 packages:
-  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito-core.yaml@v0.9.7
-  input: github://bazsc20ne/kis-segito/esphome/inputs/encoder-button.yaml@v0.9.7
+  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito-core.yaml@v0.9.8
+  input: github://bazsc20ne/kis-segito/esphome/inputs/encoder-button.yaml@v0.9.8
   board: !include my-board.yaml
 ```
 

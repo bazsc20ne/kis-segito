@@ -6,6 +6,36 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.9.8] - 2026-11-08
+
+### English
+
+- Three more bundled style themes: "Tom and Jerry style", "Mickey Mouse
+  style" and "DuckTales style" (fan-made style homages with original
+  artwork). Each has its own 135 pictures, a second set of avatars (24 in
+  all: kittens and mice, little mice, ducklings), six backgrounds (three by
+  day, three by night), coins with an embossed emblem, colours for the
+  panel and the knob, and a free display font (Shrikhand, Coiny, Bangers;
+  OFL).
+- The English logos of "Toy Story style", "Frozen style" and "The Simpsons
+  style" and the Hungarian logo of "Toy Story style" are easier to read.
+- The disclaimer names the rights holders of the new themes too.
+- The knob firmware has not changed; updating it is not needed.
+
+### Magyar
+
+- Három új beépített stílustéma: „Tom és Jerry stílus”, „Mickey egér
+  stílus” és „Kacsamesék stílus” (rajongói stílus-tisztelgések eredeti
+  rajzokkal). Mindegyiknek saját 135 képe van, második avatarkészlete
+  (összesen 24: cicák és egerek, kisegerek, kiskacsák), 6 háttere (három
+  nappali, három éjszakai), dombornyomott emblémás zsetonjai, saját színei
+  a panelhez és a gombhoz, és egy ingyenes címbetűje (Shrikhand, Coiny,
+  Bangers; OFL).
+- „Toy Story stílus”, „Jégvarázs stílus” és „A Simpson család stílus”
+  angol logója, valamint a „Toy Story stílus” magyar logója jobban olvasható.
+- A jogi nyilatkozat az új témák jogtulajdonosait is megnevezi.
+- A gomb firmware-je nem változott, nem kell frissíteni.
+
 ## [0.9.7] - 2026-11-08
 
 ### English
