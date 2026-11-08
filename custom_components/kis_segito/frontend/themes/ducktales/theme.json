@@ -1,0 +1,56 @@
+{
+  "name": {
+    "en": "DuckTales style",
+    "hu": "Kacsamesék stílus"
+  },
+  "order": 9,
+  "panel": {
+    "light": {
+      "--bg": "#F3F7FC",
+      "--surface": "#FFFFFF",
+      "--surface-2": "#E3ECF7",
+      "--surface-3": "#D0DEF0",
+      "--ink": "#132640",
+      "--muted": "#566C8A",
+      "--faint": "#93A3B9",
+      "--line": "#D3E0EF",
+      "--accent": "#1F4E8C",
+      "--accent-ink": "#FFFFFF",
+      "--accent-soft": "#DBE6F5",
+      "--sun": "#D9940F",
+      "--sun-soft": "#FFF0C9",
+      "--shadow": "0 1px 2px rgb(19 38 64 / .06), 0 8px 24px rgb(31 78 140 / .14)",
+      "--shadow-lg": "0 20px 60px rgb(19 38 64 / .25)",
+      "--hero-veil": "linear-gradient(180deg, rgb(243 247 252 / 0) 0%, rgb(243 247 252 / .6) 60%, var(--bg) 100%)",
+      "--r-lg": "22px"
+    },
+    "dark": {
+      "--bg": "#0C1628",
+      "--surface": "#132139",
+      "--surface-2": "#1A2C4A",
+      "--surface-3": "#22385B",
+      "--ink": "#F2F6FC",
+      "--muted": "#AFBDD3",
+      "--faint": "#7385A2",
+      "--line": "#2A4068",
+      "--accent": "#7FB2F0",
+      "--accent-ink": "#0C1628",
+      "--accent-soft": "#1F3B66",
+      "--sun": "#F2B63B",
+      "--sun-soft": "#3A3020",
+      "--hero-veil": "linear-gradient(180deg, rgb(12 22 40 / .1) 0%, rgb(12 22 40 / .6) 60%, var(--bg) 100%)",
+      "--r-lg": "22px"
+    }
+  },
+  "fonts": {
+    "display": "bangers.woff2"
+  },
+  "knob": {
+    "bg": "#1F4E8C",
+    "track": "#8FB3E3",
+    "pill": "#132640",
+    "number": "#FFD24A",
+    "deposit": "#5BC97A",
+    "withdraw": "#E8574A"
+  }
+}
