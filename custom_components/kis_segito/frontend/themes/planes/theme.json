@@ -43,7 +43,7 @@
     }
   },
   "fonts": {
-    "display": "baloo-2.woff2"
+    "display": "nunito-black.woff2"
   },
   "knob": {
     "bg": "#1F7FD8",
