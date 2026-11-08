@@ -81,6 +81,43 @@ function fromMinutes(total) {
   return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 }
 
+// Side-by-side places for calendar blocks ([top, bottom] pixel ranges, in
+// the order given): [lane, lanes] for each. Blocks that overlap, directly or
+// through others, share the column width; each takes the first free lane.
+function calendarLanes(ranges) {
+  const order = ranges.map((r, i) => i).sort((a, b) => ranges[a][0] - ranges[b][0] || ranges[b][1] - ranges[a][1]);
+  const result = new Array(ranges.length);
+  let group = [];
+  let groupEnd = -Infinity;
+  let laneEnds = [];
+  const close = () => {
+    for (const i of group) {
+      result[i][1] = laneEnds.length;
+    }
+    group = [];
+    laneEnds = [];
+  };
+  for (const i of order) {
+    const [top, bottom] = ranges[i];
+    if (top >= groupEnd) {
+      close();
+      groupEnd = -Infinity;
+    }
+    let lane = laneEnds.findIndex((end) => end <= top);
+    if (lane < 0) {
+      lane = laneEnds.length;
+      laneEnds.push(bottom);
+    } else {
+      laneEnds[lane] = bottom;
+    }
+    result[i] = [lane, 0];
+    group.push(i);
+    groupEnd = Math.max(groupEnd, bottom);
+  }
+  close();
+  return result;
+}
+
 function shiftTime(hhmm, minutes) {
   return fromMinutes(toMinutes(hhmm) + minutes);
 }
@@ -696,7 +733,7 @@ class KisSegitoPanel extends HTMLElement {
       <details data-key="themes"><summary>${this._e(this._t("theme.manage"))}</summary>
         <div class="stack" style="gap:8px;margin-top:10px">${rows || `<div class="muted small">${this._e(this._t("theme.none"))}</div>`}
         ${tools}<div class="hint">${this._e(this._t("theme.own_hint"))}</div></div></details>
-      ${themes.length > 1 ? `<div class="hint">${this._e(this._t("theme.disclaimer"))}</div>` : ""}</div>`;
+      ${themes.length > 1 ? `<div class="hint" data-keep>${this._e(this._t("theme.disclaimer"))}</div>` : ""}</div>`;
   }
 
   _viewIconSettings() {
@@ -1119,13 +1156,21 @@ class KisSegitoPanel extends HTMLElement {
     const cols = days
       .map((d) => {
         const past = d.date < today;
-        const blocks = d.routines
-          .filter((r) => !filter || applies(r.children, filter))
-          .map((r) => {
+        const shown = d.routines.filter((r) => !filter || applies(r.children, filter));
+        const lanes = calendarLanes(shown.map((r) => {
+          const st = toMinutes(r.start);
+          const top = Math.max(0, (st - CAL_FROM) * CAL_PX);
+          return [top, top + Math.max(22, (Math.max(toMinutes(r.end), st + 1) - st) * CAL_PX)];
+        }));
+        const blocks = shown
+          .map((r, i) => {
             const st = toMinutes(r.start);
             const en = Math.max(toMinutes(r.end), st + 1);
             const top = Math.max(0, (st - CAL_FROM) * CAL_PX);
             const h = Math.max(22, (en - st) * CAL_PX);
+            // Overlapping routines share the column side by side.
+            const [lane, count] = lanes[i];
+            const place = count > 1 ? `left:calc(${(lane * 100) / count}% + 2px);width:calc(${100 / count}% - 4px);right:auto;` : "";
             const color = r.routine?.color || this._routine(r.id)?.color || "#6BCB77";
             const changed = this._changedOccurrence(r);
             const oneDay = r.one_day && !r.moved_from;
@@ -1139,7 +1184,7 @@ class KisSegitoPanel extends HTMLElement {
               : changed
                 ? `<span class="badge" title="${this._e(this._t(r.moved_from ? "calendar.moved_here" : "calendar.changed"))}">${this._icon("action_edit", 18, "glyph")}</span>`
                 : "";
-            return `<div class="blk ${changed ? "changed" : ""} ${oneDay ? "oneday" : ""}" style="top:${top}px;height:${h}px;--rc:${this._e(color)}"
+            return `<div class="blk ${changed ? "changed" : ""} ${oneDay ? "oneday" : ""} ${count > 1 ? "lane" : ""}" style="top:${top}px;height:${h}px;${place}--rc:${this._e(color)}"
               data-block data-routine="${this._e(r.id)}" data-date="${d.date}" data-st="${st}" data-en="${en}" data-past="${past ? 1 : ""}" tabindex="0">
               <span class="grip t"></span><span class="grip b"></span>
               <div class="bt">${badge}${this._icon(r.icon, 18)} ${this._e(r.name || this._t("routines.unnamed"))}</div>
@@ -2113,7 +2158,14 @@ ${tab === "data" ? `
       ? `<label class="field"><span>${this._e(this._t("rtemplates.use"))}</span><select data-rtemplate-apply><option value="">—</option>${templates.map((x) => `<option value="${this._e(x.id)}">${this._e(x.name)}</option>`).join("")}</select></label>`
       : "";
     const similar = r.color && this._data.routines.some((x) => x.id !== r.id && x.color && colorDistance(x.color, r.color) < 50);
-    const basics = `${chooser}
+    // A new routine repeats on weekdays, or runs only once, on a date (a
+    // routine of that day only, as added in the calendar).
+    const repeat = ed.isNew && !ed.readonly && (!dayMode || ed.fromRoutines)
+      ? `<div class="field"><span>${this._e(this._t("routines.repeat"))}</span><div class="seg">
+          <button class="${dayMode ? "" : "on"}" data-act="routine-repeat" data-arg="weekly">${this._e(this._t("routines.repeat_weekly"))}</button>
+          <button class="${dayMode ? "on" : ""}" data-act="routine-repeat" data-arg="once">${this._e(this._t("routines.repeat_once"))}</button></div></div>`
+      : "";
+    const basics = `${chooser}${repeat}
       <div class="row" style="gap:14px"><button class="pick" data-act="pick" data-path="icon" data-arg="routine">${this._icon(r.icon, 64)}</button>
         <label class="field grow"><span>${this._e(this._t("common.name"))}${diff("name")}</span><input data-path="name" data-live value="${this._e(r.name)}"></label></div>
       ${dayMode ? `<label class="field" style="max-width:240px"><span>${this._e(this._t("day.date"))}</span><input type="date" data-edit-date min="${this._e(this._todayStr())}" value="${this._e(ed.newDate)}"></label>` : ""}
@@ -2540,7 +2592,7 @@ ${tab === "data" ? `
     }
     let overlays = "";
     try {
-      overlays = `${this._data ? this._viewDrawer() + this._viewPicker() + this._viewDialog() : ""}${this._viewCrop()}`;
+      overlays = `${this._data ? this._viewDrawer() + this._viewPicker() + this._viewDialog() : ""}${this._viewCrop()}${this._viewInfo()}`;
     } catch (err) {
       console.error("Kis Segito: render failed", err);
       overlays = `<div class="toast error">${this._e(String(err))}</div>`;
@@ -2596,6 +2648,7 @@ ${tab === "data" ? `
       ${overlays}
       <div class="tip" hidden></div>
       ${this._toastText ? `<div class="toast" role="status">${this._icon("action_check", 22)} ${this._e(this._toastText)}</div>` : ""}`;
+    this._infoButtons();
     const newPage = this.shadowRoot.querySelector(".page");
     if (newPage) {
       newPage.scrollTop = scroll;
@@ -2666,7 +2719,72 @@ ${tab === "data" ? `
   }
 
   // Closes the topmost layer; false when nothing was open.
+  // The explanations ("hint" texts) are not shown as small print: each one
+  // goes behind an info button next to the nearest title (a card's or a
+  // section's heading, or an expandable section's summary), which opens
+  // them in a pop-up window.
+  _infoButtons() {
+    const root = this.shadowRoot;
+    const titleOf = (el) => {
+      let node = el;
+      while (node && node !== root) {
+        for (let sib = node.previousElementSibling; sib; sib = sib.previousElementSibling) {
+          if (sib.matches("h2, h3, summary, .section-title")) {
+            return sib.matches(".section-title") ? sib.querySelector("h2") : sib;
+          }
+        }
+        node = node.parentElement;
+        if (!node || node === root) {
+          return null;
+        }
+        if (node.matches("details")) {
+          return node.querySelector(":scope > summary");
+        }
+        if (node.matches(".card, .dialog, .drawer")) {
+          return node.querySelector("h3, h2");
+        }
+      }
+      return null;
+    };
+    this._infoTexts = [];
+    for (const hint of root.querySelectorAll(".hint:not([data-keep])")) {
+      const title = titleOf(hint);
+      if (!title || !hint.textContent.trim()) {
+        continue; // nothing to put the button on: the text stays
+      }
+      let button = title.querySelector(":scope > .info-btn");
+      if (!button) {
+        button = document.createElement("button");
+        button.type = "button";
+        button.className = "info-btn";
+        button.textContent = "i";
+        button.title = this._t("info.open");
+        button.setAttribute("aria-label", this._t("info.open"));
+        button.dataset.info = String(this._infoTexts.length);
+        this._infoTexts.push({ title: title.textContent.trim(), html: [] });
+        title.appendChild(button);
+      }
+      this._infoTexts[Number(button.dataset.info)].html.push(hint.innerHTML);
+      hint.remove();
+    }
+  }
+
+  _viewInfo() {
+    if (!this._info) {
+      return "";
+    }
+    return `<div class="backdrop over" data-act="info-close"></div><div class="dialog info-pop over" role="dialog" aria-modal="true">
+      <div class="row"><h2 class="grow">${this._e(this._info.title)}</h2><button class="iconbtn" data-act="info-close" aria-label="✕">✕</button></div>
+      <div class="info-text">${this._info.html.map((h) => `<p>${h}</p>`).join("")}</div>
+      <div class="row" style="justify-content:flex-end"><button class="btn primary" data-act="info-close">${this._e(this._t("info.close"))}</button></div></div>`;
+  }
+
   _closeTop() {
+    if (this._info) {
+      this._info = null;
+      this._render();
+      return true;
+    }
     if (this._crop) {
       this._closeCrop();
       return true;
@@ -2851,6 +2969,20 @@ ${tab === "data" ? `
       case "day-edit":
         this._openDayEditor(el.dataset.date, arg || null);
         return;
+      case "info-close":
+        this._info = null;
+        break;
+      case "routine-repeat": {
+        // A new routine switches between weekly and once (the same form).
+        const ed = this._edit;
+        if (arg === "once" && ed.coll === "routines") {
+          const today = this._todayStr();
+          this._edit = { coll: "day", date: today, newDate: today, routine_id: null, item: ed.item, base: null, changed: false, oneDay: true, isNew: true, readonly: false, fromRoutines: true };
+        } else if (arg === "weekly" && ed.coll === "day" && ed.fromRoutines) {
+          this._edit = { coll: "routines", item: ed.item, isNew: true, readonly: false };
+        }
+        break;
+      }
       case "day-new":
         this._openDayEditor(el.dataset.date, null, el.dataset.time);
         return;
@@ -3741,6 +3873,18 @@ ${tab === "data" ? `
     this._listening = true;
     const root = this.shadowRoot;
     root.addEventListener("click", (ev) => {
+      // An info button (also in a section's summary: it does not open it).
+      const info = ev.target.closest?.(".info-btn");
+      if (info) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        const text = this._infoTexts?.[Number(info.dataset.info)];
+        if (text) {
+          this._info = text;
+          this._render();
+        }
+        return;
+      }
       if (ev.target.closest?.("[data-block]")) {
         return; // handled by the pointer events
       }
@@ -4053,6 +4197,8 @@ const STYLE = `
   .cal-col.today { background-color: color-mix(in srgb, var(--accent) 5%, transparent); }
   .cal-col.past .blk { filter: saturate(.5); opacity: .75; }
   .cal-col.drop { background-color: color-mix(in srgb, var(--accent) 14%, transparent); outline: 2px dashed var(--accent); outline-offset: -2px; }
+  .blk.lane { padding: 4px 5px; font-size: .74rem; }
+  .blk.lane .bt { white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
   .blk { position: absolute; left: 4px; right: 4px; border-radius: 12px; padding: 5px 8px; background: color-mix(in srgb, var(--rc) 22%, var(--surface)); border-left: 4px solid var(--rc); cursor: pointer; overflow: hidden; font-size: .8rem; transition: transform .15s var(--ease), box-shadow .15s; user-select: none; touch-action: pan-y; }
   .blk:hover { box-shadow: var(--shadow); z-index: 3; }
   .blk.changed { border: 2px dashed var(--rc); border-left-width: 4px; }
@@ -4166,6 +4312,13 @@ const STYLE = `
   .dialog { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(440px, calc(100% - 32px)); background: var(--surface); border-radius: var(--r-lg); z-index: 61; padding: 22px; box-shadow: var(--shadow-lg); animation: pop .25s var(--ease); display: flex; flex-direction: column; gap: 12px; max-height: calc(100% - 40px); overflow: auto; }
   .dialog.wide { width: min(720px, calc(100% - 32px)); }
   .dialog.top { z-index: 71; }
+  .info-btn { display: inline-grid; place-items: center; width: 22px; height: 22px; margin-left: 8px; padding: 0; border-radius: 50%; border: 1.5px solid var(--accent); background: var(--accent-soft); color: var(--accent); font: 700 .8rem/1 Georgia, serif; font-style: italic; cursor: pointer; vertical-align: middle; flex: none; }
+  .info-btn:hover { background: var(--accent); color: var(--accent-ink); }
+  .dialog.info-pop { width: min(520px, calc(100% - 32px)); }
+  .info-text p { margin: 0 0 10px; line-height: 1.5; color: var(--ink); }
+  @media (max-width: 600px) {
+    .dialog.info-pop { left: 0; right: 0; bottom: 0; top: auto; width: auto; transform: none; animation: none; border-radius: var(--r-lg) var(--r-lg) 0 0; max-height: 80vh; padding-bottom: max(22px, env(safe-area-inset-bottom, 0px)); }
+  }
   .settings-tabs { margin: 4px 0 14px; flex-wrap: wrap; }
   .picker-scroll { max-height: 70vh; overflow-y: auto; display: grid; gap: 8px; }
   .picker-section { margin: 10px 0 0; font-size: 1rem; }

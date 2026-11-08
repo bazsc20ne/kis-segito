@@ -535,5 +535,10 @@
   "settings.tab_look": "Kinézet és téma",
   "settings.tab_knobs": "Gombok",
   "settings.tab_rewards": "Jutalmak és persely",
-  "settings.tab_data": "Adatok"
+  "settings.tab_data": "Adatok",
+  "routines.repeat": "Ismétlődés",
+  "routines.repeat_weekly": "Ismétlődik a hét napjain",
+  "routines.repeat_once": "Csak egyszer, egy adott napon",
+  "info.open": "Mit jelent ez?",
+  "info.close": "Értem"
 }

@@ -535,5 +535,10 @@
   "settings.tab_look": "Look & theme",
   "settings.tab_knobs": "Knobs",
   "settings.tab_rewards": "Rewards & piggy bank",
-  "settings.tab_data": "Data"
+  "settings.tab_data": "Data",
+  "routines.repeat": "Repeat",
+  "routines.repeat_weekly": "Repeats on weekdays",
+  "routines.repeat_once": "Only once, on a date",
+  "info.open": "What does this mean?",
+  "info.close": "Got it"
 }
