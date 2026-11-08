@@ -1,0 +1,56 @@
+{
+  "name": {
+    "en": "Mickey Mouse style",
+    "hu": "Mickey egér stílus"
+  },
+  "order": 8,
+  "panel": {
+    "light": {
+      "--bg": "#FFF8EC",
+      "--surface": "#FFFFFF",
+      "--surface-2": "#FDEDD6",
+      "--surface-3": "#F8DDB8",
+      "--ink": "#1E1A1A",
+      "--muted": "#6E5F57",
+      "--faint": "#A8998E",
+      "--line": "#F0DCC2",
+      "--accent": "#C8102E",
+      "--accent-ink": "#FFFFFF",
+      "--accent-soft": "#FADDE1",
+      "--sun": "#E9A800",
+      "--sun-soft": "#FFF1C2",
+      "--shadow": "0 1px 2px rgb(30 26 26 / .06), 0 8px 24px rgb(200 16 46 / .12)",
+      "--shadow-lg": "0 20px 60px rgb(30 26 26 / .25)",
+      "--hero-veil": "linear-gradient(180deg, rgb(255 248 236 / 0) 0%, rgb(255 248 236 / .6) 60%, var(--bg) 100%)",
+      "--r-lg": "24px"
+    },
+    "dark": {
+      "--bg": "#14141C",
+      "--surface": "#1E1E2A",
+      "--surface-2": "#272736",
+      "--surface-3": "#313143",
+      "--ink": "#FFF6EA",
+      "--muted": "#C6BCB2",
+      "--faint": "#87807A",
+      "--line": "#36364A",
+      "--accent": "#FF5468",
+      "--accent-ink": "#14141C",
+      "--accent-soft": "#4A1C26",
+      "--sun": "#FFC93C",
+      "--sun-soft": "#3A3220",
+      "--hero-veil": "linear-gradient(180deg, rgb(20 20 28 / .1) 0%, rgb(20 20 28 / .6) 60%, var(--bg) 100%)",
+      "--r-lg": "24px"
+    }
+  },
+  "fonts": {
+    "display": "coiny.woff2"
+  },
+  "knob": {
+    "bg": "#C8102E",
+    "track": "#F08A96",
+    "pill": "#1E1A1A",
+    "number": "#FFD23A",
+    "deposit": "#5FC96B",
+    "withdraw": "#FFB13B"
+  }
+}
