@@ -6,6 +6,90 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.9.7] - 2026-11-08
+
+### English
+
+- Four more bundled style themes: "Cars style", "Toy Story style", "Planes
+  style" and "Winnie the Pooh style" (fan-made style homages with original
+  artwork). Each has its own 135 pictures, six backgrounds, colours for the
+  panel and the knob, and a free display font (Bungee, Sour Gummy, Nunito
+  Black, Grandstander; OFL).
+- New pictures for the bundled themes: six new backgrounds for "The
+  Simpsons style" and "Frozen style", crowned avatars in "Frozen style",
+  and coins with an embossed theme emblem in every style theme.
+- Avatars keep their theme: a child's avatar can be chosen from the
+  avatars of any theme (the avatar list shows them by theme) and looks the
+  same on the panel, the cards and every knob, whatever theme is chosen
+  later. Children set up before keep the look they have now. A theme may
+  have a second set of avatars (avatar_13 … avatar_24, 24 in all); "Winnie
+  the Pooh style" has one (animal versions).
+- Backgrounds of any theme: the common and the per-knob background can be
+  any theme's background. The chosen theme's backgrounds follow the theme
+  when it changes; another theme's background stays. In every theme
+  bg_1 … bg_3 are day scenes and bg_4 … bg_6 night scenes; the built-in
+  backgrounds are reordered the same way (a knob with the built-in look
+  keeps its picture). The kis_segito.set_background action takes
+  t_<theme>__bg_<n> too.
+- The settings page is split into tabs (General, Look & theme, Knobs,
+  Rewards & piggy bank, Data); the panel remembers the last one.
+- Explanations are no longer small print: an info button next to the title
+  opens them in a pop-up window in the theme's look (a sheet from the
+  bottom on phones).
+- Calendar: routines that overlap in time sit side by side, each one
+  clickable and draggable.
+- A new routine can repeat on weekdays or run only once, on a date.
+- Assist: "mi a dolga (most) …" and "mi a teendője …" questions are
+  understood in any word order; times say the part of the day ("este hét
+  órakor", "at seven in the evening"); the English streak answer says
+  "two days out of seven".
+- Approvals: a task request shows the tokens of its checkpoint as soon as
+  it exists; a rejected checkpoint is recorded with no tokens, in the day
+  progress and in the history.
+- The knob firmware has not changed; updating it is not needed.
+
+### Magyar
+
+- Négy új beépített stílustéma: „Verdák stílus”, „Toy Story stílus”,
+  „Repcsik stílus” és „Micimackó stílus” (rajongói stílus-tisztelgések
+  eredeti rajzokkal). Mindegyiknek saját 135 képe és 6 háttere van, saját
+  színei a panelhez és a gombhoz, és egy ingyenes címbetűje (Bungee, Sour
+  Gummy, Nunito Black, Grandstander; OFL).
+- Új képek a beépített témákban: 6 új háttér „A Simpson család stílus” és
+  a „Jégvarázs stílus” témában, koronás avatarok a „Jégvarázs stílus”
+  témában, és minden stílustémában témaemblémás, dombornyomott zsetonok.
+- Az avatar megtartja a témáját: a gyerek avatarja bármelyik téma
+  avatarjai közül választható (az avatarlista témánként mutatja őket), és
+  a panelen, a kártyákon és minden gombon ugyanúgy néz ki, akármilyen
+  témát választasz később. A korábban beállított gyerekek a mostani
+  kinézetüket tartják meg. Egy témának lehet második avatarkészlete
+  (avatar_13 … avatar_24, összesen 24); a „Micimackó stílus” témának van
+  ilyen (állatos változatok).
+- Hátterek bármelyik témából: a közös és a gombonkénti háttér bármelyik
+  téma bármelyik háttere lehet. A választott téma hátterei témaváltáskor
+  az új témáéra váltanak; egy másik téma háttere megmarad. Minden témában
+  a bg_1 … bg_3 nappali, a bg_4 … bg_6 éjszakai kép; a beépített hátterek
+  sorrendje is így változott (a beépített kinézetű gomb ugyanazt a képet
+  mutatja tovább). A kis_segito.set_background művelet a
+  t_<téma>__bg_<n> értéket is elfogadja.
+- A Beállítások oldal fülekre oszlik (Általános, Kinézet és téma, Gombok,
+  Jutalmak és persely, Adatok); a panel megjegyzi az utoljára nyitott fület.
+- A magyarázatok már nem apró betűsek: a cím melletti infógomb felugró
+  ablakban mutatja őket, a téma kinézetével (telefonon alulról felcsúszó
+  lapon).
+- Naptár: az időben átfedő rutinok egymás mellé kerülnek, mindegyik
+  kattintható és húzható.
+- Az új rutin ismétlődhet a hét napjain, vagy lehet egyszeri, egy adott
+  napon.
+- Assist: a „mi a dolga (most) …” és a „mi a teendője …” kérdéseket
+  bármilyen szórendben érti; az időpontokban benne van a napszak („este hét
+  órakor”, „at seven in the evening”); az angol sorozat-válasz: „two days
+  out of seven”.
+- Jóváhagyások: a feladat-kérés rögtön mutatja az ellenőrzőpontja
+  zsetonjait; az elutasított ellenőrzőpont zseton nélkül kerül a napi
+  haladásba és az előzményekbe.
+- A gomb firmware-je nem változott, nem kell frissíteni.
+
 ## [0.9.6] - 2026-11-05
 
 ### English
