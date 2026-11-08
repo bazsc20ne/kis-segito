@@ -970,10 +970,10 @@ class KisSegitoPanel extends HTMLElement {
     } else {
       nowCard = `<div class="row">${this._icon("celebrate_star", 48)}<b>${this._e(this._t(todays.length ? "today.done_all" : "today.idle"))}</b></div>`;
     }
-    const rewind = `<div class="demo-bar"><span class="tag ${isDemo ? "sun" : "good"}">${this._e(this._t(isDemo ? "today.demo" : "today.realtime"))}</span>
-        <span class="num" style="font-weight:800;min-width:46px">${fromMinutes(n)}</span>
+    const rewind = `<div class="demo-bar"><span class="row" style="gap:8px" data-part="clock"><span class="tag ${isDemo ? "sun" : "good"}">${this._e(this._t(isDemo ? "today.demo" : "today.realtime"))}</span>
+        <span class="num" style="font-weight:800;min-width:46px">${fromMinutes(n)}</span></span>
         <input type="range" min="300" max="1380" step="1" value="${n}" data-demo aria-label="${this._e(this._t("today.demo_time"))}">
-        ${isDemo ? `<button class="btn sm" data-act="demo-now">${this._e(this._t("today.back_now"))}</button>` : ""}</div>
+        <span data-part="back">${isDemo ? `<button class="btn sm" data-act="demo-now">${this._e(this._t("today.back_now"))}</button>` : ""}</span></div>
         <div class="hint" style="margin-top:4px">${this._e(this._t("today.rewind_hint"))}</div>`;
     const progress = this._today?.progress || {};
     const upTo = (ts) => !isDemo || (ts && toMinutes(this._fmtClock(ts)) <= n);
@@ -1020,8 +1020,21 @@ class KisSegitoPanel extends HTMLElement {
         </div>`;
       })
       .join("");
-    return `<div class="card">${nowCard}${rewind}</div>
-      <div class="grid g2" style="margin-top:16px">${cards}</div>${this._viewModifyToday(day)}`;
+    return `<div class="card"><div data-part="now">${nowCard}</div>${rewind}</div>
+      <div class="grid g2" style="margin-top:16px" data-part="cards">${cards}</div>${this._viewModifyToday(day)}`;
+  }
+
+  // The time-dependent parts of the Today page, redrawn without the rest.
+  _liveToday() {
+    const tpl = document.createElement("template");
+    tpl.innerHTML = this._viewTodayMain();
+    for (const part of tpl.content.querySelectorAll("[data-part]")) {
+      const target = this.shadowRoot.querySelector(`[data-part="${part.dataset.part}"]`);
+      if (target) {
+        target.innerHTML = part.innerHTML;
+      }
+    }
+    this._infoButtons(false);
   }
 
   // "HH:MM" of an ISO timestamp in local time.
@@ -1187,7 +1200,7 @@ class KisSegitoPanel extends HTMLElement {
                 ? `<span class="badge" title="${this._e(this._t(r.moved_from ? "calendar.moved_here" : "calendar.changed"))}">${this._icon("action_edit", 18, "glyph")}</span>`
                 : "";
             return `<div class="blk ${changed ? "changed" : ""} ${oneDay ? "oneday" : ""} ${count > 1 ? "lane" : ""}" style="top:${top}px;height:${h}px;${place}--rc:${this._e(color)}"
-              data-block data-routine="${this._e(r.id)}" data-date="${d.date}" data-st="${st}" data-en="${en}" data-past="${past ? 1 : ""}" tabindex="0">
+              data-block data-routine="${this._e(r.id)}" data-date="${d.date}" data-st="${st}" data-en="${en}" data-past="${past ? 1 : ""}" tabindex="0" ${count > 1 ? `data-tip="${this._e(r.name || this._t("routines.unnamed"))} · ${this._e(r.start)}–${this._e(r.end)}"` : ""}>
               <span class="grip t"></span><span class="grip b"></span>
               <div class="bt">${badge}${this._icon(r.icon, 18)} ${this._e(r.name || this._t("routines.unnamed"))}</div>
               <div class="bs num">${this._e(r.start)}–${this._e(r.end)} · ${this._e(who)}</div>${cps}</div>`;
@@ -1846,12 +1859,20 @@ ${tab === "data" ? `
 
   // ------------------------------------------------------------ editors
 
+  // A new child's colour: one that no other child has and that is not close
+  // to the ring's time-zone colours (those would warn at once).
+  _freeChildColor() {
+    const used = new Set(this._data.children.map((c) => (c.color || "").toUpperCase()));
+    const calm = PRESET_COLORS.filter((x) => !SEMANTIC_COLORS.some((y) => colorDistance(x, y) < 60));
+    return calm.find((x) => !used.has(x)) || calm[this._data.children.length % calm.length];
+  }
+
   _newItem(collection) {
     switch (collection) {
       case "children":
         return {
           name: "",
-          color: PRESET_COLORS[(this._data.children.length || 0) % PRESET_COLORS.length],
+          color: this._freeChildColor(),
           avatar: "avatar_00",
           avatar_theme: this._look,
           birth_date: "",
@@ -2028,7 +2049,9 @@ ${tab === "data" ? `
     } else if (source) {
       item = clone(source);
     } else {
-      const start = time || "16:00";
+      // Today: from the next quarter of an hour; another day: the afternoon.
+      const soon = Math.min(Math.ceil((nowMinutes() + 1) / 15) * 15, 22 * 60 + 45);
+      const start = time || (dateStr === this._todayStr() ? fromMinutes(soon) : "16:00");
       item = { ...this._newItem("routines"), start, end: shiftTime(start, 60) };
     }
     delete item.one_day;
@@ -2631,6 +2654,10 @@ ${tab === "data" ? `
     const focused = this.shadowRoot.activeElement;
     const focusKey = focused?.matches?.("input, textarea, select") ? this._fieldKey(focused) : null;
     const selection = focusKey && typeof focused.selectionStart === "number" ? [focused.selectionStart, focused.selectionEnd] : null;
+    // Overlays that are open already do not slide or fade in again on a
+    // redraw (a change in a side editor would look like a reload).
+    const OVERLAYS = [".drawer", ".backdrop:not(.over)", ".backdrop.over", ".dialog", ".more-sheet", ".toast"];
+    const wasOpen = OVERLAYS.filter((sel) => this.shadowRoot.querySelector(sel));
     this.shadowRoot.innerHTML = `<style>${STYLE}</style>
       <div class="page">
         <header class="hero" style="background-image:url('${this._backgroundUrl(night ? "bg_6" : "bg_2")}')">
@@ -2657,6 +2684,11 @@ ${tab === "data" ? `
       ${overlays}
       <div class="tip" hidden></div>
       ${this._toastText ? `<div class="toast" role="status">${this._icon("action_check", 22)} ${this._e(this._toastText)}</div>` : ""}`;
+    for (const sel of wasOpen) {
+      this.shadowRoot.querySelectorAll(sel).forEach((el) => {
+        el.style.animation = "none";
+      });
+    }
     this._infoButtons();
     const newPage = this.shadowRoot.querySelector(".page");
     if (newPage) {
@@ -2732,7 +2764,7 @@ ${tab === "data" ? `
   // goes behind an info button next to the nearest title (a card's or a
   // section's heading, or an expandable section's summary), which opens
   // them in a pop-up window.
-  _infoButtons() {
+  _infoButtons(reset = true) {
     const root = this.shadowRoot;
     const titleOf = (el) => {
       let node = el;
@@ -2755,7 +2787,9 @@ ${tab === "data" ? `
       }
       return null;
     };
-    this._infoTexts = [];
+    if (reset || !this._infoTexts) {
+      this._infoTexts = [];
+    }
     for (const hint of root.querySelectorAll(".hint:not([data-keep])")) {
       const title = titleOf(hint);
       if (!title || !hint.textContent.trim()) {
@@ -2969,10 +3003,18 @@ ${tab === "data" ? `
         return;
       case "day-restore": {
         const ed = this._edit;
-        await this._ws({ type: "kis_segito/day_routine", date: ed.date, routine_id: ed.routine_id, routine: null });
-        this._edit = null;
-        this._toast(this._t(ed.oneDay ? "toast.deleted" : "day.restore"));
-        await this._load();
+        const run = async () => {
+          await this._ws({ type: "kis_segito/day_routine", date: ed.date, routine_id: ed.routine_id, routine: null });
+          this._edit = null;
+          this._toast(this._t(ed.oneDay ? "toast.deleted" : "day.restore"));
+          await this._load();
+        };
+        if (ed.oneDay) {
+          // Deleting a one-day routine asks first, like deleting a child.
+          this._confirm(this._t("common.delete"), this._t("day.confirm_delete"), run, { danger: true, ok: this._t("common.delete") });
+        } else {
+          await run();
+        }
         return;
       }
       case "day-edit":
@@ -3472,8 +3514,15 @@ ${tab === "data" ? `
       return;
     }
     if (el.dataset.demo !== undefined) {
+      // Everything that depends on the time follows the hand on every frame;
+      // the slider itself is never rebuilt while it is dragged.
       this._demo = Number(el.value);
-      this._scheduleRender(30);
+      if (!this._liveFrame) {
+        this._liveFrame = requestAnimationFrame(() => {
+          this._liveFrame = null;
+          this._liveToday();
+        });
+      }
       return;
     }
     if (el.dataset.editDate !== undefined && this._edit) {
@@ -3976,6 +4025,43 @@ ${tab === "data" ? `
       this._onClick(ev).catch(() => {});
     });
     root.addEventListener("input", (ev) => this._onInput(ev));
+    // The mouse wheel moves the time slider under the pointer (a minute per
+    // notch, Shift: 15 minutes), and a number field that has the focus and
+    // the pointer (its step, Shift: ten steps). Elsewhere the page scrolls.
+    root.addEventListener(
+      "wheel",
+      (ev) => {
+        const el = ev.target;
+        const delta = ev.deltaY || ev.deltaX;
+        if (!delta || !(el instanceof HTMLInputElement)) {
+          return;
+        }
+        const up = delta < 0 ? 1 : -1;
+        if (el.dataset.demo !== undefined) {
+          ev.preventDefault();
+          el.value = String(Number(el.value) + up * (ev.shiftKey ? 15 : 1));
+          el.dispatchEvent(new Event("input", { bubbles: true }));
+          return;
+        }
+        if (el.type === "number" && root.activeElement === el && !el.disabled && !el.readOnly) {
+          ev.preventDefault();
+          const step = Number(el.step) || 1;
+          let value = (Number(el.value) || 0) + up * step * (ev.shiftKey ? 10 : 1);
+          if (el.min !== "") {
+            value = Math.max(Number(el.min), value);
+          }
+          if (el.max !== "") {
+            value = Math.min(Number(el.max), value);
+          }
+          el.value = String(Math.round(value * 1000) / 1000);
+          el.dispatchEvent(new Event("input", { bubbles: true }));
+          // Saved once the wheel stops, not on every notch.
+          clearTimeout(el._wheelTimer);
+          el._wheelTimer = setTimeout(() => el.dispatchEvent(new Event("change", { bubbles: true })), 500);
+        }
+      },
+      { passive: false }
+    );
     // Opening a section closes the other open one (only the user does this;
     // a redraw restores what was open).
     root.addEventListener(
@@ -4276,7 +4362,9 @@ const STYLE = `
   .cal-col.past .blk { filter: saturate(.5); opacity: .75; }
   .cal-col.drop { background-color: color-mix(in srgb, var(--accent) 14%, transparent); outline: 2px dashed var(--accent); outline-offset: -2px; }
   .blk.lane { padding: 4px 5px; font-size: .74rem; }
-  .blk.lane .bt { white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
+  .blk.lane .bt { line-height: 1.15; overflow-wrap: anywhere; }
+  /* A narrow block opens to the full column under the pointer or the focus. */
+  .blk.lane:hover, .blk.lane:focus-visible { left: 2px !important; width: calc(100% - 4px) !important; z-index: 6; box-shadow: var(--shadow); }
   .blk { position: absolute; left: 4px; right: 4px; border-radius: 12px; padding: 5px 8px; background: color-mix(in srgb, var(--rc) 22%, var(--surface)); border-left: 4px solid var(--rc); cursor: pointer; overflow: hidden; font-size: .8rem; transition: transform .15s var(--ease), box-shadow .15s; user-select: none; touch-action: pan-y; }
   .blk:hover { box-shadow: var(--shadow); z-index: 3; }
   .blk.changed { border: 2px dashed var(--rc); border-left-width: 4px; }

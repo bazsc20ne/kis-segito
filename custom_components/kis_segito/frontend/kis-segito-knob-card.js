@@ -40,6 +40,29 @@ const applyThemeColours = (tc, root) => {
   root.style.setProperty("--pill", hex(c("pill")));
   root.style.setProperty("--num", hex(c("number")));
 };
+// The card's own texts come from the panel's translation files (English
+// when the language has none), so a new language needs no code change.
+const TEXTS = {};
+const knobTexts = async (language) => {
+  const code = (language || "en").toLowerCase().split("-")[0];
+  for (const lang of [code, "en"]) {
+    if (!TEXTS[lang]) {
+      try {
+        const response = await fetch(`/kis_segito_static/translations/${lang}.json`);
+        if (response.ok) {
+          TEXTS[lang] = await response.json();
+        }
+      } catch (_err) {
+        // offline: the next language
+      }
+    }
+    if (TEXTS[lang]) {
+      return TEXTS[lang];
+    }
+  }
+  return {};
+};
+
 const CONFETTI_COLORS = [0xff6b6b, 0xffc94a, 0x6bcb77, 0x6cb8ff, 0xa78bfa, 0xff8fb1];
 
 const SCREENS = { CHILDREN: "children", FUNCTIONS: "functions", REWARDS: "rewards", CONFIRM: "confirm", ROUTINE: "routine", TOKENS: "tokens", PIGGY: "piggy" };
@@ -210,19 +233,19 @@ class KisSegitoKnobCard extends HTMLElement {
     this._unsubscribe();
     const knob = this._config?.knob;
     if (!knob) {
-      this._showMessage("Choose a virtual knob in the card settings. / Válassz virtuális gombot a kártya beállításaiban.");
+      this._showMessage("knobcard.choose");
       return;
     }
     this._unsub = this._hass.connection.subscribeMessage((msg) => this._onMessage(msg), {
       type: "kis_segito/virtual/subscribe",
       device_id: knob,
     });
-    this._unsub.catch(() => this._showMessage("This virtual knob does not exist (any more). / Ez a virtuális gomb nem létezik."));
+    this._unsub.catch(() => this._showMessage("knobcard.missing"));
   }
 
   _onMessage(msg) {
     if (msg.removed) {
-      this._showMessage("This virtual knob was removed. / Ezt a virtuális gombot törölték.");
+      this._showMessage("knobcard.removed");
       return;
     }
     const first = !this._state;
@@ -263,13 +286,15 @@ class KisSegitoKnobCard extends HTMLElement {
     document.head.appendChild(style);
   }
 
-  _showMessage(text) {
+  _showMessage(key) {
     if (!this._root) {
       this._build();
     }
     this._wrap.hidden = true;
     this._message.hidden = false;
-    this._message.textContent = text;
+    knobTexts(this._hass?.language).then((texts) => {
+      this._message.textContent = texts[key] || key;
+    });
   }
 
   _send(kind, extra) {
@@ -1449,10 +1474,18 @@ class KisSegitoKnobCardEditor extends HTMLElement {
       return;
     }
     const knobs = this._knobs || [];
-    const hu = (this._hass?.language || "").startsWith("hu");
-    const t = hu
-      ? { knob: "Virtuális gomb", none: "Nincs még virtuális gomb: a Kis Segítő panelen hozható létre (Beállítások → Gombok).", back: "Vissza gomb is látszik" }
-      : { knob: "Virtual knob", none: "No virtual knob yet: create one on the Kis Segítő panel (Settings → Knobs).", back: "Show a back button too" };
+    if (!this._texts) {
+      knobTexts(this._hass?.language).then((texts) => {
+        this._texts = texts;
+        this._render();
+      });
+      return;
+    }
+    const t = {
+      knob: this._texts["knobcard.editor_knob"] || "",
+      none: this._texts["knobcard.editor_none"] || "",
+      back: this._texts["knobcard.editor_back"] || "",
+    };
     this.innerHTML = `<div style="display:flex;flex-direction:column;gap:12px;padding:4px 0">
       ${knobs.length ? `<label style="display:flex;flex-direction:column;gap:4px">${t.knob}<select data-k="knob" style="padding:8px">${knobs.map((k) => `<option value="${k.id}" ${k.id === this._config.knob ? "selected" : ""}>${k.name.replace(/[<&"]/g, "")}</option>`).join("")}</select></label>` : `<div>${t.none}</div>`}
       <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" data-k="back_button" ${this._config.back_button ? "checked" : ""}>${t.back}</label></div>`;
@@ -1500,10 +1533,10 @@ if (frontendReady()) {
 }
 window.customCards = window.customCards || [];
 if (!window.customCards.some((c) => c.type === "kis-segito-knob-card")) {
-  window.customCards.push({
-    type: "kis-segito-knob-card",
-    name: "Kis Segítő",
-    description: "The knob screen as a card / A gomb képernyője kártyaként",
-    preview: false,
+  const entry = { type: "kis-segito-knob-card", name: "Kis Segítő", description: "", preview: false };
+  window.customCards.push(entry);
+  // In the language of the page, from the translation files.
+  knobTexts(document.documentElement.lang).then((texts) => {
+    entry.description = texts["knobcard.description"] || "";
   });
 }

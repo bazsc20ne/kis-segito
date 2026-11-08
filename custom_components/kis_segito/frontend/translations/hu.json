@@ -5,7 +5,7 @@
   "settings.title": "Beállítások",
   "settings.language": "Nyelv",
   "settings.language_auto": "Automatikus (Home Assistant nyelve)",
-  "settings.language_hint": "A knobokon és ezen a panelen is ez a nyelv látszik.",
+  "settings.language_hint": "A gombokon és ezen a panelen is ez a nyelv látszik.",
   "settings.admin_only": "Ezt csak rendszergazda módosíthatja.",
   "tab.today": "Ma",
   "tab.children": "Gyerekek",
@@ -556,5 +556,13 @@
   "settings.import_hint": "Egy korábban exportált fájlt tölt vissza, például új Home Assistantre költözéskor vagy egy tévedés után. Az importálás a mostani gyerekeket, rutinokat, jutalmakat, beállításokat és a teljes zseton-előzményt lecseréli a fájl tartalmára. A gombok saját kulcsai és beállításai megmaradnak.",
   "settings.import_confirm": "A(z) „{file}” fájl lecseréli az összes mostani adatot: gyerekeket, rutinokat, jutalmakat, beállításokat és a teljes zseton-előzményt. Ez nem vonható vissza, ezért előtte érdemes egy exportot készíteni. Folytatod?",
   "settings.import_invalid": "Ez a fájl nem Kis Segítő-export, vagy sérült. Semmi nem változott.",
-  "settings.imported": "Importálva"
+  "settings.imported": "Importálva",
+  "day.confirm_delete": "Biztosan törlöd ezt az egynapos rutint?",
+  "knobcard.choose": "Válassz virtuális gombot a kártya beállításaiban.",
+  "knobcard.missing": "Ez a virtuális gomb nem létezik (már).",
+  "knobcard.removed": "Ezt a virtuális gombot törölték.",
+  "knobcard.editor_knob": "Virtuális gomb",
+  "knobcard.editor_none": "Még nincs virtuális gomb. A Kis Segítő panelen hozható létre: Beállítások → Gombok.",
+  "knobcard.editor_back": "Vissza gomb is látszik",
+  "knobcard.description": "A gomb képernyője kártyaként"
 }

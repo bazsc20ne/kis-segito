@@ -556,5 +556,13 @@
   "settings.import_hint": "Loads a file exported earlier, for example when moving to a new Home Assistant or after a mistake. Importing replaces the current children, routines, rewards, settings and the whole token history with the file's content. The knobs' own keys and settings stay.",
   "settings.import_confirm": "The file “{file}” replaces all current data: children, routines, rewards, settings and the whole token history. This cannot be undone, so export first if you may need the current data. Continue?",
   "settings.import_invalid": "This file is not a Kis Segítő export, or it is damaged. Nothing was changed.",
-  "settings.imported": "Imported"
+  "settings.imported": "Imported",
+  "day.confirm_delete": "Delete this one-day routine?",
+  "knobcard.choose": "Choose a virtual knob in the card settings.",
+  "knobcard.missing": "This virtual knob does not exist (any more).",
+  "knobcard.removed": "This virtual knob was removed.",
+  "knobcard.editor_knob": "Virtual knob",
+  "knobcard.editor_none": "No virtual knob yet. Create one on the Kis Segítő panel: Settings → Knobs.",
+  "knobcard.editor_back": "Show a back button too",
+  "knobcard.description": "The knob screen as a card"
 }
