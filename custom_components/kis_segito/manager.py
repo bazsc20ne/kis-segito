@@ -1045,6 +1045,21 @@ class KisSegitoManager:
     ) -> None:
         """A task that needs approval was done: add it to its request."""
         checkpoint_id = checkpoint["id"] if checkpoint else None
+        # The tokens the checkpoint would bring if it were reached now (its
+        # reward when it was reached already).
+        amount = 0
+        if checkpoint is not None:
+            reached = self.progress(day, routine["id"], child_id)["checkpoints"].get(
+                checkpoint_id
+            )
+            if reached is not None:
+                amount = int(reached.get("tokens", 0))
+            else:
+                due = self.checkpoint_time(routine, checkpoint, day)
+                amount = reward_for(
+                    checkpoint.get("reward_bands", []),
+                    (due - dt_util.now()).total_seconds(),
+                )
         approval = next(
             (
                 a
@@ -1056,6 +1071,7 @@ class KisSegitoManager:
         if approval is not None:
             approval["task_ids"].append(task["id"])
             approval["task_names"].append(task.get("label", ""))
+            approval["amount"] = amount
             return
         approval = {
             "id": lg.new_id(),
@@ -1070,7 +1086,7 @@ class KisSegitoManager:
             "task_ids": [task["id"]],
             "task_names": [task.get("label", "")],
             "icon": task.get("icon", ""),
-            "amount": 0,
+            "amount": amount,
             "requested_at": _iso(dt_util.now()),
             "requested_by": source,
         }
@@ -1163,7 +1179,17 @@ class KisSegitoManager:
         )
         if any(a["status"] == "rejected" for a in approvals):
             record["withheld"] = True
+            record["tokens"] = 0
             record.pop("approval", None)
+            for event in self.events:
+                if (
+                    event.get("type") == "checkpoint_done"
+                    and event.get("day") == approval["day"]
+                    and event.get("child_id") == approval["child_id"]
+                    and event.get("routine_id") == approval["routine_id"]
+                    and event.get("checkpoint_id") == approval.get("checkpoint_id")
+                ):
+                    event["tokens"] = 0
             return
         if any(a["status"] == "pending" for a in approvals):
             return
@@ -1702,6 +1728,7 @@ class KisSegitoManager:
         elif any(a["status"] == "rejected" for a in approvals):
             # One of its tasks was rejected: no reward for this checkpoint.
             record["withheld"] = True
+            record["tokens"] = tokens = 0
             tokens_paid = 0
         else:
             tokens_paid = tokens

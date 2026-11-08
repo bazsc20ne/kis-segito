@@ -84,6 +84,9 @@ HU_CHILD: dict[str, list[str]] = {
         "(mit;csinál;<MOST>;<NX>)",
         "(mivel;tart;<MOST>;[a|az] <N>)",
         "(van;<MOST>;dolga;<NX>)",
+        "(mi|mik) [a|az] (<FELADAT>;<NX>;<MOST>)",
+        "(mi|mik) (<NX>;[a|az] <FELADAT>;<MOST>)",
+        "(mi|mik) (<MOST>;[a|az] <FELADAT>;<NX>)",
     ],
     "checkpoint": [
         "(mikor;(van|lesz|jön);[a|az] <N> <KOVETKEZO> <KP>)",

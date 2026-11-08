@@ -128,7 +128,7 @@ async def test_task_needs_approval(
     assert shoes in manager.progress(manager.today(), routine["id"], kid)["tasks"]
     pending = manager.pending_approvals()
     assert [(a["kind"], a["task_names"], a["amount"]) for a in pending] == [
-        ("task", ["Shoes"], 0)
+        ("task", ["Shoes"], 3)
     ]
     # The checkpoint is reached: its reward (worked out now) waits too.
     await manager.async_complete_task(kid, routine["id"], eat)
@@ -242,3 +242,33 @@ async def test_rejected_before_checkpoint(
     assert manager.progress(manager.today(), routine["id"], kid)["checkpoints"][cp][
         "withheld"
     ]
+
+
+async def test_request_shows_tokens_before_the_checkpoint(
+    manager: KisSegitoManager, freezer: FrozenDateTimeFactory
+) -> None:
+    """A request that holds only some tasks of a checkpoint already shows
+    the tokens the checkpoint would bring (#57)."""
+    freezer.move_to(dt_util.now().replace(hour=7, minute=20, second=0, microsecond=0))
+    kid = (await manager.async_save_item("children", {"name": "A"}))["id"]
+    routine = await _routine(manager, True)
+    await manager.async_complete_task(kid, routine["id"], routine["tasks"][1]["id"])
+    assert manager.pending_approvals()[0]["amount"] == 3
+
+
+async def test_rejected_checkpoint_records_no_tokens(
+    manager: KisSegitoManager, freezer: FrozenDateTimeFactory
+) -> None:
+    """After a rejection the checkpoint is recorded with no tokens, in the
+    day progress and in the event log (#57)."""
+    freezer.move_to(dt_util.now().replace(hour=7, minute=20, second=0, microsecond=0))
+    kid = (await manager.async_save_item("children", {"name": "A"}))["id"]
+    routine = await _both_need_approval(manager)
+    for task in routine["tasks"]:
+        await manager.async_complete_task(kid, routine["id"], task["id"])
+    await manager.async_resolve_approval(manager.pending_approvals()[0]["id"], False)
+    cp = routine["checkpoints"][0]["id"]
+    record = manager.progress(manager.today(), routine["id"], kid)["checkpoints"][cp]
+    assert record["tokens"] == 0 and record["withheld"]
+    events = [e for e in manager.events if e["type"] == "checkpoint_done"]
+    assert [e["tokens"] for e in events] == [0]

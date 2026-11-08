@@ -142,8 +142,8 @@ async def test_answers(
     assert "Még két feladat" in answer(status, "task", "hu")
     text = answer(status, "checkpoint", "hu").casefold()
     assert "fél óra múlva" in text
-    assert "hét óra ötven perckor" in text
-    assert "at seven fifty" in answer(status, "checkpoint", "en")
+    assert "reggel hét óra ötven perckor" in text
+    assert "at seven fifty in the morning" in answer(status, "checkpoint", "en")
     assert answer(status, "earnable", "hu").startswith(
         ("Áron ma még öt", "Áronnak ma még öt")
     )
@@ -404,6 +404,11 @@ DOCUMENTED = {
         "mikor van Alex következő határideje",
         "hány tallérja van Alexnek",
         "mi Alex teendője most",
+        "mi a dolga most Alexnek",
+        "mi a dolga Alexnek",
+        "mi a teendője most Alexnek",
+        "mi most a dolga Alexnek",
+        "Alexnek mi a dolga most",
         "Alexé mennyi zsetonja van",
         "mennyi zsetonja van Alexnél",
     ],
@@ -450,3 +455,30 @@ async def test_documented_sentences(
     await hass.async_block_till_done()
     speech = await _converse(hass, sentence, language)
     assert "Alex" in speech, speech
+
+
+def test_times_say_the_part_of_the_day() -> None:
+    from datetime import datetime
+
+    from custom_components.kis_segito.assist_words import en_clock, hu_clock
+
+    def at(h: int, m: int = 0) -> datetime:
+        return datetime(2026, 1, 1, h, m)  # noqa: DTZ001 - a clock time only
+
+    assert hu_clock(at(19)) == "este hét órakor"
+    assert hu_clock(at(7, 30)) == "reggel fél nyolckor"
+    assert hu_clock(at(15, 15)) == "délután negyed négykor"
+    assert hu_clock(at(10, 5)) == "délelőtt tíz óra öt perckor"
+    assert hu_clock(at(12)) == "délben"
+    assert en_clock(at(19)) == "at seven in the evening"
+    assert en_clock(at(7, 30)) == "at half past seven in the morning"
+    assert en_clock(at(11, 45)) == "at quarter to twelve in the afternoon"
+    assert en_clock(at(12)) == "at noon"
+
+
+async def test_english_streak_says_days_once(manager: KisSegitoManager) -> None:
+    kid, _ = await _setup(manager)
+    status = child_status(manager, kid) | {"streak": 2, "streak_target": 7}
+    for _ in range(10):
+        text = answer(status, "streak", "en")
+        assert "out of seven days" not in text, text

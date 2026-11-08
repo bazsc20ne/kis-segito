@@ -137,20 +137,43 @@ def hu_all_forms(name: str) -> dict[str, list[str]]:
     }
 
 
+def hu_day_part(when: datetime) -> str:
+    """The part of the day a time is in (reggel, délután, este …)."""
+    hour = when.hour
+    if hour < 4:
+        return "éjjel"
+    if hour < 9:
+        return "reggel"
+    if hour < 12:
+        return "délelőtt"
+    if hour < 18:
+        return "délután"
+    if hour < 22:
+        return "este"
+    return "éjjel"
+
+
 def hu_clock(when: datetime) -> str:
-    """A time of day as people say it, with "-kor" (fél nyolckor)."""
+    """A time of day as people say it, with the part of the day and "-kor"
+    (reggel fél nyolckor, este hét órakor)."""
+    if when.hour == 12 and when.minute == 0:
+        return "délben"
+    if when.hour == 0 and when.minute == 0:
+        return "éjfélkor"
     hour = when.hour % 12 or 12
     nxt = hour % 12 + 1
     minute = when.minute
     if minute == 0:
-        return f"{hu_number(hour, False)} órakor"
-    if minute == 15:
-        return f"negyed {hu_number(nxt, False)}kor"
-    if minute == 30:
-        return f"fél {hu_number(nxt, False)}kor"
-    if minute == 45:
-        return f"háromnegyed {hu_number(nxt, False)}kor"
-    return f"{hu_number(hour, True)} óra {hu_number(minute, True)} perckor"
+        text = f"{hu_number(hour, False)} órakor"
+    elif minute == 15:
+        text = f"negyed {hu_number(nxt, False)}kor"
+    elif minute == 30:
+        text = f"fél {hu_number(nxt, False)}kor"
+    elif minute == 45:
+        text = f"háromnegyed {hu_number(nxt, False)}kor"
+    else:
+        text = f"{hu_number(hour, True)} óra {hu_number(minute, True)} perckor"
+    return f"{hu_day_part(when)} {text}"
 
 
 def hu_in(minutes: int) -> str:
@@ -237,20 +260,42 @@ def en_number(n: int) -> str:
     return text
 
 
+def en_day_part(when: datetime) -> str:
+    """The part of the day a time is in (in the morning, in the evening …)."""
+    hour = when.hour
+    if hour < 4 or hour >= 22:
+        return "at night"
+    if hour < 12:
+        return "in the morning"
+    if hour < 18:
+        return "in the afternoon"
+    return "in the evening"
+
+
 def en_clock(when: datetime) -> str:
-    """A time of day as people say it (at half past seven)."""
+    """A time of day as people say it, with the part of the day
+    (at half past seven in the morning, at seven in the evening)."""
+    if when.hour == 12 and when.minute == 0:
+        return "at noon"
+    if when.hour == 0 and when.minute == 0:
+        return "at midnight"
     hour = when.hour % 12 or 12
     nxt = hour % 12 + 1
     minute = when.minute
     if minute == 0:
-        return f"at {en_number(hour)} o'clock"
-    if minute == 15:
-        return f"at quarter past {en_number(hour)}"
-    if minute == 30:
-        return f"at half past {en_number(hour)}"
-    if minute == 45:
-        return f"at quarter to {en_number(nxt)}"
-    return f"at {en_number(hour)} {en_number(minute) if minute >= 10 else 'oh ' + en_number(minute)}"
+        text = f"at {en_number(hour)}"
+    elif minute == 15:
+        text = f"at quarter past {en_number(hour)}"
+    elif minute == 30:
+        text = f"at half past {en_number(hour)}"
+    elif minute == 45:
+        text = f"at quarter to {en_number(nxt)}"
+    else:
+        tail = en_number(minute) if minute >= 10 else "oh " + en_number(minute)
+        text = f"at {en_number(hour)} {tail}"
+    # "quarter to" names the next hour: its part of the day decides.
+    part_of = when.replace(hour=(when.hour + 1) % 24) if minute == 45 else when
+    return f"{text} {en_day_part(part_of)}"
 
 
 def en_in(minutes: int) -> str:

@@ -380,7 +380,7 @@ def _en_answer(status: dict[str, Any], topic: str) -> list[str]:
             parts.append(
                 random.choice(
                     [
-                        f"{name}'s streak is {days(streak)} out of {days(target)}.",
+                        f"{name}'s streak is {days(streak)} out of {en_number(target)}.",
                         f"{name} has done everything for {days(streak)} in a row. The goal is {days(target)}.",
                     ]
                 )
