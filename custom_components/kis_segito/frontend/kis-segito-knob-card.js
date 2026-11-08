@@ -1008,11 +1008,38 @@ class KisSegitoKnobCard extends HTMLElement {
       }
     }
     const ms = this._animMs(420);
+    const moveMs = this._animMs(450);
     if (ms && this._taskBig) {
       this._taskBig.animate([{ scale: 1 }, { scale: 1.17 }, { scale: 1 }], { duration: (ms * 2) / 3 });
     }
-    this._img(this._screenLayer, "action_check", CENTER, 205, 88);
-    this._later(ms + 250, () => this._show(SCREENS.ROUTINE));
+    const check = this._img(this._screenLayer, "action_check", CENTER, 205, 88);
+    if (moveMs && this._taskBig) {
+      // As on the knob: the finished task shrinks to its place on the left
+      // while the next one grows from the right into the middle.
+      const tasks = routine.t || [];
+      const index = tasks.indexOf(task);
+      const slot = tasks.slice(0, index).filter((t) => this._isDone(routine, t.id)).length;
+      const rad = ((120 + 20 * slot) * Math.PI) / 180;
+      const timing = { delay: (ms * 2) / 3, duration: moveMs, easing: "ease-in-out", fill: "forwards" };
+      const small = 40 / 150;
+      this._taskBig.animate(
+        [{ transform: "none" }, { transform: `translate(${Math.trunc(150 * Math.cos(rad))}px, ${CENTER + Math.trunc(150 * Math.sin(rad)) - 205}px) scale(${small})`, filter: "grayscale(1) opacity(.7)" }],
+        timing,
+      );
+      check.animate([{ opacity: 1 }, { opacity: 0 }], { ...timing, duration: moveMs / 2 });
+      const nextIndex = tasks.findIndex((t, i) => i > index && !this._isDone(routine, t.id));
+      const icon = this._taskIcons?.[nextIndex];
+      if (icon) {
+        const from = { x: parseFloat(icon.style.left) + 20, y: parseFloat(icon.style.top) + 20 };
+        const big = this._img(this._screenLayer, tasks[nextIndex].i, from.x, from.y, 150);
+        icon.hidden = true;
+        big.animate(
+          [{ transform: `scale(${small})` }, { transform: `translate(${CENTER - from.x}px, ${205 - from.y}px) scale(1)` }],
+          { ...timing, fill: "both" },
+        );
+      }
+    }
+    this._later(moveMs ? (ms * 2) / 3 + moveMs + 40 : ms + 250, () => this._show(SCREENS.ROUTINE));
     if (reward > 0) {
       this._celebrate(child, reward);
     }
@@ -1223,6 +1250,7 @@ class KisSegitoKnobCard extends HTMLElement {
     // Completed tasks collect on the left (grey), future ones on the right.
     let doneSlot = 0;
     let futureSlot = 0;
+    this._taskIcons = [];
     tasks.forEach((t, i) => {
       if (i === current) {
         return;
@@ -1230,7 +1258,7 @@ class KisSegitoKnobCard extends HTMLElement {
       const done = this._isDone(routine, t.id);
       const deg = done ? 120 + 20 * doneSlot++ : 60 - 20 * futureSlot++;
       const rad = (deg * Math.PI) / 180;
-      this._img(layer, t.i, CENTER + Math.trunc(150 * Math.cos(rad)), CENTER + Math.trunc(150 * Math.sin(rad)), 40, done ? "dim" : "");
+      this._taskIcons[i] = this._img(layer, t.i, CENTER + Math.trunc(150 * Math.cos(rad)), CENTER + Math.trunc(150 * Math.sin(rad)), 40, done ? "dim" : "");
     });
   }
 

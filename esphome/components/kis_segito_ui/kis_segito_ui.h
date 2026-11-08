@@ -569,6 +569,16 @@ class KisSegitoUI : public Component {
   // Routine screen.
   lv_obj_t *task_big_{nullptr};
   lv_obj_t *timeline_{nullptr};
+  // The small task icons of the routine screen, by task index (nullptr for
+  // the current task), and the move from one task to the next.
+  std::vector<lv_obj_t *> task_icons_;
+  struct TaskMove {
+    lv_obj_t *done{nullptr};  // the finished task: shrinks to its place on the left
+    lv_obj_t *next{nullptr};  // the next task: grows from the right into the middle
+    int done_x0{0}, done_y0{0}, done_x1{0}, done_y1{0}, done_s1{256};
+    int next_x0{0}, next_y0{0}, next_x1{0}, next_y1{0}, next_s0{256};
+  } task_move_;
+  void task_move_step_(int32_t v);
   int shown_reward_{-1};
 
   lv_timer_t *tick_timer_{nullptr};

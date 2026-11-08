@@ -2236,6 +2236,10 @@ void KisSegitoUI::show_(Screen screen) {
   // Deleting the screen's objects also deletes their animations.
   this->busy_ = false;
   this->cancel_idle_anim_();
+  // The move between two tasks animates objects of this screen: it stops.
+  lv_anim_delete(this, nullptr);
+  this->task_move_ = TaskMove{};
+  this->task_icons_.clear();
   lv_obj_clean(this->screen_obj_);
   this->carousel_.forget();  // its slots were just deleted
   this->task_big_ = this->timeline_ = this->piggy_label_ = nullptr;
@@ -3002,6 +3006,7 @@ void KisSegitoUI::build_routine_() {
 
   // Completed tasks collect on the left (grey), future ones on the right.
   int done_slot = 0, future_slot = 0;
+  this->task_icons_.assign(r.tasks.size(), nullptr);
   for (size_t i = 0; i < r.tasks.size(); i++) {
     if (static_cast<int>(i) == current)
       continue;
@@ -3011,6 +3016,7 @@ void KisSegitoUI::build_routine_() {
     const int tx = CENTER + static_cast<int>(S(150) * std::cos(rad));
     const int ty = CENTER + static_cast<int>(S(150) * std::sin(rad));
     lv_obj_t *icon = this->image_(this->timeline_, r.tasks[i].icon + "_40", tx, ty);
+    this->task_icons_[i] = icon;
     if (done) {
       lv_obj_set_style_image_recolor(icon, lv_color_hex(0x8C96A5), 0);
       lv_obj_set_style_image_recolor_opa(icon, 200, 0);
@@ -3485,8 +3491,11 @@ void KisSegitoUI::complete_task_() {
   }
   this->busy_ = true;
 
-  // Bounce, check, then rebuild with the next task.
+  // Bounce, check, then the finished task shrinks to its place on the left
+  // while the next one grows from the right into the middle; then the screen
+  // is rebuilt with the next task.
   const uint32_t ms = this->anim_ms_(420);
+  const uint32_t move_ms = this->anim_ms_(450);
   if (ms > 0) {
     lv_anim_t a;
     lv_anim_init(&a);
@@ -3497,19 +3506,107 @@ void KisSegitoUI::complete_task_() {
     lv_anim_set_exec_cb(&a, [](void *var, int32_t v) { lv_image_set_scale(static_cast<lv_obj_t *>(var), v); });
     lv_anim_start(&a);
   }
-  this->image_(this->screen_obj_, "action_check_88", CENTER, S(205));
+  lv_obj_t *check = this->image_(this->screen_obj_, "action_check_88", CENTER, S(205));
+  if (move_ms > 0 && this->task_big_ != nullptr) {
+    // Where the finished task goes: the next slot on the left (as
+    // build_routine_() places the done tasks).
+    int slot = 0;
+    for (int i = 0; i < current; i++) {
+      if (this->is_done_(r, r.tasks[i].id))
+        slot++;
+    }
+    const float rad = (120.0f + 20.0f * slot) * static_cast<float>(M_PI) / 180.0f;
+    TaskMove &m = this->task_move_;
+    m = TaskMove{};
+    m.done = this->task_big_;
+    m.done_x0 = lv_obj_get_x(m.done);
+    m.done_y0 = lv_obj_get_y(m.done);
+    const int half = lv_obj_get_width(m.done) / 2;
+    m.done_x1 = CENTER + static_cast<int>(S(150) * std::cos(rad)) - half;
+    m.done_y1 = CENTER + static_cast<int>(S(150) * std::sin(rad)) - half;
+    m.done_s1 = 256 * 40 / 150;
+    // The next task: its big picture starts small where its icon is.
+    int next = -1;
+    for (size_t i = current + 1; i < r.tasks.size(); i++) {
+      if (!this->is_done_(r, r.tasks[i].id)) {
+        next = static_cast<int>(i);
+        break;
+      }
+    }
+    if (next >= 0 && next < static_cast<int>(this->task_icons_.size()) && this->task_icons_[next] != nullptr) {
+      lv_obj_t *small = this->task_icons_[next];
+      const int sx = lv_obj_get_x(small) + lv_obj_get_width(small) / 2;
+      const int sy = lv_obj_get_y(small) + lv_obj_get_height(small) / 2;
+      m.next = this->image_(this->screen_obj_, r.tasks[next].icon + "_150", sx, sy);
+      lv_obj_update_layout(m.next);
+      const int nhalf = lv_obj_get_width(m.next) / 2;
+      lv_image_set_pivot(m.next, nhalf, lv_obj_get_height(m.next) / 2);
+      m.next_s0 = 256 * 40 / 150;
+      lv_image_set_scale(m.next, m.next_s0);
+      m.next_x0 = sx - nhalf;
+      m.next_y0 = sy - lv_obj_get_height(m.next) / 2;
+      m.next_x1 = CENTER - nhalf;
+      m.next_y1 = S(205) - lv_obj_get_height(m.next) / 2;
+      if (nhalf > 0) {
+        lv_obj_add_flag(small, LV_OBJ_FLAG_HIDDEN);
+      } else {
+        // Its picture is not here yet: the next task just appears after the move.
+        lv_obj_delete(m.next);
+        m.next = nullptr;
+      }
+    }
+    // The check goes when the move starts.
+    lv_anim_t fade;
+    lv_anim_init(&fade);
+    lv_anim_set_var(&fade, check);
+    lv_anim_set_values(&fade, LV_OPA_COVER, LV_OPA_TRANSP);
+    lv_anim_set_delay(&fade, ms * 2 / 3);
+    lv_anim_set_duration(&fade, move_ms / 2);
+    lv_anim_set_exec_cb(&fade, [](void *var, int32_t v) {
+      lv_obj_set_style_opa(static_cast<lv_obj_t *>(var), static_cast<lv_opa_t>(v), 0);
+    });
+    lv_anim_start(&fade);
+    lv_anim_t move;
+    lv_anim_init(&move);
+    lv_anim_set_var(&move, this);
+    lv_anim_set_values(&move, 0, 1024);
+    lv_anim_set_delay(&move, ms * 2 / 3);
+    lv_anim_set_duration(&move, move_ms);
+    lv_anim_set_path_cb(&move, lv_anim_path_ease_in_out);
+    lv_anim_set_exec_cb(&move, [](void *var, int32_t v) { static_cast<KisSegitoUI *>(var)->task_move_step_(v); });
+    lv_anim_start(&move);
+  }
+  const uint32_t rebuild_ms = move_ms > 0 ? ms * 2 / 3 + move_ms + 40 : ms + 250;
   lv_timer_t *t = lv_timer_create(
       [](lv_timer_t *timer) {
         auto *self = static_cast<KisSegitoUI *>(lv_timer_get_user_data(timer));
         lv_timer_delete(timer);
         self->busy_ = false;
         self->pending_rebuild_ = false;
+        self->task_move_ = TaskMove{};
         self->show_(Screen::ROUTINE);
       },
-      ms + 250, this);
+      rebuild_ms, this);
   lv_timer_set_repeat_count(t, 1);
   if (reward > 0)
     this->celebrate_(reward);
+}
+
+// One frame of the move between two tasks (v from 0 to 1024).
+void KisSegitoUI::task_move_step_(int32_t v) {
+  TaskMove &m = this->task_move_;
+  auto lerp = [v](int a, int b) { return a + (b - a) * v / 1024; };
+  if (m.done != nullptr) {
+    lv_image_set_scale(m.done, lerp(256, m.done_s1));
+    lv_obj_set_pos(m.done, lerp(m.done_x0, m.done_x1), lerp(m.done_y0, m.done_y1));
+    // Greys out like the other finished tasks on its way.
+    lv_obj_set_style_image_recolor(m.done, lv_color_hex(0x8C96A5), 0);
+    lv_obj_set_style_image_recolor_opa(m.done, static_cast<lv_opa_t>(200 * v / 1024), 0);
+  }
+  if (m.next != nullptr) {
+    lv_image_set_scale(m.next, lerp(m.next_s0, 256));
+    lv_obj_set_pos(m.next, lerp(m.next_x0, m.next_x1), lerp(m.next_y0, m.next_y1));
+  }
 }
 
 void KisSegitoUI::celebrate_(int tokens) {
