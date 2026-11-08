@@ -29,7 +29,9 @@ digits or symbols ("in a quarter of an hour, at half past seven", „negyed óra
 múlva, fél nyolckor”), so every text-to-speech voice (Piper, Home Assistant
 Cloud, others) reads them right. Each answer has a few wordings, so they do not
 sound the same every time. Hungarian questions get Hungarian answers; every
-other language gets English answers.
+other language gets English answers. The sentences and the answers are in
+`custom_components/kis_segito/assist_translations/<language>.json`, so another
+language can be added with one file (numbers are then said as digits).
 
 ## Which agent answers
 
@@ -51,7 +53,7 @@ With a child called Alex. The words in brackets are optional, a slash means
 |---|---|---|
 | Tokens | hány / mennyi zsetonja van Alexnek; Alexnek hány zsetonja van; mennyi pénze / pontja / érméje van Alexnek; Alex egyenlege; van még zsetonja Alexnek | how many tokens / coins / points does Alex have; how many coins has Alex got; what's Alex's balance; Alex's wallet |
 | Tokens, every child | kinek mennyi zsetonja van; mennyi zseton van a gyerekeknek; hogy állnak a gyerekek; kinek mennyi van | how many tokens do the kids have; who has how many coins; how are the kids doing |
-| Task | van most feladata Alexnek; mi Alex feladata most; mi a feladata Alexnek; mit kell most csinálnia Alexnek; mivel tart most Alex | does Alex have a task now; what's Alex's task; what should Alex be doing now; what is Alex doing now |
+| Task | van most feladata Alexnek; mi Alex feladata most; mi a dolga most Alexnek; mit kell most csinálnia Alexnek; mivel tart most Alex; mi következik Alexnél | does Alex have a task now; what's Alex's task; what should Alex be doing now; what does Alex have to do now; what's next for Alex |
 | Task, every child | kinek van most feladata; mik a feladatok most | does anyone have a task now; who has something to do now |
 | Checkpoint | mikor van Alex következő ellenőrzőpontja; mikor jön Alexnek a következő ellenőrzőpontja; mennyi idő van még Alex következő ellenőrzőpontjáig; meddig van még ideje Alexnek | when is Alex's next checkpoint; how long until Alex's next checkpoint; how much time does Alex have left |
 | Checkpoint, every child | mikor van a következő ellenőrzőpont; mennyi idő van még a következő ellenőrzőpontig | when is the next checkpoint; how long until the next checkpoint |
@@ -59,6 +61,7 @@ With a child called Alex. The words in brackets are optional, a slash means
 | Tokens to earn, every child | hány zsetont kaphatnak még ma a gyerekek; ki hány zsetont kaphat még ma | how many tokens can the kids still earn today |
 | Streak | hány napos Alex sorozata; hány napja hibátlan Alex; hogy áll Alex sorozata | what is Alex's streak; how many perfect days does Alex have |
 | Streak, every child | milyen hosszú a sorozat; hogy állnak a sorozatok | what are the streaks; how are the streaks going |
+| Tasks left in a routine (every child it is for) | mennyi van még hátra az esti rutinból; hány feladat van még hátra a reggeliből | how many tasks are left in the evening routine; how much is left of the morning routine |
 
 In Hungarian "checkpoint", "csekkpont", "check pont" and "határidő" work in
 place of "ellenőrzőpont", "jeton", "pénz", "pont", "érme" and "tallér" in place
@@ -124,7 +127,10 @@ A válaszok felolvasásra készülnek: a számok és az időpontok szóval szere
 számjegyek és jelek nélkül („negyed óra múlva, fél nyolckor”), így minden
 felolvasó (Piper, Home Assistant Cloud és a többi) jól mondja ki őket. Minden
 válasznak több megfogalmazása van, hogy ne hangozzon mindig ugyanúgy. Magyar
-kérdésre magyarul válaszol, minden más nyelven angolul.
+kérdésre magyarul válaszol, minden más nyelven angolul. A mondatok és a
+válaszok a `custom_components/kis_segito/assist_translations/<nyelv>.json`
+fájlokban vannak, így egy új nyelvhez elég egy fájl (a számokat ilyenkor
+számjeggyel mondja).
 
 ## Melyik ügynök válaszol
 

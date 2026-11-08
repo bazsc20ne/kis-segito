@@ -139,7 +139,7 @@ async def test_answers(
     assert "seven tokens" in answer(status, "tokens", "en")
     assert "hét zseton" in answer(status, "tokens", "hu")
     assert "Eat" in answer(status, "task", "en")
-    assert "Még két feladat" in answer(status, "task", "hu")
+    assert "még két feladat van hátra" in answer(status, "task", "hu")
     text = answer(status, "checkpoint", "hu").casefold()
     assert "fél óra múlva" in text
     assert "reggel hét óra ötven perckor" in text
@@ -219,7 +219,7 @@ async def assist(
         ("en", "how many tokens does Áron have", "Áron has seven tokens"),
         ("en", "How many coins has aron got?", "seven tokens"),
         ("en", "what's Ari's balance", "seven tokens"),
-        ("en", "does Ari have a task now", "Áron is doing Morning now"),
+        ("en", "does Ari have a task now", "two tasks to go"),
         ("en", "when is Bogyó's next checkpoint", "half an hour"),
         ("en", "how many coins can aron still get today", "Áron can still earn five"),
         ("en", "what is Áron's streak", "no streak"),
@@ -409,6 +409,9 @@ DOCUMENTED = {
         "mi a teendője most Alexnek",
         "mi most a dolga Alexnek",
         "Alexnek mi a dolga most",
+        "mi következik Alexnél",
+        "mi jön most Alexnek",
+        "mi a következő feladata Alexnek",
         "Alexé mennyi zsetonja van",
         "mennyi zsetonja van Alexnél",
     ],
@@ -438,6 +441,9 @@ DOCUMENTED = {
         "how many tokens can the kids still earn today",
         "what is Alex's streak",
         "how many perfect days does Alex have",
+        "What does Alex have to do now?",
+        "what does Alex have to do",
+        "What's next for Alex?",
         "what are the streaks",
         "how are the streaks going",
     ],
@@ -482,3 +488,44 @@ async def test_english_streak_says_days_once(manager: KisSegitoManager) -> None:
     for _ in range(10):
         text = answer(status, "streak", "en")
         assert "out of seven days" not in text, text
+
+
+@pytest.mark.parametrize(
+    ("language", "sentence", "expected"),
+    [
+        ("hu", "mennyi van még hátra a Morning rutinból", "két feladat"),
+        ("hu", "hány feladat van még hátra a Morning rutinból", "a Morning rutinból"),
+        ("en", "how many tasks are left in Morning", "Áron has two tasks left in Morning."),
+    ],
+)
+async def test_routine_questions(
+    hass: HomeAssistant, assist: KisSegitoManager, language: str, sentence: str, expected: str
+) -> None:
+    speech = await _converse(hass, sentence, language)
+    assert expected in speech, speech
+
+
+async def test_routine_name_is_not_doubled(
+    manager: KisSegitoManager, freezer: FrozenDateTimeFactory
+) -> None:
+    """A routine called "... rutin" is not said as "rutin rutin"."""
+    freezer.move_to(dt_util.now().replace(hour=7, minute=20, second=0, microsecond=0))
+    kid, routine = await _setup(manager)
+    await manager.async_save_item("routines", {"id": routine["id"], "name": "Esti rutin"})
+    status = child_status(manager, kid)
+    for _ in range(20):
+        text = answer(status, "task", "hu")
+        assert "rutin rutin" not in text and "Esti rutin" in text, text
+
+
+def test_a_language_needs_only_files() -> None:
+    """A language without its own grammar still answers, with digits."""
+    from custom_components.kis_segito import assist_lang
+
+    assist_lang._texts["xx"] = {"answers": {"tokens": {"some": ["{name}: {wallet:num}"]}}}
+    try:
+        assert assist_lang.say("xx", "tokens", "some", name="Kid A", wallet=7) == "Kid A: 7"
+        # Missing texts fall back to English.
+        assert assist_lang.say("xx", "tokens", "none", name="Kid A") == "Kid A has no tokens right now."
+    finally:
+        del assist_lang._texts["xx"]

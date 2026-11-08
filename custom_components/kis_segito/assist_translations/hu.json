@@ -1,0 +1,225 @@
+{
+  "sentences": {
+    "words": {
+      "<MENNYI>": "(mennyi|mennyei|menyi|hány|hányat|mekkora)",
+      "<ZS>": "(zseton|zsetonja|zsetonjai|zsetont|zsetonok|zsetonod|zsetonjuk|zsetom|zsetonya|jeton|jetonja|jetont|jetonok|érme|érméje|érméi|érmét|érmék|pénz|pénze|pénzt|pont|pontja|pontot|pontjai|pontok|tallér|tallérja)",
+      "<EGYENLEG>": "(egyenleg|egyenlege|egyenlegét|egyenlegük|kassza|kasszája)",
+      "<KP>": "(ellenőrzőpont|ellenőrzőpontja|ellenőrző pont|ellenőrző pontja|csekkpont|csekkpontja|csekk pont|csekk pontja|check pont|check pontja|checkpoint|checkpointja|határidő|határideje)",
+      "<KP0>": "(ellenőrzőpont|ellenőrző pont|csekkpont|csekk pont|check pont|checkpoint)",
+      "<KPIG0>": "(ellenőrzőpontig|ellenőrző pontig|csekkpontig|csekk pontig|check pontig|checkpointig)",
+      "<KPIG>": "(ellenőrzőpontig|ellenőrzőpontjáig|ellenőrző pontig|ellenőrző pontjáig|csekkpontig|csekkpontjáig|csekk pontig|csekk pontjáig|check pontig|checkpointig|checkpointjáig|határidőig|határidejéig)",
+      "<FELADAT>": "(feladat|feladata|feladatai|feladatok|teendő|teendője|teendői|teendők|dolga|tennivalója|tennivalók)",
+      "<SOROZAT>": "(sorozat|sorozata|sorozatja|szériája|széria)",
+      "<KAPHAT>": "(kaphat|szerezhet|gyűjthet|kereshet|nyerhet|kap|szerez)",
+      "<KAPHATNAK>": "(kaphatnak|szerezhetnek|gyűjthetnek|kereshetnek|kapnak)",
+      "<MOST>": "[most|éppen|épp|jelenleg|ma]",
+      "<MEG>": "[még]",
+      "<MA>": "[ma|mára|a mai napon]",
+      "<KOVETKEZO>": "(következő|következö|kovetkezo|legközelebbi)",
+      "<MINDENKI>": "(mindenkinek|kinek|kiknek|a gyerekeknek|a gyerekeknél|gyerekeknek|valakinek|mindenkinél|kinél)"
+    },
+    "child": {
+      "tokens": [
+        "(<MENNYI> <ZS>; [van|vannak] [még] [neki]; <NX>)",
+        "(<MENNYI> <ZS>; [van] [a] [pénztárcájában|perselyében|perselyben]; <NX>)",
+        "(<MENNYI>|mi|mondd meg|mondd) [a|az] <N> <EGYENLEG>",
+        "[a|az] <N> <EGYENLEG>",
+        "(<ND>|<N>) (mennyi|mennyei|hány) (van|maradt)",
+        "[a|az] <N> (zsetonjai|zsetonja|pénze|pontjai|pontja|érméi)",
+        "(van|vannak) [még] <ZS> <NX>",
+        "<NX> (van|vannak) [még] <ZS>",
+        "(<MENNYI> <ZS>; van [a|az] <N> perselyében)",
+        "(<MENNYI> <ZS>; van <ND> [a] perselyében)"
+      ],
+      "task": [
+        "(van|lesz) <MOST> <FELADAT> <NX>",
+        "<NX> (van|lesz) <MOST> <FELADAT>",
+        "(mi|mik) [a|az] <N> <FELADAT> <MOST>",
+        "(mi|mik) (a|az) <FELADAT> <NX> <MOST>",
+        "(mi|mik) <NX> <FELADAT> <MOST>",
+        "<NX> (mi|mik) [a|az] <FELADAT> <MOST>",
+        "(mit;kell;<MOST>;(csinálnia|tennie);<NX>)",
+        "(mit;csinál;<MOST>;<NX>)",
+        "(mivel;tart;<MOST>;[a|az] <N>)",
+        "(van;<MOST>;dolga;<NX>)",
+        "(mi|mik) [a|az] (<FELADAT>;<NX>;<MOST>)",
+        "(mi|mik) (<NX>;[a|az] <FELADAT>;<MOST>)",
+        "(mi|mik) (<MOST>;[a|az] <FELADAT>;<NX>)",
+        "(mi|mik) (következik|jön) <MOST> (<NA>|<ND>|<N>)",
+        "(<NA>|<ND>|<N>) (mi|mik) (következik|jön) <MOST>",
+        "(mi;a <KOVETKEZO> <FELADAT>;<NX>)"
+      ],
+      "checkpoint": [
+        "(mikor;(van|lesz|jön);[a|az] <N> <KOVETKEZO> <KP>)",
+        "(mikor;(van|lesz|jön);[a|az] <KOVETKEZO> <KP>;<NX>)",
+        "(mikor;(van|lesz|jön);<ND> [a|az] <KOVETKEZO> <KP>)",
+        "(mennyi idő;van <MEG>;[a|az] <N> <KOVETKEZO> <KPIG>)",
+        "(mennyi ideje;van <MEG>;(<ND>|<N>);[a|az] <KOVETKEZO> <KPIG>)",
+        "(meddig;van <MEG>;ideje;(<ND>|<N>))",
+        "[a|az] <N> <KOVETKEZO> <KP>",
+        "(<ND>|<N>) <KOVETKEZO> <KP>",
+        "(mikor;kell;<MEG>;(elkészülnie|kész lennie|végeznie);<NX>)"
+      ],
+      "earnable": [
+        "(<MENNYI> <ZS>;<KAPHAT> <MEG> <MA>;<NX>)",
+        "(<MENNYI> <ZS>;<KAPHAT> <MEG>;<NX>)",
+        "(<MENNYI> <ZS>;jár <MEG> <MA>;<NX>)",
+        "(mennyit;<KAPHAT> <MEG> <MA>;<NX>)"
+      ],
+      "streak": [
+        "(<MENNYI>|milyen hosszú|milyen) [napos] [a|az] <N> <SOROZAT>",
+        "[a|az] <N> <SOROZAT>",
+        "(hány napja;(hibátlan|csinálja végig|ügyes|teljesít);<NX>)",
+        "(hány;hibátlan napja;van;<NX>)",
+        "(hogy|hogyan) áll [a|az] <N> <SOROZAT>"
+      ]
+    },
+    "all": {
+      "tokens": [
+        "<MINDENKI> (mennyi|mennyei|hány) <ZS> [van]",
+        "(<MENNYI> <ZS>;van;<MINDENKI>)",
+        "(<MENNYI> <ZS>;van;[a|az] (kis segítőben|kis segítőn|gyerekeknél))",
+        "(hogy|hogyan) állnak a gyerekek",
+        "(van;<MINDENKI>;[valamennyi] <ZS>;[a] (perselyében|perselyben))",
+        "(kinek;van;[a legtöbb] <ZS>)",
+        "kinek mennyi (van|maradt)",
+        "[mi] a gyerekek <EGYENLEG>",
+        "(<MENNYI> <ZS>;van [összesen];a gyerekeknek)"
+      ],
+      "task": [
+        "(kinek|kiknek|valakinek|mindenkinek) (van|lesz) <MOST> <FELADAT>",
+        "(van|lesz) <MOST> (valakinek|kinek|a gyerekeknek) <FELADAT>",
+        "(mi|mik) [a|az] <FELADAT> <MOST>",
+        "(mit;kell;<MOST>;csinálni;[a gyerekeknek])",
+        "(mi;a gyerekek;<FELADAT>;<MOST>)"
+      ],
+      "checkpoint": [
+        "(mikor;(van|lesz|jön);[a|az] <KOVETKEZO> <KP0>)",
+        "(mennyi idő;van <MEG>;[a|az] <KOVETKEZO> <KPIG0>)",
+        "[mi] [a|az] <KOVETKEZO> <KP0>"
+      ],
+      "earnable": [
+        "(<MENNYI> <ZS>;<KAPHATNAK> <MEG> <MA>;[a gyerekek])",
+        "(ki;<MENNYI> <ZS>;<KAPHAT> <MEG> <MA>)",
+        "(<MENNYI> <ZS>;jár <MEG> <MA>;a gyerekeknek)"
+      ],
+      "streak": [
+        "(<MENNYI>|milyen hosszú) [napos] a (sorozat|sorozatuk|sorozatok)",
+        "(hogy|hogyan) állnak a sorozatok",
+        "(kinek;hány;hibátlan napja;van)"
+      ]
+    },
+    "routine": {
+      "routine_left": [
+        "(mennyi|mennyei|hány [feladat]) (van|maradt) [még] hátra [a|az] <RF>",
+        "[a|az] <RF> (mennyi|mennyei|hány [feladat]) (van|maradt) [még] hátra",
+        "(mennyi|mennyei) van még [a|az] <RF>",
+        "(hány;feladat;van [még] hátra;[a|az] <RF>)"
+      ]
+    }
+  },
+  "nouns": {
+    "token": "zseton",
+    "token_acc": "zsetont",
+    "token_his": "zsetonja",
+    "day": "nap",
+    "day_acc": "napot",
+    "task": "feladat",
+    "task_his": "feladata"
+  },
+  "answers": {
+    "tokens": {
+      "some": [
+        "{name_dat} {wallet:token_his} van.",
+        "{name_dat} most {wallet:token_his} van.",
+        "{name} pénztárcájában {wallet:token} van."
+      ],
+      "none": [
+        "{name_dat} most nincs zsetonja.",
+        "{name} pénztárcája most üres."
+      ],
+      "piggy": [
+        "A perselyében {piggy:token} van."
+      ],
+      "piggy_empty": [
+        "A perselye üres."
+      ]
+    },
+    "task": {
+      "task": [
+        "{name} most {routine_at} tart, a következő {task_art}, és még {left:task} van hátra.",
+        "{name} most {routine_acc} csinálja, most {task_art} jön, és még {left:task} van hátra."
+      ],
+      "last": [
+        "{name} most {routine_at} tart, és már csak {task_art} van hátra.",
+        "{name} most {routine_acc} csinálja, és már csak egy feladata van hátra, {task_art}."
+      ],
+      "done": [
+        "{name} {routine_gen} minden feladatát elvégezte. Ügyes!",
+        "{name} már kész {routine_gen} összes feladatával."
+      ],
+      "none": [
+        "{name_dat} most nincs feladata.",
+        "{name_dat} most nincs semmi dolga."
+      ]
+    },
+    "checkpoint": {
+      "next": [
+        "{name} következő ellenőrzőpontja {cp_art}, {in}, {at}.",
+        "{in} jön {name} következő ellenőrzőpontja, {cp_art}. Ez {at} lesz."
+      ],
+      "now": [
+        "{name} ellenőrzőpontja, {cp_art}, most van."
+      ],
+      "none": [
+        "{name_dat} mára nincs több ellenőrzőpontja.",
+        "{name_dat} ma már nincs ellenőrzőpontja."
+      ]
+    },
+    "earnable": {
+      "some": [
+        "{name} ma még {today:token_acc} szerezhet.",
+        "{name_dat} ma még {today:token} jár, ha mindent időben megcsinál."
+      ],
+      "now_part": [
+        "Ebből {now:token} a mostani rutinban."
+      ],
+      "none": [
+        "{name} ma már nem szerezhet több zsetont."
+      ]
+    },
+    "streak": {
+      "some": [
+        "{name} már {streak:num} napja mindent megcsinál. A cél {target:day}.",
+        "{name} {target:num} napból {streak:day_acc} már teljesített."
+      ],
+      "none": [
+        "{name_dat} most nincs sorozata. A cél {target:num} hibátlan nap egymás után."
+      ]
+    },
+    "routine_left": {
+      "left": [
+        "{name_dat} még {left:task_his} van hátra {routine_from}.",
+        "{name_dat} {routine_from} még {left:task} van hátra."
+      ],
+      "last": [
+        "{name_dat} már csak egy feladata van hátra {routine_from}, {task_art}."
+      ],
+      "done": [
+        "{name} már mindent megcsinált {routine_from}.",
+        "{name_dat} már nincs hátra semmi {routine_from}."
+      ],
+      "not_today": [
+        "{routine_nom} ma nincs a napirendben."
+      ]
+    },
+    "general": {
+      "no_children": [
+        "Még nincs gyerek a Kis Segítőben."
+      ],
+      "unknown": [
+        "Nem ismerek {spoken} nevű gyereket a Kis Segítőben."
+      ]
+    }
+  }
+}

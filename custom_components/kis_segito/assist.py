@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import logging
 import math
-import random
 import unicodedata
 from collections.abc import Callable
 from datetime import datetime
@@ -28,17 +27,8 @@ from homeassistant.helpers import intent
 from homeassistant.helpers.start import async_at_started
 from homeassistant.util import dt as dt_util
 
-from .assist_sentences import all_sentences, child_sentences
-from .assist_words import (
-    en_clock,
-    en_in,
-    en_number,
-    hu_article,
-    hu_clock,
-    hu_forms,
-    hu_in,
-    hu_number,
-)
+from .assist_lang import grammar, languages, say
+from .assist_sentences import all_sentences, child_sentences, routine_sentences
 from .entity_helpers import next_checkpoint, running_routines
 from .logic import applies_to, reward_for
 from .manager import KisSegitoManager
@@ -144,9 +134,10 @@ def find_child(manager: KisSegitoManager, spoken: str) -> dict[str, Any] | None:
 
 # ---------------------------------------------------------------- answers
 #
-# Answers are made to be spoken: numbers and times are written out in words
-# and there are no symbols, so every text-to-speech engine reads them right.
-# Each answer has a few wordings, chosen at random.
+# Answers are made to be spoken: numbers and times are words in the languages
+# that have a grammar for it (assist_lang.py), so every text-to-speech engine
+# reads them right. The wordings are in assist_translations/<language>.json;
+# each answer has a few, chosen at random.
 
 
 def _names(child: dict[str, Any]) -> list[str]:
@@ -162,260 +153,78 @@ def _due(status: dict[str, Any]) -> datetime | None:
     return dt_util.as_local(due) if due is not None else None
 
 
-def _hu_answer(status: dict[str, Any], topic: str) -> list[str]:
-    name = status["name"]
-    dative = hu_forms(name)["dative"]
+def _answer_parts(status: dict[str, Any], topic: str, language: str) -> list[str]:
+    gram = grammar(language)
+    values = gram.name_values(status["name"]) | {"wallet": status["wallet"]}
     parts: list[str] = []
+
+    def add(section: str, case: str, **extra: Any) -> None:
+        parts.append(say(language, section, case, **(values | extra)))
+
     if topic in ("tokens", "all"):
-        wallet = status["wallet"]
-        if wallet:
-            n = hu_number(wallet)
-            parts.append(
-                random.choice(
-                    [
-                        f"{dative} {n} zsetonja van.",
-                        f"{dative} most {n} zsetonja van.",
-                        f"{name} pénztárcájában {n} zseton van.",
-                    ]
-                )
-            )
-        else:
-            parts.append(
-                random.choice(
-                    [f"{dative} most nincs zsetonja.", f"{name} pénztárcája most üres."]
-                )
-            )
+        add("tokens", "some" if status["wallet"] else "none")
         if status["piggy_unlocked"]:
-            if status["piggy"]:
-                parts.append(f"A perselyében {hu_number(status['piggy'])} zseton van.")
-            else:
-                parts.append("A perselye üres.")
+            add("tokens", "piggy" if status["piggy"] else "piggy_empty", piggy=status["piggy"])
     if topic in ("task", "all"):
-        routine = status["current_routine"]
         left = status["tasks_left"]
+        phrases = gram.phrase_values(
+            status["current_routine"] or "", status["current_task"] or "", ""
+        )
         if status["task_status"] == "task":
-            text = random.choice(
-                [
-                    f"{name} most {hu_article(routine)} {routine} rutint csinálja.",
-                    f"{name} most {hu_article(routine)} {routine} rutinnál tart.",
-                ]
-            )
-            task = status["current_task"]
-            text += " " + random.choice(
-                [f"A következő feladata {task}.", f"Most ez jön, {task}."]
-            )
-            if len(left) == 1:
-                text += " Ez az utolsó feladata."
-            else:
-                text += f" Még {hu_number(len(left))} feladat van hátra."
-            parts.append(text)
+            add("task", "last" if len(left) == 1 else "task", left=len(left), **phrases)
         elif status["task_status"] == "done":
-            parts.append(
-                random.choice(
-                    [
-                        f"{name} {hu_article(routine)} {routine} rutin minden feladatát elvégezte. Ügyes!",
-                        f"{name} már kész {hu_article(routine)} {routine} rutin összes feladatával.",
-                    ]
-                )
-            )
+            add("task", "done", **phrases)
         else:
-            parts.append(
-                random.choice(
-                    [
-                        f"{dative} most nincs feladata.",
-                        f"{dative} most nincs semmi dolga.",
-                    ]
-                )
-            )
+            add("task", "none")
     if topic in ("checkpoint", "all"):
         minutes = status["next_checkpoint_minutes"]
         due = _due(status)
+        phrases = gram.phrase_values("", "", status["next_checkpoint"] or "")
         if minutes is None or due is None:
-            parts.append(
-                random.choice(
-                    [
-                        f"{dative} mára nincs több ellenőrzőpontja.",
-                        f"{dative} ma már nincs ellenőrzőpontja.",
-                    ]
-                )
-            )
+            add("checkpoint", "none")
         elif minutes == 0:
-            parts.append(
-                f"{name} ellenőrzőpontja, {hu_article(status['next_checkpoint'])} "
-                f"{status['next_checkpoint']}, most van."
-            )
+            add("checkpoint", "now", **phrases)
         else:
-            cp = status["next_checkpoint"]
-            parts.append(
-                random.choice(
-                    [
-                        f"{name} következő ellenőrzőpontja {hu_article(cp)} {cp}, {hu_in(minutes)}, {hu_clock(due)}.",
-                        f"{hu_in(minutes).capitalize()} jön {name} következő ellenőrzőpontja, {hu_article(cp)} {cp}. Ez {hu_clock(due)} lesz.",
-                    ]
-                )
+            add(
+                "checkpoint", "next", at=gram.clock(due), **{"in": gram.until(minutes)}, **phrases
             )
     if topic in ("earnable", "all"):
         today = status["tokens_earnable_today"]
         now = status["tokens_earnable_now"]
         if today:
-            text = random.choice(
-                [
-                    f"{name} ma még {hu_number(today)} zsetont szerezhet.",
-                    f"{dative} ma még {hu_number(today)} zseton jár, ha mindent időben megcsinál.",
-                ]
-            )
+            add("earnable", "some", today=today)
             if now and now != today:
-                text += f" Ebből {hu_number(now)} a mostani rutinban."
-            parts.append(text)
+                add("earnable", "now_part", now=now)
         else:
-            parts.append(f"{name} ma már nem szerezhet több zsetont.")
+            add("earnable", "none")
     if topic in ("streak", "all"):
-        streak = status["streak"]
-        target = status["streak_target"]
-        if streak:
-            parts.append(
-                random.choice(
-                    [
-                        f"{name} már {hu_number(streak)} napja mindent megcsinál. A cél {hu_number(target)} nap.",
-                        f"{name} {hu_number(target)} napból {hu_number(streak)} napot már teljesített.",
-                    ]
-                )
-            )
-        else:
-            parts.append(
-                f"{dative} most nincs sorozata. A cél {hu_number(target)} hibátlan nap egymás után."
-            )
-    return parts
-
-
-def _en_answer(status: dict[str, Any], topic: str) -> list[str]:
-    name = status["name"]
-    parts: list[str] = []
-
-    def tokens(n: int) -> str:
-        return f"{en_number(n)} token{'' if n == 1 else 's'}"
-
-    def days(n: int) -> str:
-        return f"{en_number(n)} day{'' if n == 1 else 's'}"
-
-    if topic in ("tokens", "all"):
-        wallet = status["wallet"]
-        if wallet:
-            parts.append(
-                random.choice(
-                    [
-                        f"{name} has {tokens(wallet)}.",
-                        f"{name} has {tokens(wallet)} right now.",
-                    ]
-                )
-            )
-        else:
-            parts.append(f"{name} has no tokens right now.")
-        if status["piggy_unlocked"]:
-            if status["piggy"]:
-                parts.append(f"The piggy bank holds {tokens(status['piggy'])}.")
-            else:
-                parts.append("The piggy bank is empty.")
-    if topic in ("task", "all"):
-        routine = status["current_routine"]
-        left = status["tasks_left"]
-        if status["task_status"] == "task":
-            text = f"{name} is doing {routine} now. Next is {status['current_task']}."
-            if len(left) == 1:
-                text += " That is the last task."
-            else:
-                text += f" {en_number(len(left)).capitalize()} tasks are left."
-            parts.append(text)
-        elif status["task_status"] == "done":
-            parts.append(
-                random.choice(
-                    [
-                        f"{name} has finished every task of {routine}. Well done!",
-                        f"{name} is done with all of {routine}.",
-                    ]
-                )
-            )
-        else:
-            parts.append(
-                random.choice(
-                    [
-                        f"{name} has no task right now.",
-                        f"{name} has nothing to do right now.",
-                    ]
-                )
-            )
-    if topic in ("checkpoint", "all"):
-        minutes = status["next_checkpoint_minutes"]
-        due = _due(status)
-        if minutes is None or due is None:
-            parts.append(f"{name} has no more checkpoints today.")
-        elif minutes == 0:
-            parts.append(f"{name}'s checkpoint, {status['next_checkpoint']}, is now.")
-        else:
-            cp = status["next_checkpoint"]
-            parts.append(
-                random.choice(
-                    [
-                        f"{name}'s next checkpoint, {cp}, is {en_in(minutes)}, {en_clock(due)}.",
-                        f"{name}'s next checkpoint is {cp}, {en_clock(due)}. That is {en_in(minutes)}.",
-                    ]
-                )
-            )
-    if topic in ("earnable", "all"):
-        today = status["tokens_earnable_today"]
-        now = status["tokens_earnable_now"]
-        if today:
-            text = f"{name} can still earn {tokens(today)} today."
-            if now and now != today:
-                text += (
-                    f" {en_number(now).capitalize()} of them in the current routine."
-                )
-            parts.append(text)
-        else:
-            parts.append(f"{name} can't earn any more tokens today.")
-    if topic in ("streak", "all"):
-        streak = status["streak"]
-        target = status["streak_target"]
-        if streak:
-            parts.append(
-                random.choice(
-                    [
-                        f"{name}'s streak is {days(streak)} out of {en_number(target)}.",
-                        f"{name} has done everything for {days(streak)} in a row. The goal is {days(target)}.",
-                    ]
-                )
-            )
-        else:
-            parts.append(
-                f"{name} has no streak right now. The goal is {days(target)} in a row."
-            )
+        add(
+            "streak",
+            "some" if status["streak"] else "none",
+            streak=status["streak"],
+            target=status["streak_target"],
+        )
     return parts
 
 
 def answer(status: dict[str, Any], topic: str, language: str) -> str:
-    """One spoken answer about a child (Hungarian, or English for every
-    other language)."""
-    if (language or "").lower().startswith("hu"):
-        return " ".join(_hu_answer(status, topic))
-    return " ".join(_en_answer(status, topic))
+    """One spoken answer about a child, in the asker's language (English when
+    there is no file for it)."""
+    return " ".join(_answer_parts(status, topic, language))
 
 
 def answer_all(manager: KisSegitoManager, topic: str, language: str) -> str:
     """The answer for every active child."""
     children = manager.children(active_only=True)
     if not children:
-        if (language or "").lower().startswith("hu"):
-            return "Még nincs gyerek a Kis Segítőben."
-        return "There are no children in Kis Segítő yet."
+        return say(language, "general", "no_children")
     return " ".join(
         answer(child_status(manager, c["id"]), topic, language) for c in children
     )
 
 
 def unknown(name: str, language: str) -> str:
-    if (language or "").lower().startswith("hu"):
-        return f"Nem ismerek {name} nevű gyereket a Kis Segítőben."
-    return f"I don't know a child called {name} in Kis Segítő."
+    return say(language, "general", "unknown", spoken=name)
 
 
 def answer_for(
@@ -430,13 +239,39 @@ def answer_for(
     return answer(child_status(manager, child["id"]), topic, language)
 
 
+def answer_routine(manager: KisSegitoManager, routine_id: str, language: str) -> str:
+    """What is left of a routine today, for every child it is for."""
+    day = manager.today()
+    gram = grammar(language)
+    routine = manager.routine_for_day(routine_id, day)
+    name = (routine or manager.routine(routine_id) or {}).get("name", "")
+    if routine is None:
+        return say(language, "routine_left", "not_today", **gram.phrase_values(name, "", ""))
+    parts = []
+    for child in manager.children(active_only=True):
+        if not applies_to(routine, child["id"]):
+            continue
+        done = manager.progress(day, routine_id, child["id"])["tasks"]
+        left = [
+            t.get("label") or ""
+            for t in routine.get("tasks", [])
+            if t["id"] not in done and applies_to(t, child["id"])
+        ]
+        values = gram.name_values(child.get("name", "")) | gram.phrase_values(
+            name, left[0] if left else "", ""
+        )
+        case = "done" if not left else "last" if len(left) == 1 else "left"
+        parts.append(say(language, "routine_left", case, left=len(left), **values))
+    return " ".join(parts)
+
+
 # ---------------------------------------------------------------- built-in agent
 
 
 def _signature(manager: KisSegitoManager) -> tuple:
     return tuple(
         (c["id"], tuple(_names(c))) for c in manager.children(active_only=True)
-    )
+    ) + tuple((r["id"], r.get("name", "")) for r in manager.data["routines"])
 
 
 def _register_sentences(
@@ -460,7 +295,7 @@ def _register_sentences(
         for child in manager.children(active_only=True):
             child_id = child["id"]
             per_topic: dict[str, list[str]] = {}
-            for language in ("hu", "en"):
+            for language in languages():
                 for topic, sentences in child_sentences(
                     _names(child), language
                 ).items():
@@ -484,7 +319,28 @@ def _register_sentences(
             ) -> str:
                 return answer_all(manager, topic, user_input.language or "en")
 
-            add(all_sentences("hu")[topic] + all_sentences("en")[topic], respond_all)
+            add(
+                [s for lang in languages() for s in all_sentences(lang).get(topic, [])],
+                respond_all,
+            )
+        for routine in manager.data["routines"]:
+            if not routine.get("name"):
+                continue
+            routine_id = routine["id"]
+            sentences = [
+                s
+                for lang in languages()
+                for items in routine_sentences([routine["name"]], lang).values()
+                for s in items
+            ]
+
+            async def respond_routine(
+                user_input: Any, result: Any, routine_id: str = routine_id
+            ) -> str:
+                return answer_routine(manager, routine_id, user_input.language or "en")
+
+            if sentences:
+                add(sentences, respond_routine)
     except Exception:  # noqa: BLE001 - a changed agent API only loses the sentences
         _LOGGER.warning("Kis Segítő: the Assist sentences could not be added")
     return removers

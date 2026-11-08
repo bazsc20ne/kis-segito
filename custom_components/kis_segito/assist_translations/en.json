@@ -1,0 +1,181 @@
+{
+  "sentences": {
+    "words": {
+      "<COINS>": "(coins|coin|tokens|token|points|money|chips)",
+      "<CP>": "(checkpoint|check point|deadline)",
+      "<NOW>": "[right now|now|at the moment|currently|today]"
+    },
+    "child": {
+      "tokens": [
+        "how many <COINS> (does|has) <N> (have|got)",
+        "how many <COINS> has <N> got",
+        "how much (money|coins|tokens) (does|has) <N> (have|got)",
+        "(what is|what's|whats|tell me) <NS> (balance|wallet|piggy bank|savings)",
+        "<NS> (balance|wallet|coins|tokens)",
+        "(does|has) <N> (have|got) [any] <COINS>"
+      ],
+      "task": [
+        "(does|has) <N> (have|got) (a task|anything to do|something to do|a job) <NOW>",
+        "(what is|what's|whats) <NS> (task|job|next task) <NOW>",
+        "what (does|should|must) <N> (do|be doing) <NOW>",
+        "what is <N> (doing|supposed to do) <NOW>",
+        "is <N> (busy|done) <NOW>",
+        "what (does|do) <N> (have|need) to do <NOW>",
+        "(what's|whats|what is) next for <N>",
+        "what (does|should|will) <N> do next"
+      ],
+      "checkpoint": [
+        "(when is|when's|whens) <NS> next <CP>",
+        "how long (until|till|before) <NS> next <CP>",
+        "how much time (does|has) <N> (have|got) [left] [until the next <CP>]",
+        "<NS> next <CP>"
+      ],
+      "earnable": [
+        "how many <COINS> can <N> [still] (get|earn|win|collect) <NOW>",
+        "how much can <N> [still] (get|earn) <NOW>"
+      ],
+      "streak": [
+        "(what is|what's|whats|how long is) <NS> streak",
+        "how many (perfect|good) days (does|has) <N> (have|got|had)",
+        "<NS> streak"
+      ]
+    },
+    "all": {
+      "tokens": [
+        "how many <COINS> does (everyone|everybody) have",
+        "how many <COINS> do the (kids|children) have",
+        "who has how many <COINS>",
+        "how are the (kids|children) doing",
+        "(what are|what's) the (kids'|children's) balances",
+        "does anyone have [any] <COINS> [in the piggy bank]"
+      ],
+      "task": [
+        "(does|has) (anyone|anybody) (have|got) (a task|anything to do) <NOW>",
+        "who has (a task|something to do) <NOW>",
+        "what are the (tasks|jobs) <NOW>"
+      ],
+      "checkpoint": [
+        "(when is|when's|whens) the next <CP>",
+        "how long (until|till) the next <CP>"
+      ],
+      "earnable": [
+        "how many <COINS> can the (kids|children) [still] (get|earn) <NOW>",
+        "who can [still] (get|earn) how many <COINS> <NOW>"
+      ],
+      "streak": [
+        "(what are|how long are) the streaks",
+        "how are the streaks [going]"
+      ]
+    },
+    "routine": {
+      "routine_left": [
+        "how much is left (of|in) [the] <R>",
+        "how many tasks are left (of|in) [the] <R>",
+        "what is left (of|in) [the] <R>"
+      ]
+    }
+  },
+  "nouns": {
+    "token": [
+      "token",
+      "tokens"
+    ],
+    "day": [
+      "day",
+      "days"
+    ],
+    "task": [
+      "task",
+      "tasks"
+    ]
+  },
+  "answers": {
+    "tokens": {
+      "some": [
+        "{name} has {wallet:token}.",
+        "{name} has {wallet:token} right now."
+      ],
+      "none": [
+        "{name} has no tokens right now."
+      ],
+      "piggy": [
+        "The piggy bank holds {piggy:token}."
+      ],
+      "piggy_empty": [
+        "The piggy bank is empty."
+      ]
+    },
+    "task": {
+      "task": [
+        "{name} is doing {routine} now. Next is {task}, with {left:task} to go.",
+        "{name} is busy with {routine}. {task} comes next, with {left:task} to go."
+      ],
+      "last": [
+        "{name} is doing {routine} now. Only {task} is left.",
+        "{name} is on the last task of {routine}, {task}."
+      ],
+      "done": [
+        "{name} has finished every task of {routine}. Well done!",
+        "{name} is done with all of {routine}."
+      ],
+      "none": [
+        "{name} has no task right now.",
+        "{name} has nothing to do right now."
+      ]
+    },
+    "checkpoint": {
+      "next": [
+        "{name}'s next checkpoint, {cp}, is {in}, {at}.",
+        "{name}'s next checkpoint is {cp}, {at}. That is {in}."
+      ],
+      "now": [
+        "{name}'s checkpoint, {cp}, is now."
+      ],
+      "none": [
+        "{name} has no more checkpoints today."
+      ]
+    },
+    "earnable": {
+      "some": [
+        "{name} can still earn {today:token} today."
+      ],
+      "now_part": [
+        "{now:num} of them in the current routine."
+      ],
+      "none": [
+        "{name} can't earn any more tokens today."
+      ]
+    },
+    "streak": {
+      "some": [
+        "{name}'s streak is {streak:day} out of {target:num}.",
+        "{name} has done everything for {streak:day} in a row. The goal is {target:day}."
+      ],
+      "none": [
+        "{name} has no streak right now. The goal is {target:day} in a row."
+      ]
+    },
+    "routine_left": {
+      "left": [
+        "{name} has {left:task} left in {routine}."
+      ],
+      "last": [
+        "{name} has only {task} left in {routine}."
+      ],
+      "done": [
+        "{name} has finished everything in {routine}."
+      ],
+      "not_today": [
+        "{routine} is not on today's plan."
+      ]
+    },
+    "general": {
+      "no_children": [
+        "There are no children in Kis Segítő yet."
+      ],
+      "unknown": [
+        "I don't know a child called {spoken} in Kis Segítő."
+      ]
+    }
+  }
+}
