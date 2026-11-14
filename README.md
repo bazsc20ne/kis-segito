@@ -153,17 +153,24 @@ rutin, jutalombolt, jóváhagyások, heti statisztika, gyors +/−, eseménynapl
 állapota, gyerekek röviden), vizuális szerkesztővel: [docs/cards.md](docs/cards.md).
 
 **Assist:** a Home Assistant hangasszisztense megmondja egy gyerekről (vagy mindegyikről),
-hány zsetonja van, van-e most feladata, mikor van a következő ellenőrzőpontja, hány zsetont
-szerezhet még ma és hogy áll a sorozata. Magyarul és angolul érti, a gyerek nevével vagy egy
-másik nevével, ragozva is. A válaszokban a számok és az időpontok szóval szerepelnek
-(„negyed óra múlva, fél nyolckor”), így minden felolvasó jól mondja ki őket. Csak olvas,
-nem változtat semmit. Néhány mondat, amely beállítás nélkül, LLM nélkül is működik:
+hány zsetonja van, mi a feladata, mi van még hátra mára, mikor van a következő
+ellenőrzőpontja és rutinja, hány zsetont szerezhet még ma és hogy áll a sorozata, valamint
+hogy egy ellenőrzőpont előtt milyen feladatok vannak. Magyarul és angolul érti, a gyerek
+nevével vagy egy másik nevével, ragozva is, első személyben is („Mennyi zsetonom van?”), és
+rövid visszakérdezésekkel („És Alexnek?”). A válaszokban a számok és az időpontok szóval
+szerepelnek („negyed óra múlva, fél nyolckor”), így minden felolvasó jól mondja ki őket.
+Csak olvas, nem változtat semmit. Néhány mondat, amely beállítás nélkül, LLM nélkül is
+működik:
 
-- „Hány zsetonja van Alexnek?” · „Mennyi pénze van Alexnek?” · „Kinek mennyi zsetonja van?”
-- „Van most feladata Alexnek?” · „Mit kell most csinálnia Alexnek?”
-- „Mikor van Alex következő ellenőrzőpontja?” · „Mennyi idő van még a következő
-  ellenőrzőpontig?”
+- „Hány zsetonja van Alexnek?” · „Kinek mennyi zsetonja van?” · „Mennyi zsetonom van?”
+- „Van most feladata Alexnek?” · „Mi van még hátra Alexnek?” · „Mi a következő feladatom?”
+- „Mikor van Alex következő ellenőrzőpontja?” · „Mi a következő ellenőrzőpont a
+  gyerekeknek?” · „Mikor indul a következő rutin?”
 - „Hány zsetont kaphat még ma Alex?” · „Hány napja hibátlan Alex?”
+
+Az első személyű kérdésekre annak a gyereknek válaszol, akit egy hangfelismerő integráció
+felismer, vagy akit a panelen a hangszóróhoz rendeltél (**Beállítások → Általános →
+Hangszórók**). Egy gyereket sosem talál ki.
 
 Ha csak a beépített ügynök fut, ezekre a mondatokra az válaszol. LLM-ügynöknél a
 „Helyi parancsok előnyben részesítése” (Prefer handling commands locally) bekapcsolva a fenti mondatokra szintén a Kis
@@ -385,18 +392,25 @@ routine, reward shop, approvals, weekly statistics, quick +/−, event log, knob
 children at a glance), with a visual editor: [docs/cards.md](docs/cards.md).
 
 **Assist:** Home Assistant's voice assistant tells about a child (or every child) how
-many tokens they have, whether they have a task now, when the next checkpoint is, how many
-tokens they can still earn today and how their streak is going. It understands English
-and Hungarian, by the child's name or another name. Numbers and times are spoken as words
-("in a quarter of an hour, at half past seven"), so every text-to-speech voice reads them
-right. It only reads, it changes nothing. Some sentences that work without any setup and
-without an LLM:
+many tokens they have, what their task is, what is still left today, when the next
+checkpoint and the next routine are, how many tokens they can still earn today and how
+their streak is going, and which tasks come before a checkpoint. It understands English
+and Hungarian, by the child's name or another name, in the first person too ("How many
+tokens do I have?") and with short follow-ups ("And Alex?"). Numbers and times are spoken
+as words ("in a quarter of an hour, at half past seven"), so every text-to-speech voice
+reads them right. It only reads, it changes nothing. Some sentences that work without any
+setup and without an LLM:
 
-- "How many tokens does Alex have?" · "What's Alex's balance?" · "How many tokens do the
-  kids have?"
-- "Does Alex have a task now?" · "What should Alex be doing now?"
-- "When is Alex's next checkpoint?" · "How long until the next checkpoint?"
+- "How many tokens does Alex have?" · "Who has how many tokens?" · "How many tokens do I
+  have?"
+- "Does Alex have a task now?" · "What's left for Alex today?" · "What's my next task?"
+- "When is Alex's next checkpoint?" · "What's the next checkpoint for the kids?" · "When
+  does the next routine start?"
 - "How many coins can Alex still earn today?" · "What is Alex's streak?"
+
+First-person questions are answered for the child a speaker recognition integration
+recognises, or the children you assigned to the voice satellite in the panel
+(**Settings → General → Voice satellites**). It never guesses one child.
 
 With only the built-in agent, it answers these sentences. With an LLM agent and "Prefer
 handling commands locally" on, Kis Segítő still answers these sentences and the LLM

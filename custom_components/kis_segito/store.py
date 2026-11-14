@@ -50,6 +50,10 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     # Dashboard cards: the chosen theme's colours and fonts (True) or the
     # dashboard's own (False).
     "cards_themed": False,
+    # Voice satellites (by device or area) and the children who use them:
+    # first-person questions ("how many tokens do I have") are answered for
+    # these children. [{"device_id" | "area_id": …, "children": [ids]}]
+    "assist_speakers": [],
     # Knob screen power (seconds, 0 = never; dim_level in percent); each knob
     # can override any of them.
     "screen": {

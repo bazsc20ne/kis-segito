@@ -322,6 +322,10 @@ class KisSegitoManager:
             unique_id = f"{DOMAIN}_child_{item_id}"
             if unique_id in exposed:
                 exposed.remove(unique_id)
+            # Nor is it one of a voice satellite's children any more.
+            for rule in self.settings.get("assist_speakers") or []:
+                if item_id in rule.get("children", []):
+                    rule["children"] = [c for c in rule["children"] if c != item_id]
         await self._changed()
 
     async def async_reorder(self, collection: str, ids: list[str]) -> None:

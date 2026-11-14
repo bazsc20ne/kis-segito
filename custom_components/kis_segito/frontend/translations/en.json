@@ -625,5 +625,15 @@
   "help.notify_fixed": "Give the script's other fields a fixed value here, for example the recipient. They are the same in every message.",
   "help.notify_events": "The rule sends a message about these events. You can choose several.",
   "help.notify_children": "With nobody ticked, the rule is about every child's events. With children ticked, only about theirs.",
-  "help.notify_test": "Sends a test message to the target with the current settings, so you can see whether it arrives."
+  "help.notify_test": "Sends a test message to the target with the current settings, so you can see whether it arrives.",
+  "assist.title": "Voice satellites (Assist)",
+  "assist.add": "Add a voice satellite",
+  "assist.target": "Voice satellite or area",
+  "assist.choose": "Choose…",
+  "assist.satellites": "Voice satellites",
+  "assist.areas": "Areas",
+  "assist.missing": "(no longer exists)",
+  "assist.remove": "Remove",
+  "assist.none": "No voice satellite is assigned to a child yet.",
+  "help.assist_speakers": "Choose which children ask from which voice satellite or area. This is for first-person questions such as “How many tokens do I have?” or “What's my next task?”.\n\nWith one child on a satellite, the answer is for that child. With several, it answers for each of them and never guesses one. A satellite that is not listed here answers for every child.\n\nWhen Home Assistant has a speaker recognition integration that reports who is speaking, that comes first. If it does not recognise the voice, it asks who is speaking and answers when the child says their name (for example “I'm Alex”)."
 }

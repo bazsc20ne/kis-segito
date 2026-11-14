@@ -625,5 +625,15 @@
   "help.notify_fixed": "A script többi mezőjének itt adhatsz állandó értéket, például a címzettet. Ezek minden üzenetnél ugyanazok.",
   "help.notify_events": "Ezekről az eseményekről küld üzenetet a szabály. Több is kiválasztható.",
   "help.notify_children": "Ha senkit nem jelölsz ki, a szabály minden gyerek eseményeiről szól. Ha kijelölsz gyerekeket, csak az övékről.",
-  "help.notify_test": "Egy próbaüzenetet küld a célpontra a mostani beállításokkal, hogy lásd, megérkezik-e."
+  "help.notify_test": "Egy próbaüzenetet küld a célpontra a mostani beállításokkal, hogy lásd, megérkezik-e.",
+  "assist.title": "Hangszórók (Assist)",
+  "assist.add": "Hangszóró hozzáadása",
+  "assist.target": "Hangszóró vagy terület",
+  "assist.choose": "Válassz…",
+  "assist.satellites": "Hangszórók",
+  "assist.areas": "Területek",
+  "assist.missing": "(már nem létezik)",
+  "assist.remove": "Eltávolítás",
+  "assist.none": "Még egy hangszóró sincs gyerekhez rendelve.",
+  "help.assist_speakers": "Itt adhatod meg, melyik hangszóróról vagy területről melyik gyerekek kérdeznek. Ez az első személyű kérdésekhez kell, például: „Mennyi zsetonom van?”, „Mi a következő feladatom?”.\n\nHa egy hangszóróhoz egy gyerek tartozik, a válasz neki szól. Ha több, mindegyikükről válaszol, egyet sosem talál ki. Ha egy hangszóró nincs itt, minden gyerekről válaszol.\n\nHa a Home Assistantban van hangfelismerő integráció, amely megmondja, ki beszél, azt használja először. Ha az nem ismeri fel a hangot, megkérdezi, ki beszél, és a gyerek nevére (például „Áron vagyok”) válaszol."
 }

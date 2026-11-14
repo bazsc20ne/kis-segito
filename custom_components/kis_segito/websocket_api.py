@@ -184,6 +184,13 @@ async def ws_settings(
         vol.Optional("theme"): str,
         vol.Optional("cards_themed"): bool,
         vol.Optional("screen"): SCREEN_SCHEMA,
+        vol.Optional("assist_speakers"): [
+            {
+                vol.Optional("device_id"): vol.Any(None, str),
+                vol.Optional("area_id"): vol.Any(None, str),
+                vol.Optional("children", default=[]): [str],
+            }
+        ],
     }
 )
 @websocket_api.require_admin
@@ -221,6 +228,7 @@ async def ws_settings_update(
             "background",
             "theme",
             "cards_themed",
+            "assist_speakers",
         )
         if key in msg
     }

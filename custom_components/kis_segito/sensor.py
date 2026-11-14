@@ -199,6 +199,8 @@ class ChildSensor(_Base):
             "routine_progress": progress,
             "next_checkpoint": next_checkpoint(self.manager, self.child_id),
             "next_checkpoint_minutes": status["next_checkpoint_minutes"],
+            "next_routine": status["next_routine"],
+            "next_routine_time": status["next_routine_time"],
             "task_status": status["task_status"],
             "tasks_left": status["tasks_left"],
             "tokens_earnable_now": status["tokens_earnable_now"],

@@ -10,7 +10,7 @@
 
 // Must equal the integration version (scripts/check_versions.py checks it):
 // a browser that still runs an older copy of this file shows a reload bar.
-const PANEL_VERSION = "0.9.9";
+const PANEL_VERSION = "0.9.10";
 const FALLBACK_LANGUAGE = "en";
 const LANGUAGE_AUTO = "auto";
 const TABS = ["today", "calendar", "children", "routines", "rewards", "tokens", "history", "notifications", "settings"];
@@ -1751,6 +1751,54 @@ class KisSegitoPanel extends HTMLElement {
 
   // ------------------------------------------------------------ settings
 
+  // Voice satellites (Home Assistant's assist_satellite entities) and areas
+  // that can be assigned to children for first-person Assist questions.
+  _assistTargets() {
+    const hass = this._hass || {};
+    const devices = new Map();
+    for (const entity of Object.values(hass.entities || {})) {
+      if (!entity.entity_id?.startsWith("assist_satellite.") || !entity.device_id) continue;
+      const device = (hass.devices || {})[entity.device_id];
+      devices.set(entity.device_id, device?.name_by_user || device?.name || hass.states?.[entity.entity_id]?.attributes?.friendly_name || entity.entity_id);
+    }
+    const areas = Object.values(hass.areas || {}).map((a) => [a.area_id, a.name]);
+    const byName = (a, b) => String(a[1]).localeCompare(String(b[1]));
+    return { devices: [...devices.entries()].sort(byName), areas: areas.sort(byName) };
+  }
+
+  _viewAssistSpeakers() {
+    const dis = this._dis();
+    const rules = this._data.settings.assist_speakers || [];
+    const { devices, areas } = this._assistTargets();
+    const rows = rules
+      .map((rule, i) => {
+        const value = rule.device_id ? `device:${rule.device_id}` : rule.area_id ? `area:${rule.area_id}` : "";
+        const known = [...devices.map(([id]) => `device:${id}`), ...areas.map(([id]) => `area:${id}`)];
+        const option = (v, label) => `<option value="${this._e(v)}" ${v === value ? "selected" : ""}>${this._e(label)}</option>`;
+        const select = `<select data-assist-target="${i}" ${dis}><option value="">${this._e(this._t("assist.choose"))}</option>
+          ${value && !known.includes(value) ? option(value, this._t("assist.missing")) : ""}
+          ${devices.length ? `<optgroup label="${this._e(this._t("assist.satellites"))}">${devices.map(([id, name]) => option(`device:${id}`, name)).join("")}</optgroup>` : ""}
+          ${areas.length ? `<optgroup label="${this._e(this._t("assist.areas"))}">${areas.map(([id, name]) => option(`area:${id}`, name)).join("")}</optgroup>` : ""}</select>`;
+        const chosen = rule.children || [];
+        const chips = this._data.children
+          .map((c) => `<button class="chip ${chosen.includes(c.id) ? "on" : ""}" data-act="assist-child" data-arg="${i}|${this._e(c.id)}" ${dis}>${chosen.includes(c.id) ? "✓" : "○"} ${this._avatar(c, 22)}${this._e(c.name)}</button>`)
+          .join("");
+        return `<div class="knob-card stack" style="gap:8px"><div class="row wrap" style="gap:6px"><label class="field grow"><span>${this._e(this._t("assist.target"))}</span>${select}</label>
+          ${this._isAdmin ? `<button class="btn sm" data-act="assist-remove" data-arg="${i}">${this._e(this._t("assist.remove"))}</button>` : ""}</div>
+          <div class="row wrap" style="gap:6px">${chips}</div></div>`;
+      })
+      .join("");
+    return `<div class="card"><h3>${this._e(this._t("assist.title"))}${this._help("help.assist_speakers", this._t("assist.title"))}</h3>
+      ${rows || `<div class="muted">${this._e(this._t("assist.none"))}</div>`}
+      ${this._isAdmin ? `<div class="row"><button class="btn sm" data-act="assist-add">＋ ${this._e(this._t("assist.add"))}</button></div>` : ""}</div>`;
+  }
+
+  async _saveAssistSpeakers(rules) {
+    await this._ws({ type: "kis_segito/settings/update", assist_speakers: rules });
+    this._toast(this._t("toast.saved"));
+    await this._load();
+  }
+
   _viewSettings() {
     const tab = SETTINGS_TABS.includes(this._settingsTab) ? this._settingsTab : "general";
     const s = this._data.settings;
@@ -1811,7 +1859,8 @@ ${tab === "general" ? `
           <div class="field"><span>${this._e(this._t("settings.animation"))}${this._help("help.animation", this._t("settings.animation"))}</span><div class="seg">${["full", "reduced", "off"].map((m) => `<button class="${s.animation_mode === m ? "on" : ""}" data-act="set-setting" data-key="animation_mode" data-arg="${m}" ${dis}>${this._e(this._t(`settings.animation_${m}`))}</button>`).join("")}</div></div>
           <label class="field"><span>${this._e(this._t("settings.inactivity"))}${this._help("help.inactivity", this._t("settings.inactivity"))}</span>${this._minuteInput(`data-setting="inactivity_s"`, s.inactivity_s, "", 0.5)}</label>
           <label class="field"><span>${this._e(this._t("settings.routine_menu_grace"))}${this._help("help.routine_menu_grace", this._t("settings.routine_menu_grace"))}</span>${this._minuteInput(`data-setting="routine_menu_grace_s"`, s.routine_menu_grace_s)}</label>
-        </div>` : ""}
+        </div>
+        ${this._viewAssistSpeakers()}` : ""}
 ${tab === "look" ? `
         ${this._viewThemes()}
         <div class="card"><h3>${this._e(this._t("background.title"))}${this._help("help.background", this._t("background.title"))}</h3>${backgrounds}</div>
@@ -3035,6 +3084,22 @@ ${tab === "data" ? `
       case "set":
         this._set(path, el.dataset.v);
         break;
+      case "assist-add":
+        await this._saveAssistSpeakers([...(this._data.settings.assist_speakers || []), { children: [] }]);
+        return;
+      case "assist-remove":
+        await this._saveAssistSpeakers((this._data.settings.assist_speakers || []).filter((_, i) => i !== Number(arg)));
+        return;
+      case "assist-child": {
+        // A child ticked or unticked at a voice satellite.
+        const [index, childId] = arg.split("|");
+        const rules = (this._data.settings.assist_speakers || []).map((r) => ({ ...r, children: [...(r.children || [])] }));
+        const rule = rules[Number(index)];
+        if (!rule) return;
+        rule.children = rule.children.includes(childId) ? rule.children.filter((x) => x !== childId) : [...rule.children, childId];
+        await this._saveAssistSpeakers(rules);
+        return;
+      }
       case "knob-child": {
         // A child ticked or unticked at a knob.
         const [deviceId, childId] = arg.split("|");
@@ -3729,6 +3794,18 @@ ${tab === "data" ? `
       await this._ws({ type: "kis_segito/device/screen", device_id: el.dataset.device, screen: { saver_type: el.value || null } });
       this._toast(this._t("toast.saved"));
       await this._load();
+      return;
+    }
+    if (el.dataset.assistTarget !== undefined) {
+      const rules = (this._data.settings.assist_speakers || []).map((r) => ({ ...r }));
+      const rule = rules[Number(el.dataset.assistTarget)];
+      if (!rule) return;
+      const [kind, id] = el.value.split(":");
+      delete rule.device_id;
+      delete rule.area_id;
+      if (kind === "device") rule.device_id = id;
+      if (kind === "area") rule.area_id = id;
+      await this._saveAssistSpeakers(rules);
       return;
     }
     if (el.dataset.deviceScreen) {

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import re
+from typing import Any
 
 import pytest
 from freezegun.api import FrozenDateTimeFactory
@@ -127,7 +128,7 @@ async def test_answers_are_spoken_words(
         for topic in TOPICS:
             text = answer(status, topic, language)
             assert text
-            assert not re.search(r"[0-9%/:]", text), text
+            assert not re.search(r"[0-9%/]", text), text
 
 
 async def test_answers(
@@ -139,21 +140,19 @@ async def test_answers(
     assert "seven tokens" in answer(status, "tokens", "en")
     assert "hét zseton" in answer(status, "tokens", "hu")
     assert "Eat" in answer(status, "task", "en")
-    assert "még két feladat van hátra" in answer(status, "task", "hu")
+    assert "az Eat" in answer(status, "task", "hu")
     text = answer(status, "checkpoint", "hu").casefold()
-    assert "fél óra múlva" in text
+    assert "fél óra" in text
     assert "reggel hét óra ötven perckor" in text
     assert "at seven fifty in the morning" in answer(status, "checkpoint", "en")
-    assert answer(status, "earnable", "hu").startswith(
-        ("Áron ma még öt", "Áronnak ma még öt")
-    )
-    assert answer(status, "streak", "en").startswith("Áron has no streak")
+    assert "öt zseton" in answer(status, "earnable", "hu")
+    assert "streak" in answer(status, "streak", "en")
     freezer.move_to(dt_util.now().replace(hour=9, minute=0))
     status = child_status(manager, kid)
-    assert answer(status, "task", "hu").startswith("Áronnak most nincs")
-    assert answer(status, "checkpoint", "en") == "Áron has no more checkpoints today."
+    assert answer(status, "task", "hu").startswith(("Áronnak most nincs", "Áron most szabad"))
+    assert "no more checkpoints" in answer(status, "checkpoint", "en")
     # Other languages are answered in English.
-    assert answer(status, "checkpoint", "fr") == "Áron has no more checkpoints today."
+    assert "no more checkpoints" in answer(status, "checkpoint", "fr")
 
 
 async def test_intent(
@@ -170,8 +169,11 @@ async def test_intent(
         {"name": {"value": "Ari"}, "topic": {"value": "tokens"}},
         language="en",
     )
-    assert response.speech["plain"]["speech"].startswith("Áron has seven tokens")
+    assert "seven tokens" in response.speech["plain"]["speech"]
     assert response.speech_slots["wallet"] == 7
+    # Times also in spoken form, for the agent to repeat as they are.
+    assert response.speech_slots["next_checkpoint_time_spoken"] == "at seven fifty in the morning"
+    assert response.speech_slots["next_checkpoint_in_spoken"] == "in half an hour"
     assert response.speech_slots["aliases"] == ["Ari", "Bogyó"]
     assert response.speech_slots["next_checkpoint_minutes"] == 30
     # Without a name: every child.
@@ -189,12 +191,18 @@ async def test_intent(
     assert INTENT_CHILD_STATUS not in {h.intent_type for h in intent.async_get(hass)}
 
 
-async def _converse(hass: HomeAssistant, sentence: str, language: str) -> str:
+async def _converse_result(
+    hass: HomeAssistant, sentence: str, language: str, **kwargs: Any
+) -> Any:
     from homeassistant.components import conversation
 
-    result = await conversation.async_converse(
-        hass, sentence, None, Context(), language
+    return await conversation.async_converse(
+        hass, sentence, None, Context(), language, **kwargs
     )
+
+
+async def _converse(hass: HomeAssistant, sentence: str, language: str, **kwargs: Any) -> str:
+    result = await _converse_result(hass, sentence, language, **kwargs)
     return result.response.speech.get("plain", {}).get("speech", "")
 
 
@@ -216,22 +224,22 @@ async def assist(
 @pytest.mark.parametrize(
     ("language", "sentence", "expected"),
     [
-        ("en", "how many tokens does Áron have", "Áron has seven tokens"),
+        ("en", "how many tokens does Áron have", "seven tokens"),
         ("en", "How many coins has aron got?", "seven tokens"),
         ("en", "what's Ari's balance", "seven tokens"),
-        ("en", "does Ari have a task now", "two tasks to go"),
+        ("en", "does Ari have a task now", "Eat"),
         ("en", "when is Bogyó's next checkpoint", "half an hour"),
-        ("en", "how many coins can aron still get today", "Áron can still earn five"),
-        ("en", "what is Áron's streak", "no streak"),
+        ("en", "how many coins can aron still get today", "five tokens"),
+        ("en", "what is Áron's streak", "streak"),
         ("hu", "hány zsetonja van Áronnak", "hét zseton"),
         ("hu", "Áronnak mennyi zsetonja van?", "hét zseton"),
         ("hu", "mennyei zsetonja van aronnak", "hét zseton"),
         ("hu", "hány jetonja van Bogyónak", "hét zseton"),
         ("hu", "mennyi pénze van Arinak", "hét zseton"),
         ("hu", "Áron egyenlege", "hét zseton"),
-        ("hu", "van most feladata Áronnak", "Morning"),
-        ("hu", "mi Áron feladata most", "Morning"),
-        ("hu", "mit kell most csinálnia Arinak", "Morning"),
+        ("hu", "van most feladata Áronnak", "Eat"),
+        ("hu", "mi Áron feladata most", "Eat"),
+        ("hu", "mit kell most csinálnia Arinak", "Eat"),
         ("hu", "mennyi idő van Áron következő ellenőrzőpontjáig", "fél óra"),
         ("hu", "mikor van Áron következő csekkpontja", "fél óra"),
         ("hu", "mikor jön Áronnak a következő check pontja", "fél óra"),
@@ -253,22 +261,33 @@ async def test_sentences(
 
 
 @pytest.mark.parametrize(
-    ("language", "sentence"),
+    ("language", "sentence", "expected"),
     [
-        ("hu", "kinek mennyi zsetonja van"),
-        ("hu", "mennyi zseton van a gyerekeknek"),
-        ("hu", "mikor van a következő ellenőrzőpont"),
-        ("en", "how many tokens do the kids have"),
-        ("en", "when is the next checkpoint"),
+        ("hu", "kinek mennyi zsetonja van", ["Áron", "hét", "Alex"]),
+        ("hu", "kinek mennyi", ["Áron", "hét", "Alex"]),
+        ("hu", "mennyi zseton van a gyerekeknek", ["Áron", "Alex"]),
+        # The same for both: one sentence.
+        ("hu", "mikor van a következő ellenőrzőpont", ["a Ready", "hét óra ötven"]),
+        ("hu", "mi a következő ellenőrzőpont a gyerekeknek", ["a Ready"]),
+        ("en", "how many tokens do the kids have", ["Áron has seven", "Alex"]),
+        ("en", "how many tokens does everyone have", ["Áron has seven", "Alex"]),
+        ("en", "when is the next checkpoint", ["Ready", "seven fifty"]),
+        ("en", "what's the next checkpoint for the kids", ["Ready"]),
     ],
 )
 async def test_sentences_without_a_name(
-    hass: HomeAssistant, assist: KisSegitoManager, language: str, sentence: str
+    hass: HomeAssistant,
+    assist: KisSegitoManager,
+    language: str,
+    sentence: str,
+    expected: list[str],
 ) -> None:
+    """Every child at once: a short list, largest first."""
     await assist.async_save_item("children", {"name": "Alex"})
     await hass.async_block_till_done()
     speech = await _converse(hass, sentence, language)
-    assert "Áron" in speech and "Alex" in speech
+    for part in expected:
+        assert part in speech, speech
 
 
 async def test_unknown_name_is_not_answered(
@@ -414,6 +433,41 @@ DOCUMENTED = {
         "mi a következő feladata Alexnek",
         "Alexé mennyi zsetonja van",
         "mennyi zsetonja van Alexnél",
+        "kinek mennyi",
+        "mennyi zseton van a perselyekben",
+        "mennyi zsetonom van",
+        "nekem mennyi van",
+        "mennyi zseton van a perselyemben",
+        "mi a következő feladat a gyerekeknek",
+        "mit csinálnak most a gyerekek",
+        "mi a feladatom most",
+        "mi a következő feladatom",
+        "mit kell most csinálnom",
+        "mi van még hátra Alexnek",
+        "hány feladata van még Alexnek",
+        "hogy áll Alex a mai feladataival",
+        "hogy állnak a gyerekek a feladataikkal",
+        "mi van még hátra nekem",
+        "mi a következő ellenőrzőpont a gyerekeknek",
+        "mennyi idő van a gyerekeknek a következő ellenőrzőpontig",
+        "mikor lesz a következő ellenőrzőpontom",
+        "mennyi időm van még",
+        "mikor kezdődik Alex következő rutinja",
+        "mikor indul a következő rutin",
+        "mikor kezdődik a következő rutinom",
+        "hány zsetont kaphatok még ma",
+        "hány napos a gyerekek sorozata",
+        "hány napos a sorozatom",
+        "hogy áll Alex",
+        "hogy állnak a gyerekek",
+        "hogy állok",
+        "milyen lépések vannak a Readyben",
+        "mik a Ready feladatai",
+        "mit kell csinálni a Ready előtt",
+        "mennyi van még hátra a Morning rutinból",
+        "és nekem mennyi",
+        "és Alexnek mennyi",
+        "és a gyerekeknek mennyi",
     ],
     "en": [
         "how many tokens does Alex have",
@@ -446,6 +500,30 @@ DOCUMENTED = {
         "What's next for Alex?",
         "what are the streaks",
         "how are the streaks going",
+        "how many tokens does everyone have",
+        "how many tokens do I have",
+        "what's my balance",
+        "what is next for the kids",
+        "what's my next task",
+        "what should I do now",
+        "what's left for Alex today",
+        "how many tasks does Alex have left",
+        "how are the kids doing with their tasks",
+        "what do I still have to do today",
+        "what's the next checkpoint for the kids",
+        "when is my next checkpoint",
+        "how much time do I have left",
+        "when does Alex's next routine start",
+        "when does the next routine start",
+        "what's my next routine",
+        "how many tokens can I still earn today",
+        "how long is my streak",
+        "how is Alex doing",
+        "how am I doing",
+        "what are the steps of Ready",
+        "what's in Ready",
+        "what do the kids have to do before Ready",
+        "how many tasks are left in Morning",
     ],
 }
 
@@ -459,8 +537,9 @@ async def test_documented_sentences(
 ) -> None:
     await assist.async_save_item("children", {"name": "Alex"})
     await hass.async_block_till_done()
-    speech = await _converse(hass, sentence, language)
-    assert "Alex" in speech, speech
+    result = await _converse_result(hass, sentence, language)
+    assert result.response.response_type == intent.IntentResponseType.ACTION_DONE, sentence
+    assert result.response.speech["plain"]["speech"], sentence
 
 
 def test_times_say_the_part_of_the_day() -> None:
@@ -513,19 +592,24 @@ async def test_routine_name_is_not_doubled(
     kid, routine = await _setup(manager)
     await manager.async_save_item("routines", {"id": routine["id"], "name": "Esti rutin"})
     status = child_status(manager, kid)
-    for _ in range(20):
+    named = False
+    for _ in range(30):
         text = answer(status, "task", "hu")
-        assert "rutin rutin" not in text and "Esti rutin" in text, text
+        assert "rutin rutin" not in text, text
+        named = named or "az Esti rutin" in text
+    assert named
 
 
 def test_a_language_needs_only_files() -> None:
     """A language without its own grammar still answers, with digits."""
     from custom_components.kis_segito import assist_lang
 
-    assist_lang._texts["xx"] = {"answers": {"tokens": {"some": ["{name}: {wallet:num}"]}}}
+    assist_lang._texts["xx"] = {
+        "answers": {"child": {"tokens": {"wallet": ["{name}: {wallet:num}"]}}}
+    }
     try:
-        assert assist_lang.say("xx", "tokens", "some", name="Kid A", wallet=7) == "Kid A: 7"
+        assert assist_lang.say("xx", "child", "tokens", "wallet", name="Kid A", wallet=7) == "Kid A: 7"
         # Missing texts fall back to English.
-        assert assist_lang.say("xx", "tokens", "none", name="Kid A") == "Kid A has no tokens right now."
+        assert "Little Helper" in assist_lang.say("xx", "system", "unknown_child", spoken="Kid B")
     finally:
         del assist_lang._texts["xx"]

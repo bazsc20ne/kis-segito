@@ -6,6 +6,75 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.9.10] - 2026-11-14
+
+### English
+
+- Assist answers many more questions locally, without an LLM, in English
+  and Hungarian:
+  - questions in the first person ("How many tokens do I have?", "What's
+    my next task?"), answered for the child who is asking: the one a
+    speaker recognition integration recognises, when one is installed, or
+    the children the voice satellite is assigned to. The new **Settings →
+    General → Voice satellites (Assist)** card assigns a satellite, or a
+    whole area, to one or more children. Kis Segítő never guesses one
+    child: with several it answers for each, and when speaker recognition
+    does not know the voice it asks who is speaking ("I'm Alex" then
+    answers the question);
+  - short follow-ups on the same satellite for about a minute ("And me?",
+    "What about Alex?", "And the kids?");
+  - questions about every child with "for the kids" / "for everyone"
+    ("What's the next checkpoint for the kids?", "Who has how many
+    tokens?", "Kinek mennyi?");
+  - new topics: what is still left today, when the next routine starts,
+    and which tasks lead to a checkpoint ("What are the steps of dinner?");
+  - filler words at the start of a question ("um", "hey", „őőő”, „és”)
+    and more speech-recognition mistakes are understood.
+- Answers for every child are short: one sentence when everyone has the
+  same, one when nobody has any, otherwise a list starting with the
+  largest. Each answer has several wordings and never repeats the same
+  one twice in a row; zero has its own wording; typed names (routines,
+  tasks, checkpoints) are never given an ending.
+- LLM agents get times in spoken form next to the raw values (for example
+  "at quarter to eight in the evening"), and can ask about the child who
+  is speaking.
+- The child sensors also show the next routine and when it starts.
+- Deleting a child also removes it from the voice satellites.
+
+### Magyar
+
+- Az Assist sokkal több kérdésre válaszol helyben, LLM nélkül, magyarul és
+  angolul:
+  - első személyű kérdések („Mennyi zsetonom van?”, „Mi a következő
+    feladatom?”), annak a gyereknek, aki kérdez: akit egy hangfelismerő
+    integráció felismer, ha van ilyen, vagy akit a hangszóróhoz rendeltél.
+    Az új **Beállítások → Általános → Hangszórók (Assist)** kártyán egy
+    hangszóró vagy egy egész terület egy vagy több gyerekhez rendelhető.
+    A Kis Segítő egy gyereket sosem talál ki: ha több gyerek tartozik a
+    hangszóróhoz, mindegyikükről válaszol, ha pedig a hangfelismerés nem
+    ismeri fel a hangot, megkérdezi, ki beszél (az „Alex vagyok” után
+    válaszol a kérdésre);
+  - rövid visszakérdezések ugyanazon a hangszórón, körülbelül egy percig
+    („És nekem?”, „És Alexnek?”, „És a gyerekeknek?”);
+  - minden gyerekre vonatkozó kérdések „a gyerekeknek” / „mindenkinek”
+    szóval („Mi a következő ellenőrzőpont a gyerekeknek?”, „Kinek mennyi
+    zsetonja van?”, „Kinek mennyi?”);
+  - új témák: mi van még hátra mára, mikor kezdődik a következő rutin, és
+    milyen feladatok vezetnek egy ellenőrzőponthoz („Milyen lépések vannak
+    a vacsorában?”);
+  - a kérdés elején álló töltelékszavakat („őőő”, „és”, „hé”) és több
+    beszédfelismerési hibát is ért.
+- A minden gyerekre vonatkozó válaszok rövidek: egy mondat, ha mindenkinek
+  ugyanannyi van, egy mondat, ha senkinek sincs, egyébként egy felsorolás a
+  legtöbbel kezdve. Minden válasznak több megfogalmazása van, és kétszer
+  egymás után sosem ugyanaz hangzik el; a nullának saját megfogalmazása
+  van; a beírt nevek (rutin, feladat, ellenőrzőpont) sosem kapnak ragot.
+- Az LLM-ügynökök az időpontokat kimondott formában is megkapják (például
+  „este háromnegyed nyolckor”), és kérdezhetnek arról a gyerekről is, aki
+  beszél.
+- A gyerekszenzorok a következő rutint és a kezdési idejét is mutatják.
+- Egy gyerek törlésekor a hangszórók hozzárendeléséből is kikerül.
+
 ## [0.9.9] - 2026-11-08
 
 ### English
