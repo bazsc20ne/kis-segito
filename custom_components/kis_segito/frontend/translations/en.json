@@ -29,13 +29,13 @@
   "children.none": "No children yet.",
   "children.add": "Add child",
   "children.edit": "Edit child",
-  "children.birth_date": "Birth date (optional)",
+  "children.birth_date": "Birth date",
   "children.color": "Colour",
   "children.color_warning": "This colour is close to a time-zone colour (green, orange, red, gold); it may be harder to tell apart on the knob.",
   "children.avatar": "Avatar",
   "children.any_knob": "Any knob",
   "children.piggy_unlocked": "Piggy bank unlocked",
-  "children.aliases": "Other names (for Assist)",
+  "children.aliases": "Other names",
   "children.aliases_hint": "Comma separated, optional",
   "routines.none": "No routines yet.",
   "routines.add": "Add routine",
@@ -267,7 +267,6 @@
   "children.photo_remove": "Remove photo (back to the default avatar)",
   "rtemplates.use": "Fill from a saved template",
   "crop.whole": "Upload without framing",
-  "nav.more": "More",
   "today.now": "Running now",
   "today.next": "Up next",
   "today.idle": "No routine is running now",
@@ -635,5 +634,6 @@
   "assist.missing": "(no longer exists)",
   "assist.remove": "Remove",
   "assist.none": "No voice satellite is assigned to a child yet.",
-  "help.assist_speakers": "Choose which children ask from which voice satellite or area. This is for first-person questions such as “How many tokens do I have?” or “What's my next task?”.\n\nWith one child on a satellite, the answer is for that child. With several, it answers for each of them and never guesses one. A satellite that is not listed here answers for every child.\n\nWhen Home Assistant has a speaker recognition integration that reports who is speaking, that comes first. If it does not recognise the voice, it asks who is speaking and answers when the child says their name (for example “I'm Alex”)."
+  "help.assist_speakers": "Choose which children ask from which voice satellite or area. This is for first-person questions such as “How many tokens do I have?” or “What's my next task?”.\n\nWith one child on a satellite, the answer is for that child. With several, it answers for each of them and never guesses one. A satellite that is not listed here answers for every child.\n\nWhen Home Assistant has a speaker recognition integration that reports who is speaking, that comes first. If it does not recognise the voice, it asks who is speaking and answers when the child says their name (for example “I'm Alex”).",
+  "help.child_birth_date": "Optional. The panel uses it to show the child's age under the name."
 }

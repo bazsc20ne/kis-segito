@@ -1569,34 +1569,31 @@ class KisSegitoManager:
             raise KisSegitoError("already_corrected")
         return event
 
-    async def async_remove_event(self, event_id: str, *, who: str = "parent") -> None:
-        """The child did not do it after all: the task or the checkpoint goes
-        back to not done (today's progress, the knob and the streak follow).
-        Tokens it paid are reversed."""
-        event = self._event(event_id)
-        day = date.fromisoformat(event.get("day") or event["timestamp"][:10])
-        progress = self._progress(day, event["routine_id"], event["child_id"])
-        if event["type"] == "task_done":
-            progress["tasks"].pop(event["task_id"], None)
-        else:
-            record = progress["checkpoints"].get(event["checkpoint_id"])
-            if record and record.get("approval"):
-                approval = self.approval(record["approval"])
-                if approval and approval["status"] == "pending":
-                    raise KisSegitoError("waiting_for_approval")
-            if record and record.get("tx"):
-                original = self.transaction(record["tx"])
-                if original is not None and not original.get("reversed_by"):
-                    back = lg.reversal_of(
-                        original,
-                        self.corrections_of(original["id"]),
-                        timestamp=_iso(dt_util.now()),
-                        source="panel",
-                        creator=who,
-                    )
-                    original["reversed_by"] = back["id"]
-                    self._append(back)
-            progress["checkpoints"].pop(event["checkpoint_id"], None)
+    def _undo_checkpoint(
+        self, progress: dict[str, Any], checkpoint_id: str, who: str
+    ) -> None:
+        """A reached checkpoint goes back to not reached; tokens it paid are
+        reversed."""
+        record = progress["checkpoints"].get(checkpoint_id)
+        if record and record.get("approval"):
+            approval = self.approval(record["approval"])
+            if approval and approval["status"] == "pending":
+                raise KisSegitoError("waiting_for_approval")
+        if record and record.get("tx"):
+            original = self.transaction(record["tx"])
+            if original is not None and not original.get("reversed_by"):
+                back = lg.reversal_of(
+                    original,
+                    self.corrections_of(original["id"]),
+                    timestamp=_iso(dt_util.now()),
+                    source="panel",
+                    creator=who,
+                )
+                original["reversed_by"] = back["id"]
+                self._append(back)
+        progress["checkpoints"].pop(checkpoint_id, None)
+
+    def _mark_removed(self, event: dict[str, Any], who: str) -> None:
         event["removed"] = {"at": _iso(dt_util.now()), "by": who}
         self._log_event(
             {
@@ -1611,16 +1608,55 @@ class KisSegitoManager:
                 "timestamp": _iso(dt_util.now()),
                 "type": "task_removed" if event["type"] == "task_done" else "checkpoint_removed",
                 "by": who,
-                "removes": event_id,
+                "removes": event["id"],
             }
         )
-        self._audit(who, f"event.{event_id}", event["type"], "removed")
+        self._audit(who, f"event.{event['id']}", event["type"], "removed")
+
+    async def async_remove_event(self, event_id: str, *, who: str = "parent") -> None:
+        """The child did not do it after all: the task or the checkpoint goes
+        back to not done (today's progress, the knob and the streak follow).
+        Tokens it paid are reversed. A task's checkpoint that was already
+        reached goes back to not reached too (its tokens are reversed)."""
+        event = self._event(event_id)
+        day = date.fromisoformat(event.get("day") or event["timestamp"][:10])
+        progress = self._progress(day, event["routine_id"], event["child_id"])
+        if event["type"] == "task_done":
+            routine = self.routine_for_day(event["routine_id"], day) or self.routine(
+                event["routine_id"]
+            ) or {}
+            task = next(
+                (t for t in routine.get("tasks", []) if t["id"] == event.get("task_id")), None
+            )
+            checkpoint = self.task_checkpoint(routine, task) if task is not None else None
+            if checkpoint is not None and checkpoint["id"] in progress["checkpoints"]:
+                self._undo_checkpoint(progress, checkpoint["id"], who)
+                for other in self.events:
+                    if (
+                        other.get("type") == "checkpoint_done"
+                        and other.get("checkpoint_id") == checkpoint["id"]
+                        and other.get("child_id") == event["child_id"]
+                        and other.get("routine_id") == event["routine_id"]
+                        and (other.get("day") or other["timestamp"][:10]) == day.isoformat()
+                        and not other.get("removed")
+                    ):
+                        self._mark_removed(other, who)
+            progress["tasks"].pop(event["task_id"], None)
+        else:
+            self._undo_checkpoint(progress, event["checkpoint_id"], who)
+        self._mark_removed(event, who)
         await self._changed(ledger=True)
 
     def event_credit_suggestion(self, event: dict[str, Any]) -> int:
         """The tokens an event would have brought in time: the best reward of
         its checkpoint (of the task's checkpoint for a task)."""
-        routine = self.routine(event["routine_id"]) or {}
+        day = date.fromisoformat(event.get("day") or event["timestamp"][:10])
+        # A one-day routine is only found on its day.
+        routine = (
+            self.routine_for_day(event["routine_id"], day)
+            or self.routine(event["routine_id"])
+            or {}
+        )
         checkpoint = None
         if event["type"] == "checkpoint_done":
             checkpoint = next(

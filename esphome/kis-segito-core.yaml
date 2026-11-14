@@ -7,8 +7,8 @@
 # board profile (see docs/boards.md):
 #
 #   packages:
-#     kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito-core.yaml@v0.9.10
-#     input: github://bazsc20ne/kis-segito/esphome/inputs/encoder-button.yaml@v0.9.10
+#     kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito-core.yaml@v0.9.11
+#     input: github://bazsc20ne/kis-segito/esphome/inputs/encoder-button.yaml@v0.9.11
 #     board: !include my-board.yaml
 #
 # The board profile provides knob_display (the round display), backlight (a
@@ -26,8 +26,8 @@ substitutions:
   friendly_name: Kis Segito
   # Where the UI component and its images come from. They must match the
   # version of this package; CI and local builds point them at the repository.
-  kis_segito_components: github://bazsc20ne/kis-segito@v0.9.10
-  kis_segito_assets: https://raw.githubusercontent.com/bazsc20ne/kis-segito/v0.9.10/assets/device
+  kis_segito_components: github://bazsc20ne/kis-segito@v0.9.11
+  kis_segito_assets: https://raw.githubusercontent.com/bazsc20ne/kis-segito/v0.9.11/assets/device
   # Width and height of the round display in pixels: 240, 360, 466 or 480.
   # The screen is laid out for 480 px and scaled to it. Set by the board
   # profile.
@@ -49,7 +49,7 @@ esphome:
   name_add_mac_suffix: false
   project:
     name: bazsc20ne.kis-segito
-    version: "0.9.10"
+    version: "0.9.11"
 
 external_components:
   - source: ${kis_segito_components}
@@ -196,6 +196,9 @@ ota:
 # config:  wifi: ap: password: !secret ap_password
 wifi:
   ap: {}
+  # The idle roam check below replaces ESPHome's own, which only looks in the
+  # first minutes after connecting.
+  post_connect_roaming: false
 
 captive_portal:
 
@@ -787,6 +790,16 @@ binary_sensor:
     name: Screensaver
     icon: mdi:sleep
 
+switch:
+  # Idle Wi-Fi roam check (see the interval at the end): on by default.
+  - platform: template
+    id: roam_check
+    name: Wi-Fi roam check
+    icon: mdi:wifi-sync
+    entity_category: config
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+
 button:
   # Manual restart from Home Assistant (separate from the restart that applies
   # a new background).
@@ -1004,3 +1017,31 @@ interval:
             call.perform();
           }
       - script.execute: sensor_check
+  # Idle Wi-Fi roam check: every 30 minutes, when the knob has not been used
+  # for 2 minutes, ESPHome looks for a stronger access point of the same
+  # network (as the wifi.roam action does). It scans only when the signal is
+  # weaker than -49 dBm and moves only to an access point at least 10 dB
+  # stronger; the knob is never tied to one access point.
+  - interval: 1min
+    then:
+      - lambda: |-
+          static uint32_t last_check = 0;
+          static bool refused_logged = false;
+          if (!id(roam_check).state)
+            return;
+          const uint32_t now = millis();
+          if (now < 5 * 60 * 1000 || (last_check != 0 && now - last_check < 30 * 60 * 1000))
+            return;
+          auto *wifi = wifi::global_wifi_component;
+          if (wifi == nullptr || !wifi->is_connected() || now - id(last_input_ms) < 2 * 60 * 1000)
+            return;
+          const int rssi = wifi->wifi_rssi();
+          wifi->force_roam_check();
+          if (rssi > -49 || wifi->is_roaming()) {
+            last_check = now;
+            refused_logged = false;
+            ESP_LOGI("roam", "Idle roam check (%d dBm): %s", rssi, rssi > -49 ? "signal good, no scan" : "scanning");
+          } else if (!refused_logged) {
+            refused_logged = true;
+            ESP_LOGI("roam", "Idle roam check not possible now (%d dBm), trying again every minute", rssi);
+          }

@@ -1,8 +1,8 @@
 {
   "prefix": "[őőő|ő|hát|na|és|akkor|itt|hé|oké|szóval|figyelj|mondd csak|mondd meg]",
   "words": {
-    "<MENNYI>": "(mennyi|mennyei|menyi|hány|hányat|mekkora)",
-    "<ZS>": "(zseton|zsetonja|zsetonjai|zsetont|zsetonok|zsetonod|zsetonjuk|zsetom|zsetonya|zsetonjával|se tomje|jeton|jetonja|jetont|jetonok|érme|érméje|érméi|érmét|érmék|pénz|pénze|pénzt|pont|pontja|pontot|pontjai|pontok|tallér|tallérja)",
+    "<MENNYI>": "(mennyi|mennyei|menyi|hány|hányat|mekkora|mennyise)",
+    "<ZS>": "(zseton|zsetonja|zsetonjai|zsetont|zsetonok|zsetonod|zsetonjuk|zsetom|zsetonya|zsetonjával|se tomje|jeton|jetonja|jetont|jetonok|érme|érméje|érméi|érmét|érmék|pénz|pénze|pénzt|pont|pontja|pontot|pontjai|pontok|tallér|tallérja|tomje|hilton)",
     "<EGYENLEG>": "(egyenleg|egyenlege|egyenlegét|egyenlegük|kassza|kasszája)",
     "<KP>": "(ellenőrzőpont|ellenőrzőpontja|ellenőrző pont|ellenőrző pontja|csekkpont|csekkpontja|csekk pont|csekk pontja|check pont|check pontja|checkpoint|checkpointja|határidő|határideje)",
     "<KP0>": "(ellenőrzőpont|ellenőrző pont|csekkpont|csekk pont|check pont|checkpoint|határidő)",
@@ -17,7 +17,7 @@
     "<MA>": "[ma|mára|a mai napon]",
     "<KOVETKEZO>": "(következő|következö|kovetkezo|legközelebbi)",
     "<MINDENKI>": "(mindenkinek|kinek|kiknek|a gyerekeknek|a gyerekeknél|gyerekeknek|valakinek|mindenkinél|kinél|mindkettőnek|mindkét gyereknek|kettőjüknek|nekik|őnekik|a gyerekek őnekik)",
-    "<ZS1>": "(zsetonom|zsetonjaim|jetonom|eszonyom|pénzem|pontom|pontjaim|érmém|érméim|tallérom)",
+    "<ZS1>": "(zsetonom|zsetonjaim|jetonom|eszonyom|pénzem|pontom|pontjaim|érmém|érméim|tallérom|asszonyom)",
     "<EGYENLEG1>": "(egyenlegem|kasszám)",
     "<HOL_ZS>": "(pénztárcájában|perselyében|perselyben|kasszájában)",
     "<HOL_ZS1>": "(pénztárcámban|perselyemben|kasszámban)",
@@ -31,7 +31,7 @@
     "<SOROZAT1>": "(sorozatom|szériám)",
     "<KAPHATOK>": "(kaphatok|szerezhetek|gyűjthetek|kereshetek|nyerhetek|kapok|szerzek)",
     "<MAMEG>": "[ma még|még ma|amíg|ma|mára|még]",
-    "<GYEREKEK>": "(a gyerekek|gyerekek|a gyerekeink|a kicsik|a srácok)",
+    "<GYEREKEK>": "(a gyerekek|gyerekek|a gyerekeink|a kicsik|a srácok|a gyerek)",
     "<NEKEM>": "(nekem|énnekem|nálam)",
     "<VAN>": "[van|vannak|maradt]",
     "<RUTIN>": "(rutin|rutinja|rutinok)",
@@ -124,8 +124,8 @@
         "(hány napja;(hibátlan|csinálja végig|ügyes|teljesít|csinál meg mindent);<NX>)",
         "(hány;hibátlan napja;van;<NX>)",
         "(hogy|hogyan) áll [a|az] <N> <SOROZAT>",
-        "(hány napos;[a|az] <N> <SOROZAT>)",
-        "(hány napos sorozata van;<NX>)",
+        "((hány|ha) napos;[a|az] <N> <SOROZAT>)",
+        "((hány|ha) napos sorozata van;<NX>)",
         "(hány napja;(hibátlan|csinálja végig|ügyes|teljesít);<NX>)"
       ],
       "summary": [
@@ -174,7 +174,8 @@
         "(mit csinálnak;<MOST>;<GYEREKEK>)",
         "(hol tartanak;<MOST>;<GYEREKEK>)",
         "(mi jön;<MOST>;<MINDENKI>)",
-        "(mi;a gyerekek;<FELADAT>;<MOST>)"
+        "(mi;a gyerekek;<FELADAT>;<MOST>)",
+        "mi (a gyerekeknek|a gyerekek|mindenkinek)"
       ],
       "remaining": [
         "(mi van [még] (vissza|hátra);<MINDENKI>;[a mai feladatok közül|mára|ma])",
@@ -214,7 +215,7 @@
         "(<MENNYI>|milyen hosszú) [napos] a <SOROZATK>",
         "(hogy|hogyan) állnak a <SOROZATK>",
         "(kinek;hány;hibátlan napja;van)",
-        "(hány napos;<GYEREKEK> <SOROZATK>)",
+        "((hány|ha) napos;<GYEREKEK> <SOROZATK>)",
         "(<MENNYI> napos <SOROZATK>;van;<MINDENKI>)",
         "(<MENNYI>|milyen hosszú) [napos] a (sorozat|sorozatuk|sorozatok)",
         "(hogy|hogyan) állnak a sorozatok"
@@ -279,7 +280,7 @@
       ],
       "streak": [
         "(<MENNYI>|milyen hosszú|milyen) [napos] [a|az] <SOROZAT1>",
-        "(hány napos;[a|az] <SOROZAT1>)",
+        "((hány|ha) napos;[a|az] <SOROZAT1>)",
         "(hány napja;(vagyok hibátlan|csinálok meg mindent|teljesítek mindent|vagyok ügyes))",
         "(hogy|hogyan) áll a <SOROZAT1>"
       ],
@@ -444,6 +445,10 @@
         "none": [
           "{name_dat} most nincs hátralévő feladata.",
           "{name_dat} most nincs feladata."
+        ],
+        "later": [
+          "{name_dat} most nincs feladata. {start_clock} kezdődik {routine_art}, abban {later:num} feladata lesz.",
+          "{name_dat} most nincs hátralévő feladata, de {start_clock} jön {routine_art}, {later:num} feladattal."
         ]
       },
       "checkpoint": {
@@ -577,6 +582,10 @@
         "none": [
           "Most nincs hátralévő feladatod.",
           "Most nincs feladatod."
+        ],
+        "later": [
+          "Most nincs feladatod. {start_clock} kezdődik {routine_art}, abban {later:num} feladatod lesz.",
+          "Most szabad vagy, de {start_clock} jön {routine_art}, {later:num} feladattal."
         ]
       },
       "checkpoint": {
@@ -729,20 +738,23 @@
         ],
         "all_none": [
           "A gyerekeknek most nincs hátralévő feladatuk."
+        ],
+        "all_later": [
+          "A gyerekeknek most nincs feladatuk. {start_clock} kezdődik {routine_art}, abban {later:num} feladat lesz.",
+          "Most egyik gyereknek sincs feladata, de {start_clock} jön {routine_art}, {later:num} feladattal."
         ]
       },
       "checkpoint": {
         "same": [
           "A gyerekek következő ellenőrzőpontja {cp_art}, {cp_clock}, vagyis {cp_in}.",
           "{cp_in} jön a következő ellenőrzőpont, {cp_art}. Ez {cp_clock} lesz.",
-          "{cp_clock} lesz a következő ellenőrzőpont, {cp_art}. Addig még {cp_left} van.",
-          "{all_dat} {cp_art} a következő ellenőrzőpontja, {cp_clock}."
+          "{cp_clock} lesz a következő ellenőrzőpont, {cp_art}. Addig még {cp_left} van."
         ],
         "same_now": [
           "Most van a gyerekek ellenőrzőpontja, {cp_art}."
         ],
         "list_item": [
-          "{name} következő ellenőrzőpontja {cp_art}, {cp_clock}."
+          "{name} következő ellenőrzőpontja {cp_art}, {cp_clock}, vagyis {cp_in}."
         ],
         "list_item_none": [
           "{name_dat} ma már nincs ellenőrzőpontja."

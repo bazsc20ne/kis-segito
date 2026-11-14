@@ -22,7 +22,7 @@ What can be asked:
 - what is left of a routine, for every child it is for.
 
 The child is named by name, or by another name given in the child editor
-(**Children → edit → Other names (for Assist)**, comma separated, for example
+(**Children → edit → Other names**, comma separated, for example
 a nickname). Upper and lower case, accents and punctuation do not matter. In
 Hungarian the name is understood with its endings too (Alex, Alexnek, Alexnél,
 Alexé). A question without a name ("how many tokens do the kids have", "what's
@@ -195,7 +195,7 @@ Amit kérdezni lehet:
 - mi van még hátra egy rutinból, minden gyereknek, akié.
 
 A gyereket a nevével vagy a gyerekszerkesztőben megadott másik nevével lehet
-megnevezni (**Gyerekek → szerkesztés → Más nevek (az Assisthoz)**, vesszővel
+megnevezni (**Gyerekek → szerkesztés → Más nevek**, vesszővel
 elválasztva, például becenév). A kis- és nagybetű, az ékezetek és az írásjelek
 nem számítanak, és a nevet ragozva is érti (Alex, Alexnek, Alexnél, Alexé). A
 név nélküli kérdésre („kinek mennyi zsetonja van”, „mi a következő

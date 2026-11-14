@@ -6,6 +6,63 @@ uses [Semantic Versioning](https://semver.org/).
 
 Minden lényeges változás itt szerepel, angolul és magyarul.
 
+## [0.9.11] - 2026-11-14
+
+### English
+
+- The knob: the change between two tasks is smoother. The next task's big
+  picture is fetched in advance, so it grows into the middle instead of just
+  appearing; a reached checkpoint's confetti starts after the change (with
+  fewer pieces), so it no longer slows the change down; the debug log shows
+  the frames of the change. This needs the knob firmware update (OTA).
+- The knob checks every half hour, when it has not been used for two
+  minutes, whether the same Wi-Fi network has a much stronger access point,
+  and moves to it (only when the signal is weak; never tied to one access
+  point). The new **Wi-Fi roam check** switch of the device turns it off.
+- Phone: the bottom bar holds every page and scrolls sideways; the active
+  page is always in view. The Today page's ± row keeps its buttons in
+  place (the + button no longer moves after the first press) and gets a
+  line of its own. Side editors keep the field being edited while typing
+  or picking a time, so the keyboard or the time picker no longer closes.
+- Calendar: an opened narrow block no longer gets a tooltip on top of it.
+- Assist: "what is left today" between two routines says when the next one
+  starts and how many tasks it has; the summary names the next checkpoint
+  once; time-left questions always get the time left; follow-ups also work
+  in a typed conversation; more speech-recognition mistakes are understood.
+- History: "Did not do it" on a task also puts its reached checkpoint back
+  to not reached (its tokens are reversed); "Give tokens" suggests the
+  right amount for a one-day routine.
+- The child editor's labels are short, their explanations sit behind an
+  info button.
+
+### Magyar
+
+- A gomb: simábban vált két feladat között. A következő feladat nagy képe
+  előre letöltődik, így középre nő ahelyett, hogy csak megjelenne; egy
+  teljesült ellenőrzőpont konfettije a váltás után indul (kevesebb
+  darabbal), így nem lassítja a váltást; a hibakereső napló mutatja a
+  váltás képkockáit. Ehhez a gomb firmware-frissítése kell (OTA).
+- A gomb félóránként, ha két perce nem használták, megnézi, van-e ugyanazon
+  a Wi-Fi-hálózaton sokkal erősebb hozzáférési pont, és átvált rá (csak
+  gyenge jelnél; sosem köti magát egy hozzáférési ponthoz). Az eszköz új
+  **Wi-Fi roam check** kapcsolójával kikapcsolható.
+- Telefon: az alsó sávban minden oldal ott van, és oldalra görgethető; az
+  aktív oldal mindig látszik. A Ma oldal ± sorában a gombok a helyükön
+  maradnak (a + gomb az első nyomás után sem ugrik el), és saját sort
+  kapnak. Az oldalsó szerkesztők gépelés vagy időválasztás közben megtartják
+  a szerkesztett mezőt, így a billentyűzet vagy az időválasztó nem csukódik
+  be.
+- Naptár: a kinyitott keskeny blokk fölött már nem jelenik meg súgóbuborék.
+- Assist: a „mi van még hátra mára” két rutin között megmondja, mikor
+  kezdődik a következő, és hány feladat van benne; az összefoglaló egyszer
+  mondja a következő ellenőrzőpontot; a „mennyi idő van még” kérdésekre
+  mindig elhangzik a hátralévő idő; a visszakérdezések gépelt
+  beszélgetésben is működnek; több beszédfelismerési hibát is ért.
+- Előzmények: a „Mégsem csinálta meg” egy feladatnál a teljesült
+  ellenőrzőpontját is visszaállítja (a zsetonjait visszavonja); a „Zseton
+  jóváírása” egynapos rutinnál is a helyes összeget javasolja.
+- A gyerekszerkesztő címkéi rövidek, a magyarázatuk ⓘ mögött van.
+
 ## [0.9.10] - 2026-11-14
 
 ### English

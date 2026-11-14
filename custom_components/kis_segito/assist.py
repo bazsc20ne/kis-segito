@@ -144,6 +144,11 @@ def child_status(manager: KisSegitoManager, child_id: str) -> dict[str, Any]:
         "next_routine_minutes": _minutes_until(next_routine[0], now)
         if next_routine
         else None,
+        "next_routine_tasks": len(
+            [t for t in next_routine[1].get("tasks", []) if applies_to(t, child_id)]
+        )
+        if next_routine
+        else 0,
         "tokens_earnable_now": earn_now,
         "tokens_earnable_today": earn_today,
         "streak": manager.streak(child_id),
@@ -245,17 +250,26 @@ def _values(status: dict[str, Any], language: str) -> dict[str, Any]:
             "start_in": gram.until(status["next_routine_minutes"]),
             "next_routine": status["next_routine"],
             "next_routine_art": gram.label(status["next_routine"] or ""),
+            "later": status.get("next_routine_tasks", 0),
         }
     return values
 
 
 def _child_parts(
-    status: dict[str, Any], topic: str, language: str, scope: str = "child"
+    status: dict[str, Any],
+    topic: str,
+    language: str,
+    scope: str = "child",
+    *,
+    summary: bool = False,
 ) -> list[str]:
-    """The sentences of a child's answer ("speaker": said to the child)."""
+    """The sentences of a child's answer ("speaker": said to the child). In a
+    summary the task part leaves the checkpoint to the checkpoint part."""
     topic = _topic(topic)
     if topic == "summary":
-        return [p for t in SUMMARY for p in _child_parts(status, t, language, scope)]
+        return [
+            p for t in SUMMARY for p in _child_parts(status, t, language, scope, summary=True)
+        ]
     values = _values(status, language)
     parts: list[str] = []
 
@@ -275,8 +289,10 @@ def _child_parts(
                 add("one" if left == 1 else "many")
         elif status["task_status"] == "done":
             add("done")
-        elif topic == "task" and "cp_clock" in values:
+        elif topic == "task" and "cp_clock" in values and not summary:
             add("none_next")
+        elif topic == "remaining" and "start_clock" in values and values["later"]:
+            add("later", routine=values["next_routine"], routine_art=values["next_routine_art"])
         else:
             add("none")
     elif topic == "checkpoint":
@@ -330,14 +346,16 @@ def _group_values(statuses: list[dict[str, Any]], language: str) -> dict[str, An
     }
 
 
-def _all_parts(statuses: list[dict[str, Any]], topic: str, language: str) -> list[str]:
+def _all_parts(
+    statuses: list[dict[str, Any]], topic: str, language: str, *, summary: bool = False
+) -> list[str]:
     """The answer for several children at once: one sentence when they are
     all the same, otherwise a short list (largest first)."""
     topic = _topic(topic)
     if len(statuses) == 1:
-        return _child_parts(statuses[0], topic, language)
+        return _child_parts(statuses[0], topic, language, summary=summary)
     if topic == "summary":
-        return [p for t in SUMMARY for p in _all_parts(statuses, t, language)]
+        return [p for t in SUMMARY for p in _all_parts(statuses, t, language, summary=True)]
     common = _group_values(statuses, language)
 
     def say_for(
@@ -380,7 +398,7 @@ def _all_parts(statuses: list[dict[str, Any]], topic: str, language: str) -> lis
         kinds = {s["task_status"] for s in statuses}
         if kinds == {"none"}:
             nexts = {(s["next_checkpoint"], s["next_checkpoint_time"]) for s in statuses}
-            if len(nexts) == 1 and first["next_checkpoint_time"]:
+            if len(nexts) == 1 and first["next_checkpoint_time"] and not summary:
                 return [say_for("all_none_next", first)]
             return [say_for("all_none", first)]
         if kinds == {"done"} and len({s["current_routine"] for s in statuses}) == 1:
@@ -397,6 +415,17 @@ def _all_parts(statuses: list[dict[str, Any]], topic: str, language: str) -> lis
     if topic == "remaining":
         kinds = {s["task_status"] for s in statuses}
         if kinds == {"none"}:
+            later = {(s["next_routine"], s["next_routine_time"]) for s in statuses}
+            if len(later) == 1 and first["next_routine_time"] and first["next_routine_tasks"]:
+                values = _values(first, language)
+                return [
+                    say_for(
+                        "all_later",
+                        first,
+                        routine=values["next_routine"],
+                        routine_art=values["next_routine_art"],
+                    )
+                ]
             return [say_for("all_none", first)]
         if kinds == {"done"}:
             return [say_for("all_done", first)]
@@ -409,7 +438,7 @@ def _all_parts(statuses: list[dict[str, Any]], topic: str, language: str) -> lis
             if status["task_status"] == "done":
                 parts.append(say_for("list_done", status))
             elif status["task_status"] == "none":
-                parts.append(say(language, "child", "remaining", "none", **_values(status, language)))
+                parts += _child_parts(status, "remaining", language)
             elif left == 1:
                 parts.append(say_for("list_next_one", status))
             else:
@@ -633,10 +662,17 @@ class Conversations:
 
     @staticmethod
     def key(user_input: Any) -> str:
-        for attr in ("satellite_id", "device_id", "conversation_id"):
+        # A typed conversation has no satellite, and its first turn no
+        # conversation id yet: the user asking is the same in every turn.
+        for attr in ("satellite_id", "device_id"):
             value = getattr(user_input, attr, None)
             if value:
                 return f"{attr}:{value}"
+        context = getattr(user_input, "context", None)
+        if getattr(context, "user_id", None):
+            return f"user:{context.user_id}"
+        if getattr(user_input, "conversation_id", None):
+            return f"conversation:{user_input.conversation_id}"
         return "default"
 
     def remember(self, user_input: Any, topic: str, *, waiting: bool = False) -> None:

@@ -29,13 +29,13 @@
   "children.none": "Még nincs gyerek felvéve.",
   "children.add": "Gyerek hozzáadása",
   "children.edit": "Gyerek szerkesztése",
-  "children.birth_date": "Születési dátum (nem kötelező)",
+  "children.birth_date": "Születési dátum",
   "children.color": "Szín",
   "children.color_warning": "Ez a szín közel van egy időzóna-színhez (zöld, narancs, piros, arany); a gombon nehezebb lehet megkülönböztetni.",
   "children.avatar": "Avatar",
   "children.any_knob": "Bármelyik gomb",
   "children.piggy_unlocked": "Persely feloldva",
-  "children.aliases": "Más nevek (az Assisthoz)",
+  "children.aliases": "Más nevek",
   "children.aliases_hint": "Vesszővel elválasztva, nem kötelező",
   "routines.none": "Még nincs rutin.",
   "routines.add": "Rutin hozzáadása",
@@ -267,7 +267,6 @@
   "children.photo_remove": "Fénykép törlése (vissza az alap avatarra)",
   "rtemplates.use": "Kitöltés mentett sablonból",
   "crop.whole": "Feltöltés kivágás nélkül",
-  "nav.more": "Több",
   "today.now": "Most fut",
   "today.next": "Következik",
   "today.idle": "Most nincs futó rutin",
@@ -635,5 +634,6 @@
   "assist.missing": "(már nem létezik)",
   "assist.remove": "Eltávolítás",
   "assist.none": "Még egy hangszóró sincs gyerekhez rendelve.",
-  "help.assist_speakers": "Itt adhatod meg, melyik hangszóróról vagy területről melyik gyerekek kérdeznek. Ez az első személyű kérdésekhez kell, például: „Mennyi zsetonom van?”, „Mi a következő feladatom?”.\n\nHa egy hangszóróhoz egy gyerek tartozik, a válasz neki szól. Ha több, mindegyikükről válaszol, egyet sosem talál ki. Ha egy hangszóró nincs itt, minden gyerekről válaszol.\n\nHa a Home Assistantban van hangfelismerő integráció, amely megmondja, ki beszél, azt használja először. Ha az nem ismeri fel a hangot, megkérdezi, ki beszél, és a gyerek nevére (például „Áron vagyok”) válaszol."
+  "help.assist_speakers": "Itt adhatod meg, melyik hangszóróról vagy területről melyik gyerekek kérdeznek. Ez az első személyű kérdésekhez kell, például: „Mennyi zsetonom van?”, „Mi a következő feladatom?”.\n\nHa egy hangszóróhoz egy gyerek tartozik, a válasz neki szól. Ha több, mindegyikükről válaszol, egyet sosem talál ki. Ha egy hangszóró nincs itt, minden gyerekről válaszol.\n\nHa a Home Assistantban van hangfelismerő integráció, amely megmondja, ki beszél, azt használja először. Ha az nem ismeri fel a hangot, megkérdezi, ki beszél, és a gyerek nevére (például „Áron vagyok”) válaszol.",
+  "help.child_birth_date": "Nem kötelező. Ebből számolja a panel a gyerek életkorát, amely a neve alatt látszik."
 }

@@ -383,3 +383,73 @@ async def test_written_questions(
     hass: HomeAssistant, assist: dict[str, str], language: str, text: str
 ) -> None:
     assert await _ask(hass, text, language)
+
+
+async def test_left_today_between_routines(
+    hass: HomeAssistant, manager: KisSegitoManager, freezer: FrozenDateTimeFactory
+) -> None:
+    from homeassistant.setup import async_setup_component
+
+    freezer.move_to(dt_util.now().replace(hour=14, minute=20, second=0, microsecond=0))
+    await _setup(manager)
+    assert await async_setup_component(hass, "homeassistant", {})
+    assert await async_setup_component(hass, "conversation", {})
+    async_setup_assist(hass, manager)
+    await hass.async_block_till_done()
+    speech = await _ask(hass, "mi van még hátra a gyerekeknek")
+    assert "este hét órakor" in speech.casefold() and "négy" in speech, speech
+    speech = await _ask(hass, "what's left for Áron today", "en")
+    assert "four tasks" in speech, speech
+
+
+async def test_summary_names_the_checkpoint_once(
+    hass: HomeAssistant, manager: KisSegitoManager, freezer: FrozenDateTimeFactory
+) -> None:
+    from homeassistant.setup import async_setup_component
+
+    freezer.move_to(dt_util.now().replace(hour=14, minute=20, second=0, microsecond=0))
+    await _setup(manager)
+    assert await async_setup_component(hass, "homeassistant", {})
+    assert await async_setup_component(hass, "conversation", {})
+    async_setup_assist(hass, manager)
+    await hass.async_block_till_done()
+    for text in ("hogy áll Áron", "hogy állnak a gyerekek", "hogy állok"):
+        for _ in range(5):
+            speech = await _ask(hass, text)
+            assert speech.count("vacsora") == 1, speech
+
+
+async def test_time_left_is_always_said(
+    hass: HomeAssistant, manager: KisSegitoManager, assist: dict[str, str]
+) -> None:
+    for _ in range(8):
+        speech = await _ask(hass, "mennyi idő van a gyerekeknek a következő ellenőrzőpontig")
+        assert "huszonnégy perc" in speech.casefold(), speech
+
+
+async def test_follow_up_in_a_typed_conversation(
+    hass: HomeAssistant, manager: KisSegitoManager, assist: dict[str, str]
+) -> None:
+    from homeassistant.components import conversation
+
+    context = Context(user_id="parent-1")
+    await conversation.async_converse(hass, "mennyi zsetonja van Áronnak", None, context, "hu")
+    result = await conversation.async_converse(hass, "és Emesének?", None, context, "hu")
+    assert "két zseton" in result.response.speech["plain"]["speech"]
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Mennyise tomje van Áronnak?",
+        "Ha napos Áron sorozata?",
+        "Hilton kaphat ma még Áron?",
+        "Nekem mennyi asszonyom van?",
+        "Mi a gyerekeknek?",
+        "Hogy állnak a gyerek?",
+    ],
+)
+async def test_more_speech_recognition_variants(
+    hass: HomeAssistant, assist: dict[str, str], text: str
+) -> None:
+    assert await _ask(hass, text)

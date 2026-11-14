@@ -579,6 +579,7 @@ class KisSegitoUI : public Component {
     int next_x0{0}, next_y0{0}, next_x1{0}, next_y1{0}, next_s0{256};
   } task_move_;
   void task_move_step_(int32_t v);
+  int task_reward_{0};  // tokens of a reached checkpoint: confetti after the change
   int shown_reward_{-1};
 
   lv_timer_t *tick_timer_{nullptr};

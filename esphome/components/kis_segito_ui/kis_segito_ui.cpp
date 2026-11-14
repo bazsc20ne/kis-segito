@@ -3003,6 +3003,14 @@ void KisSegitoUI::build_routine_() {
   this->task_big_ =
       this->image_(this->screen_obj_, current >= 0 ? r.tasks[current].icon + "_150" : "action_check_88", CENTER, S(205));
   lv_image_set_pivot(this->task_big_, S(75), S(75));
+  // The next task's big picture is fetched now, so it can grow into the
+  // middle when this task is done (not only appear after it).
+  for (size_t i = current + 1; current >= 0 && i < r.tasks.size(); i++) {
+    if (!this->is_done_(r, r.tasks[i].id)) {
+      this->img_(r.tasks[i].icon + "_150");
+      break;
+    }
+  }
 
   // Completed tasks collect on the left (grey), future ones on the right.
   int done_slot = 0, future_slot = 0;
@@ -3575,21 +3583,35 @@ void KisSegitoUI::complete_task_() {
     lv_anim_set_path_cb(&move, lv_anim_path_ease_in_out);
     lv_anim_set_exec_cb(&move, [](void *var, int32_t v) { static_cast<KisSegitoUI *>(var)->task_move_step_(v); });
     lv_anim_start(&move);
+    // Frames drawn during the change are counted (logged at the end).
+    g_slide_frames = g_slide_render_ms = g_slide_px = g_slide_flush_us = 0;
+    g_slide_measure = true;
+    ESP_LOGD(TAG, "Task change: next picture %s", this->task_move_.next != nullptr ? "ready" : "not here yet");
   }
   const uint32_t rebuild_ms = move_ms > 0 ? ms * 2 / 3 + move_ms + 40 : ms + 250;
+  this->task_reward_ = reward;
   lv_timer_t *t = lv_timer_create(
       [](lv_timer_t *timer) {
         auto *self = static_cast<KisSegitoUI *>(lv_timer_get_user_data(timer));
         lv_timer_delete(timer);
+        if (g_slide_measure && g_slide_frames > 0) {
+          ESP_LOGD(TAG, "Task change: %u frames, %u ms drawing per frame (%u ms of it sending to the panel), %u kpx per frame",
+                   (unsigned) g_slide_frames, (unsigned) (g_slide_render_ms / g_slide_frames),
+                   (unsigned) (g_slide_flush_us / 1000 / g_slide_frames), (unsigned) (g_slide_px / 1000 / g_slide_frames));
+        }
+        g_slide_measure = false;
         self->busy_ = false;
         self->pending_rebuild_ = false;
         self->task_move_ = TaskMove{};
+        // The reward (and its confetti) only after the change, so the
+        // confetti does not slow the move down.
+        if (self->task_reward_ > 0)
+          self->celebrate_(self->task_reward_);
+        self->task_reward_ = 0;
         self->show_(Screen::ROUTINE);
       },
       rebuild_ms, this);
   lv_timer_set_repeat_count(t, 1);
-  if (reward > 0)
-    this->celebrate_(reward);
 }
 
 // One frame of the move between two tasks (v from 0 to 1024).
@@ -3617,7 +3639,7 @@ void KisSegitoUI::celebrate_(int tokens) {
     return;
   // Confetti on the top layer, so the screen rebuild does not remove it.
   static const uint32_t COLORS[] = {0xFF6B6B, 0xFFC94A, 0x6BCB77, 0x6CB8FF, 0xA78BFA, 0xFF8FB1};
-  for (int i = 0; i < 36; i++) {
+  for (int i = 0; i < 24; i++) {
     const uint32_t h = hash32(i + 77);
     lv_obj_t *piece = lv_obj_create(lv_layer_top());
     remove_defaults(piece);

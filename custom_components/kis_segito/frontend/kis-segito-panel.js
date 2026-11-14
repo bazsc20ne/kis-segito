@@ -10,12 +10,11 @@
 
 // Must equal the integration version (scripts/check_versions.py checks it):
 // a browser that still runs an older copy of this file shows a reload bar.
-const PANEL_VERSION = "0.9.10";
+const PANEL_VERSION = "0.9.11";
 const FALLBACK_LANGUAGE = "en";
 const LANGUAGE_AUTO = "auto";
 const TABS = ["today", "calendar", "children", "routines", "rewards", "tokens", "history", "notifications", "settings"];
 // Phones: these tabs in the bottom bar, the rest under "More".
-const BOTTOM_TABS = ["today", "calendar", "routines", "rewards"];
 // Knob screen power settings (stored in seconds, edited in minutes;
 // dim_level in percent).
 const SCREEN_KEYS = ["saver_after", "dim_after", "dim_level", "blank_after", "off_after"];
@@ -164,6 +163,51 @@ function applyTimes(item, start, end) {
 
 function applies(list, childId) {
   return !list?.length || list.includes(childId);
+}
+
+// Updates an element in place to match another one (attributes, text and
+// children, by position), keeping the elements that stay the same kind. The
+// focused field keeps the value being typed; open sections stay open; the
+// root keeps its inline style (its slide-in animation stays off).
+function morphElement(from, to, focused, root = false) {
+  for (const { name } of [...from.attributes]) {
+    if (to.hasAttribute(name) || (root && name === "style") || (name === "open" && from.tagName === "DETAILS")) continue;
+    from.removeAttribute(name);
+  }
+  for (const { name, value } of [...to.attributes]) {
+    if (root && name === "style") continue;
+    if (from.getAttribute(name) !== value) from.setAttribute(name, value);
+  }
+  const a = [...from.childNodes];
+  const b = [...to.childNodes];
+  for (let i = 0; i < b.length; i += 1) {
+    const x = a[i];
+    const y = b[i];
+    if (!x) {
+      from.appendChild(y.cloneNode(true));
+    } else if (x.nodeType !== y.nodeType || x.nodeName !== y.nodeName) {
+      from.replaceChild(y.cloneNode(true), x);
+    } else if (x.nodeType === Node.ELEMENT_NODE) {
+      morphElement(x, y, focused);
+    } else if (x.nodeValue !== y.nodeValue) {
+      x.nodeValue = y.nodeValue;
+    }
+  }
+  for (let i = a.length - 1; i >= b.length; i -= 1) {
+    a[i].remove();
+  }
+  if (from !== focused) {
+    if (from.tagName === "INPUT" || from.tagName === "TEXTAREA") {
+      if (from.type === "checkbox" || from.type === "radio") {
+        from.checked = to.hasAttribute("checked");
+      } else if (from.type !== "file" && from.value !== (to.getAttribute("value") ?? to.textContent ?? "")) {
+        from.value = from.tagName === "TEXTAREA" ? to.textContent : to.getAttribute("value") ?? "";
+      }
+    } else if (from.tagName === "SELECT") {
+      const chosen = [...to.options].findIndex((o) => o.hasAttribute("selected"));
+      from.selectedIndex = chosen >= 0 ? chosen : 0;
+    }
+  }
 }
 
 class KisSegitoPanel extends HTMLElement {
@@ -1068,14 +1112,17 @@ class KisSegitoPanel extends HTMLElement {
             : running?.edited
               ? `<span class="badge" title="${this._e(this._t("calendar.changed"))}">${this._icon("action_edit", 18, "glyph")}</span>`
               : "";
-        // The Restore button sits left of the stepper, so "+" never moves.
+        // The controls keep fixed places: the Restore button's place is kept
+        // even while it is hidden, so "+" never moves; on a phone they get a
+        // line of their own.
+        const restoreLabel = this._t("modify.restore");
         const controls = !admin
           ? ""
           : skipped
-            ? `<button class="btn sm" data-act="ov-restore" data-arg="${this._e(r.id)}">${this._e(this._t("modify.restore"))}</button>`
-            : `${shift ? `<button class="btn sm ghost" data-act="ov-restore" data-arg="${this._e(r.id)}">↺ ${this._e(this._t("modify.restore"))}</button>` : ""}
+            ? `<div class="mod-ctl"><button class="btn sm" data-act="ov-restore" data-arg="${this._e(r.id)}">${this._e(restoreLabel)}</button></div>`
+            : `<div class="mod-ctl"><button class="btn sm ghost restore ${shift ? "" : "idle"}" data-act="ov-restore" data-arg="${this._e(r.id)}" title="${this._e(restoreLabel)}" aria-label="${this._e(restoreLabel)}" ${shift ? "" : `tabindex="-1" aria-hidden="true"`}>↺<span class="wide"> ${this._e(restoreLabel)}</span></button>
                <span class="stepper"><button data-act="ov-shift" data-arg="${this._e(r.id)}" data-d="-5" aria-label="-5">−</button><span>${sign(shift)} ${this._e(this._t("modify.minutes"))}</span><button data-act="ov-shift" data-arg="${this._e(r.id)}" data-d="5" aria-label="+5">+</button></span>
-               <button class="btn sm" data-act="ov-skip" data-arg="${this._e(r.id)}">${this._e(this._t("modify.skip"))}</button>${this._help("help.modify_row", this._t("modify.title"))}`;
+               <button class="btn sm" data-act="ov-skip" data-arg="${this._e(r.id)}">${this._e(this._t("modify.skip"))}</button>${this._help("help.modify_row", this._t("modify.title"))}</div>`;
         return `<div class="mod-row ${skipped ? "skipped" : ""}">${nameBlock(r, times, state)}${controls}</div>`;
       })
       .join("");
@@ -1196,7 +1243,7 @@ class KisSegitoPanel extends HTMLElement {
                 ? `<span class="badge" title="${this._e(this._t(r.moved_from ? "calendar.moved_here" : "calendar.changed"))}">${this._icon("action_edit", 18, "glyph")}</span>`
                 : "";
             return `<div class="blk ${changed ? "changed" : ""} ${oneDay ? "oneday" : ""} ${count > 1 ? "lane" : ""}" style="top:${top}px;height:${h}px;${place}--rc:${this._e(color)}"
-              data-block data-routine="${this._e(r.id)}" data-date="${d.date}" data-st="${st}" data-en="${en}" data-past="${past ? 1 : ""}" tabindex="0" ${count > 1 ? `data-tip="${this._e(r.name || this._t("routines.unnamed"))} · ${this._e(r.start)}–${this._e(r.end)}"` : ""}>
+              data-block data-routine="${this._e(r.id)}" data-date="${d.date}" data-st="${st}" data-en="${en}" data-past="${past ? 1 : ""}" tabindex="0">
               <span class="grip t"></span><span class="grip b"></span>
               <div class="bt">${badge}${this._icon(r.icon, 18)} ${this._e(r.name || this._t("routines.unnamed"))}</div>
               <div class="bs num">${this._e(r.start)}–${this._e(r.end)} · ${this._e(who)}</div>${cps}</div>`;
@@ -2059,7 +2106,6 @@ ${tab === "data" ? `
     delete item.streak;
     this._edit = { coll, item, isNew: !found, readonly: !this._isAdmin, ...extra };
     this._picker = null;
-    this._more = false;
     this._drawerScroll = 0;
     this._rtplSaved = null;
     this._sec = extra.sec || (coll === "children" ? (this._isAdmin && found ? "data" : found ? "stats" : "data") : "basics");
@@ -2113,7 +2159,6 @@ ${tab === "data" ? `
     };
     this._sec = "basics";
     this._picker = null;
-    this._more = false;
     this._drawerScroll = 0;
     this._rtplSaved = null;
     this._render();
@@ -2171,7 +2216,7 @@ ${tab === "data" ? `
       nav,
       body: `<div class="row wrap" style="gap:16px">${this._avatarField(c)}<div class="grow stack" style="gap:10px;min-width:200px">
           <label class="field"><span>${this._e(this._t("common.name"))}</span><input data-path="name" value="${this._e(c.name)}"></label>
-          <label class="field"><span>${this._e(this._t("children.birth_date"))}</span><input type="date" data-path="birth_date" value="${this._e(c.birth_date || "")}"></label>
+          <label class="field"><span>${this._e(this._t("children.birth_date"))}${this._help("help.child_birth_date", this._t("children.birth_date"))}</span><input type="date" data-path="birth_date" value="${this._e(c.birth_date || "")}"></label>
           <label class="field"><span>${this._e(this._t("children.theme"))}${this._help("help.child_theme", this._t("children.theme"))}</span><select data-path="theme"><option value="">${this._e(this._t("children.theme_common"))}</option>${(this._data.themes || []).filter((t) => t.active || t.id === c.theme).map((t) => `<option value="${this._e(t.id)}" ${c.theme === t.id ? "selected" : ""}>${this._e(t.name?.[(this._language || "en").startsWith("hu") ? "hu" : "en"] || t.name?.en || t.id)}</option>`).join("")}</select></label>
           <label class="field"><span>${this._e(this._t("children.aliases"))}${this._help("help.child_aliases", this._t("children.aliases"))}</span><input data-path="aliases" value="${this._e(c.aliases || "")}" placeholder="${this._e(this._t("children.aliases_hint"))}"></label></div></div>
         <div class="field"><span>${this._e(this._t("children.color"))}${this._help("help.child_color", this._t("children.color"))}</span><div class="row wrap">${PRESET_COLORS.map((x) => `<button class="swatch ${x === c.color ? "on" : ""}" style="background:${x}" data-act="set" data-path="color" data-v="${x}" aria-label="${x}"></button>`).join("")}<input type="color" data-path="color" data-rerender value="${this._e(c.color)}"></div>
@@ -2629,6 +2674,49 @@ ${tab === "data" ? `
     return data || el.id ? `${el.tagName}|${el.id}|${data}` : null;
   }
 
+  // Puts the new HTML in place. While the same side editor stays open, its
+  // elements are updated in place instead of being rebuilt, so the field
+  // being edited keeps its focus (a phone keeps its keyboard or time picker
+  // open) and nothing in the editor jumps.
+  _patch(html, keepDrawer) {
+    const root = this.shadowRoot;
+    const drawerOf = (parent) => [...parent.children].find((el) => el.classList.contains("drawer"));
+    const oldDrawer = keepDrawer ? drawerOf(root) : null;
+    if (!oldDrawer) {
+      root.innerHTML = html;
+      return;
+    }
+    const template = document.createElement("template");
+    template.innerHTML = html;
+    const newDrawer = drawerOf(template.content);
+    if (!newDrawer) {
+      root.innerHTML = html;
+      return;
+    }
+    morphElement(oldDrawer, newDrawer, root.activeElement, true);
+    // Everything else is replaced around the drawer, which stays attached.
+    for (const node of [...root.childNodes]) {
+      if (node !== oldDrawer) node.remove();
+    }
+    const nodes = [...template.content.childNodes];
+    const at = nodes.indexOf(newDrawer);
+    oldDrawer.before(...nodes.slice(0, at));
+    oldDrawer.after(...nodes.slice(at + 1));
+  }
+
+  // Scrolls the phone's page bar so the active page is in view.
+  _showActiveTab() {
+    const bar = this.shadowRoot?.querySelector(".bnav");
+    const on = bar?.querySelector("button.on");
+    if (!bar || !on || !bar.clientWidth) {
+      return;
+    }
+    const left = on.offsetLeft - bar.offsetLeft;
+    if (left < bar.scrollLeft + 12 || left + on.offsetWidth > bar.scrollLeft + bar.clientWidth - 12) {
+      bar.scrollLeft = left - (bar.clientWidth - on.offsetWidth) / 2;
+    }
+  }
+
   _scheduleRender(ms = 0) {
     clearTimeout(this._renderTimer);
     this._renderTimer = setTimeout(() => this._render(), ms);
@@ -2672,11 +2760,9 @@ ${tab === "data" ? `
     const logo = languageNow.startsWith("hu") ? "brand_logo" : "brand_logo_en";
     const languages = this._data?.settings?.languages || [];
     const tabs = TABS.map((x) => `<button class="tab ${x === this._tab ? "on" : ""}" data-act="tab" data-arg="${x}">${this._icon(`nav_${x}`, 30)}${this._e(this._t(`tab.${x}`))}</button>`).join("");
-    const inMore = !BOTTOM_TABS.includes(this._tab);
-    const bnav = [
-      ...BOTTOM_TABS.map((x) => `<button class="${x === this._tab ? "on" : ""}" data-act="tab" data-arg="${x}">${this._icon(`nav_${x}`, 30)}${this._e(this._t(`tab.${x}`))}</button>`),
-      `<button class="${inMore ? "on" : ""}" data-act="more">${inMore ? this._icon(`nav_${this._tab}`, 30) : `<span class="dots">•••</span>`}${this._e(inMore ? this._t(`tab.${this._tab}`) : this._t("nav.more"))}</button>`,
-    ].join("");
+    // Phone: every page in a bar that scrolls sideways.
+    const bnav = TABS.map((x) => `<button class="${x === this._tab ? "on" : ""}" data-act="tab" data-arg="${x}">${this._icon(`nav_${x}`, 30)}${this._e(this._t(`tab.${x}`))}</button>`).join("");
+    const bnavScroll = this.shadowRoot.querySelector(".bnav")?.scrollLeft ?? 0;
     const stars = [[12, 8], [24, 22], [40, 10], [52, 26], [60, 6]].map(([x, y], i) => `<span class="st" style="left:${x}px;top:${y}px;animation-duration:${1.5 + i * 0.4}s"></span>`).join("");
     const page = this.shadowRoot.querySelector(".page");
     const scroll = page?.scrollTop ?? 0;
@@ -2694,9 +2780,9 @@ ${tab === "data" ? `
     const selection = focusKey && typeof focused.selectionStart === "number" ? [focused.selectionStart, focused.selectionEnd] : null;
     // Overlays that are open already do not slide or fade in again on a
     // redraw (a change in a side editor would look like a reload).
-    const OVERLAYS = [".drawer", ".backdrop:not(.over)", ".backdrop.over", ".dialog", ".more-sheet", ".toast"];
+    const OVERLAYS = [".drawer", ".backdrop:not(.over)", ".backdrop.over", ".dialog", ".toast"];
     const wasOpen = OVERLAYS.filter((sel) => this.shadowRoot.querySelector(sel));
-    this.shadowRoot.innerHTML = `<style>${STYLE}</style>
+    const html = `<style>${STYLE}</style>
       <div class="page">
         <header class="hero" style="background-image:url('${this._backgroundUrl(night ? "bg_6" : "bg_2")}')">
           <div class="topbar">
@@ -2718,10 +2804,11 @@ ${tab === "data" ? `
         </main>
       </div>
       <nav class="bnav" aria-label="tabs">${bnav}</nav>
-      ${this._more ? `<div class="backdrop" data-act="more"></div><div class="more-sheet">${TABS.filter((x) => !BOTTOM_TABS.includes(x)).map((x) => `<button data-act="tab" data-arg="${x}">${this._icon(`nav_${x}`, 40)}${this._e(this._t(`tab.${x}`))}</button>`).join("")}</div>` : ""}
       ${overlays}
       <div class="tip" hidden></div>
       ${this._toastText ? `<div class="toast" role="status">${this._icon("action_check", 22)} ${this._e(this._toastText)}</div>` : ""}`;
+    this._patch(html, this._edit && this._edit === this._drawnEdit);
+    this._drawnEdit = this._edit;
     for (const sel of wasOpen) {
       this.shadowRoot.querySelectorAll(sel).forEach((el) => {
         el.style.animation = "none";
@@ -2750,6 +2837,14 @@ ${tab === "data" ? `
       }
     }
     this._shownTab = this._tab;
+    const bar = this.shadowRoot.querySelector(".bnav");
+    if (bar) {
+      bar.scrollLeft = bnavScroll;
+      if (this._bnavTab !== this._tab) {
+        this._bnavTab = this._tab;
+        this._showActiveTab();
+      }
+    }
     const newDrawer = this.shadowRoot.querySelector(".drawer-b");
     if (newDrawer) {
       newDrawer.scrollTop = drawerScroll;
@@ -2784,7 +2879,6 @@ ${tab === "data" ? `
     this._tab = tab;
     this._edit = null;
     this._picker = null;
-    this._more = false;
     this._stats = null;
     this._dialog = null;
     this._render();
@@ -2883,8 +2977,6 @@ ${tab === "data" ? `
     } else if (this._edit) {
       this._edit = null;
       this._stats = null;
-    } else if (this._more) {
-      this._more = false;
     } else {
       return false;
     }
@@ -2948,9 +3040,6 @@ ${tab === "data" ? `
       case "tab":
         await this._switchTab(arg);
         return;
-      case "more":
-        this._more = !this._more;
-        break;
       case "lang":
         if (this._isAdmin) {
           this._localLanguage = "";
@@ -4186,6 +4275,9 @@ ${tab === "data" ? `
         this._wasNarrow = narrow;
         this._render();
       }
+      // A rotation or resize: the active page stays in view in the bar.
+      cancelAnimationFrame(this._barFrame);
+      this._barFrame = requestAnimationFrame(() => this._showActiveTab());
     });
   }
 }
@@ -4390,6 +4482,9 @@ const STYLE = `
   .cp-chip.waiting { background: var(--sun-soft); color: var(--sun); }
   .mod-row { display: flex; align-items: center; gap: 10px; padding: 12px 0; border-top: 1px solid var(--line); flex-wrap: wrap; }
   .mod-row.skipped { opacity: .55; }
+  .mod-row .nameblk { min-width: 0; }
+  .mod-ctl { display: flex; align-items: center; gap: 8px; margin-left: auto; flex-wrap: nowrap; }
+  .mod-ctl .restore.idle { visibility: hidden; }
   .mod-row.skipped .name { text-decoration: line-through; }
   .nameblk[data-act] { cursor: pointer; border-radius: 12px; padding: 4px 6px; margin: -4px -6px; }
   .nameblk[data-act]:hover { background: var(--surface-2); }
@@ -4596,14 +4691,15 @@ const STYLE = `
     .tabs { display: none; }
     .hero { padding-bottom: 12px; }
     main { padding-bottom: 110px; }
-    .bnav { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; background: var(--surface); border-top: 1px solid var(--line); padding: 6px 6px calc(6px + env(safe-area-inset-bottom, 0px)); justify-content: space-around; box-shadow: 0 -8px 24px rgb(0 0 0 / .08); }
-    .bnav button { flex: 1; border: 0; background: none; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: .7rem; font-weight: 700; color: var(--muted); cursor: pointer; padding: 4px 0; border-radius: 14px; }
+    .mod-row .nameblk { flex: 1 1 100%; }
+    .mod-ctl { flex: 1 1 100%; justify-content: flex-end; }
+    .mod-ctl .restore .wide { display: none; }
+    .bnav { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; background: var(--surface); border-top: 1px solid var(--line); padding: 6px 6px calc(6px + env(safe-area-inset-bottom, 0px)); gap: 2px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; box-shadow: 0 -8px 24px rgb(0 0 0 / .08);
+      -webkit-mask-image: linear-gradient(to right, transparent, #000 18px, #000 calc(100% - 18px), transparent); mask-image: linear-gradient(to right, transparent, #000 18px, #000 calc(100% - 18px), transparent); }
+    .bnav::-webkit-scrollbar { display: none; }
+    .bnav button { flex: 0 0 auto; min-width: 74px; white-space: nowrap; border: 0; background: none; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: .7rem; font-weight: 700; color: var(--muted); cursor: pointer; padding: 4px 0; border-radius: 14px; }
     .bnav button img { width: 30px; height: 30px; }
-    .bnav button .dots { font-size: 1.5rem; line-height: 30px; }
     .bnav button.on { color: var(--ink); background: var(--surface-2); }
-    .more-sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 51; background: var(--surface); border-radius: 24px 24px 0 0; padding: 18px 16px calc(18px + env(safe-area-inset-bottom, 0px)); display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; animation: up .3s var(--ease); }
-    .more-sheet button { border: 0; background: var(--surface-2); border-radius: 18px; padding: 12px 4px; display: flex; flex-direction: column; align-items: center; gap: 4px; font-weight: 700; font-size: .82rem; cursor: pointer; color: var(--ink); }
-    .more-sheet button img { width: 40px; height: 40px; }
     .now-card { grid-template-columns: 1fr; justify-items: center; text-align: center; }
     .child-top { flex-wrap: wrap; }
     .balances { margin-left: 0; justify-content: flex-start; width: 100%; }

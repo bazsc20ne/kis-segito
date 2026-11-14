@@ -108,3 +108,43 @@ async def test_import_replaces_everything(
         with pytest.raises(KisSegitoError):
             await manager.async_import(copy.deepcopy(bad))
     assert manager.balances(kid)["wallet"] == 3
+
+
+async def test_undoing_a_task_also_undoes_its_reached_checkpoint(
+    manager: KisSegitoManager, freezer: FrozenDateTimeFactory
+) -> None:
+    freezer.move_to(dt_util.now().replace(hour=7, minute=40, second=0, microsecond=0))
+    kid, routine = await _setup(manager)
+    await manager.async_complete_task(kid, routine["id"], routine["tasks"][0]["id"])
+    assert manager.balances(kid)["wallet"] == 3
+    event = _events(manager, "task_done")[0]
+    await manager.async_remove_event(event["id"])
+    progress = manager.progress(manager.today(), routine["id"], kid)
+    assert routine["checkpoints"][0]["id"] not in progress["checkpoints"]
+    assert manager.balances(kid)["wallet"] == 0
+    assert _events(manager, "checkpoint_removed")
+
+
+async def test_give_tokens_suggestion_for_a_one_day_routine(
+    manager: KisSegitoManager, freezer: FrozenDateTimeFactory
+) -> None:
+    freezer.move_to(dt_util.now().replace(hour=7, minute=55, second=0, microsecond=0))
+    kid = (await manager.async_save_item("children", {"name": "Kid A"}))["id"]
+    routine_id = await manager._add_one_day(
+        manager.today(),
+        {
+            "name": "Trip",
+            "start": "07:00",
+            "end": "08:00",
+            "checkpoints": [
+                {"id": "c1", "name": "Ready", "time": "07:50",
+                 "reward_bands": [{"min_early_min": 0, "tokens": 3}]}
+            ],
+            "tasks": [{"id": "t1", "icon": "task_shoes", "label": "Shoes"}],
+        },
+        None,
+        "parent",
+    )
+    await manager.async_complete_task(kid, routine_id, "t1")
+    event = _events(manager, "task_done")[0]
+    assert manager.event_credit_suggestion(event) == 3

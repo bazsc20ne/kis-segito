@@ -85,6 +85,12 @@ step** beállítása (1–5, alapból 1 = egy kattanás egy lépés), és újrai
 megmarad. Más enkóderhez a `substitutions` részben az `encoder_counts_per_click`
 állítható (alapból `"2"`). A kijelző beállításai: [docs/hardware.md](docs/hardware.md).
 
+Wi-Fi: félóránként, ha a gombot legalább két perce nem használták, megnézi, van-e
+ugyanazon a hálózaton (ugyanazzal a névvel) legalább 10 dB-lel erősebb hozzáférési pont,
+és ha van, átvált rá. Csak gyenge jelnél (−49 dBm alatt) keres, és sosem köti magát egy hozzáférési
+ponthoz. Az eszköz **Wi-Fi roam check** kapcsolójával kikapcsolható (alapból be van
+kapcsolva).
+
 Képernyő: a panel **Beállítások** oldalán a **Gomb képernyője** kártyán állítható, mennyi
 tétlenség után induljon a képernyővédő (pattogó labdák vagy folyamatos konfetti), halványuljon el a kijelző (és
 milyen fényerőre), álljon le a rajzolás (fekete képernyő), illetve kapcsoljon ki a
@@ -325,6 +331,12 @@ The encoder sensitivity is set from Home Assistant: the device's **Encoder click
 step** setting (1–5, default 1 = one step per click), kept across reboots. For a
 different encoder, set `encoder_counts_per_click` in `substitutions` (default `"2"`).
 Display settings: [docs/hardware.md](docs/hardware.md).
+
+Wi-Fi: every half hour, when the knob has not been used for two minutes, it checks whether
+the same network (the same name) has an access point at least 10 dB stronger, and moves
+to it if so. It only looks when the signal is weak (below −49 dBm) and never ties itself
+to one access point. The device's **Wi-Fi roam check** switch turns it off (on by
+default).
 
 Screen: on the panel's **Settings** page, the **Knob screen** card sets after how long
 without use the screensaver starts (bouncing balls or continuous confetti), the display dims (and to which
