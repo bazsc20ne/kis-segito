@@ -7,8 +7,8 @@
 # board profile (see docs/boards.md):
 #
 #   packages:
-#     kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito-core.yaml@v0.9.15
-#     input: github://bazsc20ne/kis-segito/esphome/inputs/encoder-button.yaml@v0.9.15
+#     kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito-core.yaml@v0.9.16
+#     input: github://bazsc20ne/kis-segito/esphome/inputs/encoder-button.yaml@v0.9.16
 #     board: !include my-board.yaml
 #
 # The board profile provides knob_display (the round display), backlight (a
@@ -26,8 +26,8 @@ substitutions:
   friendly_name: Kis Segítő
   # Where the UI component and its images come from. They must match the
   # version of this package; CI and local builds point them at the repository.
-  kis_segito_components: github://bazsc20ne/kis-segito@v0.9.15
-  kis_segito_assets: https://raw.githubusercontent.com/bazsc20ne/kis-segito/v0.9.15/assets/device
+  kis_segito_components: github://bazsc20ne/kis-segito@v0.9.16
+  kis_segito_assets: https://raw.githubusercontent.com/bazsc20ne/kis-segito/v0.9.16/assets/device
   # Width and height of the round display in pixels: 240, 360, 466 or 480.
   # The screen is laid out for 480 px and scaled to it. Set by the board
   # profile.
@@ -49,7 +49,32 @@ esphome:
   name_add_mac_suffix: false
   project:
     name: bazsc20ne.kis-segito
-    version: "0.9.15"
+    version: "0.9.16"
+  on_boot:
+    # Before Wi-Fi starts: the fallback access point gets a password of its
+    # own, made once on this knob and kept, unless the device config sets one.
+    # The knob shows it on its screen while the access point is open.
+    - priority: 600
+      then:
+        - lambda: |-
+            auto ap = wifi::global_wifi_component->get_ap();
+            if (!ap.get_password().empty())
+              return;
+            struct ApPassword {
+              char text[13];
+            } saved{};
+            auto pref = global_preferences->make_preference<ApPassword>(fnv1_hash("kis_segito_ap_password"), true);
+            if (!pref.load(&saved) || strnlen(saved.text, sizeof(saved.text)) < 10) {
+              static const char LETTERS[] = "abcdefghjkmnpqrstuvwxyz23456789";
+              memset(&saved, 0, sizeof(saved));
+              for (int i = 0; i < 10; i++)
+                saved.text[i] = LETTERS[esp_random() % (sizeof(LETTERS) - 1)];
+              pref.save(&saved);
+              global_preferences->sync();
+            }
+            ap.set_password(saved.text);
+            wifi::global_wifi_component->set_ap(ap);
+            id(ap_password) = saved.text;
 
 external_components:
   - source: ${kis_segito_components}
@@ -61,6 +86,10 @@ packages:
 logger:
 
 api:
+  # Encrypted with the knob's own key: the device config's key, or one Home
+  # Assistant gives the knob (saved on it). A firmware from the releases has
+  # no key built in and uses the saved one (see wifi: on_connect below).
+  encryption: {}
   actions:
     # Sets on-screen strings. keys[i] gets values[i]; unknown keys are stored too,
     # so newer integration versions can add texts without a firmware change.
@@ -215,15 +244,48 @@ update:
   - platform: http_request
     id: release_update
     name: Release firmware
-    source: https://github.com/bazsc20ne/kis-segito/releases/latest/download/manifest.json
+    source: https://github.com/bazsc20ne/kis-segito/releases/latest/download/update.json
     update_interval: 6h
 
 # The fallback access point (with the captive portal) opens only when the knob
 # cannot join Wi-Fi; it is the only way to change Wi-Fi without a cable. Its
-# portal also accepts a firmware upload, so give it a password in your device
-# config:  wifi: ap: password: !secret ap_password
+# portal also accepts a firmware upload, so it always has a password: the
+# device config's (wifi: ap: password: !secret ap_password) or one made on the
+# knob, which the knob shows on its screen while the access point is open.
 wifi:
   ap: {}
+  on_connect:
+    # The Wi-Fi network and the API key built into this firmware are saved on
+    # the knob, where a firmware from the releases (which has neither built
+    # in) finds them, so the knob stays connected after such an update.
+    - lambda: |-
+        const auto sta = wifi::global_wifi_component->get_sta();
+        if (!sta.get_ssid().empty()) {
+          wifi::SavedWifiSettings want{};
+          strncpy(want.ssid, sta.get_ssid().c_str(), sizeof(want.ssid) - 1);
+          if (!sta.get_password().empty())
+            strncpy(want.password, sta.get_password().c_str(), sizeof(want.password) - 1);
+          // The slot a firmware without a built-in network reads.
+          auto pref = global_preferences->make_preference<wifi::SavedWifiSettings>(88491487UL, true);
+          wifi::SavedWifiSettings have{};
+          if (!pref.load(&have) || memcmp(&have, &want, sizeof(want)) != 0) {
+            pref.save(&want);
+            global_preferences->sync();
+            ESP_LOGI("kis_segito", "Wi-Fi network kept for release updates");
+          }
+        }
+        #ifdef USE_API_NOISE_PSK_FROM_YAML
+        api::SavedNoisePsk key{};
+        api::global_api_server->get_noise_ctx().load_psk(key.psk);
+        // The slot the API reads its key from when none is built in.
+        auto key_pref = global_preferences->make_preference<api::SavedNoisePsk>(88491486UL, true);
+        api::SavedNoisePsk saved_key{};
+        if (!key_pref.load(&saved_key) || saved_key.psk != key.psk) {
+          key_pref.save(&key);
+          global_preferences->sync();
+          ESP_LOGI("kis_segito", "API key kept for release updates");
+        }
+        #endif
   # The idle roam check below replaces ESPHome's own, which only looks in the
   # first minutes after connecting.
   post_connect_roaming: false
@@ -231,6 +293,11 @@ wifi:
 captive_portal:
 
 globals:
+  # The fallback access point's own password (empty when the device config
+  # sets one), shown on the screen while the access point is open.
+  - id: ap_password
+    type: std::string
+    initial_value: '""'
   # Translated UI strings, filled by Home Assistant (key -> text).
   - id: ui_strings
     type: std::map<std::string, std::string>
@@ -1005,6 +1072,16 @@ interval:
   - interval: 1s
     then:
       - lambda: |-
+          // While the fallback access point is open, the screen shows its name
+          // and password and stays awake.
+          const bool ap_open = wifi::global_wifi_component->is_ap_active();
+          static bool ap_was_open = false;
+          if (ap_open && !ap_was_open)
+            id(wake_screen).execute();
+          ap_was_open = ap_open;
+          if (ap_open)
+            id(last_input_ms) = millis();
+          id(ui).show_access_point(ap_open, wifi::global_wifi_component->get_ap().get_ssid().str(), id(ap_password));
           id(ui).set_idle_ms(millis() - id(last_input_ms));
           if (!id(ui).started())
             return;  // still loading

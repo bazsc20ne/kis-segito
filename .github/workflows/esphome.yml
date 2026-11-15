@@ -42,6 +42,18 @@ jobs:
           yaml-file: esphome/display-test.yaml
           version: 2026.10.2
 
+  build-builder:
+    name: Compile a Builder device config
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Use placeholder secrets
+        run: cp esphome/secrets.example.yaml esphome/tests/secrets.yaml
+      - uses: esphome/build-action@76cd6898550762b189215bbe6e50e29080fd2c33 # v7.0.0
+        with:
+          yaml-file: esphome/tests/builder.yaml
+          version: 2026.10.2
+
   build-diagnostics:
     name: Compile diagnostic packages
     runs-on: ubuntu-latest

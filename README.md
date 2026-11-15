@@ -63,7 +63,7 @@ substitutions:
   friendly_name: Kis Segítő
 
 packages:
-  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.9.15
+  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.9.16
 
 api:
   encryption:
@@ -107,7 +107,8 @@ tartalma fekete.
 mellett ott van a lefordított firmware: a `*.factory.bin` USB-s első felíráshoz
 (pl. [ESPHome Web](https://web.esphome.io/)), az `*.ota.bin` frissítéshez. A WiFi
 ilyenkor a gomb saját hozzáférési pontján állítható be (a telefonnal rá kell
-csatlakozni, és megnyílik a beállítóoldal), utána az eszköz átvehető az ESPHome Builderbe. Böngészős telepítő később jön.
+csatlakozni, és megnyílik a beállítóoldal; a hozzáférési pont nevét és jelszavát a gomb
+kijelzője mutatja), utána az eszköz átvehető az ESPHome Builderbe. Böngészős telepítő később jön.
 
 Ezután add hozzá a gombot a Home Assistanthez az **ESPHome** integrációval.
 
@@ -227,6 +228,24 @@ kattintással telepíti a kiadáshoz lefordított és tesztelt firmware-t. A let
 ellenőrzőösszegét telepítés előtt ellenőrzi; ha a letöltés megszakad, a gomb a régi
 firmware-rel fut tovább.
 
+**Mit visz át a frissítés:** a 0.9.16-os és újabb firmware a saját konfigodban
+megadott WiFi-hálózatot és API-kulcsot elmenti a gombon, és a kiadásból telepített
+firmware ezeket használja, így a gomb a frissítés után is csatlakozik, és a Home
+Assistant ugyanazzal a kulccsal éri el. Ami csak a saját YAML-odban van (például fix
+IP-cím, más érzékelők, OTA-jelszó), az a kiadás firmware-ében nincs meg. A 0.9.15-ös
+és régebbi gombok nem kapnak kiadási frissítést: ezeket egyszer még a Builderből
+frissítsd 0.9.16-ra (vagy újabbra), utána jöhetnek a kiadások.
+
+**Ha a gomb egy kiadási frissítés után nem jön vissza** (a 0.9.15-re frissítésnél
+fordulhatott elő): a gomb ilyenkor a saját hozzáférési pontját nyitja meg.
+
+1. Csatlakozz a telefonoddal a gomb WiFi-jéhez (a 0.9.15-ös kiadásnál ennek nincs
+   jelszava; újabb firmware-rel a gomb kijelzője mutatja a nevét és a jelszavát).
+2. A megnyíló beállítóoldalon válaszd ki a saját WiFi-hálózatodat, és add meg a jelszavát.
+3. Amikor a gomb újra a hálózaton van, telepítsd újra a saját konfigodat az ESPHome
+   Builderből (hálózaton át); ez visszaállítja az API-kulcsot is. Ha a Builder nem éri
+   el a gombot, telepítsd USB-ről.
+
 **Az ESPHome Builder frissítését ne használd a gombhoz.** A Builder az ESPHome
 verzióit követi, nem a Kis Segítőéit: egy új ESPHome-verziónál ugyanazt a Kis
 Segítő-verziót egy olyan ESPHome-mal fordítaná újra, amellyel nem tesztelték.
@@ -261,14 +280,16 @@ nem; ezt a Home Assistant saját panelekhez nem teszi lehetővé.
 
 - **Kötelező titkos adatok** gombonként, a saját ESPHome `secrets.yaml`-odban:
   `kis_segito_api_key` – az API titkosítási kulcsa, **minden gombnak külön**;
-  `ap_password` – a tartalék hozzáférési pont jelszava. A hálózati firmware-frissítés is
+  `ap_password` – a tartalék hozzáférési pont jelszava (ha nem adod meg, a gomb saját
+  jelszót készít, és amíg a hozzáférési pont nyitva van, a kijelzőn mutatja). A hálózati firmware-frissítés is
   az API kulcsával titkosított (`ota: encryption:`); OTA-jelszó nem kell. Átállás a
   korábbi jelszavas frissítésről: [docs/security.md](docs/security.md). A tartalék hozzáférési pont csak akkor indul el, ha a gomb
   nem tud csatlakozni a WiFi-hez; a beállítóoldala firmware-feltöltést is fogad, ezért kell
   hozzá jelszó.
-- **Kész firmware:** a release-ben lévő gyári firmware-ben nincs titkos adat (titkosítatlan
-  API, jelszó nélküli OTA). Az első indítás után vedd át az ESPHome Builderbe, add hozzá a
-  fenti sorokat, és telepítsd újra.
+- **Kész firmware:** a release-ben lévő gyári firmware-ben nincs titkos adat. Az API-kulcsot
+  a Home Assistant adhatja meg a gombnak (a gomb elmenti, és onnantól csak titkosított
+  kapcsolatot fogad; a hálózati frissítés is ezzel a kulccsal megy), vagy vedd át a gombot az
+  ESPHome Builderbe, add hozzá a fenti sorokat, és telepítsd újra.
 - **Képek:** a feltöltött képeket (gyerekfotók, jutalmak) a gomb csak a helyi hálózaton
   és csak titkosított kapcsolat mellett kapja meg; Home Assistant Cloudon és az interneten
   át nem érhetők el. Ha egy gomb kapcsolata nem titkosított, a Home Assistant javítási
@@ -375,7 +396,7 @@ substitutions:
   friendly_name: Kis Segítő
 
 packages:
-  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.9.15
+  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.9.16
 
 api:
   encryption:
@@ -417,7 +438,8 @@ screen content is black.
 **B) Prebuilt firmware.** Every [release](https://github.com/bazsc20ne/kis-segito/releases)
 includes the compiled firmware: `*.factory.bin` for the first USB flash (e.g. with
 [ESPHome Web](https://web.esphome.io/)) and `*.ota.bin` for updates. Wi-Fi is then set up
-through the knob's own access point (connect with a phone and the setup page opens),
+through the knob's own access point (connect with a phone and the setup page opens; the
+knob's screen shows the access point's name and password),
 and the device can be adopted in the ESPHome Builder. A browser installer will follow later.
 
 Then add the knob to Home Assistant with the **ESPHome** integration.
@@ -538,6 +560,24 @@ built and tested for that release with one click. The downloaded file's checksum
 checked before installing; if the download breaks off, the knob keeps running the old
 firmware.
 
+**What the update keeps:** firmware 0.9.16 and newer saves the Wi-Fi network and the
+API key from your own config on the knob, and the firmware installed from a release
+uses them, so the knob reconnects after the update and Home Assistant reaches it with
+the same key. Anything that is only in your own YAML (e.g. a fixed IP address, other
+sensors, an OTA password) is not in the release firmware. Knobs on 0.9.15 or older are
+not offered release updates: update them once more from the Builder to 0.9.16 (or
+newer), and the releases follow from then on.
+
+**If the knob does not come back after a release update** (possible with the update
+to 0.9.15): the knob then opens its own access point.
+
+1. Connect your phone to the knob's Wi-Fi (with the 0.9.15 release it has no password;
+   with newer firmware the knob's screen shows its name and password).
+2. On the setup page that opens, choose your own Wi-Fi network and enter its password.
+3. Once the knob is back on the network, install your own config again from the ESPHome
+   Builder (over the network); this restores the API key too. If the Builder cannot
+   reach the knob, install it over USB.
+
 **Do not use the ESPHome Builder's update for the knob.** The Builder follows ESPHome's
 versions, not Little Helper's: on a new ESPHome version it would rebuild the same Little
 Helper version with an ESPHome it was not tested with.
@@ -573,14 +613,16 @@ Home Assistant does not allow that for custom panels.
 
 - **Required secrets** for each knob, in your own ESPHome `secrets.yaml`:
   `kis_segito_api_key` – the API encryption key, **a separate one for each
-  knob**; `ap_password` – the password of the fallback access point. Firmware
+  knob**; `ap_password` – the password of the fallback access point (without it, the
+  knob makes its own and shows it on its screen while the access point is open). Firmware
   updates over the network are encrypted with the API key too (`ota: encryption:`); no
   OTA password is needed. Moving from the earlier password: [docs/security.md](docs/security.md). The fallback access point
   opens only when the knob cannot join Wi-Fi; its setup page also accepts a firmware
   upload, which is why it needs a password.
-- **Ready-made firmware:** the factory firmware in a release has no secrets (unencrypted
-  API, OTA without a password). After the first start, adopt it in the ESPHome Builder,
-  add the lines above and install it again.
+- **Ready-made firmware:** the factory firmware in a release has no secrets. Home
+  Assistant can give the knob its API key (the knob saves it and from then on accepts
+  only encrypted connections; network updates use that key too), or adopt the knob in the
+  ESPHome Builder, add the lines above and install it again.
 - **Pictures:** the knob gets uploaded pictures (children's photos, rewards) only on the
   local network and only over an encrypted connection; they cannot be reached through
   Home Assistant Cloud or the internet. If a knob's connection is not encrypted, Home

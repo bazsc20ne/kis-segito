@@ -189,6 +189,9 @@ class KisSegitoUI : public Component {
   void add_image(const std::string &key, image::Image *img) { this->images_[key] = img; }
   void set_number_font(font::Font *f) { this->number_font_ = f->get_lv_font(); }
   void set_text_font(font::Font *f) { this->text_font_ = f->get_lv_font(); }
+  // While the fallback access point is open: its name and password (empty when
+  // the device config set it) over everything else.
+  void show_access_point(bool open, const std::string &ssid, const std::string &password);
   // The picture store's size in KB (NAN until it is known), for Home Assistant.
   float store_kb() const { return this->cache_.ready() ? this->cache_.capacity() / 1024.0f : NAN; }
   // The text of the "Updating" screen, in the Home Assistant language.
@@ -400,7 +403,8 @@ class KisSegitoUI : public Component {
   const lv_font_t *number_font_{nullptr};
   const lv_font_t *text_font_{nullptr};
   std::string updating_text_;
-  lv_obj_t *updating_layer_{nullptr};  // "Updating": shown while a new theme is stored
+  lv_obj_t *updating_layer_{nullptr};
+  lv_obj_t *ap_layer_{nullptr};  // the fallback access point's name and password  // "Updating": shown while a new theme is stored
   std::set<std::string> known_themes_;  // themes shown by the children (stored when new)
   bool themes_known_{false};
   void show_updating_();

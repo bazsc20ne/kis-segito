@@ -78,7 +78,16 @@ sorokat, és telepítsd újra.
 
 **Tartalék hozzáférési pont.** Csak akkor nyílik meg, ha a gomb nem tud
 csatlakozni a Wi-Fi-dhez, és csak ezzel lehet kábel nélkül Wi-Fi-t váltani. A
-beállítóoldala firmware-feltöltést is elfogad, ezért kell hozzá jelszó.
+beállítóoldala firmware-feltöltést is elfogad, ezért mindig van jelszava: az
+eszközkonfigodban megadott `ap_password`, vagy ha az nincs, egy a gombon egyszer
+véletlenszerűen készített jelszó, amelyet a gomb a kijelzőjén mutat, amíg a
+hozzáférési pont nyitva van.
+
+**Kiadási frissítés.** A kiadás firmware-ében nincs WiFi-adat és API-kulcs. A
+0.9.16-os és újabb firmware ezért a saját konfigodban megadott WiFi-hálózatot és
+API-kulcsot elmenti a gomb saját tárolójába (ahol a firmware-ben is benne voltak),
+és a kiadásból telepített firmware ezeket használja; a hálózati frissítés is az
+API-kulccsal titkosított marad.
 
 ### Képek
 
@@ -115,10 +124,10 @@ elküldi.
 ### Frissítések és letöltések
 
 A gomb firmware-e csak akkor változik, ha te telepítesz egy új verziót: a gomb
-**Kis Segítő firmware** frissítés-entitásával, vagy saját buildnél a csomag
+**Release firmware** frissítés-entitásával, vagy saját buildnél a csomag
 verziójának (`@vX.Y.Z`) átírásával. A frissítés-entitás a kiadást HTTPS-en, a GitHub
 tanúsítványának ellenőrzésével tölti le, és telepítés előtt összeveti a fájlt a
-kiadás leíró fájljában (`manifest.json`) szereplő MD5-összeggel; eltérés vagy
+kiadás leíró fájljában (`update.json`) szereplő MD5-összeggel; eltérés vagy
 megszakadt letöltés esetén a gomb a régi firmware-rel fut tovább.
 
 Minden kiadás felsorolja a firmware-fájljai SHA-256 ellenőrzőösszegét a
@@ -209,7 +218,15 @@ install it again.
 
 **Fallback access point.** It opens only when the knob cannot join your Wi-Fi,
 and it is the only way to change Wi-Fi without a cable. Its setup page also
-accepts a firmware upload, which is why it needs a password.
+accepts a firmware upload, so it always has a password: the `ap_password` from
+your device config or, without one, a random password made once on the knob,
+which the knob shows on its screen while the access point is open.
+
+**Release updates.** The release firmware has no Wi-Fi details and no API key.
+Firmware 0.9.16 and newer therefore saves the Wi-Fi network and the API key from
+your own config in the knob's own storage (where they already were, inside the
+firmware), and the firmware installed from a release uses them; network updates
+stay encrypted with the API key.
 
 ### Pictures
 
@@ -244,10 +261,10 @@ knob sends it again after a reconnect.
 ### Updates and downloads
 
 The knob's firmware changes only when you install a new version: with the knob's
-**Kis Segítő firmware** update entity, or, with your own build, by changing the
+**Release firmware** update entity, or, with your own build, by changing the
 package version (`@vX.Y.Z`). The update entity downloads the release over HTTPS,
 checking GitHub's certificate, and compares the file with the MD5 checksum in the
-release's manifest (`manifest.json`) before installing; on a mismatch or a broken
+release's manifest (`update.json`) before installing; on a mismatch or a broken
 download the knob keeps running the old firmware.
 
 Every release lists the SHA-256 checksums of its firmware files in

@@ -12,6 +12,39 @@ All notable changes to this project are documented here, in Hungarian and Englis
 The format follows [Keep a Changelog](https://keepachangelog.com/) and the project
 uses [Semantic Versioning](https://semver.org/).
 
+## [0.9.16] - 2026-11-15
+
+### Magyar
+
+- **WiFi és kulcs megmarad:** a kiadásból telepített firmware-ben nincs WiFi-adat és
+  API-kulcs, ezért a 0.9.15-re frissítés után egy saját konfigból fordított gomb nem
+  tudott visszacsatlakozni. A 0.9.16-tól a gomb a saját konfigod WiFi-hálózatát és
+  API-kulcsát elmenti magán, és a kiadás firmware-e ezeket használja; a hálózati
+  frissítés is ezzel a kulccsal titkosított. A 0.9.15-ös és régebbi gombok nem kapnak
+  kiadási frissítést: ezeket egyszer még a Builderből frissítsd 0.9.16-ra. A README
+  leírja, mit tegyél, ha egy gomb a 0.9.15-re frissítés után nem jött vissza.
+- **Jelszavas hozzáférési pont:** a gomb tartalék hozzáférési pontjának mindig van
+  jelszava. Ha a konfigod nem ad meg `ap_password`-öt, a gomb egyszer saját jelszót
+  készít, és amíg a hozzáférési pont nyitva van, a kijelzőn mutatja a nevét és a
+  jelszavát.
+- **Kiadási jegyzet a frissítésnél:** a Home Assistant frissítési ablaka röviden
+  mutatja, mi változott.
+
+### English
+
+- **Wi-Fi and key are kept:** the firmware installed from a release has no Wi-Fi
+  details and no API key, so a knob built from its own config could not reconnect
+  after the update to 0.9.15. From 0.9.16 the knob saves the Wi-Fi network and API key
+  of your own config on itself, and the release firmware uses them; network updates
+  stay encrypted with that key. Knobs on 0.9.15 or older are not offered release
+  updates: update them once more from the Builder to 0.9.16. The README says what to
+  do when a knob did not come back after the update to 0.9.15.
+- **Access point with a password:** the knob's fallback access point always has a
+  password. Without an `ap_password` in your config, the knob makes its own once and
+  shows the access point's name and password on its screen while it is open.
+- **Release notes in the update:** Home Assistant's update dialog shows in short what
+  changed.
+
 ## [0.9.15] - 2026-11-15
 
 ### Magyar

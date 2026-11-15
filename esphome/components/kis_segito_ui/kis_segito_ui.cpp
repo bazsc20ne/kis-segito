@@ -1970,6 +1970,35 @@ void KisSegitoUI::show_updating_() {
   this->updating_layer_ = layer;
 }
 
+void KisSegitoUI::show_access_point(bool open, const std::string &ssid, const std::string &password) {
+  if (!open) {
+    if (this->ap_layer_ != nullptr) {
+      lv_obj_delete(this->ap_layer_);
+      this->ap_layer_ = nullptr;
+    }
+    return;
+  }
+  if (this->ap_layer_ != nullptr)
+    return;
+  lv_obj_t *layer = lv_obj_create(lv_layer_top());
+  remove_defaults(layer);
+  lv_obj_set_size(layer, SCREEN, SCREEN);
+  lv_obj_set_style_bg_color(layer, lv_color_hex(0x000000), 0);
+  lv_obj_set_style_bg_opa(layer, LV_OPA_COVER, 0);
+  lv_obj_t *label = lv_label_create(layer);
+  if (this->text_font_ != nullptr)
+    lv_obj_set_style_text_font(label, this->text_font_, 0);
+  lv_obj_set_style_text_color(label, lv_color_hex(0xFFFFFF), 0);
+  lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
+  lv_obj_set_style_text_line_space(label, S(14), 0);
+  // Language-neutral: "Wi-Fi", the network's name, and its password.
+  const std::string text = "Wi-Fi\n" + ssid + (password.empty() ? "" : "\n" + password);
+  lv_label_set_text(label, text.c_str());
+  lv_obj_center(label);
+  this->ap_layer_ = layer;
+  ESP_LOGI(TAG, "Access point %s open", ssid.c_str());
+}
+
 // Stores a picture in the flash cache without loading it: unchanged pictures
 // (Home Assistant answers "not modified") are already there.
 bool KisSegitoUI::store_picture_(const PhotoJob &job) {

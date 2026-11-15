@@ -1,0 +1,26 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# CI only: a device config as built in the ESPHome Builder (Wi-Fi, API key and
+# access point password from secrets.yaml, as in example.yaml), to prove it
+# builds. Not meant to be flashed as is.
+
+substitutions:
+  kis_segito_components: components
+  kis_segito_assets: ../assets/device
+
+packages:
+  kis_segito: !include ../kis-segito.yaml
+
+api:
+  encryption:
+    key: !secret kis_segito_api_key
+
+ota:
+  - id: !extend kis_segito_ota
+    encryption:
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    password: !secret ap_password
