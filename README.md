@@ -63,7 +63,7 @@ substitutions:
   friendly_name: Kis Segítő
 
 packages:
-  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.9.14
+  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.9.15
 
 api:
   encryption:
@@ -375,7 +375,7 @@ substitutions:
   friendly_name: Kis Segítő
 
 packages:
-  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.9.14
+  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.9.15
 
 api:
   encryption:

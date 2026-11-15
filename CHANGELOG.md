@@ -12,7 +12,7 @@ All notable changes to this project are documented here, in Hungarian and Englis
 The format follows [Keep a Changelog](https://keepachangelog.com/) and the project
 uses [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.9.15] - 2026-11-15
 
 ### Magyar
 
