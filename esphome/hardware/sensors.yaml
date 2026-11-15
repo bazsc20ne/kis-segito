@@ -35,6 +35,9 @@ binary_sensor:
   - platform: ld2410
     has_target:
       id: radar_presence
+      # The first state counts too: presence is known right after a start,
+      # not only after the radar's state changes.
+      trigger_on_initial_state: true
       on_state:
         - binary_sensor.template.publish:
             id: ks_presence

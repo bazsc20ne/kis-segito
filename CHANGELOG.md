@@ -12,6 +12,18 @@ All notable changes to this project are documented here, in Hungarian and Englis
 The format follows [Keep a Changelog](https://keepachangelog.com/) and the project
 uses [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Magyar
+
+- A beépített LD2410C radar jelenléte a gomb indulása után azonnal ismert, nem
+  csak a radar első állapotváltozása után („unknown” helyett).
+
+### English
+
+- The built-in LD2410C radar's presence is known right after the knob starts,
+  not only after the radar's first change of state (instead of "unknown").
+
 ## [0.9.14] - 2026-11-15
 
 ### Magyar
