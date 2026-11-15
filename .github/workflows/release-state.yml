@@ -1,0 +1,37 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Changes the state of an existing release by hand: "latest" makes it the
+# release the knobs' update entity offers (releases/latest), "prerelease" takes
+# a release out of that (and marks it as a pre-release), "release" undoes that.
+name: Release state
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag, e.g. v0.1.0"
+        required: true
+      state:
+        description: "latest, prerelease or release"
+        required: true
+        type: choice
+        options: [latest, prerelease, release]
+
+permissions:
+  contents: write
+
+jobs:
+  state:
+    name: Set the release state
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
+          TAG: ${{ inputs.tag }}
+          STATE: ${{ inputs.state }}
+        run: |
+          case "${STATE}" in
+            latest) gh release edit "${TAG}" --repo "${GITHUB_REPOSITORY}" --prerelease=false --latest ;;
+            prerelease) gh release edit "${TAG}" --repo "${GITHUB_REPOSITORY}" --prerelease --latest=false ;;
+            release) gh release edit "${TAG}" --repo "${GITHUB_REPOSITORY}" --prerelease=false ;;
+          esac
+          gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" --json tagName,isPrerelease,isLatest
