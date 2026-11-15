@@ -922,7 +922,7 @@ class KisSegitoKnobCard extends HTMLElement {
     for (let i = 0; i < 24; i++) {
       const h = hash32(i + 77);
       const piece = document.createElement("div");
-      piece.className = "abs";
+      piece.className = "abs confetti";
       piece.style.cssText = `left:${60 + (h % 360)}px;top:-20px;width:8px;height:14px;border-radius:2px;background:${hex(CONFETTI_COLORS[i % 6])}`;
       this._topLayer.appendChild(piece);
       piece.animate([{ transform: "translateY(0)" }, { transform: `translateY(${320 + ((h >>> 8) % 180)}px)` }], {
@@ -987,6 +987,8 @@ class KisSegitoKnobCard extends HTMLElement {
   }
 
   _completeTask(child) {
+    // The confetti of a reached checkpoint ends when the next change starts.
+    this._topLayer?.querySelectorAll(".confetti").forEach((piece) => piece.remove());
     const routine = this._routine();
     const task = (routine.t || []).find((t) => !this._isDone(routine, t.id));
     if (!task) {

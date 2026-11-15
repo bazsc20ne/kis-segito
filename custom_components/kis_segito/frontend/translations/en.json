@@ -646,5 +646,14 @@
   "history.group_checkpoint": "checkpoint:",
   "history.group_none": "Nothing here can be undone.",
   "tip.wallet": "Wallet: {n} tokens",
-  "tip.piggy": "Piggy bank: {n} tokens"
+  "tip.piggy": "Piggy bank: {n} tokens",
+  "store.title": "The knob's picture store",
+  "store.usage": "Picture store: about {need} MB of {size} MB ({themes})",
+  "store.full": "The children's themes ({themes}) do not fit in the knob's picture store together, so the knob downloads pictures again when switching children and gets slower.",
+  "store.child_full": "With this child's theme not every picture fits in the picture store of {knobs}.",
+  "help.store": "The knob keeps downloaded pictures in a 4 MB store, unpacked, so they show quickly. One theme's pictures with 10–20 tasks and a few rewards take about 2.5–3.3 MB; the background and the avatars about 0.5–1 MB more.\n\nSo one knob holds one theme comfortably. When the children on a knob have different themes, the pictures do not fit together: the knob downloads them again when switching children and gets slower. Two themes fit only with few tasks and rewards.\n\nA bigger store would need a reinstall over USB; an update over the network cannot enlarge it.",
+  "firmware.title": "The knob's firmware",
+  "firmware.installed": "Firmware: v{v}",
+  "firmware.update": "Update: v{v}",
+  "help.firmware": "The knob is updated from the Little Helper releases: the “Kis Segítő firmware” update entity of the knob's device shows the new version and installs the firmware built and tested for that release with one click.\n\nDo not use the ESPHome Builder's update for the knob: it would rebuild it with an ESPHome version this release was not tested with."
 }

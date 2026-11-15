@@ -646,5 +646,14 @@
   "history.group_checkpoint": "ellenőrzőpont:",
   "history.group_none": "Ehhez nincs visszavonható bejegyzés.",
   "tip.wallet": "Pénztárca: {n} zseton",
-  "tip.piggy": "Persely: {n} zseton"
+  "tip.piggy": "Persely: {n} zseton",
+  "store.title": "A gomb képtára",
+  "store.usage": "Képtár: kb. {need} MB / {size} MB ({themes})",
+  "store.full": "A gyerekek témái ({themes}) nem férnek el együtt a gomb képtárában, ezért a gomb gyerekváltáskor újra letölti a képeket, és lassabb lesz.",
+  "store.child_full": "Ennek a gyereknek a témájával nem fér el minden kép a(z) {knobs} gomb képtárában.",
+  "help.store": "A gomb a letöltött képeket egy 4 MB-os tárban tartja, kibontva, hogy gyorsan megjelenjenek. Egy téma képei 10–20 feladattal, néhány jutalommal kb. 2,5–3,3 MB-ot foglalnak, a háttér és az avatarok további kb. 0,5–1 MB-ot.\n\nEzért egy gombon egyszerre egy téma fér el kényelmesen. Ha a gombon lévő gyerekeknek más-más témájuk van, a képek nem férnek el együtt: gyerekváltáskor a gomb újra letölti őket, és lassabb lesz. Két téma csak kevés feladattal és jutalommal fér el.\n\nNagyobb tárat csak USB-s újratelepítés adhatna, hálózati frissítéssel nem bővíthető.",
+  "firmware.title": "A gomb firmware-e",
+  "firmware.installed": "Firmware: v{v}",
+  "firmware.update": "Frissítés: v{v}",
+  "help.firmware": "A gomb a Kis Segítő kiadásaiból frissül: a gomb eszközén a „Kis Segítő firmware” frissítés-entitás mutatja az új verziót, és egy kattintással telepíti a kiadáshoz lefordított és tesztelt firmware-t.\n\nAz ESPHome Builder frissítését ne használd a gombhoz: az egy olyan ESPHome-verzióval fordítaná újra, amellyel ezt a kiadást nem tesztelték."
 }

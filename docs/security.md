@@ -1,10 +1,151 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
-# Security
 
-Kis Segítő runs entirely on your local network: the knob talks only to your Home
+# Biztonság / Security
+
+🇬🇧 English version below → [English](#english)
+
+<a id="magyar"></a>
+
+## Magyar
+
+A Kis Segítő teljes egészében a helyi hálózatodon fut: a gomb csak a saját Home
+Assistantoddal beszél, az integráció pedig csak a saját gombjaiddal.
+
+### Titkok gombonként
+
+Ezeket az ESPHome `secrets.yaml` fájlba írd, az eszközkonfigurációd mellé; lásd
+[esphome/example.yaml](../esphome/example.yaml):
+
+| Titok | Mire való |
+|---|---|
+| `kis_segito_api_key` | A Home Assistant felé menő kapcsolat titkosítása. **Minden gombhoz külön kulcsot** használj. |
+| `ap_password` | A gomb tartalék hozzáférési pontjának jelszava. |
+| `wifi_ssid`, `wifi_password` | A Wi-Fi-d. |
+
+```yaml
+api:
+  encryption:
+    key: !secret kis_segito_api_key
+
+ota:
+  - id: !extend kis_segito_ota
+    # A frissítések a fenti API-kulcsot használják (titkosítva és hitelesítve).
+    encryption:
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    password: !secret ap_password
+```
+
+Új titkosítási kulcsot a <https://esphome.io/components/api/> oldalon lehet
+generálni (vagy az `openssl rand -base64 32` paranccsal). Miután új vagy
+megváltozott kulccsal telepítettél egy konfigurációt, add meg ugyanazt a kulcsot
+a Home Assistantben: az ESPHome integráció rákérdez, vagy használd az
+**Újrakonfigurálás** lehetőséget a gomb ESPHome-bejegyzésén.
+
+**A hálózaton keresztüli frissítések** ugyanazt az API-kulcsot használják: az
+`ota` alatti `encryption:` sorral minden firmware-feltöltés titkosított, és csak
+a kulcs birtokában lévő feltöltőt fogadja el a gomb. OTA-jelszóra nincs szükség
+(és nem is kombinálható az `encryption`-nel). Vigyázz a kulcsra: egy gombot,
+amelynek a kulcsa elveszett, csak USB-n lehet újra flashelni, és a kulcs a
+levegőn keresztül nem változtatható meg.
+
+**Átállás OTA-jelszóról** (a 0.9.3 előtti konfigurációkban
+`password: !secret ota_password` szerepelt). A még a régi firmware-rel futó gomb
+még egyszer kéri a jelszót, ezért a változás utáni első telepítés mindkettőt
+tartalmazza:
+
+```yaml
+ota:
+  - id: !extend kis_segito_ota
+    password: !secret ota_password
+    encryption:
+      allow_plaintext_upload: true   # csak erre az egy telepítésre
+```
+
+E telepítés után a gomb már csak titkosított feltöltést fogad el. Ezután töröld
+a `password` és az `allow_plaintext_upload` sort, hogy a blokk csak
+`encryption:` legyen, mint fent, és töröld az `ota_password` titkot a
+`secrets.yaml` fájlból. Ha az első lépést kihagyod, a feltöltés hitelesítési
+hibával meghiúsul, és a gomb megtartja a firmware-ét; semmi nem romlik el.
+
+**Kész firmware.** A kiadásokhoz csatolt firmware-ben nincsenek titkok: amíg át
+nem veszed, a kapcsolata nincs titkosítva, és a frissítésekhez nem kell jelszó.
+Vedd át az ESPHome Builderbe rögtön az első indítás után, add hozzá a fenti
+sorokat, és telepítsd újra.
+
+**Tartalék hozzáférési pont.** Csak akkor nyílik meg, ha a gomb nem tud
+csatlakozni a Wi-Fi-dhez, és csak ezzel lehet kábel nélkül Wi-Fi-t váltani. A
+beállítóoldala firmware-feltöltést is elfogad, ezért kell hozzá jelszó.
+
+### Képek
+
+A feltöltött képek (a gyerekek fényképei, jutalmak, hátterek) csak a helyi
+hálózaton és csak titkosított kapcsolaton jutnak el a gombhoz:
+
+- Minden gomb saját, véletlenszerű képkulcsot kap, és csak addig, amíg a Home
+  Assistant felé menő kapcsolata titkosított. Ha nem az, a Home Assistant
+  javítandó problémát jelez (**Beállítások → Rendszer → Javítások**), és a gomb
+  a képek helyett ikonokat mutat, amíg titkosítási kulcsot nem adsz hozzá.
+- A gomb képcíme csak a helyi hálózatról érkező kérésekre válaszol (privát,
+  loopback vagy link-local címekről), sosem a Home Assistant Cloudon keresztül
+  vagy az internetről érkezőkre.
+- A gomb a kulcsát kérésfejlécben küldi, sosem a címben, így a kulcs nem kerül
+  naplókba; a kulcsok összehasonlítása állandó idejű.
+- Egy gomb kulcsa bármikor lecserélhető: panel → **Beállítások → Gombok → Új
+  képkulcs**. A régi kulcs azonnal érvényét veszti; a gomb automatikusan
+  megkapja az újat.
+
+A képeket a rendszer automatikusan átméretezi a gombhoz. Mielőtt egy képet
+beolvasna, ellenőrzi a valódi típusát (nem csak a fájlnevét), és elutasítja a
+30 MB-nál nagyobb fájlokat és a 100 megapixelnél nagyobb képeket; a nagy
+fényképeket csökkentett felbontásban olvassa be. A gombra kerülő példány csak
+képpontokat tartalmaz, metaadatokat (EXIF, helyadatok) nem.
+
+### Üzenetek a gombtól
+
+A Home Assistant csak a szabályos üzeneteket fogadja el egy gombtól (legfeljebb
+255 bájt, pontosan a várt mezők, típusok és értéktartományok), és gombonként
+legfeljebb percenként 20-at; minden mást figyelmen kívül hagy. Minden műveletet
+legfeljebb egyszer könyvel, akkor is, ha a gomb újracsatlakozás után újra
+elküldi.
+
+### Frissítések és letöltések
+
+A gomb firmware-e csak akkor változik, ha te telepítesz egy új verziót: a gomb
+**Kis Segítő firmware** frissítés-entitásával, vagy saját buildnél a csomag
+verziójának (`@vX.Y.Z`) átírásával. A frissítés-entitás a kiadást HTTPS-en, a GitHub
+tanúsítványának ellenőrzésével tölti le, és telepítés előtt összeveti a fájlt a
+kiadás leíró fájljában (`manifest.json`) szereplő MD5-összeggel; eltérés vagy
+megszakadt letöltés esetén a gomb a régi firmware-rel fut tovább.
+
+Minden kiadás felsorolja a firmware-fájljai SHA-256 ellenőrzőösszegét a
+`SHA256SUMS.txt` fájlban. Egy letöltött fájl ellenőrzéséhez tedd e fájl mellé,
+és futtasd: `sha256sum -c --ignore-missing SHA256SUMS.txt` (Linux, macOS); az
+„OK” azt jelenti, hogy a fájl pontosan a kiadott fájl. A kiadások pontos
+verziókra rögzített build-lépésekkel készülnek.
+
+### Ami nem része a projektnek
+
+Aki kézben tartja a gombot, ki tudja olvasni a flash-memóriáját (és a benne lévő
+titkokat), vagy USB-n más firmware-t telepíthet rá. Ez egy otthoni, saját
+készítésű eszköz, ezért a flash-titkosítás és a biztonságos rendszerindítás
+(secure boot) nem része a projektnek.
+
+---
+
+<a id="english"></a>
+
+## English
+
+🇭🇺 [Magyar változat](#magyar)
+
+Little Helper runs entirely on your local network: the knob talks only to your Home
 Assistant, and the integration only to your knobs.
 
-## Secrets for each knob
+### Secrets for each knob
 
 Put these in the ESPHome `secrets.yaml` next to your device config; see
 [esphome/example.yaml](../esphome/example.yaml):
@@ -70,7 +211,7 @@ install it again.
 and it is the only way to change Wi-Fi without a cable. Its setup page also
 accepts a firmware upload, which is why it needs a password.
 
-## Pictures
+### Pictures
 
 Uploaded pictures (children's photos, rewards, backgrounds) reach the knob only on
 the local network and only over an encrypted connection:
@@ -93,17 +234,21 @@ real type is checked (not only its file name), and files over 30 MB or images
 over 100 megapixels are refused; large photos are read at a reduced resolution.
 The knob's copy contains pixels only, no metadata (EXIF, location).
 
-## Messages from the knob
+### Messages from the knob
 
 Home Assistant accepts only well-formed messages from a knob (at most 255 bytes,
 exactly the expected fields, types and ranges) and at most 20 per minute per
 knob; anything else is ignored. Each action is booked at most once, even if the
 knob sends it again after a reconnect.
 
-## Updates and downloads
+### Updates and downloads
 
-The example config points to a given version of the package (`@vX.Y.Z`), so the
-knob's firmware changes only when you change it to a newer version.
+The knob's firmware changes only when you install a new version: with the knob's
+**Kis Segítő firmware** update entity, or, with your own build, by changing the
+package version (`@vX.Y.Z`). The update entity downloads the release over HTTPS,
+checking GitHub's certificate, and compares the file with the MD5 checksum in the
+release's manifest (`manifest.json`) before installing; on a mismatch or a broken
+download the knob keeps running the old firmware.
 
 Every release lists the SHA-256 checksums of its firmware files in
 `SHA256SUMS.txt`. To check a downloaded file, put it next to that file and run
@@ -111,7 +256,7 @@ Every release lists the SHA-256 checksums of its firmware files in
 is exactly the released one. The release builds use build steps pinned to exact
 versions.
 
-## Out of scope
+### Out of scope
 
 Anyone holding the knob can read its flash memory (and the secrets in it) or
 install other firmware over USB. This is a DIY device for the home, so flash

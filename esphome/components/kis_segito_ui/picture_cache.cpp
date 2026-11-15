@@ -73,6 +73,7 @@ bool PictureCache::begin() {
 void PictureCache::drop_range_(uint32_t from, uint32_t to) {
   for (auto it = this->index_.begin(); it != this->index_.end();) {
     if (it->second.offset >= from && it->second.offset < to) {
+      ESP_LOGD(TAG, "Store full: %s dropped", it->first.c_str());
       it = this->index_.erase(it);
     } else {
       ++it;

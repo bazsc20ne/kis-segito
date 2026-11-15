@@ -10,7 +10,7 @@
 
 // Must equal the integration version (scripts/check_versions.py checks it):
 // a browser that still runs an older copy of this file shows a reload bar.
-const PANEL_VERSION = "0.9.12";
+const PANEL_VERSION = "0.9.13";
 const FALLBACK_LANGUAGE = "en";
 const LANGUAGE_AUTO = "auto";
 const TABS = ["today", "calendar", "children", "routines", "rewards", "tokens", "history", "notifications", "settings"];
@@ -183,7 +183,8 @@ function syncRoutineTimes(item, path, before, after) {
       if (wasLast) {
         if (before === item.end || t(after) > t(item.end)) item.end = after;
       } else if (t(after) > last) {
-        const shift = t(after) - last;
+        // The last one and the end move by as much as this one moved.
+        const shift = t(after) - t(before);
         for (const c of others) {
           if (t(c.time) === last) c.time = fromMinutes(clampDay(last + shift));
         }
@@ -726,6 +727,52 @@ class KisSegitoPanel extends HTMLElement {
     }
     const builtin = (this._data?.icons || []).includes(name) ? name : "avatar_00";
     return `${this._staticUrl}/icons/${this._e(builtin)}.png?v=${this._version}`;
+  }
+
+  // Whether the themes of a knob's children fit its picture store.
+  _themeNames(ids) {
+    const lang = (this._language || "en").startsWith("hu") ? "hu" : "en";
+    return ids.map((id) => {
+      const t = (this._data.themes || []).find((x) => x.id === id);
+      return t?.name?.[lang] || t?.name?.en || id;
+    }).join(", ");
+  }
+
+  _storeNote(d) {
+    const st = d.store;
+    if (!st || !st.themes?.length) return "";
+    const mb = (kb) => (kb / 1024).toFixed(1).replace(".", this._language?.startsWith("hu") ? "," : ".");
+    const usage = this._t("store.usage").replace("{need}", mb(st.need_kb)).replace("{size}", mb(st.size_kb)).replace("{themes}", this._themeNames(st.themes));
+    return st.fits
+      ? `<div class="muted small">${this._e(usage)}${this._help("help.store", this._t("store.title"))}</div>`
+      : `<div class="warnbox">${this._e(this._t("store.full").replace("{themes}", this._themeNames(st.themes)))} ${this._e(usage)}${this._help("help.store", this._t("store.title"))}</div>`;
+  }
+
+  // The knob's firmware (from its "Kis Segítő firmware" update entity) and
+  // the newest release, which opens Home Assistant's update dialog.
+  _firmwareNote(d) {
+    const fw = d.firmware;
+    if (!fw?.installed) return "";
+    const newer = fw.latest && fw.latest !== fw.installed;
+    return `<div class="row wrap small" style="gap:6px"><span class="muted">${this._e(this._t("firmware.installed").replace("{v}", fw.installed))}</span>${newer ? `<button class="btn sm primary" data-act="firmware-open" data-arg="${this._e(fw.entity_id)}">${this._e(this._t("firmware.update").replace("{v}", fw.latest))}</button>` : ""}${this._help("help.firmware", this._t("firmware.title"))}</div>`;
+  }
+
+  _childStoreNote(c) {
+    if (!c?.id) return "";
+    const full = (this._data.devices || []).filter((d) => !d.virtual && d.store && !d.store.fits && (d.children || []).includes(c.id));
+    if (!full.length) return "";
+    return `<div class="warnbox">${this._e(this._t("store.child_full").replace("{knobs}", full.map((d) => d.name).join(", ")))}${this._help("help.store", this._t("store.title"))}</div>`;
+  }
+
+  // The avatar at 180 px (the knob's picture), for a sharp large preview.
+  _avatarPreviewUrl(name, themeId) {
+    name = name || "avatar_00";
+    const path = `knob/${name}_180.png`;
+    const t = themeId && themeId !== "kis_segito" ? (this._data?.themes || []).find((x) => x.id === themeId) : null;
+    if (t?.base && (t.complete || (t.has || []).includes(path))) {
+      return `${t.base}/${this._e(path)}?v=${this._version}&r=${t.rev || 0}`;
+    }
+    return `${this._staticUrl}_avatars/${this._e(name)}.png?v=${this._version}`;
   }
 
   _avatar(child, size = 48) {
@@ -1942,6 +1989,8 @@ class KisSegitoPanel extends HTMLElement {
           <div class="grow"><label class="field"><span>${this._e(this._t("settings.knob_name"))}</span><input data-devname="${this._e(d.device_id)}" value="${this._e(d.name)}" ${dis} style="font-weight:700"></label></div>
           <div class="row" style="gap:4px">${kids.length ? kids.map((c) => this._avatar(c, 30)).join("") : `<span class="tag">${this._e(this._t("settings.knob_everyone"))}</span>`}${this._help("help.knob_avatars", this._t("settings.knob_children"))}</div></div>
           ${d.encrypted ? "" : `<div class="warnbox">${this._e(this._t("settings.knob_unencrypted"))}</div>`}
+          ${this._storeNote(d)}
+          ${this._firmwareNote(d)}
           ${this._knobOptions(d)}
           ${this._isAdmin ? `<div class="row wrap" style="gap:6px"><button class="btn sm" data-act="rotate-token" data-arg="${this._e(d.device_id)}">${this._e(this._t("settings.knob_new_key"))}</button>${this._help("help.knob_new_key", this._t("settings.knob_new_key"))}${d.can_restart ? `<span style="width:8px"></span><button class="btn sm" data-act="restart-knob" data-arg="${this._e(d.device_id)}">↻ ${this._e(this._t("settings.knob_restart"))}</button>${this._help("help.knob_restart", this._t("settings.knob_restart"))}` : ""}</div>` : ""}
           <details><summary>${this._e(this._t("screen.own"))}${this._help("help.screen_own", this._t("screen.own"))}</summary>
@@ -2277,7 +2326,7 @@ ${tab === "data" ? `
       body: `<div class="row wrap" style="gap:16px">${this._avatarField(c)}<div class="grow stack" style="gap:10px;min-width:200px">
           <label class="field"><span>${this._e(this._t("common.name"))}</span><input data-path="name" value="${this._e(c.name)}"></label>
           <label class="field"><span>${this._e(this._t("children.birth_date"))}${this._help("help.child_birth_date", this._t("children.birth_date"))}</span><input type="date" data-path="birth_date" value="${this._e(c.birth_date || "")}"></label>
-          <label class="field"><span>${this._e(this._t("children.theme"))}${this._help("help.child_theme", this._t("children.theme"))}</span><select data-path="theme"><option value="">${this._e(this._t("children.theme_common"))}</option>${(this._data.themes || []).filter((t) => t.active || t.id === c.theme).map((t) => `<option value="${this._e(t.id)}" ${c.theme === t.id ? "selected" : ""}>${this._e(t.name?.[(this._language || "en").startsWith("hu") ? "hu" : "en"] || t.name?.en || t.id)}</option>`).join("")}</select></label>
+          <label class="field"><span>${this._e(this._t("children.theme"))}${this._help("help.child_theme", this._t("children.theme"))}</span><select data-path="theme"><option value="">${this._e(this._t("children.theme_common"))}</option>${(this._data.themes || []).filter((t) => t.active || t.id === c.theme).map((t) => `<option value="${this._e(t.id)}" ${c.theme === t.id ? "selected" : ""}>${this._e(t.name?.[(this._language || "en").startsWith("hu") ? "hu" : "en"] || t.name?.en || t.id)}</option>`).join("")}</select></label>${this._childStoreNote(c)}
           <label class="field"><span>${this._e(this._t("children.aliases"))}${this._help("help.child_aliases", this._t("children.aliases"))}</span><input data-path="aliases" value="${this._e(c.aliases || "")}" placeholder="${this._e(this._t("children.aliases_hint"))}"></label></div></div>
         <div class="field"><span>${this._e(this._t("children.color"))}${this._help("help.child_color", this._t("children.color"))}</span><div class="row wrap">${PRESET_COLORS.map((x) => `<button class="swatch ${x === c.color ? "on" : ""}" style="background:${x}" data-act="set" data-path="color" data-v="${x}" aria-label="${x}"></button>`).join("")}<input type="color" data-path="color" data-rerender value="${this._e(c.color)}"></div>
           ${close ? `<div class="warnbox">${this._e(this._t("children.color_warning"))}</div>` : ""}</div>
@@ -2469,7 +2518,7 @@ ${tab === "data" ? `
         const tiles = names
           .map((n) => {
             const on = n === current && id === currentTheme && !this._edit?.item?.avatar_image;
-            return `<button class="${on ? "on" : ""}" data-tip="" data-preview="${this._avatarUrl(n, id)}" aria-label="${this._e(n)}" data-act="pick-avatar" data-arg="${this._e(`${n}|${id}`)}"><img src="${this._avatarUrl(n, id)}" width="56" height="56" alt=""></button>`;
+            return `<button class="${on ? "on" : ""}" data-tip="" data-preview="${this._avatarPreviewUrl(n, id)}" data-preview-kind="avatar" aria-label="${this._e(n)}" data-act="pick-avatar" data-arg="${this._e(`${n}|${id}`)}"><img src="${this._avatarUrl(n, id)}" width="56" height="56" alt=""></button>`;
           })
           .join("");
         const title = this._e(t.name?.[lang] || t.name?.en || t.id);
@@ -3259,6 +3308,9 @@ ${tab === "data" ? `
       case "set":
         this._set(path, el.dataset.v);
         break;
+      case "firmware-open":
+        this.dispatchEvent(new CustomEvent("hass-more-info", { detail: { entityId: arg }, bubbles: true, composed: true }));
+        return;
       case "assist-add":
         await this._saveAssistSpeakers([...(this._data.settings.assist_speakers || []), { children: [] }]);
         return;
@@ -4281,12 +4333,13 @@ ${tab === "data" ? `
       }
     }
     tip.classList.toggle("preview", Boolean(preview));
+    tip.classList.toggle("avatar", Boolean(preview) && target.dataset.previewKind === "avatar");
     if (!preview && !target.dataset.tip) {
       tip.hidden = true;
       return;
     }
     tip.hidden = false;
-    const half = preview ? 190 : 130;
+    const half = preview ? (target.dataset.previewKind === "avatar" ? 100 : 190) : 130;
     tip.style.left = `${Math.min(Math.max(x, half), window.innerWidth - half)}px`;
     // A preview opens below the pointer when there is no room above it.
     const below = preview && y < 420;
@@ -4863,6 +4916,10 @@ const STYLE = `
   .tip.preview { max-width: none; padding: 6px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
   .tip.preview img { width: 360px; height: 360px; object-fit: cover; border-radius: 12px; display: block; }
   .tip.below { transform: translate(-50%, 18px); }
+  /* Avatars at their own size at most (sharp), on a light background. */
+  .tip.preview.avatar { background: var(--surface); color: var(--ink); }
+  .tip.preview.avatar img { width: 180px; height: 180px; object-fit: contain; }
+  .tip[hidden], .tip.preview[hidden] { display: none; }
 
   /* bottom bar (phones) */
   .bnav { display: none; }

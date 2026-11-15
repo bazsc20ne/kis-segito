@@ -87,6 +87,7 @@ image:
 kis_segito_ui:
   id: ui
   number_font: font_number
+  text_font: font_text
   action_sensor: knob_action
   screen_size: ${screen_size}
   images:

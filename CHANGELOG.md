@@ -12,6 +12,72 @@ All notable changes to this project are documented here, in Hungarian and Englis
 The format follows [Keep a Changelog](https://keepachangelog.com/) and the project
 uses [Semantic Versioning](https://semver.org/).
 
+## [0.9.13] - 2026-11-15
+
+### Magyar
+
+- A gomb a Kis Segítő kiadásaiból frissül: a Home Assistantben a gomb eszközén
+  megjelenik a **Kis Segítő firmware** frissítés-entitás, amely mutatja az új
+  verziót és a kiadási jegyzetet, és egy kattintással telepíti a kiadáshoz
+  lefordított és tesztelt firmware-t (ellenőrzőösszeggel; megszakadt letöltésnél
+  a régi marad). A panel Beállítások → Gombok oldala mutatja a gomb
+  firmware-verzióját, és ha van újabb, onnan is indítható a frissítés. Az ESPHome
+  Builder frissítését a gombhoz ne használd; a README leírja, hogyan maradhat a
+  Builderes út saját YAML-kiegészítésekkel.
+- Témaváltáskor a gomb az új téma minden szükséges képét (feladatok,
+  ellenőrzőpontok, rutinok, jutalmak, menü) eltárolja, mielőtt újraindul; ha egy
+  perc tétlenség után még tart, „Frissítés...” látszik rajta, és addig nem
+  használható. Egy gyerek új saját témájának képei a háttérben tárolódnak.
+- A gomb 4 MB-os képtárának korlátja: egy téma kb. 2,5–3,3 MB-ot foglal, így egy
+  gombon egy téma fér el kényelmesen. A panel gombonként mutatja a foglaltságot,
+  és figyelmeztet (a gombnál és a gyerek témaválasztásánál), ha a gyerekek témái
+  nem férnek el.
+- A gomb naplója megmutatja, hogy egy kép a tárból jött vagy letöltés volt, és
+  mikor dob ki régi képet a tár.
+- A gomb: a következő feladatváltás indulásakor a konfetti véget ér, így a váltás
+  teljes sebességgel megy (a virtuális kártyán is); az utolsó feladat után a napló
+  „no next task”-ot ír.
+- Panel: a háttér-előnézet eltűnik, ha az egér elmegy; az avatar-előnézet a gomb
+  180 px-es képét mutatja élesen, világos háttéren.
+- Rutinok: az utolsó után tolt középső ellenőrzőpont az utolsót és a rutin végét
+  ugyanannyival tolja, amennyivel ő mozdult.
+- A régi „Kis Segito” bejegyzéscím és a gomb alapnevének ékezet nélküli írása
+  „Kis Segítő” lett. Az oldalsáv menüpontjának neve a Home Assistant
+  rendszernyelvét követi (a README leírja).
+- A `protocol.md` és a `security.md` magyarul is elérhető.
+
+### English
+
+- The knob is updated from the Little Helper releases: its device in Home
+  Assistant gets a **Kis Segítő firmware** update entity that shows the new
+  version and its release notes and installs the firmware built and tested for
+  that release with one click (with a checksum; a broken download keeps the old
+  one). The panel's Settings → Knobs page shows the knob's firmware version and
+  starts the update when there is a newer one. Do not use the ESPHome Builder's
+  update for the knob; the README describes how to stay with the Builder when
+  using your own YAML additions.
+- On a theme change the knob stores every picture of the new theme it needs
+  (tasks, checkpoints, routines, rewards, menu) before restarting; if that still
+  runs after a minute without use, it shows "Updating..." and cannot be used
+  meanwhile. A child's new own theme has its pictures stored in the background.
+- The limit of the knob's 4 MB picture store: one theme takes about 2.5–3.3 MB,
+  so one knob holds one theme comfortably. The panel shows how full each knob's
+  store is and warns (at the knob and at the child's theme choice) when the
+  children's themes do not fit.
+- The knob's log tells whether a picture came from the store or was downloaded,
+  and when the store drops an old picture.
+- The knob: the confetti ends when the next task change starts, so the change
+  runs at full speed (on the virtual card too); after the last task the log says
+  "no next task".
+- Panel: the background preview goes away when the pointer leaves; the avatar
+  preview shows the knob's 180 px picture sharply, on a light background.
+- Routines: a middle checkpoint moved past the last one moves the last one and
+  the end by as much as it moved.
+- The old entry title "Kis Segito" and the knob's default name are now spelt
+  "Kis Segítő". The sidebar entry's name follows Home Assistant's system
+  language (described in the README).
+- `protocol.md` and `security.md` are available in Hungarian too.
+
 ## [0.9.12] - 2026-11-15
 
 ### Magyar

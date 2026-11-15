@@ -2,5 +2,6 @@
   "boot.loading": "Betöltés...",
   "test_screen.title": "Kis Segítő",
   "test_screen.hint": "Forgasd vagy nyomd meg",
-  "test_screen.pressed": "Megnyomva!"
+  "test_screen.pressed": "Megnyomva!",
+  "update.running": "Frissítés..."
 }

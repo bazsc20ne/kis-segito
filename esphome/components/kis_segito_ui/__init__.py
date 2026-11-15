@@ -22,6 +22,7 @@ AUTO_LOAD = ["json"]
 
 CONF_IMAGES = "images"
 CONF_NUMBER_FONT = "number_font"
+CONF_TEXT_FONT = "text_font"
 CONF_ACTION_SENSOR = "action_sensor"
 CONF_SCREEN_SIZE = "screen_size"
 SCREEN_SIZES = (240, 360, 466, 480)
@@ -38,6 +39,8 @@ CONFIG_SCHEMA = cv.Schema(
         # Icon id (e.g. "fn_rewards_160") -> image component.
         cv.Required(CONF_IMAGES): cv.Schema({cv.string: cv.use_id(image.Image_)}),
         cv.Required(CONF_NUMBER_FONT): cv.use_id(font.Font),
+        # Font for the few words the component draws itself ("Updating").
+        cv.Optional(CONF_TEXT_FONT): cv.use_id(font.Font),
         # Text sensor the child's actions are published on for Home Assistant.
         cv.Optional(CONF_ACTION_SENSOR): cv.use_id(text_sensor.TextSensor),
         # Width and height of the round display in pixels.
@@ -78,6 +81,9 @@ async def to_code(config):
     cg.add(var.set_screen_size(config[CONF_SCREEN_SIZE]))
     number_font = await cg.get_variable(config[CONF_NUMBER_FONT])
     cg.add(var.set_number_font(number_font))
+    if CONF_TEXT_FONT in config:
+        text_font = await cg.get_variable(config[CONF_TEXT_FONT])
+        cg.add(var.set_text_font(text_font))
     if CONF_ACTION_SENSOR in config:
         sensor = await cg.get_variable(config[CONF_ACTION_SENSOR])
         cg.add(var.set_action_sensor(sensor))

@@ -26,7 +26,15 @@ FRONTEND_DIR = Path(__file__).parent / "frontend"
 async def async_register_static_files(hass: HomeAssistant) -> None:
     """Serve the frontend files (can only be done once per HA run)."""
     await hass.http.async_register_static_paths(
-        [StaticPathConfig(STATIC_URL, str(FRONTEND_DIR), cache_headers=False)]
+        [
+            StaticPathConfig(STATIC_URL, str(FRONTEND_DIR), cache_headers=False),
+            # The knob's built-in avatars (180 px), for sharp previews.
+            StaticPathConfig(
+                f"{STATIC_URL}_avatars",
+                str(Path(__file__).parent / "knob_avatars"),
+                cache_headers=False,
+            ),
+        ]
     )
 
 

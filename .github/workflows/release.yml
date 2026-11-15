@@ -65,6 +65,8 @@ jobs:
           cp "${{ steps.build.outputs.name }}/${{ steps.build.outputs.name }}.factory.bin" "dist/kis-segito-${TAG}.factory.bin"
           cp "${{ steps.build.outputs.name }}/${{ steps.build.outputs.name }}.ota.bin" "dist/kis-segito-${TAG}.ota.bin"
           (cd dist && sha256sum *.bin > SHA256SUMS.txt)
+          # The knob's update entity reads this (the latest release's copy).
+          python3 scripts/firmware_manifest.py "${TAG}" "$(md5sum "dist/kis-segito-${TAG}.ota.bin" | cut -d' ' -f1)" > dist/manifest.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: firmware

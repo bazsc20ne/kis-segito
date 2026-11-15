@@ -19,6 +19,7 @@ from homeassistant.helpers import label_registry as lr
 from homeassistant.helpers.service import async_get_all_descriptions
 
 from .const import CONF_DEVICE_ID, DOMAIN, LANGUAGE_AUTO, STATIC_URL
+from .knob_pictures import knob_store
 from .device_link import api_encrypted, available_languages, parse_action
 from .icons import ICON_ALIASES
 from .ledger import PIGGY, WALLET
@@ -305,6 +306,25 @@ def _own_entity(hass: HomeAssistant, device_id: str, key: str) -> str | None:
     return None
 
 
+def _firmware(hass: HomeAssistant, device_id: str) -> dict[str, Any] | None:
+    """The knob's "Kis Segítő firmware" update entity: installed and newest."""
+    for entry in er.async_entries_for_device(er.async_get(hass), device_id):
+        if entry.domain != "update":
+            continue
+        name = (entry.original_name or "").lower()
+        if "kis segítő firmware" not in name and not entry.entity_id.endswith("kis_segito_firmware"):
+            continue
+        state = hass.states.get(entry.entity_id)
+        if state is None:
+            return None
+        return {
+            "entity_id": entry.entity_id,
+            "installed": state.attributes.get("installed_version"),
+            "latest": state.attributes.get("latest_version"),
+        }
+    return None
+
+
 def _devices(hass: HomeAssistant) -> list[dict[str, Any]]:
     registry = dr.async_get(hass)
     result = []
@@ -323,6 +343,10 @@ def _devices(hass: HomeAssistant) -> list[dict[str, Any]]:
                 .get("screen", {}),
                 "inputs": hass.data[DOMAIN].manager.device_inputs(device_id),
                 "illuminance_entity": _own_entity(hass, device_id, "illuminance"),
+                "firmware": _firmware(hass, device_id),
+                "store": knob_store(
+                    hass.data[DOMAIN].manager, device_id, _knob_language(hass)
+                ),
             }
             | _knob_options(hass, device_id)
         )
@@ -342,6 +366,11 @@ def _devices(hass: HomeAssistant) -> list[dict[str, Any]]:
             | _knob_options(hass, knob["id"])
         )
     return result
+
+
+def _knob_language(hass: HomeAssistant) -> str:
+    language = hass.data[DOMAIN].manager.settings.get("language") or LANGUAGE_AUTO
+    return hass.config.language if language == LANGUAGE_AUTO else language
 
 
 def _knob_options(hass: HomeAssistant, device_id: str) -> dict[str, Any]:

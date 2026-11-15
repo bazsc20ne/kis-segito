@@ -187,6 +187,9 @@ class KisSegitoUI : public Component {
 
   void add_image(const std::string &key, image::Image *img) { this->images_[key] = img; }
   void set_number_font(font::Font *f) { this->number_font_ = f->get_lv_font(); }
+  void set_text_font(font::Font *f) { this->text_font_ = f->get_lv_font(); }
+  // The text of the "Updating" screen, in the Home Assistant language.
+  void set_updating_text(const std::string &text) { this->updating_text_ = text; }
   // A loading screen picture in the theme's style (see the .cpp file).
   void theme_picture(lv_obj_t *obj, const std::string &key, int cx, int cy);
   // A picture in the theme's style (nullptr: use the built-in one).
@@ -379,6 +382,7 @@ class KisSegitoUI : public Component {
   // Routine screen.
   void complete_task_();
   void celebrate_(int tokens);
+  void end_confetti_();
   int routine_reward_now_() const;
   Routine &current_routine_();
 
@@ -391,6 +395,12 @@ class KisSegitoUI : public Component {
 
   std::map<std::string, image::Image *> images_;
   const lv_font_t *number_font_{nullptr};
+  const lv_font_t *text_font_{nullptr};
+  std::string updating_text_;
+  lv_obj_t *updating_layer_{nullptr};  // "Updating": shown while a new theme is stored
+  std::set<std::string> known_themes_;  // themes shown by the children (stored when new)
+  bool themes_known_{false};
+  void show_updating_();
 
   std::vector<Child> children_;
   std::vector<Reward> rewards_;
@@ -412,6 +422,7 @@ class KisSegitoUI : public Component {
     bool store{false};  // only store it in the flash cache (a new background)
     uint32_t gen{0};    // which background change it belongs to
     bool prestore{false};  // a picture of a new theme, stored before its restart
+    bool list{false};      // the list of a theme's pictures (each is then stored)
   };
   struct Download {
     std::string key;
@@ -476,7 +487,6 @@ class KisSegitoUI : public Component {
   volatile bool worker_idle_{true};
   volatile uint32_t pending_stores_{0};  // new theme pictures still to store
   uint32_t prestore_ms_{0};
-  std::set<std::string> used_icons_;  // theme pictures shown so far
   void prestore_theme_(const std::string &theme);
   // Download task only: the flash cache and the pictures checked with Home
   // Assistant since the start.

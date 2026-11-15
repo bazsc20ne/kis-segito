@@ -13,6 +13,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EVENT_HOMEASSISTANT_STOP, Platform
 from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.event import async_track_time_change
 from homeassistant.helpers.typing import ConfigType
@@ -26,6 +27,7 @@ from .cards_api import async_register_card_commands
 from .const import CONF_DEVICE_ID, DOMAIN
 from .device_link import DeviceLink, unencrypted_issue_id
 from .knob_images import KnobImageView
+from .knob_pictures import KnobThemeSetView, async_prime
 from .logic import parse_hhmm
 from .manager import KisSegitoManager
 from .notify import Notifier
@@ -94,6 +96,8 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     async_register_card_commands(hass)
     async_register_theme_api(hass)
     hass.http.register_view(KnobImageView(hass))
+    hass.http.register_view(KnobThemeSetView(hass))
+    await async_prime(hass, manager)
     async_register_services(hass, manager)
     async_setup_assist(hass, manager)
     _async_schedule_jobs(hass, manager)
@@ -149,6 +153,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: KisSegitoConfigEntry) ->
     data.entry_ids.add(entry.entry_id)
 
     device_id = entry.data[CONF_DEVICE_ID]
+    if entry.title == "Kis Segito":
+        # Titled after the knob's old default name (without accents).
+        device = dr.async_get(hass).async_get(device_id)
+        hass.config_entries.async_update_entry(
+            entry, title=(device.name_by_user if device else None) or "Kis Segítő"
+        )
     link = DeviceLink(
         hass,
         device_id,

@@ -2,5 +2,6 @@
   "boot.loading": "Loading...",
   "test_screen.title": "Little Helper",
   "test_screen.hint": "Turn or press the knob",
-  "test_screen.pressed": "Pressed!"
+  "test_screen.pressed": "Pressed!",
+  "update.running": "Updating..."
 }

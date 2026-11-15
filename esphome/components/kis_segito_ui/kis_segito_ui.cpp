@@ -33,6 +33,8 @@
 namespace esphome::kis_segito_ui {
 
 static const char *const TAG = "kis_segito_ui";
+// Marks the confetti pieces of a reached checkpoint (their user data).
+static const char CONFETTI_TAG[] = "confetti";
 
 // The screen is laid out on a 480 px canvas and scaled to the display's size
 // (240, 360, 466 or 480 px). At 480 px nothing is scaled.
@@ -963,6 +965,24 @@ void KisSegitoUI::set_state(const std::string &json) {
   this->rewards_ = rewards;
   this->routines_ = routines;
   this->have_state_ = true;
+  {
+    // A child's own theme that is new here: its pictures are stored in the
+    // background, so switching to that child does not download them one by
+    // one (not at the first state: the store keeps what it had).
+    std::set<std::string> themes;
+    for (const auto &c : this->children_) {
+      if (!c.theme.empty())
+        themes.insert(c.theme);
+    }
+    if (this->themes_known_) {
+      for (const auto &t : themes) {
+        if (!this->known_themes_.count(t) && t != this->theme_)
+          this->prestore_theme_(t);
+      }
+    }
+    this->known_themes_ = themes;
+    this->themes_known_ = true;
+  }
   this->inactivity_ms_ = static_cast<uint32_t>(std::max(10, root["idle"] | 60)) * 1000;
   if (root["scr"].is<JsonObjectConst>()) {
     JsonObjectConst scr = root["scr"].as<JsonObjectConst>();
@@ -1273,13 +1293,6 @@ std::string KisSegitoUI::photo_key_(const std::string &key) const {
 }
 
 const lv_image_dsc_t *KisSegitoUI::img_(const std::string &key) {
-  {
-    // The theme pictures shown so far, so a new theme can store them all
-    // before its restart (see prestore_theme_()).
-    const std::string plain = !key.empty() && key[0] == '@' ? key.substr(1) : key;
-    if (this->used_icons_.size() < 600 && is_theme_icon(plain))
-      this->used_icons_.insert(plain);
-  }
   const std::string pk = this->photo_key_(key);
   if (!pk.empty()) {
     // A downloaded picture: shown once it is here; until then nothing (an
@@ -1532,6 +1545,68 @@ void KisSegitoUI::photo_task_(void *arg) {
       continue;
     }
     self->worker_idle_ = false;
+    if (job.list) {
+      // The pictures a theme needs: each is stored in the flash cache.
+      const std::string theme = job.key.substr(6);
+      std::string body;
+      esp_http_client_config_t cfg{};
+      cfg.url = job.url.c_str();
+      cfg.timeout_ms = 10000;
+      esp_http_client_handle_t client = esp_http_client_init(&cfg);
+      if (client != nullptr) {
+        esp_http_client_set_header(client, "X-Kis-Segito-Token", job.token.c_str());
+        if (esp_http_client_open(client, 0) == ESP_OK) {
+          const int64_t len = esp_http_client_fetch_headers(client);
+          if (esp_http_client_get_status_code(client) == 200 && len > 0 && len < 64 * 1024) {
+            body.resize(len);
+            int got = 0;
+            while (got < len) {
+              const int r = esp_http_client_read(client, &body[got], len - got);
+              if (r <= 0)
+                break;
+              got += r;
+            }
+            body.resize(got);
+          }
+          esp_http_client_close(client);
+        }
+        esp_http_client_cleanup(client);
+      }
+      std::vector<PhotoJob> jobs;
+      if (!body.empty()) {
+        JsonDocument doc = json::parse_json(body);
+        for (JsonVariantConst item : doc["keys"].as<JsonArrayConst>()) {
+          const char *plain = item.as<const char *>();
+          if (plain == nullptr)
+            continue;
+          const std::string name(plain);
+          const size_t sep = name.rfind('_');
+          if (sep == std::string::npos || sep == 0)
+            continue;
+          const int nominal = atoi(name.c_str() + sep + 1);
+          if (nominal <= 0)
+            continue;
+          const std::string key = "@t_" + theme + "__" + name;
+          PhotoJob store{key,
+                         self->img_base_ + "/api/kis_segito/knob_image/" + key.substr(1, key.rfind('_') - 1) + "/" +
+                             std::to_string(S(nominal)),
+                         job.token};
+          store.store = true;
+          store.prestore = true;
+          jobs.push_back(store);
+        }
+      }
+      {
+        std::lock_guard<std::mutex> lock(self->photo_mutex_);
+        for (const auto &store : jobs)
+          self->photo_queue_.push_back(store);
+      }
+      self->pending_stores_ = self->pending_stores_ + jobs.size();
+      if (self->pending_stores_ > 0)
+        self->pending_stores_ = self->pending_stores_ - 1;  // the list itself
+      ESP_LOGI(TAG, "Theme %s: storing %u pictures", theme.c_str(), (unsigned) jobs.size());
+      continue;
+    }
     if (job.store) {
       const int result = !self->cache_.ready() ? BG_NO_CACHE : self->store_picture_(job) ? BG_STORED : BG_FAILED;
       if (job.prestore) {
@@ -1553,6 +1628,8 @@ void KisSegitoUI::photo_task_(void *arg) {
         self->need_memory_ = size;
       cached = self->cache_.read(job.key, &cached_size, &cached_etag);
     }
+    if (cached != nullptr)
+      ESP_LOGD(TAG, "Picture %s from the store (%u KB)", job.key.c_str(), (unsigned) (cached_size / 1024));
     if (job.url.empty()) {
       // Only the flash cache was asked (no Home Assistant address yet).
       if (cached != nullptr)
@@ -1623,6 +1700,7 @@ void KisSegitoUI::photo_task_(void *arg) {
     if (status == 304 || (status == 200 && buf != nullptr))
       self->validated_.insert(job.key);
     if (buf != nullptr) {
+      ESP_LOGD(TAG, "Picture %s downloaded (%u KB)", job.key.c_str(), (unsigned) (got / 1024));
       if (self->cache_.ready() && !etag.empty())
         self->cache_.write(job.key, etag, buf, got);
       if (cached != nullptr && static_cast<size_t>(got) == cached_size &&
@@ -1722,33 +1800,20 @@ void KisSegitoUI::save_theme_() {
 void KisSegitoUI::prestore_theme_(const std::string &theme) {
   if (theme.empty() || theme == "kis_segito" || this->img_base_.empty() || !this->cache_.ready())
     return;
-  std::vector<PhotoJob> jobs;
-  for (const auto &plain : this->used_icons_) {
-    const size_t sep = plain.rfind('_');
-    if (sep == std::string::npos || sep == 0)
-      continue;
-    const int nominal = atoi(plain.c_str() + sep + 1);
-    if (nominal <= 0)
-      continue;
-    const std::string key = "@t_" + theme + "__" + plain;
-    PhotoJob job{key,
-                 this->img_base_ + "/api/kis_segito/knob_image/" + key.substr(1, key.rfind('_') - 1) + "/" +
-                     std::to_string(S(nominal)),
-                 this->img_token_};
-    job.store = true;
-    job.prestore = true;
-    jobs.push_back(job);
-  }
-  if (jobs.empty())
-    return;
+  // Home Assistant names the pictures (for the routines, rewards and menu in
+  // use); the download task stores each of them.
+  PhotoJob job{"#list:" + theme,
+               this->img_base_ + "/api/kis_segito/knob_theme_set/" + theme + "?lang=" +
+                   (this->language_.empty() ? std::string("en") : this->language_),
+               this->img_token_};
+  job.list = true;
   {
     std::lock_guard<std::mutex> lock(this->photo_mutex_);
-    for (const auto &job : jobs)
-      this->photo_queue_.push_back(job);
+    this->photo_queue_.push_back(job);
   }
-  this->pending_stores_ = this->pending_stores_ + jobs.size();
+  this->pending_stores_ = this->pending_stores_ + 1;
   this->prestore_ms_ = millis();
-  ESP_LOGI(TAG, "New theme: storing %u pictures before the restart", (unsigned) jobs.size());
+  ESP_LOGI(TAG, "Theme %s: storing its pictures", theme.c_str());
   this->start_photo_task_();
 }
 
@@ -1811,9 +1876,13 @@ void KisSegitoUI::check_background_restart_(uint32_t now) {
   }
   if (this->bg_store_ != BG_STORED)
     return;
-  // The new theme's pictures are stored first (at most 3 minutes).
-  if (this->pending_stores_ > 0 && now - this->prestore_ms_ < 180000)
+  // The new theme's pictures are stored first (at most 5 minutes): once the
+  // knob has not been used for a minute, it shows "Updating" meanwhile.
+  if (this->pending_stores_ > 0 && now - this->prestore_ms_ < 300000) {
+    if (this->idle_ms_ >= BG_RESTART_IDLE_MS)
+      this->show_updating_();
     return;
+  }
   if (this->restart_at_ms_ == 0) {
     if (this->idle_ms_ < BG_RESTART_IDLE_MS)
       return;
@@ -1823,6 +1892,27 @@ void KisSegitoUI::check_background_restart_(uint32_t now) {
   } else if (static_cast<int32_t>(now - this->restart_at_ms_) >= 0) {
     App.safe_reboot();
   }
+}
+
+// "Updating": the screen dimmed, a word in the middle, no input until the
+// restart (the new theme's pictures are being stored).
+void KisSegitoUI::show_updating_() {
+  if (this->updating_layer_ != nullptr)
+    return;
+  ESP_LOGI(TAG, "Updating: %u pictures of the new theme left to store", (unsigned) this->pending_stores_);
+  lv_obj_t *layer = lv_obj_create(lv_layer_top());
+  remove_defaults(layer);
+  lv_obj_set_size(layer, SCREEN, SCREEN);
+  lv_obj_set_style_bg_color(layer, lv_color_hex(0x000000), 0);
+  lv_obj_set_style_bg_opa(layer, 170, 0);
+  lv_obj_add_flag(layer, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_t *label = lv_label_create(layer);
+  if (this->text_font_ != nullptr)
+    lv_obj_set_style_text_font(label, this->text_font_, 0);
+  lv_obj_set_style_text_color(label, lv_color_hex(0xFFFFFF), 0);
+  lv_label_set_text(label, this->updating_text_.empty() ? "..." : this->updating_text_.c_str());
+  lv_obj_center(label);
+  this->updating_layer_ = layer;
 }
 
 // Stores a picture in the flash cache without loading it: unchanged pictures
@@ -2428,22 +2518,22 @@ void KisSegitoUI::show_(Screen screen) {
 }
 
 void KisSegitoUI::rotate(int dir) {
-  if (this->started_ && dir != 0)
+  if (this->started_ && this->updating_layer_ == nullptr && dir != 0)
     this->input_.push_back(dir > 0 ? 1 : -1);
 }
 
 void KisSegitoUI::click() {
-  if (this->started_)
+  if (this->started_ && this->updating_layer_ == nullptr)
     this->input_.push_back(2);
 }
 
 void KisSegitoUI::long_press() {
-  if (this->started_)
+  if (this->started_ && this->updating_layer_ == nullptr)
     this->input_.push_back(3);
 }
 
 void KisSegitoUI::go_home() {
-  if (this->started_)
+  if (this->started_ && this->updating_layer_ == nullptr)
     this->input_.push_back(4);
 }
 
@@ -3620,6 +3710,7 @@ void KisSegitoUI::complete_task_() {
     }
   }
   this->busy_ = true;
+  this->end_confetti_();
 
   // Bounce, check, then the finished task shrinks to its place on the left
   // while the next one grows from the right into the middle; then the screen
@@ -3639,6 +3730,7 @@ void KisSegitoUI::complete_task_() {
     lv_anim_start(&a);
   }
   lv_obj_t *check = this->image_(this->screen_obj_, "action_check_88", CENTER, S(205));
+  bool had_next = false;
   if (move_ms > 0 && this->task_big_ != nullptr) {
     // Where the finished task goes: the next slot on the left (as
     // build_routine_() places the done tasks).
@@ -3667,6 +3759,7 @@ void KisSegitoUI::complete_task_() {
         break;
       }
     }
+    had_next = next >= 0;
     if (next >= 0 && next < static_cast<int>(this->task_icons_.size()) && this->task_icons_[next] != nullptr) {
       lv_obj_t *small = this->task_icons_[next];
       const int sx = lv_obj_get_x(small) + lv_obj_get_width(small) / 2;
@@ -3721,7 +3814,9 @@ void KisSegitoUI::complete_task_() {
     // Frames drawn during the change are counted (logged at the end).
     g_slide_frames = g_slide_render_ms = g_slide_px = g_slide_flush_us = 0;
     g_slide_measure = true;
-    ESP_LOGD(TAG, "Task change: next picture %s", this->task_move_.next != nullptr ? "ready" : "not here yet");
+    ESP_LOGD(TAG, "Task change: %s", !had_next                         ? "no next task"
+                                      : this->task_move_.next != nullptr ? "next picture ready"
+                                                                         : "next picture not here yet");
   }
   const uint32_t rebuild_ms = move_ms > 0 ? ms * 2 / 3 + move_ms + 40 : ms + 250;
   this->task_reward_ = reward;
@@ -3766,6 +3861,19 @@ void KisSegitoUI::task_move_step_(int32_t v) {
   }
 }
 
+// Ends the falling confetti of a reached checkpoint at once (the next task
+// change gets the whole frame rate).
+void KisSegitoUI::end_confetti_() {
+  lv_obj_t *top = lv_layer_top();
+  for (int i = static_cast<int>(lv_obj_get_child_count(top)) - 1; i >= 0; i--) {
+    lv_obj_t *child = lv_obj_get_child(top, i);
+    if (lv_obj_get_user_data(child) == CONFETTI_TAG) {
+      lv_anim_delete(child, nullptr);
+      lv_obj_delete(child);
+    }
+  }
+}
+
 void KisSegitoUI::celebrate_(int tokens) {
   Child &c = this->children_[this->child_];
   c.wallet += tokens;
@@ -3778,6 +3886,7 @@ void KisSegitoUI::celebrate_(int tokens) {
     const uint32_t h = hash32(i + 77);
     lv_obj_t *piece = lv_obj_create(lv_layer_top());
     remove_defaults(piece);
+    lv_obj_set_user_data(piece, const_cast<char *>(CONFETTI_TAG));
     lv_obj_set_size(piece, S(8), S(14));
     lv_obj_set_style_radius(piece, 2, 0);
     lv_obj_set_style_bg_color(piece, lv_color_hex(COLORS[i % 6]), 0);

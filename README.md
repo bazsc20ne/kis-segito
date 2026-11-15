@@ -58,10 +58,10 @@ egy új eszközt, és a YAML-ja legyen ehhez hasonló (minta: [esphome/example.y
 ```yaml
 substitutions:
   name: kis-segito
-  friendly_name: Kis Segito
+  friendly_name: Kis Segítő
 
 packages:
-  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.9.9
+  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.9.13
 
 api:
   encryption:
@@ -216,6 +216,41 @@ nyelvhez nincs fordítás, angolul). A panel **Beállítások** kártyáján má
 választható; ez a gombokra és a panelre is érvényes. Új nyelv:
 [docs/translations.md](docs/translations.md).
 
+#### 3. A gomb frissítése
+
+A gomb firmware-ét a Kis Segítő kiadásaiból frissítsd: a Home Assistantben a gomb
+eszközén megjelenik a **Kis Segítő firmware** frissítés-entitás. Ez naponta négyszer
+megnézi a legújabb kiadást, megmutatja az új verziót és a kiadási jegyzetet, és egy
+kattintással telepíti a kiadáshoz lefordított és tesztelt firmware-t. A letöltött fájl
+ellenőrzőösszegét telepítés előtt ellenőrzi; ha a letöltés megszakad, a gomb a régi
+firmware-rel fut tovább.
+
+**Az ESPHome Builder frissítését ne használd a gombhoz.** A Builder az ESPHome
+verzióit követi, nem a Kis Segítőéit: egy új ESPHome-verziónál ugyanazt a Kis
+Segítő-verziót egy olyan ESPHome-mal fordítaná újra, amellyel nem tesztelték.
+
+**Saját YAML-kiegészítésekkel** (például további érzékelők, más kijelzőbeállítás) a
+kész firmware nem használható, mert azok nincsenek benne. Ilyenkor maradj a Builderes
+úton: minden Kis Segítő-kiadásnál írd át a `packages:` sorban a verziót (`@vX.Y.Z`)
+az újra, és telepítsd a Builderből, a kiadási jegyzetben megnevezett ESPHome-verzióval.
+A **Kis Segítő firmware** entitást ilyenkor vedd ki a YAML-odból:
+
+```yaml
+update:
+  - id: !remove release_update
+```
+
+**A gomb képtára:** a gomb a letöltött képeket egy 4 MB-os tárban tartja. Egy téma
+képei kb. 2,5–3,3 MB-ot foglalnak, ezért egy gombon egy téma fér el kényelmesen; ha a
+gombon lévő gyerekeknek más-más témájuk van, a gomb gyerekváltáskor újra letölti a
+képeket, és lassabb. A panel **Beállítások → Gombok** oldala megmutatja a foglaltságot,
+és figyelmeztet, ha a témák nem férnek el. Témaváltáskor a gomb az új téma minden
+képét eltárolja, mielőtt újraindul (közben „Frissítés...” látszik rajta).
+
+Az oldalsáv menüpontjának neve a Home Assistant rendszernyelvét követi (magyarul
+„Kis Segítő”, más nyelven „Little Helper”), a felhasználók saját nyelvi beállítását
+nem; ezt a Home Assistant saját panelekhez nem teszi lehetővé.
+
 ### Biztonság
 
 - **Kötelező titkos adatok** gombonként, a saját ESPHome `secrets.yaml`-odban:
@@ -233,8 +268,9 @@ választható; ez a gombokra és a panelre is érvényes. Új nyelv:
   át nem érhetők el. Ha egy gomb kapcsolata nem titkosított, a Home Assistant javítási
   értesítést mutat, és a gomb a képek helyett ikonokat jelenít meg. A gomb hozzáférése a
   képekhez megújítható: panel → **Beállítások → Gombok → Új képkulcs**.
-- **Frissítés:** a fenti mintában a package egy adott verzióra mutat (`@v0.9.9`), így a
-  gomb firmware-e csak akkor változik, amikor ezt átírod egy újabb verzióra.
+- **Frissítés:** a gomb firmware-e csak akkor változik, amikor a **Kis Segítő firmware**
+  entitással telepítesz egy új kiadást (a fájl ellenőrzőösszegét a gomb ellenőrzi), vagy
+  saját buildnél átírod a package verzióját (`@vX.Y.Z`).
 - **Nem része a projektnek:** aki fizikailag hozzáfér a gombhoz, kiolvashatja a
   flash-memóriáját (és a benne lévő titkos adatokat). Ez egy otthoni, házilag épített
   eszköz, ezért a flash-titkosítás és a secure boot nem cél.
@@ -328,10 +364,10 @@ ESPHome Builder with a YAML like this (see [esphome/example.yaml](esphome/exampl
 ```yaml
 substitutions:
   name: kis-segito
-  friendly_name: Kis Segito
+  friendly_name: Kis Segítő
 
 packages:
-  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.9.9
+  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.9.13
 
 api:
   encryption:
@@ -485,6 +521,41 @@ English when there is no translation for a language). Another language can be ch
 the panel's **Settings** card; it applies to the knobs and the panel. Adding a language:
 [docs/translations.md](docs/translations.md).
 
+#### 3. Updating the knob
+
+Update the knob's firmware from the Kis Segítő releases: in Home Assistant, the knob's
+device gets a **Kis Segítő firmware** update entity. It checks the newest release four
+times a day, shows the new version and its release notes, and installs the firmware
+built and tested for that release with one click. The downloaded file's checksum is
+checked before installing; if the download breaks off, the knob keeps running the old
+firmware.
+
+**Do not use the ESPHome Builder's update for the knob.** The Builder follows ESPHome's
+versions, not Little Helper's: on a new ESPHome version it would rebuild the same Little
+Helper version with an ESPHome it was not tested with.
+
+**With your own YAML additions** (e.g. more sensors, other display settings) the
+prebuilt firmware does not fit, since they are not in it. Then stay with the Builder:
+for every Little Helper release, change the version in the `packages:` line (`@vX.Y.Z`)
+to the new one and install it from the Builder, with the ESPHome version named in the
+release notes. Remove the **Kis Segítő firmware** entity from your YAML then:
+
+```yaml
+update:
+  - id: !remove release_update
+```
+
+**The knob's picture store:** the knob keeps downloaded pictures in a 4 MB store. One
+theme's pictures take about 2.5–3.3 MB, so one knob holds one theme comfortably; when
+the children on a knob have different themes, the knob downloads pictures again when
+switching children and gets slower. The panel's **Settings → Knobs** page shows how
+full it is and warns when the themes do not fit. On a theme change the knob stores
+every picture of the new theme before it restarts (showing "Updating..." meanwhile).
+
+The sidebar entry's name follows Home Assistant's system language ("Kis Segítő" in
+Hungarian, "Little Helper" in other languages), not each user's own language setting;
+Home Assistant does not allow that for custom panels.
+
 ### Security
 
 - **Required secrets** for each knob, in your own ESPHome `secrets.yaml`:
@@ -503,8 +574,9 @@ the panel's **Settings** card; it applies to the knobs and the panel. Adding a l
   Assistant shows a repair issue and the knob shows icons instead of the pictures. A
   knob's access to the pictures can be renewed: panel → **Settings → Knobs → New picture
   key**.
-- **Updates:** in the example above the package points to a given version (`@v0.9.9`), so
-  the knob's firmware changes only when you change it to a newer version.
+- **Updates:** the knob's firmware changes only when you install a new release with the
+  **Kis Segítő firmware** entity (the knob checks the file's checksum), or, with your own
+  build, when you change the package version (`@vX.Y.Z`).
 - **Out of scope:** anyone with physical access to the knob can read its flash memory (and
   the secrets in it). This is a DIY device for the home, so flash encryption and secure
   boot are not goals.
