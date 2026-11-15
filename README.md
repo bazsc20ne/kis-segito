@@ -242,9 +242,23 @@ fordulhatott elő): a gomb ilyenkor a saját hozzáférési pontját nyitja meg.
 1. Csatlakozz a telefonoddal a gomb WiFi-jéhez (a 0.9.15-ös kiadásnál ennek nincs
    jelszava; újabb firmware-rel a gomb kijelzője mutatja a nevét és a jelszavát).
 2. A megnyíló beállítóoldalon válaszd ki a saját WiFi-hálózatodat, és add meg a jelszavát.
+   Elírt jelszó után a hozzáférési pont kb. egy perc múlva magától újra megnyílik.
 3. Amikor a gomb újra a hálózaton van, telepítsd újra a saját konfigodat az ESPHome
-   Builderből (hálózaton át); ez visszaállítja az API-kulcsot is. Ha a Builder nem éri
-   el a gombot, telepítsd USB-ről.
+   Builderből (hálózaton át); ez visszaállítja az API-kulcsot is. A kiadás firmware-e
+   ilyenkor csak titkosítatlan feltöltést fogad, ezért erre az egy telepítésre add hozzá
+   a konfigodhoz az `allow_plaintext_upload: true` sort, utána vedd ki:
+
+   ```yaml
+   ota:
+     - id: !extend kis_segito_ota
+       encryption:
+         allow_plaintext_upload: true
+   ```
+
+   Ha a Builder így sem éri el a gombot, telepítsd USB-ről.
+4. Ha a Home Assistant ezután nem csatlakozik magától a gombhoz: **Beállítások →
+   Eszközök és szolgáltatások → ESPHome**, a gomb bejegyzésénél **⋮ → Újratöltés**. Ha
+   közben ugyanerre a gombra új felfedezett eszköz is megjelent, azt hagyd figyelmen kívül.
 
 **Az ESPHome Builder frissítését ne használd a gombhoz.** A Builder az ESPHome
 verzióit követi, nem a Kis Segítőéit: egy új ESPHome-verziónál ugyanazt a Kis
@@ -574,9 +588,23 @@ to 0.9.15): the knob then opens its own access point.
 1. Connect your phone to the knob's Wi-Fi (with the 0.9.15 release it has no password;
    with newer firmware the knob's screen shows its name and password).
 2. On the setup page that opens, choose your own Wi-Fi network and enter its password.
+   After a mistyped password the access point opens again by itself after about a minute.
 3. Once the knob is back on the network, install your own config again from the ESPHome
-   Builder (over the network); this restores the API key too. If the Builder cannot
-   reach the knob, install it over USB.
+   Builder (over the network); this restores the API key too. The release firmware then
+   accepts only an unencrypted upload, so for this one install add the line
+   `allow_plaintext_upload: true` to your config, and remove it afterwards:
+
+   ```yaml
+   ota:
+     - id: !extend kis_segito_ota
+       encryption:
+         allow_plaintext_upload: true
+   ```
+
+   If the Builder still cannot reach the knob, install it over USB.
+4. If Home Assistant does not reconnect to the knob by itself: **Settings → Devices &
+   services → ESPHome**, on the knob's entry **⋮ → Reload**. If a newly discovered device
+   for the same knob showed up meanwhile, ignore it.
 
 **Do not use the ESPHome Builder's update for the knob.** The Builder follows ESPHome's
 versions, not Little Helper's: on a new ESPHome version it would rebuild the same Little
