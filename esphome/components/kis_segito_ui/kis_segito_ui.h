@@ -491,6 +491,7 @@ class KisSegitoUI : public Component {
   volatile uint32_t pending_stores_{0};  // new theme pictures still to store
   uint32_t prestore_ms_{0};
   void prestore_theme_(const std::string &theme);
+  void update_keep_();
   // Download task only: the flash cache and the pictures checked with Home
   // Assistant since the start.
   PictureCache cache_;

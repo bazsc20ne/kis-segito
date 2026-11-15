@@ -24,7 +24,7 @@ Ehhez a gombhoz működő alapértékek; mindegyik módosítható egy substituti
 | HSYNC impulzus / back / front | 8 / 20 / 40 | `display_hsync_pulse_width`, `display_hsync_back_porch`, `display_hsync_front_porch` |
 | VSYNC impulzus / back / front | 8 / 20 / 50 | `display_vsync_pulse_width`, `display_vsync_back_porch`, `display_vsync_front_porch` |
 | COLMOD a táblázat után | nincs | `display_colmod` (`"0"`, `"0x55"`, `"0x66"`, `"0x77"`) |
-| Soros napló | UART0 a GPIO43/44-en, 115200 baud | `logger_uart` (`UART1`: lábak nélkül, felszabadítja a GPIO43/44-et; a napló a hálózaton marad), `logger_baud_rate`. Ezen a gombon ne állítsd a baud rate-et `"0"`-ra: a kijelzőn csíkok jelennek meg, majd elsötétül. |
+| Soros napló | UART1, lábak nélkül (a GPIO43/44 a beépített fényérzékelőé); a napló a hálózaton látható | `logger_uart` (`UART0`: a GPIO43/44-en, 115200 baud; ekkor a beépített fényérzékelő nem használható), `logger_baud_rate`. Ezen a gombon ne állítsd a baud rate-et `"0"`-ra: a kijelzőn csíkok jelennek meg, majd elsötétül. |
 | Háttérvilágítás PWM-frekvenciája | 1000 Hz | `backlight_pwm_frequency` (lásd [sensors.md](sensors.md#i2c-figyelmeztetések)) |
 | RGB-busz meghajtóereje | ESP-IDF alapérték | `display_drive_strength` (`"-1"` = alapérték, `"0"`…`"3"` ≈ 5/10/20/40 mA) |
 | Az RGB-átvitel újraindítása minden függőleges szinkronnál (`"n"`: csak kimaradt adat után vagy ha a kijelző kéri, ami ESP-IDF 5.5-tel tisztán tartja a képet) | ki | `display_restart_in_vsync` (`"y"` / `"n"`) |
@@ -59,8 +59,9 @@ kattintások) alapértékre állítja.
 
 Ha a gomb még a WiFi előtt újraindul (például frissítés után), az üzenetei csak a
 soros porton (UART0) érhetők el: GPIO43 (TX) és GPIO44 (RX) a debug panel TX1/RX1
-lábain, 115200 baud (a `logger_uart: UART1` beállítással nem, mert az az
-érzékelőknek szabadítja fel ezeket a lábakat). Csatlakoztass egy 3,3 V-os
+lábain, 115200 baud. A gyári firmware ezeket a lábakat a beépített fényérzékelőnek
+tartja, ezért a soros naplóhoz egy saját konfigban állítsd be a
+`logger_uart: UART0` substitutiont (ekkor a fényérzékelő nem használható). Csatlakoztass egy 3,3 V-os
 USB-UART adaptert (adapter RX a gomb TX-ére, adapter TX a gomb RX-ére, GND a
 GND-re), és nyisd meg bármilyen soros terminállal, pl. az `esphome logs`
 paranccsal az adapter portján. Egy ilyen újraindulás után a gomb, amint újra fut
@@ -94,11 +95,11 @@ helyen hibás):
 
 | Debug panel lába | GPIO | Megjegyzés |
 |---|---|---|
-| TX1 | GPIO43 | UART0 TX: `logger_uart: UART1` beállítással szabad |
-| RX1 | GPIO44 | UART0 RX: `logger_uart: UART1` beállítással szabad |
+| TX1 | GPIO43 | a beépített fényérzékelő SDA-ja; `logger_uart: UART0` beállítással a soros napló TX-e |
+| RX1 | GPIO44 | a beépített fényérzékelő SCL-je; `logger_uart: UART0` beállítással a soros napló RX-e |
 | PB7 | GPIO4 | a panelen szűrve (lassú élek, a belső felhúzó ellenállással kb. 370 µs felfutás): lassú jelekhez (PIR, nyomógomb) jó, I²C-hez nem |
-| RX2 | GPIO15 | az FPC P4/P5 lábain át jut el a gombhoz |
-| TX2 | GPIO16 | az FPC P4/P5 lábain át jut el a gombhoz |
+| RX2 | GPIO15 | az FPC P4/P5 lábain át jut el a gombhoz; a beépített LD2410C radar TX-e |
+| TX2 | GPIO16 | az FPC P4/P5 lábain át jut el a gombhoz; a beépített LD2410C radar RX-e |
 | GND | – | a J5 csatlakozó összes GND lába |
 | SK / SD | – | az USB D+/D− vonalai, nincs rajtuk más jel |
 
@@ -205,7 +206,7 @@ Tuning below).
 | HSYNC pulse / back / front | 8 / 20 / 40 | `display_hsync_pulse_width`, `display_hsync_back_porch`, `display_hsync_front_porch` |
 | VSYNC pulse / back / front | 8 / 20 / 50 | `display_vsync_pulse_width`, `display_vsync_back_porch`, `display_vsync_front_porch` |
 | COLMOD after the table | none | `display_colmod` (`"0"`, `"0x55"`, `"0x66"`, `"0x77"`) |
-| Serial log | UART0 on GPIO43/44, 115200 baud | `logger_uart` (`UART1`: no pins, frees GPIO43/44; the log stays on the network), `logger_baud_rate`. Do not set the baud rate to `"0"` on this knob: the display shows stripes and goes blank. |
+| Serial log | UART1, no pins (GPIO43/44 belong to the built-in light sensor); the log is shown over the network | `logger_uart` (`UART0`: on GPIO43/44, 115200 baud; the built-in light sensor cannot be used then), `logger_baud_rate`. Do not set the baud rate to `"0"` on this knob: the display shows stripes and goes blank. |
 | Backlight PWM frequency | 1000 Hz | `backlight_pwm_frequency` (see [sensors.md](sensors.md#i2c-warnings)) |
 | RGB bus drive strength | ESP-IDF default | `display_drive_strength` (`"-1"` = default, `"0"`…`"3"` ≈ 5/10/20/40 mA) |
 | Restart the RGB transfer at every vertical sync (`"n"`: only after missed data or when the display asks, which keeps the picture clean with ESP-IDF 5.5) | off | `display_restart_in_vsync` (`"y"` / `"n"`) |
@@ -240,8 +241,9 @@ after each start. Flashing the factory firmware resets the knob's own settings
 
 If the knob restarts before it reaches Wi-Fi (for example after an update), its
 messages are only on the serial port UART0: GPIO43 (TX) and GPIO44 (RX) on the
-debug board's TX1/RX1 pins, 115200 baud (not with `logger_uart: UART1`, which
-frees these pins for sensors). Connect a 3.3 V USB-UART adapter (adapter
+debug board's TX1/RX1 pins, 115200 baud. The standard firmware keeps these pins
+for the built-in light sensor, so for the serial log set the substitution
+`logger_uart: UART0` in your own config (the light sensor cannot be used then). Connect a 3.3 V USB-UART adapter (adapter
 RX to knob TX, adapter TX to knob RX, GND to GND) and open it with any serial
 terminal, e.g. `esphome logs` with the adapter's port. After such a restart the
 knob also logs why its previous run ended ("Previous run ended by: …") once it is
@@ -274,11 +276,11 @@ vendor's specification is wrong in several places):
 
 | Debug board pin | GPIO | Notes |
 |---|---|---|
-| TX1 | GPIO43 | UART0 TX: free with `logger_uart: UART1` |
-| RX1 | GPIO44 | UART0 RX: free with `logger_uart: UART1` |
+| TX1 | GPIO43 | SDA of the built-in light sensor; serial log TX with `logger_uart: UART0` |
+| RX1 | GPIO44 | SCL of the built-in light sensor; serial log RX with `logger_uart: UART0` |
 | PB7 | GPIO4 | filtered on the board (slow edges, ~370 µs rise with the internal pull-up): fine for slow signals (PIR, button), not for I²C |
-| RX2 | GPIO15 | reaches the knob through FPC pins P4/P5 |
-| TX2 | GPIO16 | reaches the knob through FPC pins P4/P5 |
+| RX2 | GPIO15 | reaches the knob through FPC pins P4/P5; TX of the built-in LD2410C radar |
+| TX2 | GPIO16 | reaches the knob through FPC pins P4/P5; RX of the built-in LD2410C radar |
 | GND | – | all GND pins of the J5 header |
 | SK / SD | – | the USB D+/D− lines, no extra signals |
 

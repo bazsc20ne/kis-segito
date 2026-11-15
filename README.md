@@ -42,8 +42,10 @@ hangolási lehetőségek: [docs/hardware.md](docs/hardware.md).
 Érzékelők (nem kötelező): jelenlét-, távolság- és fényérzékelővel a gomb
 közelítésre felébred, sötétben éjszakai fényt mutat, a fényerejét a szoba
 fényéhez igazítja. Bármelyik, az ESPHome által támogatott érzékelő a gombra
-köthető (kipróbálva: LD2410C radar, VEML7700 fényérzékelő), vagy a Home
-Assistant entitásai továbbíthatók neki: [docs/sensors.md](docs/sensors.md).
+köthető, vagy a Home Assistant entitásai továbbíthatók neki. A kipróbált LD2410C
+radar és VEML7700 fényérzékelő a kész firmware-ben is benne van: ha a leírt lábakra
+kötöd őket, a gomb induláskor felismeri és használja őket:
+[docs/sensors.md](docs/sensors.md).
 
 Más gomb: a firmware magja és a gomb hardverleírása (gombprofil) külön van, így
 más gombhoz is írható profil: [docs/boards.md](docs/boards.md).
@@ -219,7 +221,7 @@ választható; ez a gombokra és a panelre is érvényes. Új nyelv:
 #### 3. A gomb frissítése
 
 A gomb firmware-ét a Kis Segítő kiadásaiból frissítsd: a Home Assistantben a gomb
-eszközén megjelenik a **Kis Segítő firmware** frissítés-entitás. Ez naponta négyszer
+eszközén megjelenik a **Release firmware** frissítés-entitás. Ez naponta négyszer
 megnézi a legújabb kiadást, megmutatja az új verziót és a kiadási jegyzetet, és egy
 kattintással telepíti a kiadáshoz lefordított és tesztelt firmware-t. A letöltött fájl
 ellenőrzőösszegét telepítés előtt ellenőrzi; ha a letöltés megszakad, a gomb a régi
@@ -229,11 +231,12 @@ firmware-rel fut tovább.
 verzióit követi, nem a Kis Segítőéit: egy új ESPHome-verziónál ugyanazt a Kis
 Segítő-verziót egy olyan ESPHome-mal fordítaná újra, amellyel nem tesztelték.
 
-**Saját YAML-kiegészítésekkel** (például további érzékelők, más kijelzőbeállítás) a
+**Saját YAML-kiegészítésekkel** (például más érzékelők, mint a beépített LD2410C és
+VEML7700, vagy más kijelzőbeállítás) a
 kész firmware nem használható, mert azok nincsenek benne. Ilyenkor maradj a Builderes
 úton: minden Kis Segítő-kiadásnál írd át a `packages:` sorban a verziót (`@vX.Y.Z`)
 az újra, és telepítsd a Builderből, a kiadási jegyzetben megnevezett ESPHome-verzióval.
-A **Kis Segítő firmware** entitást ilyenkor vedd ki a YAML-odból:
+A **Release firmware** entitást ilyenkor vedd ki a YAML-odból:
 
 ```yaml
 update:
@@ -271,7 +274,7 @@ nem; ezt a Home Assistant saját panelekhez nem teszi lehetővé.
   át nem érhetők el. Ha egy gomb kapcsolata nem titkosított, a Home Assistant javítási
   értesítést mutat, és a gomb a képek helyett ikonokat jelenít meg. A gomb hozzáférése a
   képekhez megújítható: panel → **Beállítások → Gombok → Új képkulcs**.
-- **Frissítés:** a gomb firmware-e csak akkor változik, amikor a **Kis Segítő firmware**
+- **Frissítés:** a gomb firmware-e csak akkor változik, amikor a **Release firmware**
   entitással telepítesz egy új kiadást (a fájl ellenőrzőösszegét a gomb ellenőrzi), vagy
   saját buildnél átírod a package verzióját (`@vX.Y.Z`).
 - **Nem része a projektnek:** aki fizikailag hozzáfér a gombhoz, kiolvashatja a
@@ -350,8 +353,10 @@ tuning options: [docs/hardware.md](docs/hardware.md).
 Sensors (optional): with a presence, distance and light sensor the knob wakes
 when someone comes near, shows a night light in the dark and sets its
 brightness to the room light. Any sensor ESPHome supports can be wired to the
-knob (tested: LD2410C radar, VEML7700 light sensor), or Home Assistant entities
-can be forwarded to it: [docs/sensors.md](docs/sensors.md).
+knob, or Home Assistant entities can be forwarded to it. The tested LD2410C radar
+and VEML7700 light sensor are in the prebuilt firmware too: wired to the documented
+pins, the knob finds them at start and uses them:
+[docs/sensors.md](docs/sensors.md).
 
 Other knobs: the firmware core and the knob's hardware description (board
 profile) are separate, so a profile can be written for another knob:
@@ -527,7 +532,7 @@ the panel's **Settings** card; it applies to the knobs and the panel. Adding a l
 #### 3. Updating the knob
 
 Update the knob's firmware from the Kis Segítő releases: in Home Assistant, the knob's
-device gets a **Kis Segítő firmware** update entity. It checks the newest release four
+device gets a **Release firmware** update entity. It checks the newest release four
 times a day, shows the new version and its release notes, and installs the firmware
 built and tested for that release with one click. The downloaded file's checksum is
 checked before installing; if the download breaks off, the knob keeps running the old
@@ -537,11 +542,12 @@ firmware.
 versions, not Little Helper's: on a new ESPHome version it would rebuild the same Little
 Helper version with an ESPHome it was not tested with.
 
-**With your own YAML additions** (e.g. more sensors, other display settings) the
+**With your own YAML additions** (e.g. sensors other than the built-in LD2410C and
+VEML7700, other display settings) the
 prebuilt firmware does not fit, since they are not in it. Then stay with the Builder:
 for every Little Helper release, change the version in the `packages:` line (`@vX.Y.Z`)
 to the new one and install it from the Builder, with the ESPHome version named in the
-release notes. Remove the **Kis Segítő firmware** entity from your YAML then:
+release notes. Remove the **Release firmware** entity from your YAML then:
 
 ```yaml
 update:
@@ -582,7 +588,7 @@ Home Assistant does not allow that for custom panels.
   knob's access to the pictures can be renewed: panel → **Settings → Knobs → New picture
   key**.
 - **Updates:** the knob's firmware changes only when you install a new release with the
-  **Kis Segítő firmware** entity (the knob checks the file's checksum), or, with your own
+  **Release firmware** entity (the knob checks the file's checksum), or, with your own
   build, when you change the package version (`@vX.Y.Z`).
 - **Out of scope:** anyone with physical access to the knob can read its flash memory (and
   the secrets in it). This is a DIY device for the home, so flash encryption and secure

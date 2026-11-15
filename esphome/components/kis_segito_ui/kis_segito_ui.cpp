@@ -984,6 +984,7 @@ void KisSegitoUI::set_state(const std::string &json) {
     this->known_themes_ = themes;
     this->themes_known_ = true;
   }
+  this->update_keep_();
   this->inactivity_ms_ = static_cast<uint32_t>(std::max(10, root["idle"] | 60)) * 1000;
   if (root["scr"].is<JsonObjectConst>()) {
     JsonObjectConst scr = root["scr"].as<JsonObjectConst>();
@@ -1822,6 +1823,31 @@ void KisSegitoUI::save_theme_() {
   this->theme_pref_.save(&pref);
 }
 
+// The pictures the store keeps when it is full, as they are needed right after
+// a restart: the backgrounds, the children's avatars and photos (also as the
+// common theme draws them) and the children's own themes.
+void KisSegitoUI::update_keep_() {
+  std::vector<std::string> keep;
+  if (!this->general_bg_.empty())
+    keep.push_back("@" + this->general_bg_ + "_");
+  if (this->bg_change_ && !this->bg_target_.empty())
+    keep.push_back("@" + this->bg_target_ + "_");
+  for (const auto &key : this->bg_keys_)
+    keep.push_back(key);
+  for (const auto &c : this->children_) {
+    if (c.avatar.size() > 1) {
+      keep.push_back(c.avatar + "_");
+      if (!this->theme_.empty())
+        keep.push_back("@t_" + this->theme_ + "__" + c.avatar.substr(1) + "_");
+    }
+    if (!c.theme.empty() && c.theme != "kis_segito")
+      keep.push_back("@t_" + c.theme + "__");
+  }
+  std::sort(keep.begin(), keep.end());
+  keep.erase(std::unique(keep.begin(), keep.end()), keep.end());
+  this->cache_.set_keep(std::move(keep));
+}
+
 // A new theme: every picture shown so far in the old one is stored from the
 // new theme in the flash cache before the restart, so the first round after
 // it is as quick as any other (not downloaded and decoded on first use).
@@ -1869,6 +1895,7 @@ void KisSegitoUI::start_background_change_(const std::string &bg) {
   }
   this->bg_change_ = true;
   this->bg_target_ = bg;
+  this->update_keep_();
   {
     this->bg_store_ = BG_PENDING;
     const std::string key = "@" + bg + "_" + std::to_string(SCREEN);
@@ -1968,7 +1995,12 @@ bool KisSegitoUI::store_picture_(const PhotoJob &job) {
       ok = !old_etag.empty();
     } else if (status == 200 && len > 8 && len < 600 * 1024 && !etag.empty()) {
       auto read = [client](uint8_t *b, int n) { return esp_http_client_read(client, reinterpret_cast<char *>(b), n); };
-      ok = this->cache_.write_stream(job.key, etag, len, read);
+      // A theme's pictures being stored are kept from each other.
+      const size_t theme_end = job.key.find("__");
+      const std::string also_keep =
+          job.prestore && job.key.rfind("@t_", 0) == 0 && theme_end != std::string::npos ? job.key.substr(0, theme_end + 2)
+                                                                                          : std::string();
+      ok = this->cache_.write_stream(job.key, etag, len, read, nullptr, also_keep);
     }
     esp_http_client_close(client);
   }

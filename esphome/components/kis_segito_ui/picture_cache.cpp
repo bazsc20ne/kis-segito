@@ -118,18 +118,78 @@ uint8_t *PictureCache::read(const std::string &key, size_t *size, std::string *e
   return buf;
 }
 
-bool PictureCache::reserve_(size_t size, uint32_t *from, uint32_t *to) {
+void PictureCache::set_keep(std::vector<std::string> prefixes) {
+  std::lock_guard<std::mutex> lock(this->keep_mutex_);
+  this->keep_ = std::move(prefixes);
+}
+
+bool PictureCache::kept_(const std::string &key) const {
+  if (!this->also_keep_.empty() && key.rfind(this->also_keep_, 0) == 0)
+    return true;
+  std::lock_guard<std::mutex> lock(this->keep_mutex_);
+  for (const auto &prefix : this->keep_) {
+    if (key.rfind(prefix, 0) == 0)
+      return true;
+  }
+  return false;
+}
+
+bool PictureCache::reserve_(size_t size, uint32_t *from, uint32_t *to, const std::string &key) {
   const uint32_t total = this->part_->size / SECTOR;
   const uint32_t n = this->sectors_(size);
   if (n > total / 2)
     return false;
+  // Room only from pictures that are not kept (with a margin for the end of
+  // the ring, which entries never wrap around).
+  uint32_t kept = 0;
+  for (const auto &kv : this->index_) {
+    if (kv.first != key && this->kept_(kv.first))
+      kept += this->sectors_(kv.second.size);
+  }
+  if (kept + n + total / 16 > total) {
+    ESP_LOGD(TAG, "Store full: %s not stored (the rest is kept)", key.c_str());
+    return false;
+  }
   uint32_t start = this->head_;
   if (start + n > total)
     start = 0;  // entries never wrap around the end
   *from = start * SECTOR;
   *to = (start + n) * SECTOR;
+  // Kept pictures in the way are read first and written again afterwards.
+  for (const auto &kv : this->index_) {
+    const Entry &e = kv.second;
+    if (e.offset < *from || e.offset >= *to || kv.first == key || !this->kept_(kv.first))
+      continue;
+    auto *data = static_cast<uint8_t *>(heap_caps_malloc(e.size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+    if (data == nullptr)
+      continue;
+    if (esp_partition_read(this->part_, e.offset + sizeof(Header), data, e.size) != ESP_OK ||
+        esp_rom_crc32_le(0, data, e.size) != e.crc) {
+      heap_caps_free(data);
+      continue;
+    }
+    this->moved_.push_back({kv.first, e.etag, data, e.size});
+  }
   this->drop_range_(*from, *to);
   return esp_partition_erase_range(this->part_, *from, *to - *from) == ESP_OK;
+}
+
+void PictureCache::put_back_() {
+  if (this->putting_back_ || this->part_ == nullptr)
+    return;  // the outer call goes on with what is added meanwhile
+  this->putting_back_ = true;
+  size_t budget = this->part_->size;  // never more than one round of the ring
+  while (!this->moved_.empty()) {
+    Moved m = this->moved_.back();
+    this->moved_.pop_back();
+    if (m.size <= budget && this->index_.count(m.key) == 0) {
+      budget -= m.size;
+      if (this->write(m.key, m.etag, m.data, m.size))
+        ESP_LOGD(TAG, "Kept %s", m.key.c_str());
+    }
+    heap_caps_free(m.data);
+  }
+  this->putting_back_ = false;
 }
 
 // The header goes last: an entry cut short is never read.
@@ -155,20 +215,37 @@ static bool fits(const std::string &key, const std::string &etag, size_t size) {
 
 bool PictureCache::write(const std::string &key, const std::string &etag, const uint8_t *data, size_t size) {
   uint32_t from, to;
-  if (this->part_ == nullptr || !fits(key, etag, size) || !this->reserve_(size, &from, &to))
-    return false;
-  if (esp_partition_write(this->part_, from + sizeof(Header), data, size) != ESP_OK) {
-    ESP_LOGW(TAG, "Writing picture %s to the cache failed", key.c_str());
+  if (this->part_ == nullptr || !fits(key, etag, size) || !this->reserve_(size, &from, &to, key)) {
+    this->put_back_();
     return false;
   }
-  this->commit_(key, etag, from, to, size, esp_rom_crc32_le(0, data, size));
-  return this->index_.count(key) > 0 && this->index_[key].offset == from;
+  bool ok = esp_partition_write(this->part_, from + sizeof(Header), data, size) == ESP_OK;
+  if (ok) {
+    this->commit_(key, etag, from, to, size, esp_rom_crc32_le(0, data, size));
+    ok = this->index_.count(key) > 0 && this->index_[key].offset == from;
+  } else {
+    ESP_LOGW(TAG, "Writing picture %s to the cache failed", key.c_str());
+  }
+  this->put_back_();
+  return ok;
 }
 
 bool PictureCache::write_stream(const std::string &key, const std::string &etag, size_t size,
-                                const std::function<int(uint8_t *, int)> &read, uint32_t *crc_out) {
+                                const std::function<int(uint8_t *, int)> &read, uint32_t *crc_out,
+                                const std::string &also_keep) {
   uint32_t from, to;
-  if (this->part_ == nullptr || !fits(key, etag, size) || !this->reserve_(size, &from, &to))
+  this->also_keep_ = also_keep;
+  const bool ok = this->write_stream_(key, etag, size, read, crc_out, &from, &to);
+  this->put_back_();
+  this->also_keep_.clear();
+  return ok;
+}
+
+bool PictureCache::write_stream_(const std::string &key, const std::string &etag, size_t size,
+                                 const std::function<int(uint8_t *, int)> &read, uint32_t *crc_out, uint32_t *from_out,
+                                 uint32_t *to_out) {
+  uint32_t &from = *from_out, &to = *to_out;
+  if (this->part_ == nullptr || !fits(key, etag, size) || !this->reserve_(size, &from, &to, key))
     return false;
   constexpr int CHUNK = 4096;
   auto *buf = static_cast<uint8_t *>(heap_caps_malloc(CHUNK, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));

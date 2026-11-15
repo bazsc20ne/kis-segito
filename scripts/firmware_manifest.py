@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: AGPL-3.0-only
 """Print the firmware manifest of a release (ESP Web Tools format), read by
-the knob's "Kis Segítő firmware" update entity.
+the knob's "Release firmware" update entity.
 
 Usage: firmware_manifest.py vX.Y.Z <md5 of the OTA file>
 """

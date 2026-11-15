@@ -1,25 +1,21 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 #
-# CI only: the factory firmware with the sensor wiring from docs/sensors.md
-# (LD2410C radar and VEML7700 light sensor on the debug board), to prove the
-# example builds. Not meant to be flashed as is.
+# CI only: an own build from the parts (board, input, core) without the
+# built-in sensors, with other sensors as in docs/sensors.md (a PIR on GPIO4
+# and a BH1750 light sensor), to prove such a config builds. Not meant to be
+# flashed as is.
 
 substitutions:
+  name: kis-segito
+  friendly_name: Kis Segito
+  kis_segito_components: components
+  kis_segito_assets: ../assets/device
   logger_uart: UART1
 
 packages:
-  firmware: !include ../kis-segito-factory.yaml
-
-uart:
-  id: radar_uart
-  rx_pin: GPIO15
-  tx_pin: GPIO16
-  baud_rate: 256000
-  parity: NONE
-  stop_bits: 1
-
-ld2410:
-  uart_id: radar_uart
+  board: !include ../hardware/board.yaml
+  input: !include ../inputs/encoder-button.yaml
+  core: !include ../kis-segito-core.yaml
 
 i2c:
   sda: GPIO43
@@ -27,27 +23,20 @@ i2c:
   frequency: 100kHz
 
 binary_sensor:
-  - platform: ld2410
-    has_target:
-      name: Radar presence
-      on_state:
-        - binary_sensor.template.publish:
-            id: ks_presence
-            state: !lambda return x;
+  - platform: gpio
+    name: Motion
+    device_class: motion
+    pin: GPIO4
+    on_state:
+      - binary_sensor.template.publish:
+          id: ks_presence
+          state: !lambda return x;
 
 sensor:
-  - platform: ld2410
-    detection_distance:
-      name: Radar distance
-      on_value:
-        - sensor.template.publish:
-            id: ks_distance
-            state: !lambda return x;
-  - platform: veml7700
+  - platform: bh1750
+    name: Room light
     update_interval: 10s
-    ambient_light:
-      name: Room light
-      on_value:
-        - sensor.template.publish:
-            id: ks_illuminance
-            state: !lambda return x;
+    on_value:
+      - sensor.template.publish:
+          id: ks_illuminance
+          state: !lambda return x;

@@ -95,3 +95,18 @@ async def test_knob_image_compressed(hass: HomeAssistant, hass_client_no_auth) -
     assert struct.unpack("<I", body[4:8])[0] == len(raw)
     assert zlib.decompress(body[8:]) == raw
     assert plain.headers["ETag"] != packed.headers["ETag"]
+
+
+async def test_store_fits_with_other_theme(hass: HomeAssistant) -> None:
+    """The panel can warn before a theme change that would not fit."""
+    manager = await _setup(hass)
+    manager.settings["theme"] = "frozen"
+    for name in ("Kid A", "Kid B", "Kid C", "Kid D"):
+        await manager.async_save_item("children", {"name": name})
+    one = await hass.async_add_executor_job(knob_store, manager, "dev", "hu")
+    assert "frozen" not in one["fits_with"]
+    assert one["fits_with"]["simpsons"]
+    for child, theme in zip(manager.children(), ("cars", "planes", "toy_story", "pooh")):
+        await manager.async_save_item("children", {"id": child["id"], "theme": theme})
+    four = await hass.async_add_executor_job(knob_store, manager, "dev", "hu")
+    assert not four["fits_with"]["simpsons"]

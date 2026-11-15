@@ -306,23 +306,32 @@ def _own_entity(hass: HomeAssistant, device_id: str, key: str) -> str | None:
     return None
 
 
+RELEASE_UPDATE_NAMES = ("release firmware", "kis segítő firmware")
+
+
 def _firmware(hass: HomeAssistant, device_id: str) -> dict[str, Any] | None:
-    """The knob's "Kis Segítő firmware" update entity: installed and newest."""
+    """The knob's Kis Segítő version (from its device entry, never the ESPHome
+    version) and, when the knob has it, the "Release firmware" update entity
+    with the newest release."""
+    device = dr.async_get(hass).async_get(device_id)
+    # ESPHome reports "0.9.14 (ESPHome 2026.10.2)" for a project firmware.
+    sw_version = (device.sw_version or "") if device else ""
+    version = sw_version.split(" (")[0].strip() if " (ESPHome" in sw_version else None
+    result: dict[str, Any] = {"version": version}
     for entry in er.async_entries_for_device(er.async_get(hass), device_id):
-        if entry.domain != "update":
-            continue
-        name = (entry.original_name or "").lower()
-        if "kis segítő firmware" not in name and not entry.entity_id.endswith("kis_segito_firmware"):
+        if entry.domain != "update" or (entry.original_name or "").lower() not in RELEASE_UPDATE_NAMES:
             continue
         state = hass.states.get(entry.entity_id)
         if state is None:
-            return None
-        return {
+            continue
+        result |= {
             "entity_id": entry.entity_id,
             "installed": state.attributes.get("installed_version"),
             "latest": state.attributes.get("latest_version"),
         }
-    return None
+        result["version"] = result["version"] or result["installed"]
+        break
+    return result if result.get("version") or result.get("entity_id") else None
 
 
 def _devices(hass: HomeAssistant) -> list[dict[str, Any]]:

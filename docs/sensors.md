@@ -49,7 +49,10 @@ A firmware-nek három bemenete van: **jelenlét** (`ks_presence`, be/ki),
 **távolság** (`ks_distance`, cm) és **megvilágítás** (`ks_illuminance`, lx).
 Nem függ az érzékelő típusától: bármelyik, az ESPHome által támogatott
 érzékelőt bekötheted egy szabad lábra, és az eszközkonfigodban átadod az értékét
-a bemenetnek:
+a bemenetnek. A beépített LD2410C és VEML7700 (lásd lent) ugyanezeket a lábakat
+használja, ezért más érzékelőkhöz a gomb részeiből építsd a konfigot a beépített
+érzékelők nélkül (`hardware/board.yaml`, `inputs/encoder-button.yaml`,
+`kis-segito-core.yaml`, lásd a `kis-segito.yaml` elejét):
 
 ```yaml
 binary_sensor:
@@ -74,7 +77,8 @@ sensor:
 
 A VIEWE MD80E gomb és a debug panel szabad lábai a
 [hardware.md](hardware.md#szabad-lábak)-ben vannak. A GPIO43/44
-csak `logger_uart: UART1` beállítással szabad az érzékelőknek.
+csak `logger_uart: UART1` beállítással szabad az érzékelőknek (a beépített
+érzékelőkkel ez az alapbeállítás).
 
 #### LD2410C radar + VEML7700 fényérzékelő (kipróbálva)
 
@@ -89,52 +93,13 @@ Bekötés az MD80E debug paneljén:
 | VEML7700 SCL | RX1 | GPIO44 |
 | VEML7700 VIN / GND | lásd lent | – |
 
-```yaml
-substitutions:
-  logger_uart: UART1   # felszabadítja a GPIO43/44-et (TX1/RX1); a napló a hálózaton marad
-
-uart:
-  id: radar_uart
-  rx_pin: GPIO15
-  tx_pin: GPIO16
-  baud_rate: 256000
-  parity: NONE
-  stop_bits: 1
-
-ld2410:
-  uart_id: radar_uart
-
-i2c:
-  sda: GPIO43
-  scl: GPIO44
-  frequency: 100kHz
-
-binary_sensor:
-  - platform: ld2410
-    has_target:
-      name: Radar presence
-      on_state:
-        - binary_sensor.template.publish:
-            id: ks_presence
-            state: !lambda return x;
-
-sensor:
-  - platform: ld2410
-    detection_distance:
-      name: Radar distance
-      on_value:
-        - sensor.template.publish:
-            id: ks_distance
-            state: !lambda return x;
-  - platform: veml7700
-    update_interval: 10s
-    ambient_light:
-      name: Room light
-      on_value:
-        - sensor.template.publish:
-            id: ks_illuminance
-            state: !lambda return x;
-```
+A gyári Kis Segítő-firmware (a kiadások és a `kis-segito.yaml` csomag) ezt a
+két érzékelőt beépítve tartalmazza: ha a fenti lábakra kötöd őket, a gomb induláskor
+felismeri és használja őket, YAML nélkül. Az értékeik a gomb **Presence**,
+**Distance** és **Illuminance** entitásaiban jelennek meg. Érzékelők nélkül a gomb
+ugyanúgy működik, és ezek a bemenetek a Home Assistantból továbbított érzékelőknek
+maradnak szabadon. Mivel a GPIO43/44 az érzékelőké, a gyári firmware a soros naplót
+nem ezekre a lábakra küldi (`logger_uart: UART1`); a napló a hálózaton elérhető.
 
 **A szintillesztős VEML7700-típusú modulok** az SDA-t és az SCL-t a saját
 VIN-jükre húzzák fel (10 kΩ a modulon). Az ESP32-S3 lábai legfeljebb 3,3 V-ot
@@ -370,7 +335,11 @@ off.
 The firmware has three inputs: **presence** (`ks_presence`, on/off),
 **distance** (`ks_distance`, cm) and **illuminance** (`ks_illuminance`, lx). It
 does not depend on the sensor type: wire any sensor ESPHome supports to a free
-pin and pass its value to the input in your device config:
+pin and pass its value to the input in your device config. The built-in LD2410C
+and VEML7700 (see below) use these same pins, so for other sensors build your
+config from the knob's parts without the built-in sensors
+(`hardware/board.yaml`, `inputs/encoder-button.yaml`, `kis-segito-core.yaml`, see
+the top of `kis-segito.yaml`):
 
 ```yaml
 binary_sensor:
@@ -395,7 +364,8 @@ sensor:
 
 The free pins of the VIEWE MD80E knob and its debug board are in
 [hardware.md](hardware.md#free-pins). GPIO43/44 are free for
-sensors only with `logger_uart: UART1` in the substitutions.
+sensors only with `logger_uart: UART1` in the substitutions (the default with
+the built-in sensors).
 
 #### LD2410C radar + VEML7700 light sensor (tested)
 
@@ -410,52 +380,14 @@ Wiring on the MD80E debug board:
 | VEML7700 SCL | RX1 | GPIO44 |
 | VEML7700 VIN / GND | see below | – |
 
-```yaml
-substitutions:
-  logger_uart: UART1   # frees GPIO43/44 (TX1/RX1); the log stays on the network
-
-uart:
-  id: radar_uart
-  rx_pin: GPIO15
-  tx_pin: GPIO16
-  baud_rate: 256000
-  parity: NONE
-  stop_bits: 1
-
-ld2410:
-  uart_id: radar_uart
-
-i2c:
-  sda: GPIO43
-  scl: GPIO44
-  frequency: 100kHz
-
-binary_sensor:
-  - platform: ld2410
-    has_target:
-      name: Radar presence
-      on_state:
-        - binary_sensor.template.publish:
-            id: ks_presence
-            state: !lambda return x;
-
-sensor:
-  - platform: ld2410
-    detection_distance:
-      name: Radar distance
-      on_value:
-        - sensor.template.publish:
-            id: ks_distance
-            state: !lambda return x;
-  - platform: veml7700
-    update_interval: 10s
-    ambient_light:
-      name: Room light
-      on_value:
-        - sensor.template.publish:
-            id: ks_illuminance
-            state: !lambda return x;
-```
+The standard Little Helper firmware (the releases and the `kis-segito.yaml`
+package) has these two sensors built in: wired to the pins above, the knob finds
+them at start and uses them, without any YAML. Their values show in the knob's
+**Presence**, **Distance** and **Illuminance** entities. Without the sensors the
+knob works the same, and these inputs stay free for sensors forwarded by Home
+Assistant. As GPIO43/44 belong to the sensors, the standard firmware does not send
+the serial log to these pins (`logger_uart: UART1`); the log is available over the
+network.
 
 **VEML7700-type breakouts with a level shifter** pull SDA and SCL up to their
 VIN (10 kΩ on the module). The ESP32-S3 pins take at most 3.3 V. Two tested

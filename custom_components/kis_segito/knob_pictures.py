@@ -144,11 +144,12 @@ def theme_keys(
     return content + keys
 
 
-def knob_themes(manager: Any, device_id: str) -> list[str]:
-    """The themes a knob shows: the common one and its children's own."""
+def knob_themes(manager: Any, device_id: str, common: str | None = None) -> list[str]:
+    """The themes a knob shows: the common one and its children's own.
+    ``common``: another common theme, to see what a change would need."""
     themes = []
     on_knob = manager.device_children(device_id)
-    common = manager.theme["id"]
+    common = manager.theme["id"] if common is None else common
     if common and common != "kis_segito":
         themes.append(common)
     for child in manager.children(active_only=True):
@@ -170,26 +171,41 @@ def knob_store(
 
     ``store_bytes``: the size the knob reports (its firmware also keeps the
     pictures compressed then); without it, an older knob with a 4 MB store
-    of unpacked pictures."""
+    of unpacked pictures. ``fits_with`` tells for every other theme whether
+    everything would still fit with it as the common theme."""
     packed = store_bytes is not None
     size = store_bytes or STORE_BYTES
     used = used_icons(manager)
-    themes = knob_themes(manager, device_id)
-    per_theme = {
-        t: sum(b for _k, b in theme_keys(t, used, language, packed)) for t in themes
-    }
+    per_theme: dict[str, int] = {}
+
+    def theme_bytes(theme: str) -> int:
+        if theme not in per_theme:
+            per_theme[theme] = sum(b for _k, b in theme_keys(theme, used, language, packed))
+        return per_theme[theme]
+
     children = manager.device_children(device_id)
     ratio = PACK_RATIO if packed else 1
     fixed = _blocks(int(SCREEN_BYTES * ratio))  # the background
     fixed += len(children) * _blocks(int(AVATAR_BYTES * ratio))
-    need = fixed + sum(per_theme.values())
+
+    def need(themes: list[str]) -> int:
+        return fixed + sum(theme_bytes(t) for t in themes)
+
+    themes = knob_themes(manager, device_id)
+    total = need(themes)
+    fits_with = {
+        theme: need(knob_themes(manager, device_id, theme)) <= size
+        for theme in load_themes()
+        if theme != manager.theme["id"]
+    }
     return {
         "themes": themes,
-        "theme_kb": {t: b // 1024 for t, b in per_theme.items()},
-        "need_kb": need // 1024,
+        "theme_kb": {t: theme_bytes(t) // 1024 for t in themes},
+        "need_kb": total // 1024,
         "size_kb": size // 1024,
         "packed": packed,
-        "fits": need <= size,
+        "fits": total <= size,
+        "fits_with": fits_with,
     }
 
 
@@ -198,7 +214,7 @@ async def async_prime(hass: HomeAssistant, manager: Any) -> None:
     worked out without file access later."""
 
     def prime() -> None:
-        for theme in {manager.theme["id"], *(c.get("theme") or "" for c in manager.children())}:
+        for theme in load_themes():
             folder = theme_folder(theme) if theme else None
             if folder is not None:
                 _files(str(folder / "knob"))

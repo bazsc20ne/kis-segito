@@ -201,15 +201,20 @@ http_request:
   follow_redirects: true
   redirect_limit: 5
   timeout: 20s
+  # GitHub's second redirect carries a signed address of about 1 kB, in its
+  # Location header and then in the request line: the default 512-byte
+  # buffers cannot hold it.
+  buffer_size_rx: 2048
+  buffer_size_tx: 2048
 
 update:
-  # "Kis Segítő firmware" in Home Assistant: the newest Kis Segítő release,
+  # "Release firmware" in Home Assistant: the newest Kis Segítő release,
   # built and tested with its ESPHome version, installed with one click (the
   # file's checksum is checked first; a failed download changes nothing). An
   # own build with other YAML parts removes it:  update: - id: !remove release_update
   - platform: http_request
     id: release_update
-    name: Kis Segítő firmware
+    name: Release firmware
     source: https://github.com/bazsc20ne/kis-segito/releases/latest/download/manifest.json
     update_interval: 6h
 
@@ -988,6 +993,15 @@ light:
 # dimming, drawing off (black content, LVGL paused) and backlight off, each
 # after its own idle time. Any knob input wakes everything (wake_screen).
 interval:
+  # After a failed check of the newest release, try again every 15 minutes
+  # (otherwise the next check is 6 hours later).
+  - interval: 15min
+    then:
+      - if:
+          condition:
+            lambda: return id(release_update).status_has_error();
+          then:
+            - component.update: release_update
   - interval: 1s
     then:
       - lambda: |-

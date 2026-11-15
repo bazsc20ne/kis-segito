@@ -748,13 +748,16 @@ class KisSegitoPanel extends HTMLElement {
       : `<div class="warnbox">${this._e(this._t("store.full").replace("{themes}", this._themeNames(st.themes)))} ${this._e(usage)}${this._help("help.store", this._t("store.title"))}</div>`;
   }
 
-  // The knob's firmware (from its "Kis Segítő firmware" update entity) and
+  // The knob's firmware (from its device entry and "Release firmware" update entity) and
   // the newest release, which opens Home Assistant's update dialog.
   _firmwareNote(d) {
     const fw = d.firmware;
-    if (!fw?.installed) return "";
-    const newer = fw.latest && fw.latest !== fw.installed;
-    return `<div class="row wrap small" style="gap:6px"><span class="muted">${this._e(this._t("firmware.installed").replace("{v}", fw.installed))}</span>${newer ? `<button class="btn sm primary" data-act="firmware-open" data-arg="${this._e(fw.entity_id)}">${this._e(this._t("firmware.update").replace("{v}", fw.latest))}</button>` : ""}${this._help("help.firmware", this._t("firmware.title"))}</div>`;
+    if (!fw?.version) return "";
+    // The update button only from the release update entity; the help about
+    // the ESPHome Builder only for a knob without it (an own build).
+    const newer = fw.entity_id && fw.latest && fw.installed && fw.latest !== fw.installed;
+    const help = fw.entity_id ? "help.firmware" : "help.firmware_own";
+    return `<div class="row wrap small" style="gap:6px"><span class="muted">${this._e(this._t("firmware.installed").replace("{v}", fw.version))}</span>${newer ? `<button class="btn sm primary" data-act="firmware-open" data-arg="${this._e(fw.entity_id)}">${this._e(this._t("firmware.update").replace("{v}", fw.latest))}</button>` : ""}${this._help(help, this._t("firmware.title"))}</div>`;
   }
 
   _childStoreNote(c) {
@@ -3725,11 +3728,22 @@ ${tab === "data" ? `
         setTimeout(() => URL.revokeObjectURL(url), 10000);
         return;
       }
-      case "theme-set":
-        await this._ws({ type: "kis_segito/settings/update", theme: arg });
-        this._toast(this._t("theme.changed"));
-        await this._load();
+      case "theme-set": {
+        const apply = async () => {
+          await this._ws({ type: "kis_segito/settings/update", theme: arg });
+          this._toast(this._t("theme.changed"));
+          await this._load();
+        };
+        // Said before the change: a knob whose store cannot hold every
+        // picture with the new theme.
+        const full = (this._data.devices || []).filter((d) => !d.virtual && d.store?.fits_with?.[arg] === false);
+        if (full.length) {
+          this._confirm(this._t("store.title"), this._t("store.theme_full").replace("{knobs}", full.map((d) => d.name).join(", ")), apply);
+          return;
+        }
+        await apply();
         return;
+      }
       case "bg-set":
         await this._ws({ type: "kis_segito/settings/update", background: arg });
         this._toast(this._t("toast.bg"));

@@ -1,0 +1,62 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# The sensors from docs/sensors.md, on the MD80E debug board: an LD2410C radar
+# (presence and distance) on GPIO15/16 and a VEML7700 light sensor on
+# GPIO43/44. A knob without them works as before: the light sensor is not
+# found at start, the radar sends nothing, and the presence, distance and
+# illuminance inputs stay free for sensors forwarded by Home Assistant.
+#
+# GPIO43/44 carry the serial log (UART0) otherwise, so the log goes to UART1
+# here, which has no pins: it stays available over the network.
+
+substitutions:
+  logger_uart: UART1
+
+uart:
+  id: radar_uart
+  rx_pin: GPIO15
+  tx_pin: GPIO16
+  baud_rate: 256000
+  parity: NONE
+  stop_bits: 1
+
+ld2410:
+  id: radar
+  uart_id: radar_uart
+
+i2c:
+  id: sensor_bus
+  sda: GPIO43
+  scl: GPIO44
+  frequency: 100kHz
+  scan: false
+
+binary_sensor:
+  - platform: ld2410
+    has_target:
+      id: radar_presence
+      on_state:
+        - binary_sensor.template.publish:
+            id: ks_presence
+            state: !lambda return x;
+
+sensor:
+  - platform: ld2410
+    detection_distance:
+      id: radar_distance
+      on_value:
+        - sensor.template.publish:
+            id: ks_distance
+            state: !lambda return x;
+  - platform: veml7700
+    id: room_light
+    i2c_id: sensor_bus
+    update_interval: 10s
+    ambient_light:
+      id: room_light_lux
+      name: Room light
+      internal: true  # shown as the knob's Illuminance
+      on_value:
+        - sensor.template.publish:
+            id: ks_illuminance
+            state: !lambda return x;

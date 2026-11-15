@@ -31,6 +31,11 @@
 # with a push button (inputs/encoder-button.yaml). For another knob, see
 # docs/boards.md.
 #
+# The LD2410C radar and VEML7700 light sensor from docs/sensors.md are built in
+# (hardware/sensors.yaml) and used when they are connected. For other sensors
+# or other pins, build from the parts directly: board, input and core as below,
+# without hardware/sensors.yaml, and your own sensors (docs/sensors.md).
+#
 # Note: the knob button is on GPIO0, a strapping pin. Holding it down while the
 # knob powers up or restarts puts the ESP32-S3 into download (flashing) mode.
 
@@ -38,3 +43,4 @@ packages:
   board: !include hardware/board.yaml
   input: !include inputs/encoder-button.yaml
   core: !include kis-segito-core.yaml
+  sensors: !include hardware/sensors.yaml
