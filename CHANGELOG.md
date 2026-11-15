@@ -12,6 +12,73 @@ All notable changes to this project are documented here, in Hungarian and Englis
 The format follows [Keep a Changelog](https://keepachangelog.com/) and the project
 uses [Semantic Versioning](https://semver.org/).
 
+## [0.9.14] - 2026-11-15
+
+### Magyar
+
+- **Firmware-frissítés a kiadásokból:** a gomb most már valóban letölti a
+  legújabb kiadás adatait (a GitHub hosszú átirányítása eddig nem fért el a
+  gomb HTTP-pufferében). Ha egy ellenőrzés nem sikerül, a gomb 15 percenként
+  újra próbálja, nem csak 6 óránként. A frissítés-entitás neve **Release
+  firmware** lett, így nem ismétli az eszköz nevét; a régi, „Kis Segítő
+  firmware” nevű entitás elérhetetlenként megmaradhat, nyugodtan törölhető.
+- **Firmware-verzió a panelen:** a Beállítások → Gombok oldal a gomb saját Kis
+  Segítő-verzióját mutatja (pl. „Firmware: v0.9.14”), nem az ESPHome
+  verzióját. A frissítés gomb csak a Release firmware entitásból jön; az
+  ESPHome Builderre vonatkozó tudnivaló csak saját buildnél jelenik meg.
+- **Nagyobb képtár:** az USB-ről (gyári firmware-rel) telepített gombokon a
+  képtár 8 MB. A hálózati frissítés nem változtat a méreten, a korábban
+  telepített gombok 4 MB-osak maradnak. A gomb **Picture store** szenzora
+  mutatja a méretet.
+- **Tömörített képek:** a gomb tömörítve kéri és tárolja a képeket, így egy téma
+  kb. 0,8–1,2 MB-ot foglal 2,5–3,3 MB helyett. A panel foglaltság-becslése és
+  figyelmeztetése a gomb valódi tárméretével és a tömörített mérettel számol.
+- **A tár megtartja, ami kell:** ha a képtár megtelik, a gomb a hátteret, a
+  gyerekek avatarjait és fényképeit, valamint a gyerekek saját témáit
+  megtartja, és a többi képből annyit tárol, amennyi elfér. Így újraindulás
+  után ezeket nem tölti le újra. A panel már a témaváltás előtt szól, ha az új
+  témával nem fér el minden kép.
+- **Beépített érzékelők:** a dokumentációban leírt LD2410C radar és VEML7700
+  fényérzékelő a gyári firmware-ben is benne van; ha a leírt lábakra kötöd
+  őket, a gomb induláskor felismeri és használja őket, így ezek a gombok is a
+  kiadásokból frissülhetnek. Érzékelők nélkül semmi sem változik. A soros
+  napló ezért alapból nem a GPIO43/44-re megy (a hálózaton továbbra is
+  látható). Ha eddig saját YAML-ban adtad hozzá ezt a két érzékelőt, töröld
+  onnan a `uart`, `ld2410`, `i2c` és az érzékelő-részeket.
+
+### English
+
+- **Firmware update from the releases:** the knob now really fetches the
+  newest release (GitHub's long redirect did not fit the knob's HTTP buffer
+  before). When a check fails, the knob tries again every 15 minutes, not only
+  every 6 hours. The update entity is now called **Release firmware**, so it
+  does not repeat the device name; the old "Kis Segítő firmware" entity may
+  stay as unavailable and can be deleted.
+- **Firmware version in the panel:** Settings → Knobs shows the knob's own
+  Little Helper version (e.g. "Firmware: v0.9.14"), not the ESPHome version.
+  The update button comes only from the Release firmware entity; the note
+  about the ESPHome Builder shows only for an own build.
+- **Bigger picture store:** knobs installed over USB (factory firmware) get an
+  8 MB picture store. An update over the network keeps the size, so knobs
+  installed earlier stay at 4 MB. The knob's **Picture store** sensor shows
+  the size.
+- **Compressed pictures:** the knob asks for and stores the pictures
+  compressed, so a theme takes about 0.8–1.2 MB instead of 2.5–3.3 MB. The
+  panel's store estimate and warning use the knob's real store size and the
+  compressed sizes.
+- **The store keeps what is needed:** when the picture store is full, the
+  knob keeps the background, the children's avatars and photos and the
+  children's own themes, and stores as many of the other pictures as fit, so
+  it does not download those again after a restart. The panel says before a
+  theme change when not every picture will fit with the new theme.
+- **Built-in sensors:** the LD2410C radar and VEML7700 light sensor from the
+  documentation are in the standard firmware; wired to the documented pins,
+  the knob finds them at start and uses them, so these knobs can update from
+  the releases too. Without the sensors nothing changes. The serial log
+  therefore no longer goes to GPIO43/44 by default (it stays visible over the
+  network). If you added these two sensors in your own YAML, remove the
+  `uart`, `ld2410`, `i2c` and sensor parts from it.
+
 ## [0.9.13] - 2026-11-15
 
 ### Magyar
