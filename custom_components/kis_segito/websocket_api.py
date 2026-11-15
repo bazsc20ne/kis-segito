@@ -307,6 +307,7 @@ def _own_entity(hass: HomeAssistant, device_id: str, key: str) -> str | None:
 
 
 RELEASE_UPDATE_NAMES = ("release firmware", "kis segítő firmware")
+READY_NAME = "ready for release updates"
 
 
 def _firmware(hass: HomeAssistant, device_id: str) -> dict[str, Any] | None:
@@ -317,9 +318,27 @@ def _firmware(hass: HomeAssistant, device_id: str) -> dict[str, Any] | None:
     # ESPHome reports "0.9.14 (ESPHome 2026.10.2)" for a project firmware.
     sw_version = (device.sw_version or "") if device else ""
     version = sw_version.split(" (")[0].strip() if " (ESPHome" in sw_version else None
-    result: dict[str, Any] = {"version": version}
-    for entry in er.async_entries_for_device(er.async_get(hass), device_id):
-        if entry.domain != "update" or (entry.original_name or "").lower() not in RELEASE_UPDATE_NAMES:
+    result: dict[str, Any] = {"version": version, "ready": None}
+    for entry in er.async_entries_for_device(er.async_get(hass), device_id, include_disabled_entities=True):
+        if entry.domain == "binary_sensor" and (entry.original_name or "").lower() == READY_NAME:
+            # Whether the knob has saved what a release firmware needs
+            # (firmware 0.9.17 and newer): True / False, or "disabled" when
+            # the sensor is turned off in Home Assistant and "unknown" when it
+            # has no state (the knob is offline); None without the sensor.
+            ready = hass.states.get(entry.entity_id)
+            if entry.disabled_by is not None:
+                result["ready"] = "disabled"
+            elif ready is not None and ready.state in ("on", "off"):
+                result["ready"] = ready.state == "on"
+            else:
+                result["ready"] = "unknown"
+            result["ready_entity_id"] = entry.entity_id
+            continue
+        if (
+            entry.domain != "update"
+            or entry.disabled_by is not None
+            or (entry.original_name or "").lower() not in RELEASE_UPDATE_NAMES
+        ):
             continue
         state = hass.states.get(entry.entity_id)
         if state is None:
@@ -330,7 +349,6 @@ def _firmware(hass: HomeAssistant, device_id: str) -> dict[str, Any] | None:
             "latest": state.attributes.get("latest_version"),
         }
         result["version"] = result["version"] or result["installed"]
-        break
     return result if result.get("version") or result.get("entity_id") else None
 
 

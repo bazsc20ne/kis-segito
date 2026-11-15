@@ -10,7 +10,7 @@
 
 // Must equal the integration version (scripts/check_versions.py checks it):
 // a browser that still runs an older copy of this file shows a reload bar.
-const PANEL_VERSION = "0.9.16";
+const PANEL_VERSION = "0.9.17";
 const FALLBACK_LANGUAGE = "en";
 const LANGUAGE_AUTO = "auto";
 const TABS = ["today", "calendar", "children", "routines", "rewards", "tokens", "history", "notifications", "settings"];
@@ -757,7 +757,8 @@ class KisSegitoPanel extends HTMLElement {
     // the ESPHome Builder only for a knob without it (an own build).
     const newer = fw.entity_id && fw.latest && fw.installed && fw.latest !== fw.installed;
     const help = fw.entity_id ? "help.firmware" : "help.firmware_own";
-    return `<div class="row wrap small" style="gap:6px"><span class="muted">${this._e(this._t("firmware.installed").replace("{v}", fw.version))}</span>${newer ? `<button class="btn sm primary" data-act="firmware-open" data-arg="${this._e(fw.entity_id)}">${this._e(this._t("firmware.update").replace("{v}", fw.latest))}</button>` : ""}${this._help(help, this._t("firmware.title"))}</div>`;
+    const notReady = fw.ready === false ? `<span class="tag">${this._e(this._t("firmware.not_ready_tag"))}</span>` : fw.ready === "disabled" || fw.ready === "unknown" ? `<span class="tag">${this._e(this._t("firmware.ready_unknown_tag"))}</span>` : "";
+    return `<div class="row wrap small" style="gap:6px"><span class="muted">${this._e(this._t("firmware.installed").replace("{v}", fw.version))}</span>${notReady}${newer ? `<button class="btn sm primary" data-act="firmware-open" data-arg="${this._e(fw.entity_id)}">${this._e(this._t("firmware.update").replace("{v}", fw.latest))}</button>` : ""}${this._help(help, this._t("firmware.title"))}</div>`;
   }
 
   _childStoreNote(c) {
@@ -3311,9 +3312,21 @@ ${tab === "data" ? `
       case "set":
         this._set(path, el.dataset.v);
         break;
-      case "firmware-open":
-        this.dispatchEvent(new CustomEvent("hass-more-info", { detail: { entityId: arg }, bubbles: true, composed: true }));
+      case "firmware-open": {
+        const open = () => this.dispatchEvent(new CustomEvent("hass-more-info", { detail: { entityId: arg }, bubbles: true, composed: true }));
+        // A knob that has not saved its Wi-Fi and key would lose them.
+        // When the knob's sensor is turned off or has no state, that cannot
+        // be checked: said too.
+        const knob = (this._data.devices || []).find((d) => d.firmware?.entity_id === arg);
+        const ready = knob?.firmware?.ready;
+        const warning = ready === false ? "firmware.not_ready" : ready === "disabled" ? "firmware.ready_disabled" : ready === "unknown" ? "firmware.ready_unknown" : "";
+        if (warning) {
+          this._confirm(this._t("firmware.title"), this._t(warning), open, { danger: true });
+          return;
+        }
+        open();
         return;
+      }
       case "assist-add":
         await this._saveAssistSpeakers([...(this._data.settings.assist_speakers || []), { children: [] }]);
         return;

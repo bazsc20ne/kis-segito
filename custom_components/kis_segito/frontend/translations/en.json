@@ -656,6 +656,11 @@
   "firmware.title": "The knob's firmware",
   "firmware.installed": "Firmware: v{v}",
   "firmware.update": "Update: v{v}",
-  "help.firmware": "The knob is updated from the Little Helper releases: the “Release firmware” update entity of the knob's device shows the new version and installs the firmware built and tested for that release with one click.",
+  "firmware.not_ready_tag": "Not ready for release updates",
+  "firmware.not_ready": "This knob has not saved its Wi-Fi network and API key yet (its “Ready for release updates” sensor is off). The release firmware has neither built in, so after the update the knob could not reconnect. Install your own config from the ESPHome Builder first and wait until the sensor turns on. Update anyway?",
+  "firmware.ready_unknown_tag": "Release update: cannot be checked",
+  "firmware.ready_disabled": "The knob's “Ready for release updates” sensor is turned off in Home Assistant, so it does not show whether the knob has saved its Wi-Fi network and API key. If it has not, the knob could not reconnect after the update. Turn the sensor on (on the knob's device, under Diagnostic) and look at its state. Update anyway?",
+  "firmware.ready_unknown": "It does not show right now whether the knob has saved its Wi-Fi network and API key (its “Ready for release updates” sensor has no state, e.g. because the knob is offline). If it has not, the knob could not reconnect after the update. Update anyway?",
+  "help.firmware": "The knob is updated from the Little Helper releases: the “Release firmware” update entity of the knob's device shows the new version and installs the firmware built and tested for that release with one click.\n\nThe knob's “Ready for release updates” diagnostic sensor shows whether the knob has saved its Wi-Fi network and API key, without which a knob updated from a release could not reconnect. When it is off or not ready, the panel says so before the update.",
   "help.firmware_own": "This knob has no “Release firmware” update entity (an own build), so it is not updated from the releases: update it from your own config in the ESPHome Builder."
 }

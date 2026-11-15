@@ -656,6 +656,11 @@
   "firmware.title": "A gomb firmware-e",
   "firmware.installed": "Firmware: v{v}",
   "firmware.update": "Frissítés: v{v}",
-  "help.firmware": "A gomb a Kis Segítő kiadásaiból frissül: a gomb eszközén a „Release firmware” frissítés-entitás mutatja az új verziót, és egy kattintással telepíti a kiadáshoz lefordított és tesztelt firmware-t.",
+  "firmware.not_ready_tag": "Kiadási frissítésre nem kész",
+  "firmware.not_ready": "Ez a gomb még nem mentette el a WiFi-hálózatát és az API-kulcsát (a „Ready for release updates” szenzora ki van kapcsolva). A kiadás firmware-ében ezek nincsenek benne, ezért frissítés után a gomb nem tudna visszacsatlakozni. Előbb telepítsd a saját konfigodat az ESPHome Builderből, és várd meg, amíg a szenzor bekapcsol. Mégis frissítesz?",
+  "firmware.ready_unknown_tag": "Kiadási frissítés: nem ellenőrizhető",
+  "firmware.ready_disabled": "A gomb „Ready for release updates” szenzora ki van kapcsolva a Home Assistantben, ezért nem látszik, hogy a gomb elmentette-e a WiFi-hálózatát és az API-kulcsát. Ha nem, a frissítés után nem tudna visszacsatlakozni. Kapcsold be a szenzort (a gomb eszközén, a Diagnosztika résznél), és nézd meg az állapotát. Mégis frissítesz?",
+  "firmware.ready_unknown": "Most nem látszik, hogy a gomb elmentette-e a WiFi-hálózatát és az API-kulcsát (a „Ready for release updates” szenzorának nincs állapota, például mert a gomb nem elérhető). Ha nem, a frissítés után nem tudna visszacsatlakozni. Mégis frissítesz?",
+  "help.firmware": "A gomb a Kis Segítő kiadásaiból frissül: a gomb eszközén a „Release firmware” frissítés-entitás mutatja az új verziót, és egy kattintással telepíti a kiadáshoz lefordított és tesztelt firmware-t.\n\nA gomb „Ready for release updates” diagnosztikai szenzora mutatja, hogy a gomb elmentette-e a WiFi-hálózatát és az API-kulcsát, amelyek nélkül a kiadásból frissített gomb nem tudna visszacsatlakozni. Ha nincs bekapcsolva vagy nem kész, a panel frissítés előtt szól.",
   "help.firmware_own": "Ennek a gombnak nincs „Release firmware” frissítés-entitása (saját build), ezért nem a kiadásokból frissül: a saját konfigodból, az ESPHome Builderben frissítsd."
 }

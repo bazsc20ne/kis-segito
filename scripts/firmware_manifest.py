@@ -17,13 +17,14 @@ from pathlib import Path
 
 REPO = "https://github.com/bazsc20ne/kis-segito"
 ROOT = Path(__file__).resolve().parent.parent
-# Home Assistant shows at most 255 characters of an update's summary.
-SUMMARY_MAX = 255
+# The notes Home Assistant's update dialog shows (Markdown); kept short.
+SUMMARY_MAX = 1500
 
 
 def summary(tag: str) -> str:
-    """The bold titles of the version's changes, Hungarian line first, then
-    English, for Home Assistant's update dialog."""
+    """Release notes for Home Assistant's update dialog, in Markdown: the
+    version, then the Hungarian and the English list, one short sentence per
+    change (the bold first sentence of each change in CHANGELOG.md)."""
     version = tag.removeprefix("v")
     changelog = (ROOT / "CHANGELOG.md").read_text("utf-8")
     section = re.search(
@@ -31,17 +32,17 @@ def summary(tag: str) -> str:
     )
     if not section:
         return ""
-    lines = []
+    parts = [f"**Kis Segítő – Little Helper {version}**"]
     for language in ("Magyar", "English"):
         part = re.search(
             rf"^### {language}\s*$(.*?)(?=^### |\Z)", section.group(1), re.MULTILINE | re.DOTALL
         )
         if not part:
             continue
-        titles = [t.rstrip(":").strip() for t in re.findall(r"^- \*\*(.+?)\*\*", part.group(1), re.MULTILINE)]
+        titles = [t.strip() for t in re.findall(r"^- \*\*(.+?)\*\*", part.group(1), re.MULTILINE)]
         if titles:
-            lines.append("; ".join(titles) + ".")
-    text = "\n".join(lines)
+            parts.append(f"**{language}**\n\n" + "\n".join(f"- {t}" for t in titles))
+    text = "\n\n".join(parts)
     return text if len(text) <= SUMMARY_MAX else text[: SUMMARY_MAX - 1].rstrip() + "…"
 
 

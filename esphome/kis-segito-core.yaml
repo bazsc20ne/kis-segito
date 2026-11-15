@@ -7,8 +7,8 @@
 # board profile (see docs/boards.md):
 #
 #   packages:
-#     kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito-core.yaml@v0.9.16
-#     input: github://bazsc20ne/kis-segito/esphome/inputs/encoder-button.yaml@v0.9.16
+#     kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito-core.yaml@v0.9.17
+#     input: github://bazsc20ne/kis-segito/esphome/inputs/encoder-button.yaml@v0.9.17
 #     board: !include my-board.yaml
 #
 # The board profile provides knob_display (the round display), backlight (a
@@ -26,8 +26,8 @@ substitutions:
   friendly_name: Kis Segítő
   # Where the UI component and its images come from. They must match the
   # version of this package; CI and local builds point them at the repository.
-  kis_segito_components: github://bazsc20ne/kis-segito@v0.9.16
-  kis_segito_assets: https://raw.githubusercontent.com/bazsc20ne/kis-segito/v0.9.16/assets/device
+  kis_segito_components: github://bazsc20ne/kis-segito@v0.9.17
+  kis_segito_assets: https://raw.githubusercontent.com/bazsc20ne/kis-segito/v0.9.17/assets/device
   # Width and height of the round display in pixels: 240, 360, 466 or 480.
   # The screen is laid out for 480 px and scaled to it. Set by the board
   # profile.
@@ -49,7 +49,7 @@ esphome:
   name_add_mac_suffix: false
   project:
     name: bazsc20ne.kis-segito
-    version: "0.9.16"
+    version: "0.9.17"
   on_boot:
     # Before Wi-Fi starts: the fallback access point gets a password of its
     # own, made once on this knob and kept, unless the device config sets one.
@@ -259,6 +259,7 @@ wifi:
     # the knob, where a firmware from the releases (which has neither built
     # in) finds them, so the knob stays connected after such an update.
     - lambda: |-
+        bool ready = true;
         const auto sta = wifi::global_wifi_component->get_sta();
         if (!sta.get_ssid().empty()) {
           wifi::SavedWifiSettings want{};
@@ -269,8 +270,7 @@ wifi:
           auto pref = global_preferences->make_preference<wifi::SavedWifiSettings>(88491487UL, true);
           wifi::SavedWifiSettings have{};
           if (!pref.load(&have) || memcmp(&have, &want, sizeof(want)) != 0) {
-            pref.save(&want);
-            global_preferences->sync();
+            ready = pref.save(&want) && global_preferences->sync();
             ESP_LOGI("kis_segito", "Wi-Fi network kept for release updates");
           }
         }
@@ -281,11 +281,11 @@ wifi:
         auto key_pref = global_preferences->make_preference<api::SavedNoisePsk>(88491486UL, true);
         api::SavedNoisePsk saved_key{};
         if (!key_pref.load(&saved_key) || saved_key.psk != key.psk) {
-          key_pref.save(&key);
-          global_preferences->sync();
+          ready = key_pref.save(&key) && global_preferences->sync() && ready;
           ESP_LOGI("kis_segito", "API key kept for release updates");
         }
         #endif
+        id(ks_release_ready).publish_state(ready);
   # The idle roam check below replaces ESPHome's own, which only looks in the
   # first minutes after connecting.
   post_connect_roaming: false
@@ -895,6 +895,13 @@ binary_sensor:
     id: ks_screensaver
     name: Screensaver
     icon: mdi:sleep
+  # On once the knob has saved what a firmware from the releases needs to stay
+  # connected (its Wi-Fi network and API key), or runs such a firmware.
+  - platform: template
+    id: ks_release_ready
+    name: Ready for release updates
+    icon: mdi:package-check
+    entity_category: diagnostic
 
 switch:
   # Idle Wi-Fi roam check (see the interval at the end): on by default.

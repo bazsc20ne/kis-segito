@@ -207,3 +207,46 @@ async def test_sensor_settings_and_inputs(hass: HomeAssistant, hass_ws_client) -
     devices = (await call(type=f"{DOMAIN}/data"))["result"]["devices"]
     assert devices[0]["inputs"] == {"presence": "binary_sensor.hall_motion"}
     assert devices[0]["illuminance_entity"] == lux.entity_id
+
+
+async def test_firmware_version_and_release_readiness(hass: HomeAssistant) -> None:
+    """The knob's own version (not ESPHome's), and whether it can take a
+    release update: on, off, a sensor turned off, or no state."""
+    from custom_components.kis_segito.websocket_api import _firmware
+
+    esphome_entry = MockConfigEntry(domain="esphome", data={"host": "192.0.2.1", "device_name": "test-knob"})
+    esphome_entry.add_to_hass(hass)
+    device = dr.async_get(hass).async_get_or_create(
+        config_entry_id=esphome_entry.entry_id,
+        connections={(dr.CONNECTION_NETWORK_MAC, "00:00:00:00:00:09")},
+        name="Knob",
+        sw_version="0.9.17 (ESPHome 2026.10.2)",
+    )
+    registry = er.async_get(hass)
+    builder = registry.async_get_or_create(
+        "update", "esphome", "knob-builder", device_id=device.id, config_entry=esphome_entry, original_name="Firmware"
+    )
+    hass.states.async_set(builder.entity_id, "off", {"installed_version": "2026.10.2"})
+    release = registry.async_get_or_create(
+        "update", "esphome", "knob-release", device_id=device.id, config_entry=esphome_entry, original_name="Release firmware"
+    )
+    hass.states.async_set(release.entity_id, "on", {"installed_version": "0.9.17", "latest_version": "0.9.18"})
+    assert _firmware(hass, device.id)["ready"] is None  # no sensor: an older firmware
+    ready = registry.async_get_or_create(
+        "binary_sensor",
+        "esphome",
+        "knob-ready",
+        device_id=device.id,
+        config_entry=esphome_entry,
+        original_name="Ready for release updates",
+    )
+    fw = _firmware(hass, device.id)
+    assert fw["version"] == "0.9.17" and fw["latest"] == "0.9.18"
+    assert fw["entity_id"] == release.entity_id
+    assert fw["ready"] == "unknown"
+    hass.states.async_set(ready.entity_id, "on")
+    assert _firmware(hass, device.id)["ready"] is True
+    hass.states.async_set(ready.entity_id, "off")
+    assert _firmware(hass, device.id)["ready"] is False
+    registry.async_update_entity(ready.entity_id, disabled_by=er.RegistryEntryDisabler.USER)
+    assert _firmware(hass, device.id)["ready"] == "disabled"

@@ -12,6 +12,31 @@ All notable changes to this project are documented here, in Hungarian and Englis
 The format follows [Keep a Changelog](https://keepachangelog.com/) and the project
 uses [Semantic Versioning](https://semver.org/).
 
+## [0.9.17] - 2026-11-15
+
+### Magyar
+
+- **A gomb mutatja, hogy kész-e a kiadási frissítésre.** Az új „Ready for release
+  updates” diagnosztikai szenzor akkor kapcsol be, ha a gomb elmentette a WiFi-hálózatát
+  és az API-kulcsát, így ez kábel nélkül, a Home Assistantben is ellenőrizhető.
+- **A panel frissítés előtt figyelmeztet, ha a gomb nem kész.** Ha a szenzor ki van
+  kapcsolva, le van tiltva a Home Assistantben, vagy nincs állapota, a „Frissítés”
+  gomb előbb elmondja, mi a gond, és csak megerősítés után nyitja meg a frissítést.
+- **A frissítési ablak rendezett kiadási jegyzetet mutat.** A Home Assistant
+  frissítési ablakában a verzió alatt magyar és angol lista áll, változásonként egy
+  rövid mondattal.
+
+### English
+
+- **The knob shows whether it is ready for release updates.** The new “Ready for
+  release updates” diagnostic sensor turns on once the knob has saved its Wi-Fi network
+  and API key, so this can be checked in Home Assistant, without a cable.
+- **The panel warns before an update when the knob is not ready.** When the sensor is
+  off, disabled in Home Assistant or has no state, the “Update” button first says what
+  is wrong and opens the update only after a confirmation.
+- **The update dialog shows tidy release notes.** Home Assistant's update dialog lists
+  the changes below the version in Hungarian and English, one short sentence each.
+
 ## [0.9.16] - 2026-11-15
 
 ### Magyar
