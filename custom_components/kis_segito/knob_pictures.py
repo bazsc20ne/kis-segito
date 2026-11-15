@@ -1,8 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Which theme pictures a knob needs, and whether they fit its picture store.
 
-A knob keeps the pictures it downloads in a 4 MB flash store, decoded (a
-picture of N×N pixels takes about N×N×3 bytes there, in 4 KB blocks). For
+A knob keeps the pictures it downloads in a flash store (4 MB on knobs
+installed before 0.9.14, 8 MB after a USB install since then), compressed by
+newer firmware (about a third of the N×N×3 bytes of a picture of N×N pixels),
+in 4 KB blocks. For
 each theme it shows (the common one and the children's own themes) it needs:
 
 - the theme's interface pictures (menu, coins, piggy bank, marks …);
@@ -26,8 +28,8 @@ from homeassistant.components.http import HomeAssistantView
 from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN
-from .knob_images import _from_local_network
-from .themes import theme_folder
+from .knob_images import ImageRejected, _from_local_network, convert, pack
+from .themes import load_themes, theme_folder
 
 SET_URL = "/api/kis_segito/knob_theme_set/{theme_id}"
 TOKEN_HEADER = "X-Kis-Segito-Token"
@@ -50,10 +52,27 @@ CONTENT_SIZES = {
 CHECKPOINT_SIZES = (32, 28)
 
 
+def _blocks(nbytes: int) -> int:
+    """Bytes an entry of nbytes takes in the store (with its header)."""
+    return (nbytes + 64 + BLOCK - 1) // BLOCK * BLOCK
+
+
 def _stored(size: int) -> int:
-    """Bytes a size×size picture takes in the store (with its header)."""
-    raw = size * size * 3 + 64
-    return (raw + BLOCK - 1) // BLOCK * BLOCK
+    """Bytes a size×size picture takes in the store, unpacked."""
+    return _blocks(size * size * 3)
+
+
+# Compressed sizes of the theme pictures, worked out once (async_prime);
+# until then a typical ratio is used.
+_PACKED: dict[tuple[str, str, int], int] = {}
+PACK_RATIO = 0.4
+
+
+def _packed_stored(theme_id: str, name: str, size: int) -> int:
+    packed = _PACKED.get((theme_id, name, size))
+    if packed is None:
+        packed = int(size * size * 3 * PACK_RATIO)
+    return _blocks(packed)
 
 
 @lru_cache(maxsize=64)
@@ -88,7 +107,13 @@ def used_icons(manager: Any) -> set[str]:
     return names
 
 
-def theme_keys(theme_id: str, used: set[str], language: str = "hu") -> list[tuple[str, int]]:
+def _size(theme_id: str, name: str, size: int, packed: bool) -> int:
+    return _packed_stored(theme_id, name, size) if packed else _stored(size)
+
+
+def theme_keys(
+    theme_id: str, used: set[str], language: str = "hu", packed: bool = False
+) -> list[tuple[str, int]]:
     """The pictures (``name_size`` keys) a knob needs from a theme, most
     important first, with the bytes each takes in the store. The brand mark
     only in the knob's language (Hungarian, or English for the others)."""
@@ -107,13 +132,13 @@ def theme_keys(theme_id: str, used: set[str], language: str = "hu") -> list[tupl
             continue
         if name.startswith("brand_mark") and (name.startswith("brand_mark_en") != english):
             continue
-        keys.append((f"{name}_{size}", _stored(size)))
+        keys.append((f"{name}_{size}", _size(theme_id, name, size, packed)))
     for name in sorted(used):
         prefix = next((p for p in CONTENT if name.startswith(p)), None)
         sizes = CONTENT_SIZES.get(prefix, CHECKPOINT_SIZES) if prefix else CHECKPOINT_SIZES
         for size in sizes:
             if (name, size) in available:
-                content.append((f"{name}_{size}", _stored(size)))
+                content.append((f"{name}_{size}", _size(theme_id, name, size, packed)))
     # The big task pictures first: they are the ones a child waits for.
     content.sort(key=lambda item: (not item[0].endswith("_150"), item[0]))
     return content + keys
@@ -135,21 +160,36 @@ def knob_themes(manager: Any, device_id: str) -> list[str]:
     return themes
 
 
-def knob_store(manager: Any, device_id: str, language: str = "hu") -> dict[str, Any]:
-    """What a knob's picture store has to hold, and whether it fits."""
+def knob_store(
+    manager: Any,
+    device_id: str,
+    language: str = "hu",
+    store_bytes: int | None = None,
+) -> dict[str, Any]:
+    """What a knob's picture store has to hold, and whether it fits.
+
+    ``store_bytes``: the size the knob reports (its firmware also keeps the
+    pictures compressed then); without it, an older knob with a 4 MB store
+    of unpacked pictures."""
+    packed = store_bytes is not None
+    size = store_bytes or STORE_BYTES
     used = used_icons(manager)
     themes = knob_themes(manager, device_id)
-    per_theme = {t: sum(b for _k, b in theme_keys(t, used, language)) for t in themes}
+    per_theme = {
+        t: sum(b for _k, b in theme_keys(t, used, language, packed)) for t in themes
+    }
     children = manager.device_children(device_id)
-    fixed = (SCREEN_BYTES + 64 + BLOCK - 1) // BLOCK * BLOCK  # the background
-    fixed += len(children) * ((AVATAR_BYTES + 64 + BLOCK - 1) // BLOCK * BLOCK)
+    ratio = PACK_RATIO if packed else 1
+    fixed = _blocks(int(SCREEN_BYTES * ratio))  # the background
+    fixed += len(children) * _blocks(int(AVATAR_BYTES * ratio))
     need = fixed + sum(per_theme.values())
     return {
         "themes": themes,
         "theme_kb": {t: b // 1024 for t, b in per_theme.items()},
         "need_kb": need // 1024,
-        "size_kb": STORE_BYTES // 1024,
-        "fits": need <= STORE_BYTES,
+        "size_kb": size // 1024,
+        "packed": packed,
+        "fits": need <= size,
     }
 
 
@@ -163,7 +203,28 @@ async def async_prime(hass: HomeAssistant, manager: Any) -> None:
             if folder is not None:
                 _files(str(folder / "knob"))
 
+    def measure() -> None:
+        # The compressed size of every picture of every theme (a few seconds,
+        # in the background).
+        for theme in load_themes():
+            folder = theme_folder(theme)
+            if folder is None:
+                continue
+            knob = folder / "knob"
+            for name, size in _files(str(knob)):
+                if (theme, name, size) in _PACKED:
+                    continue
+                try:
+                    raw = convert(knob / f"{name}_{size}.png", size)
+                except (ImageRejected, OSError, ValueError):
+                    continue  # a broken picture is just estimated
+                _PACKED[(theme, name, size)] = len(pack(raw))
+
+    async def measure_all() -> None:
+        await hass.async_add_executor_job(measure)
+
     await hass.async_add_executor_job(prime)
+    hass.async_create_background_task(measure_all(), "kis_segito_measure_pictures")
 
 
 class KnobThemeSetView(HomeAssistantView):

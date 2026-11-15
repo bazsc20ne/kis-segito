@@ -27,7 +27,10 @@ CONF_ACTION_SENSOR = "action_sensor"
 CONF_SCREEN_SIZE = "screen_size"
 SCREEN_SIZES = (240, 360, 466, 480)
 
-CACHE_PARTITION_SIZE = 0x400000  # 4 MB
+# 8 MB for knobs installed over USB (the partition table is written only
+# then); a knob updated over the network keeps the size it was installed with
+# (4 MB before 0.9.14). Leaves two app partitions of about 3.9 MB each.
+CACHE_PARTITION_SIZE = 0x800000
 INV_AREAS = 128
 
 kis_segito_ui_ns = cg.esphome_ns.namespace("kis_segito_ui")
@@ -69,9 +72,9 @@ async def to_code(config):
     # Uploaded pictures are downloaded from Home Assistant over HTTP.
     esp32.include_builtin_idf_component("esp_http_client")
     esp32.include_builtin_idf_component("esp-tls")
-    # Flash cache for the downloaded pictures (see picture_cache.h). A knob
-    # installed with an older version gets it only when flashed over USB, since
-    # an update over the network keeps the partition table.
+    # Flash cache for the downloaded pictures (see picture_cache.h). An update
+    # over the network keeps the partition table, so a knob keeps the cache
+    # size of its last USB install; the firmware works with either.
     esp32.add_partition("ks_cache", "data", 0x40, CACHE_PARTITION_SIZE)
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)

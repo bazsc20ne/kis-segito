@@ -37,6 +37,7 @@ from __future__ import annotations
 import hashlib
 import re
 import struct
+import zlib
 from functools import lru_cache
 from ipaddress import ip_address
 from pathlib import Path
@@ -52,6 +53,8 @@ from .themes import DEFAULT_THEME, theme_folder
 
 URL = "/api/kis_segito/knob_image/{image_id}/{size}"
 TOKEN_HEADER = "X-Kis-Segito-Token"
+# Sent by knobs that can unpack compressed pictures ("ksz").
+ACCEPT_HEADER = "X-Kis-Segito-Accept"
 # The display sizes of the knobs: a background is the whole screen.
 BACKGROUND_SIZES = (240, 360, 466, 480)
 PRESETS_DIR = Path(__file__).parent / "frontend" / "backgrounds"
@@ -123,6 +126,19 @@ def _rgb565(image) -> tuple[bytes, bytes]:
     r, g, b = rgba[..., 0], rgba[..., 1], rgba[..., 2]
     value = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3)
     return value.astype("<u2").tobytes(), rgba[..., 3].astype(np.uint8).tobytes()
+
+
+@lru_cache(maxsize=256)
+def _packed(
+    path: str, mtime: float, size: int, opaque: bool | None = None
+) -> bytes | None:
+    """The picture compressed: "KSZ1", its unpacked length, then zlib data."""
+    raw = _cached(path, mtime, size, opaque)
+    return None if raw is None else pack(raw)
+
+
+def pack(raw: bytes) -> bytes:
+    return b"KSZ1" + struct.pack("<I", len(raw)) + zlib.compress(raw, 6)
 
 
 @lru_cache(maxsize=64)
@@ -239,11 +255,16 @@ class KnobImageView(HomeAssistantView):
         etag = await self.hass.async_add_executor_job(
             _etag, str(path), mtime, int(size)
         )
+        # A knob that can unpack it gets the picture compressed (it keeps it so
+        # in its flash store: more pictures fit).
+        packed = "ksz" in request.headers.get(ACCEPT_HEADER, "")
+        if packed:
+            etag = etag[:-1] + '-z"'
         headers = {"ETag": etag, "Cache-Control": "no-cache"}
         if request.headers.get("If-None-Match") == etag:
             return web.Response(status=304, headers=headers)
         data = await self.hass.async_add_executor_job(
-            _cached, str(path), mtime, int(size), opaque
+            _packed if packed else _cached, str(path), mtime, int(size), opaque
         )
         if data is None:
             return web.Response(status=415)

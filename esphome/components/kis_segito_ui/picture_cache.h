@@ -31,6 +31,8 @@ class PictureCache {
   // table until it is flashed over USB).
   bool begin();
   bool ready() const { return this->part_ != nullptr; }
+  // The store's size in bytes (0 without the partition).
+  size_t capacity() const { return this->part_ == nullptr ? 0 : this->part_->size; }
   // Size of a cached picture, 0 when it is not cached.
   size_t size(const std::string &key) const;
   // ETag a cached picture was stored with, empty when it is not cached.

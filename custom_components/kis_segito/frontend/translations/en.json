@@ -651,7 +651,7 @@
   "store.usage": "Picture store: about {need} MB of {size} MB ({themes})",
   "store.full": "The children's themes ({themes}) do not fit in the knob's picture store together, so the knob downloads pictures again when switching children and gets slower.",
   "store.child_full": "With this child's theme not every picture fits in the picture store of {knobs}.",
-  "help.store": "The knob keeps downloaded pictures in a 4 MB store, unpacked, so they show quickly. One theme's pictures with 10–20 tasks and a few rewards take about 2.5–3.3 MB; the background and the avatars about 0.5–1 MB more.\n\nSo one knob holds one theme comfortably. When the children on a knob have different themes, the pictures do not fit together: the knob downloads them again when switching children and gets slower. Two themes fit only with few tasks and rewards.\n\nA bigger store would need a reinstall over USB; an update over the network cannot enlarge it.",
+  "help.store": "The knob keeps downloaded pictures in a store, so they show quickly. Its size depends on when the knob was installed over USB: 4 MB on knobs installed before 0.9.14, 8 MB on those installed over USB since. An update over the network does not change it; only another USB install does.\n\nFirmware 0.9.14 and newer keeps the pictures compressed: one theme then takes about 0.8–1.2 MB, with older firmware about 2.5–3.3 MB unpacked. The background and the avatars come on top.\n\nWhen the themes of the children on a knob do not fit together, the knob downloads pictures again when switching children and gets slower. The estimate counts the tasks, routines and rewards in use.",
   "firmware.title": "The knob's firmware",
   "firmware.installed": "Firmware: v{v}",
   "firmware.update": "Update: v{v}",

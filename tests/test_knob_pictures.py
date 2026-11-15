@@ -65,3 +65,33 @@ async def test_theme_set_view(hass: HomeAssistant, hass_client_no_auth) -> None:
     assert response.status == 200
     keys = (await response.json())["keys"]
     assert "fn_rewards_160" in keys
+
+
+async def test_compressed_store(hass: HomeAssistant) -> None:
+    """A knob that reports its store keeps the pictures compressed: more fit."""
+    manager = await _setup(hass)
+    manager.settings["theme"] = "frozen"
+    for name, theme in (("Kid A", "cars"), ("Kid B", "planes")):
+        await manager.async_save_item("children", {"name": name, "theme": theme})
+    old = await hass.async_add_executor_job(knob_store, manager, "dev", "hu")
+    new = await hass.async_add_executor_job(knob_store, manager, "dev", "hu", 4 * 1024 * 1024)
+    assert new["packed"] and not old["packed"]
+    assert new["need_kb"] < old["need_kb"] / 2
+    assert new["fits"]
+
+
+async def test_knob_image_compressed(hass: HomeAssistant, hass_client_no_auth) -> None:
+    import struct
+    import zlib
+
+    manager = await _setup(hass)
+    token = manager.device_token("dev")
+    client = await hass_client_no_auth()
+    url = "/api/kis_segito/knob_image/t_frozen__fn_rewards/160"
+    plain = await client.get(url, headers={"X-Kis-Segito-Token": token})
+    packed = await client.get(url, headers={"X-Kis-Segito-Token": token, "X-Kis-Segito-Accept": "ksz"})
+    raw, body = await plain.read(), await packed.read()
+    assert raw[:4] == b"KSI1" and body[:4] == b"KSZ1"
+    assert struct.unpack("<I", body[4:8])[0] == len(raw)
+    assert zlib.decompress(body[8:]) == raw
+    assert plain.headers["ETag"] != packed.headers["ETag"]

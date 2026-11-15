@@ -651,7 +651,7 @@
   "store.usage": "Képtár: kb. {need} MB / {size} MB ({themes})",
   "store.full": "A gyerekek témái ({themes}) nem férnek el együtt a gomb képtárában, ezért a gomb gyerekváltáskor újra letölti a képeket, és lassabb lesz.",
   "store.child_full": "Ennek a gyereknek a témájával nem fér el minden kép a(z) {knobs} gomb képtárában.",
-  "help.store": "A gomb a letöltött képeket egy 4 MB-os tárban tartja, kibontva, hogy gyorsan megjelenjenek. Egy téma képei 10–20 feladattal, néhány jutalommal kb. 2,5–3,3 MB-ot foglalnak, a háttér és az avatarok további kb. 0,5–1 MB-ot.\n\nEzért egy gombon egyszerre egy téma fér el kényelmesen. Ha a gombon lévő gyerekeknek más-más témájuk van, a képek nem férnek el együtt: gyerekváltáskor a gomb újra letölti őket, és lassabb lesz. Két téma csak kevés feladattal és jutalommal fér el.\n\nNagyobb tárat csak USB-s újratelepítés adhatna, hálózati frissítéssel nem bővíthető.",
+  "help.store": "A gomb a letöltött képeket egy tárban tartja, hogy gyorsan megjelenjenek. A tár mérete attól függ, mikor telepítették a gombot USB-ről: a 0.9.14 előtt telepített gombokon 4 MB, az azóta USB-ről telepítetteken 8 MB. Hálózati frissítéssel a méret nem változik, csak egy újabb USB-s telepítéssel.\n\nA 0.9.14-es és újabb firmware tömörítve tárolja a képeket: egy téma így kb. 0,8–1,2 MB-ot foglal, a régebbi firmware-rel kibontva kb. 2,5–3,3 MB-ot. A háttér és az avatarok ehhez jönnek.\n\nHa a gombon lévő gyerekek témái nem férnek el együtt, a gomb gyerekváltáskor újra letölti a képeket, és lassabb lesz. A becslés a használt feladatokból, rutinokból és jutalmakból számol.",
   "firmware.title": "A gomb firmware-e",
   "firmware.installed": "Firmware: v{v}",
   "firmware.update": "Frissítés: v{v}",

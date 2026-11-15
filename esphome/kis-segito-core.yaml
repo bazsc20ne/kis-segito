@@ -717,6 +717,17 @@ script:
 # --- Input ----------------------------------------------------------------------
 
 sensor:
+  # Size of the knob's picture store (KB): Home Assistant works out from it
+  # how many themes fit.
+  - platform: template
+    id: ks_store_size
+    name: Picture store
+    icon: mdi:image-multiple
+    unit_of_measurement: kB
+    accuracy_decimals: 0
+    entity_category: diagnostic
+    update_interval: 300s
+    lambda: return id(ui).store_kb();
   # Sensor inputs. Route any sensor to them in your device config (see
   # docs/sensors.md), e.g. on_value -> sensor.template.publish; Home Assistant
   # can also forward one of its own entities.

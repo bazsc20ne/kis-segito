@@ -11,6 +11,7 @@
 #include <strings.h>
 
 #include <esp_heap_caps.h>
+#include "rom/miniz.h"
 #include <esp_attr.h>
 #include <esp_system.h>
 #include <esp_http_client.h>
@@ -1518,10 +1519,48 @@ static esp_err_t http_event(esp_http_client_event_t *evt) {
 // flash cache when it is there (checked once per start with Home Assistant,
 // which answers "not modified" for an unchanged picture), else downloaded and
 // stored in the cache.
+// A compressed picture from Home Assistant: "KSZ1", its unpacked length
+// (uint32, little endian), then zlib data. Returns the unpacked picture (the
+// packed buffer is freed), the buffer itself when it is not packed, or nullptr
+// when it cannot be unpacked.
+static uint8_t *unpack_picture(uint8_t *buf, size_t *size) {
+  if (*size < 8 || memcmp(buf, "KSZ1", 4) != 0)
+    return buf;
+  const uint32_t out_len = buf[4] | (buf[5] << 8) | (buf[6] << 16) | (static_cast<uint32_t>(buf[7]) << 24);
+  uint8_t *out = out_len > 0 && out_len < 1024 * 1024 && psram_has(out_len)
+                     ? static_cast<uint8_t *>(heap_caps_malloc(out_len, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT))
+                     : nullptr;
+  auto *inflator =
+      static_cast<tinfl_decompressor *>(heap_caps_malloc(sizeof(tinfl_decompressor), MALLOC_CAP_SPIRAM));
+  bool ok = false;
+  if (out != nullptr && inflator != nullptr) {
+    tinfl_init(inflator);
+    size_t in_bytes = *size - 8;
+    size_t out_bytes = out_len;
+    const tinfl_status status =
+        tinfl_decompress(inflator, buf + 8, &in_bytes, out, out, &out_bytes,
+                         TINFL_FLAG_PARSE_ZLIB_HEADER | TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF);
+    ok = status == TINFL_STATUS_DONE && out_bytes == out_len;
+  }
+  heap_caps_free(inflator);
+  heap_caps_free(buf);
+  if (!ok) {
+    heap_caps_free(out);
+    ESP_LOGW(TAG, "A compressed picture could not be unpacked");
+    *size = 0;
+    return nullptr;
+  }
+  *size = out_len;
+  return out;
+}
+
 void KisSegitoUI::photo_task_(void *arg) {
   auto *self = static_cast<KisSegitoUI *>(arg);
   self->cache_.begin();
   auto deliver = [self](const std::string &key, uint8_t *buf, size_t size, bool fresh) {
+    // A compressed picture (as the store keeps it) is unpacked first.
+    if (buf != nullptr)
+      buf = unpack_picture(buf, &size);
     std::lock_guard<std::mutex> lock(self->photo_mutex_);
     self->photo_done_.push_back({key, buf, size, fresh});
   };
@@ -1652,6 +1691,7 @@ void KisSegitoUI::photo_task_(void *arg) {
     esp_http_client_handle_t client = esp_http_client_init(&cfg);
     if (client != nullptr) {
       esp_http_client_set_header(client, "X-Kis-Segito-Token", job.token.c_str());
+      esp_http_client_set_header(client, "X-Kis-Segito-Accept", "ksz");
       if (cached != nullptr && !cached_etag.empty())
         esp_http_client_set_header(client, "If-None-Match", cached_etag.c_str());
     }
@@ -1929,6 +1969,7 @@ bool KisSegitoUI::store_picture_(const PhotoJob &job) {
   if (client == nullptr)
     return false;
   esp_http_client_set_header(client, "X-Kis-Segito-Token", job.token.c_str());
+  esp_http_client_set_header(client, "X-Kis-Segito-Accept", "ksz");
   if (!old_etag.empty())
     esp_http_client_set_header(client, "If-None-Match", old_etag.c_str());
   bool ok = false;

@@ -345,7 +345,10 @@ def _devices(hass: HomeAssistant) -> list[dict[str, Any]]:
                 "illuminance_entity": _own_entity(hass, device_id, "illuminance"),
                 "firmware": _firmware(hass, device_id),
                 "store": knob_store(
-                    hass.data[DOMAIN].manager, device_id, _knob_language(hass)
+                    hass.data[DOMAIN].manager,
+                    device_id,
+                    _knob_language(hass),
+                    _store_bytes(hass, device_id),
                 ),
             }
             | _knob_options(hass, device_id)
@@ -366,6 +369,17 @@ def _devices(hass: HomeAssistant) -> list[dict[str, Any]]:
             | _knob_options(hass, knob["id"])
         )
     return result
+
+
+def _store_bytes(hass: HomeAssistant, device_id: str) -> int | None:
+    """The picture store size a knob reports (firmware 0.9.14 and newer)."""
+    entity_id = _own_entity(hass, device_id, "picture_store")
+    state = hass.states.get(entity_id) if entity_id else None
+    try:
+        kb = float(state.state) if state else 0
+    except ValueError:
+        return None
+    return int(kb * 1024) if kb > 0 else None
 
 
 def _knob_language(hass: HomeAssistant) -> str:

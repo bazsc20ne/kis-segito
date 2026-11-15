@@ -240,12 +240,15 @@ update:
   - id: !remove release_update
 ```
 
-**A gomb képtára:** a gomb a letöltött képeket egy 4 MB-os tárban tartja. Egy téma
-képei kb. 2,5–3,3 MB-ot foglalnak, ezért egy gombon egy téma fér el kényelmesen; ha a
-gombon lévő gyerekeknek más-más témájuk van, a gomb gyerekváltáskor újra letölti a
-képeket, és lassabb. A panel **Beállítások → Gombok** oldala megmutatja a foglaltságot,
-és figyelmeztet, ha a témák nem férnek el. Témaváltáskor a gomb az új téma minden
-képét eltárolja, mielőtt újraindul (közben „Frissítés...” látszik rajta).
+**A gomb képtára:** a gomb a letöltött képeket egy tárban tartja. A 0.9.14 előtt
+USB-ről telepített gombokon ez 4 MB, az azóta USB-ről telepítetteken 8 MB; hálózati
+frissítéssel a méret nem változik, csak egy újabb USB-s telepítéssel. A 0.9.14-es és
+újabb firmware tömörítve tárolja a képeket, így egy téma kb. 0,8–1,2 MB-ot foglal
+(a régebbi firmware-rel kibontva kb. 2,5–3,3 MB-ot): 4 MB-ba kb. 3, 8 MB-ba kb. 6
+téma fér. Ha a gombon lévő gyerekek témái nem férnek el, a gomb gyerekváltáskor újra
+letölti a képeket, és lassabb. A panel **Beállítások → Gombok** oldala megmutatja a
+foglaltságot, és figyelmeztet, ha a témák nem férnek el. Témaváltáskor a gomb az új
+téma minden képét eltárolja, mielőtt újraindul (közben „Frissítés...” látszik rajta).
 
 Az oldalsáv menüpontjának neve a Home Assistant rendszernyelvét követi (magyarul
 „Kis Segítő”, más nyelven „Little Helper”), a felhasználók saját nyelvi beállítását
@@ -545,12 +548,16 @@ update:
   - id: !remove release_update
 ```
 
-**The knob's picture store:** the knob keeps downloaded pictures in a 4 MB store. One
-theme's pictures take about 2.5–3.3 MB, so one knob holds one theme comfortably; when
-the children on a knob have different themes, the knob downloads pictures again when
-switching children and gets slower. The panel's **Settings → Knobs** page shows how
-full it is and warns when the themes do not fit. On a theme change the knob stores
-every picture of the new theme before it restarts (showing "Updating..." meanwhile).
+**The knob's picture store:** the knob keeps downloaded pictures in a store: 4 MB on
+knobs installed over USB before 0.9.14, 8 MB on those installed over USB since; an
+update over the network does not change it, only another USB install does. Firmware
+0.9.14 and newer keeps the pictures compressed, so one theme takes about 0.8–1.2 MB
+(about 2.5–3.3 MB unpacked with older firmware): about 3 themes fit in 4 MB, about 6 in
+8 MB. When the themes of the children on a knob do not fit, the knob downloads pictures
+again when switching children and gets slower. The panel's **Settings → Knobs** page
+shows how full it is and warns when the themes do not fit. On a theme change the knob
+stores every picture of the new theme before it restarts (showing "Updating..."
+meanwhile).
 
 The sidebar entry's name follows Home Assistant's system language ("Kis Segítő" in
 Hungarian, "Little Helper" in other languages), not each user's own language setting;

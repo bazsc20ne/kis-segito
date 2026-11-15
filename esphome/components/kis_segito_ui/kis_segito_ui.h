@@ -7,6 +7,7 @@
 #pragma once
 
 #include <array>
+#include <cmath>
 #include <deque>
 #include <functional>
 #include <map>
@@ -188,6 +189,8 @@ class KisSegitoUI : public Component {
   void add_image(const std::string &key, image::Image *img) { this->images_[key] = img; }
   void set_number_font(font::Font *f) { this->number_font_ = f->get_lv_font(); }
   void set_text_font(font::Font *f) { this->text_font_ = f->get_lv_font(); }
+  // The picture store's size in KB (NAN until it is known), for Home Assistant.
+  float store_kb() const { return this->cache_.ready() ? this->cache_.capacity() / 1024.0f : NAN; }
   // The text of the "Updating" screen, in the Home Assistant language.
   void set_updating_text(const std::string &text) { this->updating_text_ = text; }
   // A loading screen picture in the theme's style (see the .cpp file).
