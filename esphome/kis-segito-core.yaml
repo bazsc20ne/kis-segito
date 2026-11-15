@@ -51,30 +51,53 @@ esphome:
     name: bazsc20ne.kis-segito
     version: "0.9.17"
   on_boot:
-    # Before Wi-Fi starts: the fallback access point gets a password of its
-    # own, made once on this knob and kept, unless the device config sets one.
-    # The knob shows it on its screen while the access point is open.
+    # Before Wi-Fi starts: the fallback access point's password. The device
+    # config's own password is saved on the knob, so a firmware from the
+    # releases (which has none built in) keeps it; without one the knob makes
+    # its own once. Both stay over restarts and updates. The knob shows a
+    # password it made on its screen while the access point is open, never
+    # the device config's.
     - priority: 600
       then:
         - lambda: |-
-            auto ap = wifi::global_wifi_component->get_ap();
-            if (!ap.get_password().empty())
-              return;
             struct ApPassword {
-              char text[13];
+              char text[65];
+              bool own;
             } saved{};
-            auto pref = global_preferences->make_preference<ApPassword>(fnv1_hash("kis_segito_ap_password"), true);
-            if (!pref.load(&saved) || strnlen(saved.text, sizeof(saved.text)) < 10) {
-              static const char LETTERS[] = "abcdefghjkmnpqrstuvwxyz23456789";
+            auto pref = global_preferences->make_preference<ApPassword>(fnv1_hash("kis_segito_ap_password_2"), true);
+            auto ap = wifi::global_wifi_component->get_ap();
+            if (!ap.get_password().empty()) {
+              ApPassword want{};
+              strncpy(want.text, ap.get_password().c_str(), sizeof(want.text) - 1);
+              want.own = true;
+              if (!pref.load(&saved) || memcmp(&saved, &want, sizeof(want)) != 0) {
+                pref.save(&want);
+                global_preferences->sync();
+              }
+              return;
+            }
+            if (!pref.load(&saved) || strnlen(saved.text, sizeof(saved.text)) < 8) {
+              // A password made by 0.9.16, or a new one.
+              struct OldApPassword {
+                char text[13];
+              } old{};
+              auto old_pref = global_preferences->make_preference<OldApPassword>(fnv1_hash("kis_segito_ap_password"), true);
               memset(&saved, 0, sizeof(saved));
-              for (int i = 0; i < 10; i++)
-                saved.text[i] = LETTERS[esp_random() % (sizeof(LETTERS) - 1)];
+              if (old_pref.load(&old) && strnlen(old.text, sizeof(old.text)) >= 10) {
+                memcpy(saved.text, old.text, sizeof(old.text) - 1);
+              } else {
+                static const char LETTERS[] = "abcdefghjkmnpqrstuvwxyz23456789";
+                for (int i = 0; i < 10; i++)
+                  saved.text[i] = LETTERS[esp_random() % (sizeof(LETTERS) - 1)];
+              }
+              saved.own = false;
               pref.save(&saved);
               global_preferences->sync();
             }
             ap.set_password(saved.text);
             wifi::global_wifi_component->set_ap(ap);
-            id(ap_password) = saved.text;
+            if (!saved.own)
+              id(ap_password) = saved.text;
 
 external_components:
   - source: ${kis_segito_components}
@@ -250,8 +273,9 @@ update:
 # The fallback access point (with the captive portal) opens only when the knob
 # cannot join Wi-Fi; it is the only way to change Wi-Fi without a cable. Its
 # portal also accepts a firmware upload, so it always has a password: the
-# device config's (wifi: ap: password: !secret ap_password) or one made on the
-# knob, which the knob shows on its screen while the access point is open.
+# device config's (wifi: ap: password: !secret ap_password), kept on the knob
+# for release updates, or one made on the knob, which the knob shows on its
+# screen while the access point is open.
 wifi:
   ap: {}
   on_connect:
@@ -293,8 +317,8 @@ wifi:
 captive_portal:
 
 globals:
-  # The fallback access point's own password (empty when the device config
-  # sets one), shown on the screen while the access point is open.
+  # The fallback access point's password made on the knob (empty when it is
+  # the device config's), shown on the screen while the access point is open.
   - id: ap_password
     type: std::string
     initial_value: '""'

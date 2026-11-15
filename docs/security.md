@@ -76,12 +76,35 @@ nem veszed, a kapcsolata nincs titkosítva, és a frissítésekhez nem kell jels
 Vedd át az ESPHome Builderbe rögtön az első indítás után, add hozzá a fenti
 sorokat, és telepítsd újra.
 
-**Tartalék hozzáférési pont.** Csak akkor nyílik meg, ha a gomb nem tud
-csatlakozni a Wi-Fi-dhez, és csak ezzel lehet kábel nélkül Wi-Fi-t váltani. A
-beállítóoldala firmware-feltöltést is elfogad, ezért mindig van jelszava: az
-eszközkonfigodban megadott `ap_password`, vagy ha az nincs, egy a gombon egyszer
-véletlenszerűen készített jelszó, amelyet a gomb a kijelzőjén mutat, amíg a
-hozzáférési pont nyitva van.
+<a id="tartalek-hozzaferesi-pont"></a>
+
+### Tartalék hozzáférési pont
+
+**Mire való.** Ha a gomb kb. másfél percig nem tud csatlakozni a WiFi-dhez,
+megnyitja a saját WiFi-jét (a neve a gomb neve, alapból `kis-segito`). Erre a
+telefonnal csatlakozva megnyílik egy beállítóoldal, ahol új WiFi-hálózat adható
+meg; ez az egyetlen kábel nélküli módja a WiFi cseréjének. Ha egy frissítés után
+a gomb nem jön vissza, a lépések a README-ben vannak
+([magyarul](../README.md#3-a-gomb-frissítése)). A beállítóoldal firmware-feltöltést
+is elfogad, ezért a hozzáférési pontnak mindig van jelszava.
+
+**Saját konfiggal (ESPHome Builder).** A jelszó a `secrets.yaml` `ap_password`
+értéke (a konfigban: `wifi: ap: password: !secret ap_password`). A Builderben a
+jobb felső **Secrets** gombbal nézheted meg és változtathatod; az új jelszó a
+következő telepítéssel kerül a gombra. A gomb kijelzője ilyenkor csak a
+hozzáférési pont nevét mutatja, a jelszót nem. A 0.9.17-es és újabb firmware a
+jelszót a gombon is elmenti, így egy kiadási frissítés után is ugyanez marad.
+
+**Kész firmware, saját jelszó nélkül.** A gomb első induláskor egy 10 karakteres
+véletlen jelszót készít, és elmenti. Amíg a hozzáférési pont nyitva van, a gomb
+kijelzője mutatja a nevét és ezt a jelszót. A jelszó újraindítás és frissítés után
+is megmarad; másikat úgy adhatsz meg, hogy a gombot saját konfiggal, `ap_password`-del
+telepíted (a Builderből), új véletlen jelszót pedig a gomb törlésével (USB-s
+telepítés törléssel) kap.
+
+**Jó jelszó.** Legalább 8 karakter (a WiFi ennél rövidebbet nem fogad el), és ne
+az otthoni WiFi-d jelszava legyen: aki a gomb hozzáférési pontjára csatlakozik, ne
+tudja meg vele az otthoni hálózatodét.
 
 **Kiadási frissítés.** A kiadás firmware-ében nincs WiFi-adat és API-kulcs. A
 0.9.16-os és újabb firmware ezért a saját konfigodban megadott WiFi-hálózatot és
@@ -216,11 +239,35 @@ you adopt it, its connection is not encrypted and updates need no password. Adop
 it in the ESPHome Builder right after the first start, add the lines above and
 install it again.
 
-**Fallback access point.** It opens only when the knob cannot join your Wi-Fi,
-and it is the only way to change Wi-Fi without a cable. Its setup page also
-accepts a firmware upload, so it always has a password: the `ap_password` from
-your device config or, without one, a random password made once on the knob,
-which the knob shows on its screen while the access point is open.
+<a id="fallback-access-point"></a>
+
+### Fallback access point
+
+**What it is for.** When the knob cannot join your Wi-Fi for about a minute and
+a half, it opens its own Wi-Fi (named after the knob, `kis-segito` by default).
+Connecting to it with a phone opens a setup page where a new Wi-Fi network can be
+entered; this is the only way to change Wi-Fi without a cable. If the knob does
+not come back after an update, the steps are in the README
+([English](../README.md#3-updating-the-knob)). The setup page also accepts a
+firmware upload, so the access point always has a password.
+
+**With your own config (ESPHome Builder).** The password is `ap_password` in
+`secrets.yaml` (in the config: `wifi: ap: password: !secret ap_password`). In the
+Builder, the **Secrets** button at the top right shows and changes it; the new
+password reaches the knob with the next install. The knob's screen then shows only
+the access point's name, not the password. Firmware 0.9.17 and newer also saves the
+password on the knob, so it stays the same after a release update.
+
+**Prebuilt firmware without your own password.** At its first start the knob makes
+a random 10-character password and saves it. While the access point is open, the
+knob's screen shows its name and this password. The password stays over restarts
+and updates; to set another, install the knob with your own config and an
+`ap_password` (from the Builder), and to get a new random one, erase the knob (a USB
+install with erase).
+
+**A good password.** At least 8 characters (Wi-Fi does not accept a shorter one),
+and not your home Wi-Fi password: someone who joins the knob's access point should
+not learn your home network's password from it.
 
 **Release updates.** The release firmware has no Wi-Fi details and no API key.
 Firmware 0.9.16 and newer therefore saves the Wi-Fi network and the API key from

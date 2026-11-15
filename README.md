@@ -294,8 +294,9 @@ nem; ezt a Home Assistant saját panelekhez nem teszi lehetővé.
 
 - **Kötelező titkos adatok** gombonként, a saját ESPHome `secrets.yaml`-odban:
   `kis_segito_api_key` – az API titkosítási kulcsa, **minden gombnak külön**;
-  `ap_password` – a tartalék hozzáférési pont jelszava (ha nem adod meg, a gomb saját
-  jelszót készít, és amíg a hozzáférési pont nyitva van, a kijelzőn mutatja). A hálózati firmware-frissítés is
+  `ap_password` – a tartalék hozzáférési pont jelszava, legalább 8 karakter, ne az otthoni
+  WiFi-é (ha nem adod meg, a gomb saját jelszót készít, és amíg a hozzáférési pont nyitva
+  van, a kijelzőn mutatja; részletek: [docs/security.md](docs/security.md#tartalek-hozzaferesi-pont)). A hálózati firmware-frissítés is
   az API kulcsával titkosított (`ota: encryption:`); OTA-jelszó nem kell. Átállás a
   korábbi jelszavas frissítésről: [docs/security.md](docs/security.md). A tartalék hozzáférési pont csak akkor indul el, ha a gomb
   nem tud csatlakozni a WiFi-hez; a beállítóoldala firmware-feltöltést is fogad, ezért kell
@@ -641,8 +642,10 @@ Home Assistant does not allow that for custom panels.
 
 - **Required secrets** for each knob, in your own ESPHome `secrets.yaml`:
   `kis_segito_api_key` – the API encryption key, **a separate one for each
-  knob**; `ap_password` – the password of the fallback access point (without it, the
-  knob makes its own and shows it on its screen while the access point is open). Firmware
+  knob**; `ap_password` – the password of the fallback access point, at least 8
+  characters, not your home Wi-Fi's (without it, the knob makes its own and shows it on
+  its screen while the access point is open; details:
+  [docs/security.md](docs/security.md#fallback-access-point)). Firmware
   updates over the network are encrypted with the API key too (`ota: encryption:`); no
   OTA password is needed. Moving from the earlier password: [docs/security.md](docs/security.md). The fallback access point
   opens only when the knob cannot join Wi-Fi; its setup page also accepts a firmware

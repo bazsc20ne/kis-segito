@@ -25,6 +25,10 @@ uses [Semantic Versioning](https://semver.org/).
 - **A frissítési ablak rendezett kiadási jegyzetet mutat.** A Home Assistant
   frissítési ablakában a verzió alatt magyar és angol lista áll, változásonként egy
   rövid mondattal.
+- **A saját AP-jelszó kiadási frissítés után is megmarad.** A konfigodban megadott
+  `ap_password`-öt a gomb elmenti, így a kiadás firmware-e is ezt használja, és a
+  kijelzőn továbbra sem mutatja. A `docs/security.md` leírja, hol látod és változtatod
+  a jelszót, és mi történik a gomb saját jelszavával.
 
 ### English
 
@@ -36,6 +40,10 @@ uses [Semantic Versioning](https://semver.org/).
   is wrong and opens the update only after a confirmation.
 - **The update dialog shows tidy release notes.** Home Assistant's update dialog lists
   the changes below the version in Hungarian and English, one short sentence each.
+- **Your own access point password is kept after a release update.** The knob saves
+  the `ap_password` from your config, so the release firmware uses it too and still
+  does not show it on the screen. `docs/security.md` says where to see and change the
+  password and what happens to the knob's own password.
 
 ## [0.9.16] - 2026-11-15
 
