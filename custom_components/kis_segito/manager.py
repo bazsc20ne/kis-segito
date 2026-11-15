@@ -89,6 +89,14 @@ def _iso(moment: datetime) -> str:
     return moment.isoformat(timespec="seconds")
 
 
+TIME_RE = re.compile(r"^([01]?\d|2[0-3]):[0-5]\d$")
+
+
+def _minutes(value: str) -> int:
+    hours, minutes = value.split(":")
+    return int(hours) * 60 + int(minutes)
+
+
 class KisSegitoManager:
     """Owns the data and the rules."""
 
@@ -740,12 +748,28 @@ class KisSegitoManager:
         await self._changed()
 
     @staticmethod
-    def _normalise_routine(routine: dict[str, Any]) -> None:
+    def _normalise_routine(routine: dict[str, Any]) -> bool:
+        """Fill in what a routine needs; every checkpoint lies inside the
+        routine (the start or the end moves out to it). True when the times
+        changed."""
         for key in ("tasks", "checkpoints", "zones", "reward_bands", "children"):
             routine.setdefault(key, [])
         for item in routine["tasks"] + routine["checkpoints"]:
             if not item.get("id"):
                 item["id"] = lg.new_id()
+        times = sorted(
+            c["time"]
+            for c in routine["checkpoints"]
+            if isinstance(c.get("time"), str) and TIME_RE.match(c["time"])
+        )
+        changed = False
+        if times and TIME_RE.match(str(routine.get("end", ""))) and _minutes(times[-1]) > _minutes(routine["end"]):
+            routine["end"] = times[-1]
+            changed = True
+        if times and TIME_RE.match(str(routine.get("start", ""))) and _minutes(times[0]) < _minutes(routine["start"]):
+            routine["start"] = times[0]
+            changed = True
+        return changed
 
     # ------------------------------------------------------------ ledger
 
@@ -928,6 +952,7 @@ class KisSegitoManager:
                 timestamp=_iso(dt_util.now()),
                 source="panel",
                 creator=creator,
+                balances=self.balances(original["child_id"]),
             )
         except lg.LedgerError as err:
             raise KisSegitoError(err.code) from err
@@ -1199,6 +1224,19 @@ class KisSegitoManager:
             changed = True
         return changed
 
+    async def async_fix_checkpoint_times(self) -> None:
+        """Routines saved with a checkpoint outside their times: the start or
+        the end moves out to it."""
+        changed = False
+        for routine in self.data["routines"]:
+            changed |= self._normalise_routine(routine)
+        for overrides in self.data["overrides"].values():
+            for override in overrides.values():
+                if isinstance(override, dict) and isinstance(override.get("routine"), dict):
+                    changed |= self._normalise_routine(override["routine"])
+        if changed:
+            await self.store.async_save()
+
     async def async_fix_task_approvals(self) -> None:
         """Routines saved when tasks needed approval: move it to checkpoints."""
         changed = False
@@ -1356,6 +1394,7 @@ class KisSegitoManager:
                         timestamp=_iso(dt_util.now()),
                         source="approval",
                         creator=who,
+                        balances=self.balances(original["child_id"]),
                     )
                     original["reversed_by"] = back["id"]
                     self._append(back)
@@ -1588,6 +1627,7 @@ class KisSegitoManager:
                     timestamp=_iso(dt_util.now()),
                     source="panel",
                     creator=who,
+                    balances=self.balances(original["child_id"]),
                 )
                 original["reversed_by"] = back["id"]
                 self._append(back)
@@ -1646,6 +1686,74 @@ class KisSegitoManager:
             self._undo_checkpoint(progress, event["checkpoint_id"], who)
         self._mark_removed(event, who)
         await self._changed(ledger=True)
+
+    def event_group(
+        self, event_id: str, scope: str, every_child: bool
+    ) -> list[dict[str, Any]]:
+        """The entries undone together with one: everything of its checkpoint
+        ("checkpoint": the checkpoint and the tasks leading to it) or of its
+        routine ("routine") that day, for its child or every child."""
+        anchor = self._event(event_id)
+        day = anchor.get("day") or anchor["timestamp"][:10]
+        routine = self.routine_for_day(anchor["routine_id"], date.fromisoformat(day)) or self.routine(
+            anchor["routine_id"]
+        ) or {}
+        checkpoint_id = anchor.get("checkpoint_id")
+        if anchor["type"] == "task_done":
+            task = next((t for t in routine.get("tasks", []) if t["id"] == anchor.get("task_id")), None)
+            lead = self.task_checkpoint(routine, task) if task is not None else None
+            checkpoint_id = lead["id"] if lead else None
+        tasks = {
+            t["id"]
+            for t in routine.get("tasks", [])
+            if (lead := self.task_checkpoint(routine, t)) is not None and lead["id"] == checkpoint_id
+        }
+        group = []
+        for event in self.events:
+            if event.get("type") not in ("task_done", "checkpoint_done"):
+                continue
+            if event.get("removed") or event.get("credit_tx"):
+                continue
+            if event.get("routine_id") != anchor["routine_id"]:
+                continue
+            if (event.get("day") or event["timestamp"][:10]) != day:
+                continue
+            if not every_child and event.get("child_id") != anchor["child_id"]:
+                continue
+            if scope == "checkpoint" and event["id"] != event_id:
+                if event["type"] == "task_done" and event.get("task_id") not in tasks:
+                    continue
+                if event["type"] == "checkpoint_done" and event.get("checkpoint_id") != checkpoint_id:
+                    continue
+            group.append(event)
+        return group
+
+    async def async_remove_events(
+        self, event_id: str, scope: str, every_child: bool, *, who: str = "parent"
+    ) -> int:
+        """Undo a whole checkpoint or routine of a day in one step (see
+        event_group): its tasks back to not done, its checkpoints back to not
+        reached, their tokens reversed. Nothing changes when a checkpoint
+        waits for approval."""
+        group = self.event_group(event_id, scope, every_child)
+        day_of = lambda e: date.fromisoformat(e.get("day") or e["timestamp"][:10])  # noqa: E731
+        for event in group:
+            if event["type"] == "checkpoint_done":
+                record = self._progress(day_of(event), event["routine_id"], event["child_id"])[
+                    "checkpoints"
+                ].get(event["checkpoint_id"])
+                approval = self.approval(record["approval"]) if record and record.get("approval") else None
+                if approval and approval["status"] == "pending":
+                    raise KisSegitoError("waiting_for_approval")
+        for event in group:
+            progress = self._progress(day_of(event), event["routine_id"], event["child_id"])
+            if event["type"] == "task_done":
+                progress["tasks"].pop(event["task_id"], None)
+            else:
+                self._undo_checkpoint(progress, event["checkpoint_id"], who)
+            self._mark_removed(event, who)
+        await self._changed(ledger=True)
+        return len(group)
 
     def event_credit_suggestion(self, event: dict[str, Any]) -> int:
         """The tokens an event would have brought in time: the best reward of

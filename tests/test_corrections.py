@@ -148,3 +148,51 @@ async def test_give_tokens_suggestion_for_a_one_day_routine(
     await manager.async_complete_task(kid, routine_id, "t1")
     event = _events(manager, "task_done")[0]
     assert manager.event_credit_suggestion(event) == 3
+
+
+async def _two_tasks(manager: KisSegitoManager) -> tuple[list[str], dict]:
+    kids = [(await manager.async_save_item("children", {"name": n}))["id"] for n in ("Kid A", "Kid B")]
+    routine = await manager.async_save_item(
+        "routines",
+        {
+            "name": "Morning",
+            "start": "07:00",
+            "end": "08:00",
+            "checkpoints": [{"name": "Ready", "time": "07:50", "reward_bands": [{"min_early_min": 0, "tokens": 3}]}],
+            "tasks": [{"icon": "task_shoes", "label": "Shoes"}, {"icon": "task_teeth", "label": "Teeth"}],
+        },
+    )
+    return kids, routine
+
+
+async def test_undo_a_whole_checkpoint_for_every_child(
+    manager: KisSegitoManager, freezer: FrozenDateTimeFactory
+) -> None:
+    freezer.move_to(dt_util.now().replace(hour=7, minute=40, second=0, microsecond=0))
+    kids, routine = await _two_tasks(manager)
+    for kid in kids:
+        for task in routine["tasks"]:
+            await manager.async_complete_task(kid, routine["id"], task["id"])
+        assert manager.balances(kid)["wallet"] == 3
+    anchor = next(e for e in manager.events if e["type"] == "checkpoint_done" and e["child_id"] == kids[0])
+    assert len(manager.event_group(anchor["id"], "checkpoint", False)) == 3
+    assert len(manager.event_group(anchor["id"], "checkpoint", True)) == 6
+    assert await manager.async_remove_events(anchor["id"], "routine", True) == 6
+    for kid in kids:
+        progress = manager.progress(manager.today(), routine["id"], kid)
+        assert not progress["tasks"] and not progress["checkpoints"]
+        assert manager.balances(kid)["wallet"] == 0
+
+
+async def test_a_reversal_takes_from_the_piggy_bank(
+    manager: KisSegitoManager, freezer: FrozenDateTimeFactory
+) -> None:
+    freezer.move_to(dt_util.now().replace(hour=7, minute=40, second=0, microsecond=0))
+    kid, routine = await _setup(manager)
+    await manager.async_complete_task(kid, routine["id"], routine["tasks"][0]["id"])
+    assert manager.balances(kid)["wallet"] == 3
+    await manager.async_save_item("children", {"id": kid, "piggy_unlocked": True})
+    await manager.async_piggy_transfer(kid, 2)
+    event = next(e for e in manager.events if e["type"] == "checkpoint_done")
+    await manager.async_remove_event(event["id"])
+    assert manager.balances(kid) == {"wallet": 0, "piggy": 0}

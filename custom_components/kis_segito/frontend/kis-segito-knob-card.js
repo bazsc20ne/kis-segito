@@ -919,7 +919,7 @@ class KisSegitoKnobCard extends HTMLElement {
     if ((this._state.anim || "full") !== "full") {
       return;
     }
-    for (let i = 0; i < 36; i++) {
+    for (let i = 0; i < 24; i++) {
       const h = hash32(i + 77);
       const piece = document.createElement("div");
       piece.className = "abs";
@@ -1039,10 +1039,13 @@ class KisSegitoKnobCard extends HTMLElement {
         );
       }
     }
-    this._later(moveMs ? (ms * 2) / 3 + moveMs + 40 : ms + 250, () => this._show(SCREENS.ROUTINE));
-    if (reward > 0) {
-      this._celebrate(child, reward);
-    }
+    // The reward and its confetti come after the change, as on the knob.
+    this._later(moveMs ? (ms * 2) / 3 + moveMs + 40 : ms + 250, () => {
+      if (reward > 0) {
+        this._celebrate(child, reward);
+      }
+      this._show(SCREENS.ROUTINE);
+    });
   }
 
   // ------------------------------------------------------------ screens
@@ -1565,6 +1568,7 @@ if (!window.customCards.some((c) => c.type === "kis-segito-knob-card")) {
   window.customCards.push(entry);
   // In the language of the page, from the translation files.
   knobTexts(document.documentElement.lang).then((texts) => {
+    entry.name = texts["panel.title"] || entry.name;
     entry.description = texts["knobcard.description"] || "";
   });
 }

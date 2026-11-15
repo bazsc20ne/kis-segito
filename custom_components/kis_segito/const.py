@@ -11,7 +11,10 @@ CONF_DEVICE_ID: Final = "device_id"
 
 # Sidebar panel
 PANEL_URL_PATH: Final = "kis-segito"
+# The sidebar name: Hungarian for Hungarian, English for every other language
+# (like the logo).
 PANEL_TITLE: Final = "Kis Segítő"
+PANEL_TITLE_EN: Final = "Little Helper"
 PANEL_ICON: Final = "mdi:hand-heart"
 PANEL_ELEMENT: Final = "kis-segito-panel"
 STATIC_URL: Final = "/kis_segito_static"

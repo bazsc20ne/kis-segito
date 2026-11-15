@@ -38,9 +38,10 @@ def tested_with() -> str:
     if not (esphome and hass):
         return ""
     return (
+        f"Az ESPHome {esphome.group(1)} és a Home Assistant {hass.group(1)} "
+        "verzióval fordítva és tesztelve.\n\n"
         f"Built and tested with ESPHome {esphome.group(1)} and Home Assistant "
-        f"{hass.group(1)}. / Az ESPHome {esphome.group(1)} és a Home Assistant "
-        f"{hass.group(1)} verzióval fordítva és tesztelve."
+        f"{hass.group(1)}."
     )
 
 

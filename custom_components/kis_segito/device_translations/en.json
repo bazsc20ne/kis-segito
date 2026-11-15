@@ -1,6 +1,6 @@
 {
   "boot.loading": "Loading...",
-  "test_screen.title": "Kis Segítő",
+  "test_screen.title": "Little Helper",
   "test_screen.hint": "Turn or press the knob",
   "test_screen.pressed": "Pressed!"
 }

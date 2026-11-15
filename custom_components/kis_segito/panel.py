@@ -15,6 +15,7 @@ from .const import (
     PANEL_ELEMENT,
     PANEL_ICON,
     PANEL_TITLE,
+    PANEL_TITLE_EN,
     PANEL_URL_PATH,
     STATIC_URL,
 )
@@ -30,13 +31,14 @@ async def async_register_static_files(hass: HomeAssistant) -> None:
 
 
 async def async_register_panel(hass: HomeAssistant, version: str) -> None:
-    """Add the sidebar entry."""
+    """Add the sidebar entry, named in Home Assistant's language."""
+    hungarian = (hass.config.language or "").lower().startswith("hu")
     await panel_custom.async_register_panel(
         hass,
         webcomponent_name=PANEL_ELEMENT,
         frontend_url_path=PANEL_URL_PATH,
         module_url=f"{STATIC_URL}/kis-segito-panel.js?v={version}",
-        sidebar_title=PANEL_TITLE,
+        sidebar_title=PANEL_TITLE if hungarian else PANEL_TITLE_EN,
         sidebar_icon=PANEL_ICON,
         require_admin=False,
         config={"domain": DOMAIN, "static_url": STATIC_URL, "version": version},

@@ -1,0 +1,15 @@
+# Line endings: LF everywhere, so a clone on any system matches the HACS
+# download. Pictures, fonts and firmware are binary.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.bin binary
+*.zip binary

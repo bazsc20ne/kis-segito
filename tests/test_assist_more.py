@@ -453,3 +453,31 @@ async def test_more_speech_recognition_variants(
     hass: HomeAssistant, assist: dict[str, str], text: str
 ) -> None:
     assert await _ask(hass, text)
+
+
+def test_ten_in_the_evening_is_evening() -> None:
+    from datetime import datetime
+
+    from custom_components.kis_segito.assist_words import hu_clock
+
+    assert hu_clock(datetime(2026, 1, 1, 22, 2)) == "este tíz óra két perckor"  # noqa: DTZ001
+    assert hu_clock(datetime(2026, 1, 1, 23, 30)).startswith("éjjel")  # noqa: DTZ001
+
+
+async def test_token_is_understood(hass: HomeAssistant, assist: dict[str, str]) -> None:
+    assert "öt zseton" in await _ask(hass, "Mennyi tokenje van Áronnak?")
+
+
+async def test_what_now_between_routines(
+    hass: HomeAssistant, manager: KisSegitoManager, freezer: FrozenDateTimeFactory
+) -> None:
+    from homeassistant.setup import async_setup_component
+
+    freezer.move_to(dt_util.now().replace(hour=14, minute=20, second=0, microsecond=0))
+    await _setup(manager)
+    assert await async_setup_component(hass, "homeassistant", {})
+    assert await async_setup_component(hass, "conversation", {})
+    async_setup_assist(hass, manager)
+    await hass.async_block_till_done()
+    speech = await _ask(hass, "Mi a gyerekeknek?")
+    assert "este hét órakor" in speech.casefold() and "négy" in speech, speech

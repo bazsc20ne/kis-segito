@@ -104,16 +104,29 @@ def reversal_of(
     timestamp: str,
     source: str,
     creator: str,
+    balances: Mapping[str, int] | None = None,
 ) -> dict[str, Any]:
-    """A compensating transaction that cancels ``original`` and its corrections."""
+    """A compensating transaction that cancels ``original`` and its corrections.
+
+    With the child's ``balances``, taking tokens back never makes the wallet
+    negative: what the wallet does not hold any more (it went into the piggy
+    bank meanwhile) comes from the piggy bank.
+    """
     if original.get("reversed_by"):
         raise LedgerError("already_reversed")
     if original.get("reverses"):
         raise LedgerError("cannot_reverse_reversal")
-    lines = [
-        {"account": line["account"], "amount": -line["amount"]}
-        for line in effective_lines(original, corrections)
-    ]
+    totals: dict[str, int] = {}
+    for line in effective_lines(original, corrections):
+        totals[line["account"]] = totals.get(line["account"], 0) - line["amount"]
+    if balances is not None and totals.get(WALLET, 0) < 0:
+        wallet = max(0, int(balances.get(WALLET, 0)))
+        piggy = max(0, int(balances.get(PIGGY, 0)) + totals.get(PIGGY, 0))
+        missing = min(-totals[WALLET] - wallet, piggy)
+        if missing > 0:
+            totals[WALLET] += missing
+            totals[PIGGY] = totals.get(PIGGY, 0) - missing
+    lines = [{"account": acc, "amount": amt} for acc, amt in totals.items() if amt]
     tx = make_transaction(
         original["child_id"],
         REASON_REVERSAL,

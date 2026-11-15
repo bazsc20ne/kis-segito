@@ -1,39 +1,93 @@
 # Changelog
 
-All notable changes to this project are documented here, in English and Hungarian.
-The format follows [Keep a Changelog](https://keepachangelog.com/) and the project
-uses [Semantic Versioning](https://semver.org/).
+### Magyar
 
-Minden lényeges változás itt szerepel, angolul és magyarul.
-
-## [0.9.11] - 2026-11-14
+Minden lényeges változás itt szerepel, magyarul és angolul. A formátum a
+[Keep a Changelog](https://keepachangelog.com/) ajánlását követi, a verziószámozás
+[szemantikus](https://semver.org/).
 
 ### English
 
-- The knob: the change between two tasks is smoother. The next task's big
-  picture is fetched in advance, so it grows into the middle instead of just
-  appearing; a reached checkpoint's confetti starts after the change (with
-  fewer pieces), so it no longer slows the change down; the debug log shows
-  the frames of the change. This needs the knob firmware update (OTA).
-- The knob checks every half hour, when it has not been used for two
-  minutes, whether the same Wi-Fi network has a much stronger access point,
-  and moves to it (only when the signal is weak; never tied to one access
-  point). The new **Wi-Fi roam check** switch of the device turns it off.
-- Phone: the bottom bar holds every page and scrolls sideways; the active
-  page is always in view. The Today page's ± row keeps its buttons in
-  place (the + button no longer moves after the first press) and gets a
-  line of its own. Side editors keep the field being edited while typing
-  or picking a time, so the keyboard or the time picker no longer closes.
-- Calendar: an opened narrow block no longer gets a tooltip on top of it.
-- Assist: "what is left today" between two routines says when the next one
-  starts and how many tasks it has; the summary names the next checkpoint
-  once; time-left questions always get the time left; follow-ups also work
-  in a typed conversation; more speech-recognition mistakes are understood.
-- History: "Did not do it" on a task also puts its reached checkpoint back
-  to not reached (its tokens are reversed); "Give tokens" suggests the
-  right amount for a one-day routine.
-- The child editor's labels are short, their explanations sit behind an
-  info button.
+All notable changes to this project are documented here, in Hungarian and English.
+The format follows [Keep a Changelog](https://keepachangelog.com/) and the project
+uses [Semantic Versioning](https://semver.org/).
+
+## [0.9.12] - 2026-11-15
+
+### Magyar
+
+- Előzmények: az „Az egészet mégsem csinálták meg” egy lépésben visszavonja
+  egy ellenőrzőpont vagy egy egész rutin minden aznapi bejegyzését (a
+  feladatokat, az ellenőrzőpontokat és a zsetonjaikat), egy gyereknél vagy
+  mindegyiknél; a megerősítés felsorolja, mi vonódik vissza. A visszavonás
+  sosem viszi mínuszba a pénztárcát: ami ott már nincs meg, a perselyből
+  vonódik le.
+- Rutinok: az utolsó ellenőrzőpont a rutin végéhez kötődik, az egyik mozgatása
+  a másikat is viszi; egy középső ellenőrzőpont az utolsó után tolva azt és a
+  rutin végét is ugyanannyival tolja; a kezdés előtti ellenőrzőpont a kezdést
+  viszi. A korábban így elmentett rutinok kezdése és vége maguktól kiigazodik.
+- Az időmezőkbe a 17-hez hasonló órák rendes tempóban is begépelhetők (eddig
+  „1”, szünet, „7” 07:00-t adott).
+- Naptár: az ellenőrzőpontok a blokkon belül, vékony vonallal, zászlóval és
+  időponttal látszanak, és nem takarják a címet.
+- A 60 percnél hosszabb időtartamok óra és perc formában jelennek meg („még 7
+  óra 6 perc”).
+- Beállítások → Ikonok: rövidebb cím, zárójeles megjegyzés nélkül.
+- A gomb: a következő feladat nagy képe minden más kép előtt töltődik le, a
+  gyors egymás utáni nyomásokhoz a rákövetkezőé is; amíg nincs itt, a feladat
+  kis ikonja áll a helyén felnagyítva, így feladat sosem jelenik meg kép
+  nélkül. A jutalmak lapozgatása kevésbé darabolja fel a memóriát. A naplóban
+  „Checkpoint reward” áll. Ehhez a gomb firmware-frissítése kell (OTA).
+- A virtuális gombkártyán is a váltás után indul a konfetti, kevesebb darabbal.
+- Assist: 22 óra körül „este” (nem „éjjel”); két rutin között a „Mi a
+  gyerekeknek?” a következő rutint mondja; a „token” szót is érti.
+- Az integráció neve a HACS-ban és a Home Assistantben „Kis Segítő - Little
+  Helper”; az oldalsáv menüpontja magyarul „Kis Segítő”, minden más nyelven
+  „Little Helper”, és az angol szövegek is „Little Helper”-t mondanak.
+- A README-ben egy kattintással megnyitható a tároló a HACS-ban, és
+  elindítható a beállítás; a kézi telepítés a második lehetőség. A
+  dokumentáció minden fájljában külön, egyben áll a magyar és az angol rész
+  (felül a magyar), a magyar szövegek „gomb”-ot mondanak.
+- A tároló sorvégei mindenhol egységesek, így a kézi telepítés pontosan
+  megegyezik a HACS-ból letöltöttel.
+
+### English
+
+- History: "None of it was done" undoes every entry of a checkpoint or a whole
+  routine of that day in one step (the tasks, the checkpoints and their
+  tokens), for one child or every child; the confirmation lists what it
+  undoes. A reversal never makes the wallet negative: what the wallet no
+  longer holds comes from the piggy bank.
+- Routines: the last checkpoint is tied to the routine's end, moving one moves
+  the other; a middle checkpoint moved past the last one pushes it and the end
+  by the same amount; a checkpoint before the start moves the start. Routines
+  saved like that earlier get their start and end fixed by themselves.
+- Hours like 17 can be typed into the time fields at a normal pace (until now
+  "1", a pause, "7" gave 07:00).
+- Calendar: checkpoints show inside the block as a thin line with a flag and
+  their time, and never cover the title.
+- Durations over 60 minutes are shown in hours and minutes ("7 h 6 min left").
+- Settings → Icons: a shorter title without the note in brackets.
+- The knob: the next task's big picture loads before any other, and for quick
+  presses the one after it too; until it is here, the task's small icon stands
+  in, scaled up, so a task never shows without a picture. Browsing the rewards
+  breaks the memory up less. The log says "Checkpoint reward". This needs the
+  knob firmware update (OTA).
+- The virtual knob card also starts the confetti after the change, with fewer
+  pieces.
+- Assist: around 10 pm it says "evening" (not "night"); between two routines
+  "Mi a gyerekeknek?" names the next routine; the Hungarian word "token" is
+  understood.
+- The integration's name in HACS and Home Assistant is "Kis Segítő - Little
+  Helper"; the sidebar entry is "Kis Segítő" in Hungarian and "Little Helper"
+  in every other language, and the English texts say "Little Helper".
+- The README opens the repository in HACS and starts the setup with one click;
+  installing by hand is the second option. Every documentation file has its
+  Hungarian and English parts separate and whole (Hungarian first).
+- Line endings are the same everywhere in the repository, so an install by
+  hand matches the HACS download exactly.
+
+## [0.9.11] - 2026-11-14
 
 ### Magyar
 
@@ -63,40 +117,34 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   jóváírása” egynapos rutinnál is a helyes összeget javasolja.
 - A gyerekszerkesztő címkéi rövidek, a magyarázatuk ⓘ mögött van.
 
-## [0.9.10] - 2026-11-14
-
 ### English
 
-- Assist answers many more questions locally, without an LLM, in English
-  and Hungarian:
-  - questions in the first person ("How many tokens do I have?", "What's
-    my next task?"), answered for the child who is asking: the one a
-    speaker recognition integration recognises, when one is installed, or
-    the children the voice satellite is assigned to. The new **Settings →
-    General → Voice satellites (Assist)** card assigns a satellite, or a
-    whole area, to one or more children. Kis Segítő never guesses one
-    child: with several it answers for each, and when speaker recognition
-    does not know the voice it asks who is speaking ("I'm Alex" then
-    answers the question);
-  - short follow-ups on the same satellite for about a minute ("And me?",
-    "What about Alex?", "And the kids?");
-  - questions about every child with "for the kids" / "for everyone"
-    ("What's the next checkpoint for the kids?", "Who has how many
-    tokens?", "Kinek mennyi?");
-  - new topics: what is still left today, when the next routine starts,
-    and which tasks lead to a checkpoint ("What are the steps of dinner?");
-  - filler words at the start of a question ("um", "hey", „őőő”, „és”)
-    and more speech-recognition mistakes are understood.
-- Answers for every child are short: one sentence when everyone has the
-  same, one when nobody has any, otherwise a list starting with the
-  largest. Each answer has several wordings and never repeats the same
-  one twice in a row; zero has its own wording; typed names (routines,
-  tasks, checkpoints) are never given an ending.
-- LLM agents get times in spoken form next to the raw values (for example
-  "at quarter to eight in the evening"), and can ask about the child who
-  is speaking.
-- The child sensors also show the next routine and when it starts.
-- Deleting a child also removes it from the voice satellites.
+- The knob: the change between two tasks is smoother. The next task's big
+  picture is fetched in advance, so it grows into the middle instead of just
+  appearing; a reached checkpoint's confetti starts after the change (with
+  fewer pieces), so it no longer slows the change down; the debug log shows
+  the frames of the change. This needs the knob firmware update (OTA).
+- The knob checks every half hour, when it has not been used for two
+  minutes, whether the same Wi-Fi network has a much stronger access point,
+  and moves to it (only when the signal is weak; never tied to one access
+  point). The new **Wi-Fi roam check** switch of the device turns it off.
+- Phone: the bottom bar holds every page and scrolls sideways; the active
+  page is always in view. The Today page's ± row keeps its buttons in
+  place (the + button no longer moves after the first press) and gets a
+  line of its own. Side editors keep the field being edited while typing
+  or picking a time, so the keyboard or the time picker no longer closes.
+- Calendar: an opened narrow block no longer gets a tooltip on top of it.
+- Assist: "what is left today" between two routines says when the next one
+  starts and how many tasks it has; the summary names the next checkpoint
+  once; time-left questions always get the time left; follow-ups also work
+  in a typed conversation; more speech-recognition mistakes are understood.
+- History: "Did not do it" on a task also puts its reached checkpoint back
+  to not reached (its tokens are reversed); "Give tokens" suggests the
+  right amount for a one-day routine.
+- The child editor's labels are short, their explanations sit behind an
+  info button.
+
+## [0.9.10] - 2026-11-14
 
 ### Magyar
 
@@ -132,47 +180,40 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
 - A gyerekszenzorok a következő rutint és a kezdési idejét is mutatják.
 - Egy gyerek törlésekor a hangszórók hozzárendeléséből is kikerül.
 
-## [0.9.9] - 2026-11-08
-
 ### English
 
-- Approval is asked for a checkpoint, not for single tasks: when a
-  checkpoint that needs approval is reached, one request asks for it with
-  its tokens; approving pays them, rejecting withholds them, and the tasks
-  stay done either way. Routines whose tasks needed approval move the
-  setting to their checkpoint. While waiting, the Today page shows the
-  checkpoint as waiting, not as earned.
-- History: with the events shown, a task or checkpoint entry can be
-  corrected: "Did not do it" puts it back to not done (today's progress,
-  the knob and the streak follow; tokens it brought are reversed), and
-  "Give tokens" credits what it would have brought in time.
-- Settings → Data can import an exported file (after a warning that it
-  replaces all data). The export now also holds the event log and the
-  approvals.
-- Every explanation in the panel sits behind an info button right next to
-  what it explains, in full sentences; many settings got an explanation
-  for the first time (the picture key, the knob animations, every screen
-  and sensor setting, the streak, the interest, reward bands with an
-  example, and more).
-- The knob: when a task is done, the finished task shrinks to its place on
-  the left while the next one grows into the middle (also on the virtual
-  knob). This needs the knob firmware update (OTA).
-- Smoother panel: side editors no longer slide in again after every
-  change; the Today time slider moves the ring and the cards live while
-  dragged; the mouse wheel moves the time slider and a focused number
-  field.
-- Calendar: a narrow block of overlapping routines opens to the full
-  column under the pointer.
-- Assist: the sentences and answers are in language files
-  (assist_translations), so a language can be added with one file. New
-  questions: "What does … have to do?", "What's next for …?", "Mi
-  következik …nél?", and what is left of a named routine. Answers no longer
-  say "rutin rutin" and name the next task in one natural sentence.
-- Deleting a child removes its sensor and its Assist sharing note.
-- Deleting a one-day routine asks first; a new one for today starts at the
-  next quarter of an hour. A new child gets a colour that does not warn.
-- The Hungarian texts say "gomb" instead of "knob"; the virtual knob
-  card's texts come from the translation files.
+- Assist answers many more questions locally, without an LLM, in English
+  and Hungarian:
+  - questions in the first person ("How many tokens do I have?", "What's
+    my next task?"), answered for the child who is asking: the one a
+    speaker recognition integration recognises, when one is installed, or
+    the children the voice satellite is assigned to. The new **Settings →
+    General → Voice satellites (Assist)** card assigns a satellite, or a
+    whole area, to one or more children. Little Helper never guesses one
+    child: with several it answers for each, and when speaker recognition
+    does not know the voice it asks who is speaking ("I'm Alex" then
+    answers the question);
+  - short follow-ups on the same satellite for about a minute ("And me?",
+    "What about Alex?", "And the kids?");
+  - questions about every child with "for the kids" / "for everyone"
+    ("What's the next checkpoint for the kids?", "Who has how many
+    tokens?", "Kinek mennyi?");
+  - new topics: what is still left today, when the next routine starts,
+    and which tasks lead to a checkpoint ("What are the steps of dinner?");
+  - filler words at the start of a question ("um", "hey", „őőő”, „és”)
+    and more speech-recognition mistakes are understood.
+- Answers for every child are short: one sentence when everyone has the
+  same, one when nobody has any, otherwise a list starting with the
+  largest. Each answer has several wordings and never repeats the same
+  one twice in a row; zero has its own wording; typed names (routines,
+  tasks, checkpoints) are never given an ending.
+- LLM agents get times in spoken form next to the raw values (for example
+  "at quarter to eight in the evening"), and can ask about the child who
+  is speaking.
+- The child sensors also show the next routine and when it starts.
+- Deleting a child also removes it from the voice satellites.
+
+## [0.9.9] - 2026-11-08
 
 ### Magyar
 
@@ -214,24 +255,50 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
 - Az egynapos rutin törlése megerősítést kér; a mára felvett új egynapos
   rutin a következő negyedórában kezdődik. Az új gyerek olyan színt kap,
   amely nem ad figyelmeztetést.
-- A magyar szövegekben „knob” helyett „gomb” áll; a virtuális gomb
+- A magyar szövegekben „gomb” helyett „gomb” áll; a virtuális gomb
   kártyájának szövegei a fordítási fájlokból jönnek.
-
-## [0.9.8] - 2026-11-08
 
 ### English
 
-- Three more bundled style themes: "Tom and Jerry style", "Mickey Mouse
-  style" and "DuckTales style" (fan-made style homages with original
-  artwork). Each has its own 135 pictures, a second set of avatars (24 in
-  all: kittens and mice, little mice, ducklings), six backgrounds (three by
-  day, three by night), coins with an embossed emblem, colours for the
-  panel and the knob, and a free display font (Shrikhand, Coiny, Bangers;
-  OFL).
-- The English logos of "Toy Story style", "Frozen style" and "The Simpsons
-  style" and the Hungarian logo of "Toy Story style" are easier to read.
-- The disclaimer names the rights holders of the new themes too.
-- The knob firmware has not changed; updating it is not needed.
+- Approval is asked for a checkpoint, not for single tasks: when a
+  checkpoint that needs approval is reached, one request asks for it with
+  its tokens; approving pays them, rejecting withholds them, and the tasks
+  stay done either way. Routines whose tasks needed approval move the
+  setting to their checkpoint. While waiting, the Today page shows the
+  checkpoint as waiting, not as earned.
+- History: with the events shown, a task or checkpoint entry can be
+  corrected: "Did not do it" puts it back to not done (today's progress,
+  the knob and the streak follow; tokens it brought are reversed), and
+  "Give tokens" credits what it would have brought in time.
+- Settings → Data can import an exported file (after a warning that it
+  replaces all data). The export now also holds the event log and the
+  approvals.
+- Every explanation in the panel sits behind an info button right next to
+  what it explains, in full sentences; many settings got an explanation
+  for the first time (the picture key, the knob animations, every screen
+  and sensor setting, the streak, the interest, reward bands with an
+  example, and more).
+- The knob: when a task is done, the finished task shrinks to its place on
+  the left while the next one grows into the middle (also on the virtual
+  knob). This needs the knob firmware update (OTA).
+- Smoother panel: side editors no longer slide in again after every
+  change; the Today time slider moves the ring and the cards live while
+  dragged; the mouse wheel moves the time slider and a focused number
+  field.
+- Calendar: a narrow block of overlapping routines opens to the full
+  column under the pointer.
+- Assist: the sentences and answers are in language files
+  (assist_translations), so a language can be added with one file. New
+  questions: "What does … have to do?", "What's next for …?", "Mi
+  következik …nél?", and what is left of a named routine. Answers no longer
+  say "rutin rutin" and name the next task in one natural sentence.
+- Deleting a child removes its sensor and its Assist sharing note.
+- Deleting a one-day routine asks first; a new one for today starts at the
+  next quarter of an hour. A new child gets a colour that does not warn.
+- The Hungarian texts say "gomb" instead of "knob"; the virtual knob
+  card's texts come from the translation files.
+
+## [0.9.8] - 2026-11-08
 
 ### Magyar
 
@@ -247,47 +314,21 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
 - A jogi nyilatkozat az új témák jogtulajdonosait is megnevezi.
 - A gomb firmware-je nem változott, nem kell frissíteni.
 
-## [0.9.7] - 2026-11-08
-
 ### English
 
-- Four more bundled style themes: "Cars style", "Toy Story style", "Planes
-  style" and "Winnie the Pooh style" (fan-made style homages with original
-  artwork). Each has its own 135 pictures, six backgrounds, colours for the
-  panel and the knob, and a free display font (Bungee, Sour Gummy, Nunito
-  Black, Grandstander; OFL).
-- New pictures for the bundled themes: six new backgrounds for "The
-  Simpsons style" and "Frozen style", crowned avatars in "Frozen style",
-  and coins with an embossed theme emblem in every style theme.
-- Avatars keep their theme: a child's avatar can be chosen from the
-  avatars of any theme (the avatar list shows them by theme) and looks the
-  same on the panel, the cards and every knob, whatever theme is chosen
-  later. Children set up before keep the look they have now. A theme may
-  have a second set of avatars (avatar_13 … avatar_24, 24 in all); "Winnie
-  the Pooh style" has one (animal versions).
-- Backgrounds of any theme: the common and the per-knob background can be
-  any theme's background. The chosen theme's backgrounds follow the theme
-  when it changes; another theme's background stays. In every theme
-  bg_1 … bg_3 are day scenes and bg_4 … bg_6 night scenes; the built-in
-  backgrounds are reordered the same way (a knob with the built-in look
-  keeps its picture). The kis_segito.set_background action takes
-  t_<theme>__bg_<n> too.
-- The settings page is split into tabs (General, Look & theme, Knobs,
-  Rewards & piggy bank, Data); the panel remembers the last one.
-- Explanations are no longer small print: an info button next to the title
-  opens them in a pop-up window in the theme's look (a sheet from the
-  bottom on phones).
-- Calendar: routines that overlap in time sit side by side, each one
-  clickable and draggable.
-- A new routine can repeat on weekdays or run only once, on a date.
-- Assist: "mi a dolga (most) …" and "mi a teendője …" questions are
-  understood in any word order; times say the part of the day ("este hét
-  órakor", "at seven in the evening"); the English streak answer says
-  "two days out of seven".
-- Approvals: a task request shows the tokens of its checkpoint as soon as
-  it exists; a rejected checkpoint is recorded with no tokens, in the day
-  progress and in the history.
+- Three more bundled style themes: "Tom and Jerry style", "Mickey Mouse
+  style" and "DuckTales style" (fan-made style homages with original
+  artwork). Each has its own 135 pictures, a second set of avatars (24 in
+  all: kittens and mice, little mice, ducklings), six backgrounds (three by
+  day, three by night), coins with an embossed emblem, colours for the
+  panel and the knob, and a free display font (Shrikhand, Coiny, Bangers;
+  OFL).
+- The English logos of "Toy Story style", "Frozen style" and "The Simpsons
+  style" and the Hungarian logo of "Toy Story style" are easier to read.
+- The disclaimer names the rights holders of the new themes too.
 - The knob firmware has not changed; updating it is not needed.
+
+## [0.9.7] - 2026-11-08
 
 ### Magyar
 
@@ -331,41 +372,47 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   haladásba és az előzményekbe.
 - A gomb firmware-je nem változott, nem kell frissíteni.
 
-## [0.9.6] - 2026-11-05
-
 ### English
 
-- Assist: Home Assistant's voice assistant understands many more ways of
-  asking, in Hungarian and English: other words (coins, money, points,
-  balance; checkpoint, deadline; task, job), free word order, the child's
-  name with its Hungarian endings, and some common speech-recognition
-  mistakes. A question without a name ("how many tokens do the kids have")
-  is answered for every child. A name Kis Segítő does not know is left to
-  the other agents.
-- Assist answers are made to be spoken: numbers and times are words ("in a
-  quarter of an hour, at half past seven"), without digits or symbols, so
-  every text-to-speech voice reads them right. Each answer has a few
-  wordings. Other languages are answered in English.
-- Assist with an LLM: the Kis Segítő tool also answers about every child at
-  once and gives the LLM all the data (other names, the next checkpoint's
-  time, tasks left, tokens still to earn, streak). The children's sensors
-  are shared with Assist once by default; turning one off is kept. The
-  README lists the sentences that work without an LLM and which agent
-  answers in which setup (docs/assist.md).
-- Approvals: a checkpoint whose tasks need approval pays only when none of
-  its requests is waiting or rejected. It waits for the last approval, and
-  pays nothing when a task is rejected. Waiting requests show the tokens
-  they would bring.
-- A knob that is restarting or offline no longer logs errors when Home
-  Assistant sends it data; it gets everything again when it reconnects. The
-  knob buttons of the status card answer "not available" then.
-- Dashboard cards in the theme's look: a card of one child with its own
-  theme takes that theme's colours.
-- Knob status card: the light value is rounded (two decimals below 10,
-  whole numbers above) and the firmware version is on its own line.
-- The theme picture lists are read only once, outside Home Assistant's
-  event loop.
+- Four more bundled style themes: "Cars style", "Toy Story style", "Planes
+  style" and "Winnie the Pooh style" (fan-made style homages with original
+  artwork). Each has its own 135 pictures, six backgrounds, colours for the
+  panel and the knob, and a free display font (Bungee, Sour Gummy, Nunito
+  Black, Grandstander; OFL).
+- New pictures for the bundled themes: six new backgrounds for "The
+  Simpsons style" and "Frozen style", crowned avatars in "Frozen style",
+  and coins with an embossed theme emblem in every style theme.
+- Avatars keep their theme: a child's avatar can be chosen from the
+  avatars of any theme (the avatar list shows them by theme) and looks the
+  same on the panel, the cards and every knob, whatever theme is chosen
+  later. Children set up before keep the look they have now. A theme may
+  have a second set of avatars (avatar_13 … avatar_24, 24 in all); "Winnie
+  the Pooh style" has one (animal versions).
+- Backgrounds of any theme: the common and the per-knob background can be
+  any theme's background. The chosen theme's backgrounds follow the theme
+  when it changes; another theme's background stays. In every theme
+  bg_1 … bg_3 are day scenes and bg_4 … bg_6 night scenes; the built-in
+  backgrounds are reordered the same way (a knob with the built-in look
+  keeps its picture). The kis_segito.set_background action takes
+  t_<theme>__bg_<n> too.
+- The settings page is split into tabs (General, Look & theme, Knobs,
+  Rewards & piggy bank, Data); the panel remembers the last one.
+- Explanations are no longer small print: an info button next to the title
+  opens them in a pop-up window in the theme's look (a sheet from the
+  bottom on phones).
+- Calendar: routines that overlap in time sit side by side, each one
+  clickable and draggable.
+- A new routine can repeat on weekdays or run only once, on a date.
+- Assist: "mi a dolga (most) …" and "mi a teendője …" questions are
+  understood in any word order; times say the part of the day ("este hét
+  órakor", "at seven in the evening"); the English streak answer says
+  "two days out of seven".
+- Approvals: a task request shows the tokens of its checkpoint as soon as
+  it exists; a rejected checkpoint is recorded with no tokens, in the day
+  progress and in the history.
 - The knob firmware has not changed; updating it is not needed.
+
+## [0.9.6] - 2026-11-05
 
 ### Magyar
 
@@ -403,36 +450,41 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   eseményhurkon kívül.
 - A gomb firmware-je nem változott, nem kell frissíteni.
 
-## [0.9.5] - 2026-11-05
-
 ### English
 
-- Themes: the look of the panel, the dashboard cards and the knobs – colours,
-  fonts, icons, avatars, backgrounds, logos and the knob's loading screen.
-  Choose one under Settings → Theme. The physical knobs download a theme's
-  pictures from Home Assistant at the size they show them (the firmware does
-  not grow) and restart once to switch, after a minute without use.
-- Two bundled style themes: "The Simpsons style" and "Frozen style". They are
-  fan-made style homages with original artwork: each has its own 135 pictures
-  (icons, avatars, coins, logos, knob pictures) and 6 backgrounds, its own
-  colours for the panel (light and dark) and the knob, and a free display
-  font (Luckiest Guy, Apache 2.0; Berkshire Swash, OFL). See the disclaimer
-  in the README.
-- A theme per child: in the child editor, "Theme on the knob". That child's
-  screens show its theme; the child selector and the background stay the
-  knob's theme. The virtual knob and the single-child cards follow it too.
-- Own themes: download a template (theme.json, a short guide and every
-  picture under its file name), replace any pictures and upload the ZIP under
-  Settings → Theme → Manage themes. Home Assistant renders every size;
-  pictures left out stay the built-in ones. Any theme can be switched off,
-  own themes deleted, and uploading again updates a theme. Own themes are
-  kept in Home Assistant's configuration folder. Guide: docs/themes.md.
-- Dashboard cards: a switch gives them the theme's colours and fonts (off by
-  default: they follow the dashboard's theme).
-- The panel's buttons use plain symbols instead of emoji, so they take the
-  theme's colours; edit marks use the theme's edit picture. The knob's streak
-  row and the cards' task checks and approve/reject buttons are pictures now.
-- The knob firmware needs an update (OTA) for themes.
+- Assist: Home Assistant's voice assistant understands many more ways of
+  asking, in Hungarian and English: other words (coins, money, points,
+  balance; checkpoint, deadline; task, job), free word order, the child's
+  name with its Hungarian endings, and some common speech-recognition
+  mistakes. A question without a name ("how many tokens do the kids have")
+  is answered for every child. A name Little Helper does not know is left to
+  the other agents.
+- Assist answers are made to be spoken: numbers and times are words ("in a
+  quarter of an hour, at half past seven"), without digits or symbols, so
+  every text-to-speech voice reads them right. Each answer has a few
+  wordings. Other languages are answered in English.
+- Assist with an LLM: the Little Helper tool also answers about every child at
+  once and gives the LLM all the data (other names, the next checkpoint's
+  time, tasks left, tokens still to earn, streak). The children's sensors
+  are shared with Assist once by default; turning one off is kept. The
+  README lists the sentences that work without an LLM and which agent
+  answers in which setup (docs/assist.md).
+- Approvals: a checkpoint whose tasks need approval pays only when none of
+  its requests is waiting or rejected. It waits for the last approval, and
+  pays nothing when a task is rejected. Waiting requests show the tokens
+  they would bring.
+- A knob that is restarting or offline no longer logs errors when Home
+  Assistant sends it data; it gets everything again when it reconnects. The
+  knob buttons of the status card answer "not available" then.
+- Dashboard cards in the theme's look: a card of one child with its own
+  theme takes that theme's colours.
+- Knob status card: the light value is rounded (two decimals below 10,
+  whole numbers above) and the firmware version is on its own line.
+- The theme picture lists are read only once, outside Home Assistant's
+  event loop.
+- The knob firmware has not changed; updating it is not needed.
+
+## [0.9.5] - 2026-11-05
 
 ### Magyar
 
@@ -465,40 +517,36 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   kártyák feladatpipái, jóváhagyás/elutasítás gombjai most képek.
 - A témákhoz a gomb firmware-ét frissíteni kell (OTA).
 
-## [0.9.4] - 2026-11-05
-
 ### English
 
-- Dashboard cards for parents: nine cards come with the integration, each with
-  a visual editor, the dashboard theme's colours and texts in the user's
-  language (English and Hungarian): child (wallet, piggy bank, streak, today's
-  routines – choose which), today's routine (tasks can be ticked; a parent's
-  tick is logged with their name; or status only), reward shop (for one child,
-  or per reward which children can afford it), approvals, weekly statistics
-  (per day and per routine, with the streak), quick +/− tokens with a note,
-  event log (the last N events), knob status (brightness, light, presence,
-  firmware version; wake, screensaver and night light buttons) and children
-  at a glance. See docs/cards.md.
-- Assist: Home Assistant's assistants answer questions about a child, read
-  only: tokens, whether there is a task now, the time until the next
-  checkpoint, the tokens still to earn today, and the streak. The built-in
-  agent understands English and Hungarian sentences with the child's name or
-  another name set in the child editor; LLM agents get a read-only tool when a
-  Kis Segítő entity is exposed. The child sensors have the same data as new
-  attributes (`task_status`, `tasks_left`, `next_checkpoint_minutes`,
-  `tokens_earnable_now`, `tokens_earnable_today`). See docs/assist.md.
-- Knob firmware for other hardware: the screen is driven by generic inputs
-  (next, previous, select, back, wake); the encoder and button handling is an
-  input profile, and an example profile uses three push buttons. The screen
-  is laid out for 480 px and scaled to the display (240, 360, 466 or 480 px).
-  With the VIEWE MD80E nothing changes. Own knobs that include
-  `kis-segito-core.yaml` directly now also include an input profile (see
-  docs/boards.md).
-- Home Assistant serves knob backgrounds for these screen sizes, and avatars
-  and photos at any icon size.
-- The history shows who ticked a task for a child.
-- Deleting an own icon used by a task replaced it with a missing picture; a
-  built-in task icon is used now.
+- Themes: the look of the panel, the dashboard cards and the knobs – colours,
+  fonts, icons, avatars, backgrounds, logos and the knob's loading screen.
+  Choose one under Settings → Theme. The physical knobs download a theme's
+  pictures from Home Assistant at the size they show them (the firmware does
+  not grow) and restart once to switch, after a minute without use.
+- Two bundled style themes: "The Simpsons style" and "Frozen style". They are
+  fan-made style homages with original artwork: each has its own 135 pictures
+  (icons, avatars, coins, logos, knob pictures) and 6 backgrounds, its own
+  colours for the panel (light and dark) and the knob, and a free display
+  font (Luckiest Guy, Apache 2.0; Berkshire Swash, OFL). See the disclaimer
+  in the README.
+- A theme per child: in the child editor, "Theme on the knob". That child's
+  screens show its theme; the child selector and the background stay the
+  knob's theme. The virtual knob and the single-child cards follow it too.
+- Own themes: download a template (theme.json, a short guide and every
+  picture under its file name), replace any pictures and upload the ZIP under
+  Settings → Theme → Manage themes. Home Assistant renders every size;
+  pictures left out stay the built-in ones. Any theme can be switched off,
+  own themes deleted, and uploading again updates a theme. Own themes are
+  kept in Home Assistant's configuration folder. Guide: docs/themes.md.
+- Dashboard cards: a switch gives them the theme's colours and fonts (off by
+  default: they follow the dashboard's theme).
+- The panel's buttons use plain symbols instead of emoji, so they take the
+  theme's colours; edit marks use the theme's edit picture. The knob's streak
+  row and the cards' task checks and approve/reject buttons are pictures now.
+- The knob firmware needs an update (OTA) for themes.
+
+## [0.9.4] - 2026-11-05
 
 ### Magyar
 
@@ -534,32 +582,40 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
 - Egy feladat által használt saját ikon törlése után hiányzó kép jelent meg;
   most egy beépített feladatikon kerül a helyére.
 
-## [0.9.3] - 2026-11-05
-
 ### English
 
-- Approval for tasks and rewards (both off by default):
-  - a task can need approval (a switch per task in the routine editor). It
-    counts as done at once – ticked on the knob, in the routine progress and
-    the streak. When its checkpoint is reached, the checkpoint's tokens are
-    worked out at that moment and paid only when a parent approves; when
-    rejected, the task stays done and only the tokens are withheld;
-  - a reward can need confirmation (a switch in the reward editor). When the
-    child buys it, its price is set aside at once (the same tokens cannot be
-    spent twice); confirming spends them, rejecting returns them. A piggy-bank
-    unlock opens on confirmation;
-  - waiting requests are shown at the top of the Today page with Approve and
-    Reject; they never expire. Every step (request, approval, rejection, who
-    and when) is in the history and the audit log, and notifications and
-    automations get the new events `approval_requested`,
-    `approval_approved` and `approval_rejected`.
-- Own icons: wherever an icon is chosen (tasks, checkpoints, routines,
-  rewards), your own picture can be uploaded as an icon. It is then offered
-  in every icon picker and shows on the physical and the virtual knob like the
-  built-in icons. Settings → Icons: own icons can be replaced, switched off or
-  deleted (after a confirmation that says where they are used; there a
-  built-in icon takes their place); built-in icons can be switched off. A
-  switched-off icon is no longer offered; what already uses it keeps it.
+- Dashboard cards for parents: nine cards come with the integration, each with
+  a visual editor, the dashboard theme's colours and texts in the user's
+  language (English and Hungarian): child (wallet, piggy bank, streak, today's
+  routines – choose which), today's routine (tasks can be ticked; a parent's
+  tick is logged with their name; or status only), reward shop (for one child,
+  or per reward which children can afford it), approvals, weekly statistics
+  (per day and per routine, with the streak), quick +/− tokens with a note,
+  event log (the last N events), knob status (brightness, light, presence,
+  firmware version; wake, screensaver and night light buttons) and children
+  at a glance. See docs/cards.md.
+- Assist: Home Assistant's assistants answer questions about a child, read
+  only: tokens, whether there is a task now, the time until the next
+  checkpoint, the tokens still to earn today, and the streak. The built-in
+  agent understands English and Hungarian sentences with the child's name or
+  another name set in the child editor; LLM agents get a read-only tool when a
+  Little Helper entity is exposed. The child sensors have the same data as new
+  attributes (`task_status`, `tasks_left`, `next_checkpoint_minutes`,
+  `tokens_earnable_now`, `tokens_earnable_today`). See docs/assist.md.
+- Knob firmware for other hardware: the screen is driven by generic inputs
+  (next, previous, select, back, wake); the encoder and button handling is an
+  input profile, and an example profile uses three push buttons. The screen
+  is laid out for 480 px and scaled to the display (240, 360, 466 or 480 px).
+  With the VIEWE MD80E nothing changes. Own knobs that include
+  `kis-segito-core.yaml` directly now also include an input profile (see
+  docs/boards.md).
+- Home Assistant serves knob backgrounds for these screen sizes, and avatars
+  and photos at any icon size.
+- The history shows who ticked a task for a child.
+- Deleting an own icon used by a task replaced it with a missing picture; a
+  built-in task icon is used now.
+
+## [0.9.3] - 2026-11-05
 
 ### Magyar
 
@@ -589,26 +645,32 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   beépített ikonok kikapcsolhatók. A kikapcsolt ikont a rendszer nem kínálja
   fel többé; ami már használja, megtartja.
 
-## [0.9.2] - 2026-11-04
-
 ### English
 
-- Virtual knob card: after a full page reload it no longer shows
-  "Configuration error". The card now registers once the Home Assistant
-  frontend has loaded, so dashboards always find it.
-- Panel: an open expandable section (e.g. a knob's children or background)
-  stays open after a save and after new data arrives. Opening another section
-  closes it.
-- Knob updates over the network are encrypted with the API key
-  (`ota: encryption:`) instead of an OTA password; ESPHome no longer warns
-  about it, and the firmware is smaller. The example config, the README and
-  docs/security.md show the new setting and how to move an existing knob
-  over (one install with both, then encryption only); an `ota_password` is no
-  longer needed.
-- The knob's text font no longer asks for Greek letters it does not have (no
-  more warning when compiling); Latin and Cyrillic texts are unchanged.
-- Home Assistant no longer warns about a blocking file access when a virtual
-  knob card connects (the icon lists are read once, outside the event loop).
+- Approval for tasks and rewards (both off by default):
+  - a task can need approval (a switch per task in the routine editor). It
+    counts as done at once – ticked on the knob, in the routine progress and
+    the streak. When its checkpoint is reached, the checkpoint's tokens are
+    worked out at that moment and paid only when a parent approves; when
+    rejected, the task stays done and only the tokens are withheld;
+  - a reward can need confirmation (a switch in the reward editor). When the
+    child buys it, its price is set aside at once (the same tokens cannot be
+    spent twice); confirming spends them, rejecting returns them. A piggy-bank
+    unlock opens on confirmation;
+  - waiting requests are shown at the top of the Today page with Approve and
+    Reject; they never expire. Every step (request, approval, rejection, who
+    and when) is in the history and the audit log, and notifications and
+    automations get the new events `approval_requested`,
+    `approval_approved` and `approval_rejected`.
+- Own icons: wherever an icon is chosen (tasks, checkpoints, routines,
+  rewards), your own picture can be uploaded as an icon. It is then offered
+  in every icon picker and shows on the physical and the virtual knob like the
+  built-in icons. Settings → Icons: own icons can be replaced, switched off or
+  deleted (after a confirmation that says where they are used; there a
+  built-in icon takes their place); built-in icons can be switched off. A
+  switched-off icon is no longer offered; what already uses it keeps it.
+
+## [0.9.2] - 2026-11-04
 
 ### Magyar
 
@@ -630,7 +692,48 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   virtuális gomb kártya csatlakozik (az ikonlisták egyszer, az eseményhurkon
   kívül olvasódnak be).
 
+### English
+
+- Virtual knob card: after a full page reload it no longer shows
+  "Configuration error". The card now registers once the Home Assistant
+  frontend has loaded, so dashboards always find it.
+- Panel: an open expandable section (e.g. a knob's children or background)
+  stays open after a save and after new data arrives. Opening another section
+  closes it.
+- Knob updates over the network are encrypted with the API key
+  (`ota: encryption:`) instead of an OTA password; ESPHome no longer warns
+  about it, and the firmware is smaller. The example config, the README and
+  docs/security.md show the new setting and how to move an existing knob
+  over (one install with both, then encryption only); an `ota_password` is no
+  longer needed.
+- The knob's text font no longer asks for Greek letters it does not have (no
+  more warning when compiling); Latin and Cyrillic texts are unchanged.
+- Home Assistant no longer warns about a blocking file access when a virtual
+  knob card connects (the icon lists are read once, outside the event loop).
+
 ## [0.9.1] - 2026-11-04
+
+### Magyar
+
+- Gyerekek gombonként: a panelen (Beállítások → Gombok) minden gombnál –
+  fizikainál és virtuálisnál is – bepipálható, mely gyerekek használhatják;
+  alapból mindenki, és az új gyerek minden gombnál be van pipálva. A többiek
+  szürkén, lakattal látszanak, vagy rejtve vannak (gombonként kapcsolható).
+  A fizikai és a virtuális gombon ugyanaz a szabály. A gyereknél megadható
+  gombválasztó megszűnt; a meglévő beállítások átkerülnek (a gomb nélküli
+  gyerek minden gombon, a gombhoz rendelt csak annál).
+- Háttér gombonként: minden gombnak lehet saját háttere (Beállítások →
+  Gombok), a közös a kezdőérték. A fizikai gomb csere után továbbra is egyszer
+  újraindul, amikor az új kép eltárolódott, és a gombot 1 percig nem
+  használták; ugyanannak a háttérnek az újraválasztása nem csinál semmit. A
+  virtuális gomb azonnal az új képet mutatja. A `kis_segito.set_background`
+  kapott egy nem kötelező `gomb` mezőt (név vagy eszközazonosító); nélküle
+  minden gomb vált.
+- Több virtuális gomb is használható egyszerre (pl. telefononként vagy
+  táblagépenként egy).
+- Virtuális gomb kártya: csak a kerek képernyő látszik, kártyaháttér, keret és
+  árnyék nélkül. A vissza gomb csak akkor jelenik meg, ha a kártya
+  beállításaiban be van kapcsolva, Home Assistant-ikonként a téma színeivel.
 
 ### English
 
@@ -654,43 +757,7 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   switched on in the card settings, as a Home Assistant icon in the theme's
   colours.
 
-### Magyar
-
-- Gyerekek gombonként: a panelen (Beállítások → Gombok) minden gombnál –
-  fizikainál és virtuálisnál is – bepipálható, mely gyerekek használhatják;
-  alapból mindenki, és az új gyerek minden gombnál be van pipálva. A többiek
-  szürkén, lakattal látszanak, vagy rejtve vannak (gombonként kapcsolható).
-  A fizikai és a virtuális gombon ugyanaz a szabály. A gyereknél megadható
-  gombválasztó megszűnt; a meglévő beállítások átkerülnek (a gomb nélküli
-  gyerek minden gombon, a gombhoz rendelt csak annál).
-- Háttér gombonként: minden gombnak lehet saját háttere (Beállítások →
-  Gombok), a közös a kezdőérték. A fizikai gomb csere után továbbra is egyszer
-  újraindul, amikor az új kép eltárolódott, és a gombot 1 percig nem
-  használták; ugyanannak a háttérnek az újraválasztása nem csinál semmit. A
-  virtuális gomb azonnal az új képet mutatja. A `kis_segito.set_background`
-  kapott egy nem kötelező `knob` mezőt (név vagy eszközazonosító); nélküle
-  minden gomb vált.
-- Több virtuális gomb is használható egyszerre (pl. telefononként vagy
-  táblagépenként egy).
-- Virtuális gomb kártya: csak a kerek képernyő látszik, kártyaháttér, keret és
-  árnyék nélkül. A vissza gomb csak akkor jelenik meg, ha a kártya
-  beállításaiban be van kapcsolva, Home Assistant-ikonként a téma színeivel.
-
 ## [0.9.0] - 2026-11-03
-
-### English
-
-- Virtual knob: the knob screen as a dashboard card, for use without the
-  physical knob (on a trip, or when the knob does not work). It shows the same
-  screens, pictures and animations – children, functions, routine with the time
-  track, rewards with confirmation, piggy bank, tokens and streak – and is
-  operated by touch: swipe left/right = turn, tap = press, press and hold =
-  back; a mouse wheel and the arrow, Enter and Escape keys work too, and an
-  optional back button can be shown. Create one on the panel (Settings → Knobs
-  → Add a virtual knob), then add the "Kis Segítő" card to a dashboard; the
-  card comes with the integration. Children can be assigned to it like to a
-  real knob; the actions it sends are booked by Home Assistant with the same
-  rules, once each.
 
 ### Magyar
 
@@ -707,18 +774,21 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   általa küldött műveleteket a Home Assistant ugyanazokkal a szabályokkal,
   egyszer könyveli.
 
-## [0.8.2] - 2026-11-03
-
 ### English
 
-- Fix: with 0.8.1 the knob's screen stayed dark (backlight on, no picture).
-  ESPHome 2026.10 sends the display's start-up sequence only after the
-  picture bus has taken over the pins it shares with it on this knob, so the
-  panel never got it. The firmware now resets the panel and sends the
-  sequence itself before the display starts, as with earlier ESPHome versions.
-- docs/sensors.md: how to measure the light correction reliably (an uncovered
-  light sensor or an Android light meter app as reference, medium light, two
-  light levels).
+- Virtual knob: the knob screen as a dashboard card, for use without the
+  physical knob (on a trip, or when the knob does not work). It shows the same
+  screens, pictures and animations – children, functions, routine with the time
+  track, rewards with confirmation, piggy bank, tokens and streak – and is
+  operated by touch: swipe left/right = turn, tap = press, press and hold =
+  back; a mouse wheel and the arrow, Enter and Escape keys work too, and an
+  optional back button can be shown. Create one on the panel (Settings → Knobs
+  → Add a virtual knob), then add the "Little Helper" card to a dashboard; the
+  card comes with the integration. Children can be assigned to it like to a
+  real knob; the actions it sends are booked by Home Assistant with the same
+  rules, once each.
+
+## [0.8.2] - 2026-11-03
 
 ### Magyar
 
@@ -732,27 +802,18 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   takaratlan fényérzékelő vagy androidos fénymérő alkalmazás, közepes fény, két
   fényerő).
 
-## [0.8.1] - 2026-11-02
-
 ### English
 
-- Light correction: a factor on the panel (Settings → Sensors) that the knob
-  applies to the measured illuminance for the night light threshold and the
-  brightness, whatever the light source. A sensor behind the enclosure's window
-  reads less than the room has; the card shows each knob's measured value and
-  the room value next to it. How to set it with a phone light meter app:
-  docs/sensors.md.
-- Ready for current Home Assistant: the integration no longer uses
-  `DeviceEntry.config_entries` (removed in Home Assistant 2027.10), and its
-  daily and weekly timers stop cleanly when Home Assistant shuts down. Tested
-  with Home Assistant 2026.10.4.
-- The firmware is built and tested with ESPHome 2026.10.1 and now needs
-  ESPHome 2026.10.0 or newer: ESPHome 2026.10 changed how the display gets its
-  start-up sequence, so 0.8.0 does not compile with it. The release notes name
-  the ESPHome and Home Assistant versions each release was tested with.
-- docs/sensors.md: what the VEML7700 I2C warnings (`err = 2`, `Shutdown
-  failed`, …) mean and what helps against them. The backlight PWM frequency
-  can be changed with the `backlight_pwm_frequency` substitution.
+- Fix: with 0.8.1 the knob's screen stayed dark (backlight on, no picture).
+  ESPHome 2026.10 sends the display's start-up sequence only after the
+  picture bus has taken over the pins it shares with it on this knob, so the
+  panel never got it. The firmware now resets the panel and sends the
+  sequence itself before the display starts, as with earlier ESPHome versions.
+- docs/sensors.md: how to measure the light correction reliably (an uncovered
+  light sensor or an Android light meter app as reference, medium light, two
+  light levels).
+
+## [0.8.1] - 2026-11-02
 
 ### Magyar
 
@@ -775,41 +836,27 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   `Shutdown failed`, …), és mi segít ellenük. A háttérfény PWM-frekvenciája a
   `backlight_pwm_frequency` substitutionnel módosítható.
 
-## [0.8.0] - 2026-10-17
-
 ### English
 
-- Sensors (optional): the knob takes presence, distance and illuminance
-  values, from any sensor wired to it (routed in the device config, see
-  docs/sensors.md; tested: LD2410C radar and VEML7700 light sensor) or from
-  Home Assistant entities chosen on the panel (Settings → Knobs → Sensors from
-  Home Assistant). The logic runs on the knob. Settings on the panel
-  (Settings → Sensors), each part can be switched off:
-  - someone near the knob wakes the screen with a soft fade-in;
-  - with a presence sensor the screensaver and the other screen stages count
-    from when someone was last near, not only from the last turn or press;
-  - night light: in the dark, someone further away gets a white light (colour
-    temperature and brightness are settings) with a small black crescent moon;
-    coming closer than the set distance (default 80 cm) shows the child
-    screen. Without a distance sensor a turn or press shows it. The light
-    fades out some time after presence ended (default 1 minute);
-  - the backlight follows the room light between a lowest and a highest
-    brightness, smoothly.
-- New entities on the knob: Presence, Distance, Illuminance, Night light,
-  Screensaver, Screen brightness. New knob actions for automations: `wake`,
-  `screensaver`, `night_light` (docs/automations.md).
-- The firmware is split into a hardware-independent core
-  (`esphome/kis-segito-core.yaml`) and the knob's board profile
-  (`esphome/hardware/board.yaml`). `kis-segito.yaml` combines the two, so
-  existing device configs keep working. A profile can be written for another
-  knob (docs/boards.md).
-- The serial log can move to UART1 (`logger_uart: UART1`), which frees
-  GPIO43/44 for sensors while the log stays available over the network.
-  Setting `logger_baud_rate` to `"0"` breaks the display on this knob and is
-  no longer suggested.
-- docs/hardware.md: the debug board's free pins as measured (GPIO4, 15, 16,
-  43, 44; the vendor specification is wrong in several places), and a pin
-  probe firmware (`esphome/pin-probe.yaml`) to check them on your own unit.
+- Light correction: a factor on the panel (Settings → Sensors) that the knob
+  applies to the measured illuminance for the night light threshold and the
+  brightness, whatever the light source. A sensor behind the enclosure's window
+  reads less than the room has; the card shows each knob's measured value and
+  the room value next to it. How to set it with a phone light meter app:
+  docs/sensors.md.
+- Ready for current Home Assistant: the integration no longer uses
+  `DeviceEntry.config_entries` (removed in Home Assistant 2027.10), and its
+  daily and weekly timers stop cleanly when Home Assistant shuts down. Tested
+  with Home Assistant 2026.10.4.
+- The firmware is built and tested with ESPHome 2026.10.1 and now needs
+  ESPHome 2026.10.0 or newer: ESPHome 2026.10 changed how the display gets its
+  start-up sequence, so 0.8.0 does not compile with it. The release notes name
+  the ESPHome and Home Assistant versions each release was tested with.
+- docs/sensors.md: what the VEML7700 I2C warnings (`err = 2`, `Shutdown
+  failed`, …) mean and what helps against them. The backlight PWM frequency
+  can be changed with the `backlight_pwm_frequency` substitution.
+
+## [0.8.0] - 2026-10-17
 
 ### Magyar
 
@@ -846,41 +893,41 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   (`esphome/pin-probe.yaml`), amellyel a saját példányodon ellenőrizheted
   őket.
 
-## [0.7.33] - 2026-10-13
-
 ### English
 
-- Redesigned Home Assistant panel: a new, playful look with its own fonts
-  (Baloo 2 and Figtree), a day/night switch (by default it follows the Home
-  Assistant dark mode), the Kis Segítő / Little Helper logo in the header, a
-  language switch, pill tabs on desktop and a bottom bar on phones. Editors open
-  in side drawers with section navigation; every drawer and dialog closes with a
-  click outside or Esc; confirmations appear inside the panel and short
-  messages appear as toasts.
-- Today page: a top card with the ring preview, the next checkpoint and the
-  remaining tasks, a time slider to look back over the day, child cards that open
-  the child's statistics, and a "Modify today" section to adjust or restore
-  today's routines.
-- Statistics per child: last 7 days by default, or 30 days, all time or a custom
-  period; summary tiles, a daily chart, per-checkpoint timing, observations, and
-  tokens earned, spent and saved.
-- Event log: finished tasks, finished checkpoints (with tokens and timing) and
-  missed checkpoints are now recorded. Existing history is filled in from the
-  saved days on the first start. The History page hides events without token movement by
-  default; a switch shows them and search always finds them.
-- Calendar: drag a routine to another time or day, drag its top or bottom edge
-  to change its length (5-minute steps), with an undo bar. Checkpoints keep their
-  distance from the end of the routine. A moved routine shows where it came from;
-  "Restore the original" moves it back. The one-day editor has a date field. Past
-  days cannot be changed.
-- Restoring a changed occurrence now restores the original completely, including
-  a time shift.
-- Rewards: shop grid with reordering, an editor with live preview; "Use icon"
-  opens the icon picker right away. Tokens: quick amounts.
-- Settings: knobs can be renamed from the panel; restart and new picture key ask
-  for confirmation; background thumbnails.
-- The knob's "Menu: routine … shown/hidden" log lines appear only when the
-  routines in the menu change, not again with every data update.
+- Sensors (optional): the knob takes presence, distance and illuminance
+  values, from any sensor wired to it (routed in the device config, see
+  docs/sensors.md; tested: LD2410C radar and VEML7700 light sensor) or from
+  Home Assistant entities chosen on the panel (Settings → Knobs → Sensors from
+  Home Assistant). The logic runs on the knob. Settings on the panel
+  (Settings → Sensors), each part can be switched off:
+  - someone near the knob wakes the screen with a soft fade-in;
+  - with a presence sensor the screensaver and the other screen stages count
+    from when someone was last near, not only from the last turn or press;
+  - night light: in the dark, someone further away gets a white light (colour
+    temperature and brightness are settings) with a small black crescent moon;
+    coming closer than the set distance (default 80 cm) shows the child
+    screen. Without a distance sensor a turn or press shows it. The light
+    fades out some time after presence ended (default 1 minute);
+  - the backlight follows the room light between a lowest and a highest
+    brightness, smoothly.
+- New entities on the knob: Presence, Distance, Illuminance, Night light,
+  Screensaver, Screen brightness. New knob actions for automations: `wake`,
+  `screensaver`, `night_light` (docs/automations.md).
+- The firmware is split into a hardware-independent core
+  (`esphome/kis-segito-core.yaml`) and the knob's board profile
+  (`esphome/hardware/board.yaml`). `kis-segito.yaml` combines the two, so
+  existing device configs keep working. A profile can be written for another
+  knob (docs/boards.md).
+- The serial log can move to UART1 (`logger_uart: UART1`), which frees
+  GPIO43/44 for sensors while the log stays available over the network.
+  Setting `logger_baud_rate` to `"0"` breaks the display on this knob and is
+  no longer suggested.
+- docs/hardware.md: the debug board's free pins as measured (GPIO4, 15, 16,
+  43, 44; the vendor specification is wrong in several places), and a pin
+  probe firmware (`esphome/pin-probe.yaml`) to check them on your own unit.
+
+## [0.7.33] - 2026-10-13
 
 ### Magyar
 
@@ -917,25 +964,41 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
 - A gomb „Menu: routine … shown/hidden” naplósorai csak akkor jelennek meg,
   ha a menü rutinjai változnak, nem minden adatfrissítéskor újra.
 
-## [0.7.32] - 2026-10-12
-
 ### English
 
-- Knob menus: entering the functions menu from the child selector always
-  starts at its first entry (also after waking the screen or after holding
-  the button to go back). Coming back from a screen opened from the menu
-  (shop, routine, tokens, piggy bank) returns to that entry.
-- When a routine leaves the knob's menu. Exact rule: until the routine's
-  end it is always shown. After the end, if every child of the routine has
-  finished every task, it leaves the menu at once (no late-reward time, no
-  extra minutes). If any task is still open for a child (whichever
-  checkpoint it belongs to), it stays as long as the routine's last
-  checkpoint still pays late (reward band with negative minutes), then for
-  the time set in the panel (default 30 minutes).
-- The knob logs which routines its functions menu offers whenever that
-  changes, with the times that decide it ("Menu: routine … shown/hidden").
-- The log line "Previous run ended by: planned restart" now also appears in
-  Home Assistant's log (it showed "software restart" there).
+- Redesigned Home Assistant panel: a new, playful look with its own fonts
+  (Baloo 2 and Figtree), a day/night switch (by default it follows the Home
+  Assistant dark mode), the Little Helper / Little Helper logo in the header, a
+  language switch, pill tabs on desktop and a bottom bar on phones. Editors open
+  in side drawers with section navigation; every drawer and dialog closes with a
+  click outside or Esc; confirmations appear inside the panel and short
+  messages appear as toasts.
+- Today page: a top card with the ring preview, the next checkpoint and the
+  remaining tasks, a time slider to look back over the day, child cards that open
+  the child's statistics, and a "Modify today" section to adjust or restore
+  today's routines.
+- Statistics per child: last 7 days by default, or 30 days, all time or a custom
+  period; summary tiles, a daily chart, per-checkpoint timing, observations, and
+  tokens earned, spent and saved.
+- Event log: finished tasks, finished checkpoints (with tokens and timing) and
+  missed checkpoints are now recorded. Existing history is filled in from the
+  saved days on the first start. The History page hides events without token movement by
+  default; a switch shows them and search always finds them.
+- Calendar: drag a routine to another time or day, drag its top or bottom edge
+  to change its length (5-minute steps), with an undo bar. Checkpoints keep their
+  distance from the end of the routine. A moved routine shows where it came from;
+  "Restore the original" moves it back. The one-day editor has a date field. Past
+  days cannot be changed.
+- Restoring a changed occurrence now restores the original completely, including
+  a time shift.
+- Rewards: shop grid with reordering, an editor with live preview; "Use icon"
+  opens the icon picker right away. Tokens: quick amounts.
+- Settings: knobs can be renamed from the panel; restart and new picture key ask
+  for confirmation; background thumbnails.
+- The knob's "Menu: routine … shown/hidden" log lines appear only when the
+  routines in the menu change, not again with every data update.
+
+## [0.7.32] - 2026-10-12
 
 ### Magyar
 
@@ -955,25 +1018,25 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
 - A „Previous run ended by: planned restart” sor most a Home Assistant
   naplójában is megjelenik (ott eddig „software restart” látszott).
 
-## [0.7.31] - 2026-10-12
-
 ### English
 
-- Knob menus: the functions menu reopens at the entry last used (for example
-  after leaving the shop or a routine, or after a long press back), as long
-  as the same child is selected and the entry is still there. Only the shop
-  always opens at its first item (except when coming back from the purchase
-  question).
-- Panel → Settings → Knobs: a Restart button for each knob (with a
-  question first), for knobs whose firmware has the Restart button.
-- A routine stays in the knob's menu after it ends: while a late checkpoint
-  still pays tokens (a reward band with negative minutes), then 30 minutes
-  more. The 30 minutes can be changed in the panel's Settings.
-- The Restart button now writes "Manual restart requested from Home
-  Assistant" to the log before restarting.
-- After a planned restart (update, Restart button, new background) the log
-  says "planned restart" instead of "other watchdog": on this chip such a
-  restart is often completed by a watchdog, which is not a fault.
+- Knob menus: entering the functions menu from the child selector always
+  starts at its first entry (also after waking the screen or after holding
+  the button to go back). Coming back from a screen opened from the menu
+  (shop, routine, tokens, piggy bank) returns to that entry.
+- When a routine leaves the knob's menu. Exact rule: until the routine's
+  end it is always shown. After the end, if every child of the routine has
+  finished every task, it leaves the menu at once (no late-reward time, no
+  extra minutes). If any task is still open for a child (whichever
+  checkpoint it belongs to), it stays as long as the routine's last
+  checkpoint still pays late (reward band with negative minutes), then for
+  the time set in the panel (default 30 minutes).
+- The knob logs which routines its functions menu offers whenever that
+  changes, with the times that decide it ("Menu: routine … shown/hidden").
+- The log line "Previous run ended by: planned restart" now also appears in
+  Home Assistant's log (it showed "software restart" there).
+
+## [0.7.31] - 2026-10-12
 
 ### Magyar
 
@@ -993,7 +1056,42 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   „planned restart”-ot ír „other watchdog” helyett: ezen a chipen az ilyen
   újraindítást gyakran egy watchdog fejezi be, ez nem hiba.
 
+### English
+
+- Knob menus: the functions menu reopens at the entry last used (for example
+  after leaving the shop or a routine, or after a long press back), as long
+  as the same child is selected and the entry is still there. Only the shop
+  always opens at its first item (except when coming back from the purchase
+  question).
+- Panel → Settings → Knobs: a Restart button for each knob (with a
+  question first), for knobs whose firmware has the Restart button.
+- A routine stays in the knob's menu after it ends: while a late checkpoint
+  still pays tokens (a reward band with negative minutes), then 30 minutes
+  more. The 30 minutes can be changed in the panel's Settings.
+- The Restart button now writes "Manual restart requested from Home
+  Assistant" to the log before restarting.
+- After a planned restart (update, Restart button, new background) the log
+  says "planned restart" instead of "other watchdog": on this chip such a
+  restart is often completed by a watchdog, which is not a fault.
+
 ## [0.7.30] - 2026-10-11
+
+### Magyar
+
+- A gombnak van Újraindítás (Restart) gombja a Home Assistantban (az eszköz
+  konfigurációs elemei között). Biztonságosan újraindítja a gombot; a naplóban
+  látszik, hogy a Home Assistantból kérték, így nem téveszthető össze a
+  háttércsere utáni újraindítással.
+- Kijelző: megszűnt a csíkos kép lépcsős gyűrűszélekkel, amely néhány perc
+  használat (lapozás, bolt) után megjelenhetett, és a gomb újraindulásáig
+  megmaradt. A panel képátvitele minden függőleges szinkronnál újraindult, és
+  az ESPHome által használt ESP-IDF 5.5-tel egyetlen adathiányos képkocka után
+  végleg kiléphetett az ütemből. Az átvitel most csak szükség esetén indul újra
+  (a `display_restart_in_vsync` alapértéke `"n"`), így a megzavart kép egy-két
+  képkockán belül helyreáll.
+- A tárgyképek a memóriában maradnak (legfeljebb kb. 1 MB-ig, kb. egy tucat
+  kép) a képernyők közötti oda-vissza lépkedésnél, nem töltődnek be minden
+  alkalommal újra a flash-gyorsítótárból.
 
 ### English
 
@@ -1013,24 +1111,16 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   pictures) when going back and forth between screens, instead of being
   loaded from the flash cache again each time.
 
+## [0.7.29] - 2026-10-10
+
 ### Magyar
 
-- A gombnak van Újraindítás (Restart) gombja a Home Assistantban (az eszköz
-  konfigurációs elemei között). Biztonságosan újraindítja a gombot; a naplóban
-  látszik, hogy a Home Assistantból kérték, így nem téveszthető össze a
-  háttércsere utáni újraindítással.
-- Kijelző: megszűnt a csíkos kép lépcsős gyűrűszélekkel, amely néhány perc
-  használat (lapozás, bolt) után megjelenhetett, és a gomb újraindulásáig
-  megmaradt. A panel képátvitele minden függőleges szinkronnál újraindult, és
-  az ESPHome által használt ESP-IDF 5.5-tel egyetlen adathiányos képkocka után
-  végleg kiléphetett az ütemből. Az átvitel most csak szükség esetén indul újra
-  (a `display_restart_in_vsync` alapértéke `"n"`), így a megzavart kép egy-két
-  képkockán belül helyreáll.
-- A tárgyképek a memóriában maradnak (legfeljebb kb. 1 MB-ig, kb. egy tucat
-  kép) a képernyők közötti oda-vissza lépkedésnél, nem töltődnek be minden
-  alkalommal újra a flash-gyorsítótárból.
-
-## [0.7.29] - 2026-10-10
+- Eltűnt a régi ajándékdoboz-kép: az új jutalom a jutalmak képével indul (ez
+  látható a gomb Jutalmak menüjében), és az ajándékdobozt használó jutalmak is
+  ezt mutatják. A jutalom képválasztójában is kiválasztható.
+- A gomb memórianaplója (10 percenként) azt is megmutatja, mennyit rajzolt újra
+  a képernyő az előző sor óta, és hány animáció és időzítő fut. Ez segít
+  megtalálni az okát, ha hosszabb használat után szétesik a kép.
 
 ### English
 
@@ -1042,28 +1132,7 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   running. This helps find the cause when the picture breaks up after long
   use.
 
-### Magyar
-
-- Eltűnt a régi ajándékdoboz-kép: az új jutalom a jutalmak képével indul (ez
-  látható a gomb Jutalmak menüjében), és az ajándékdobozt használó jutalmak is
-  ezt mutatják. A jutalom képválasztójában is kiválasztható.
-- A gomb memórianaplója (10 percenként) azt is megmutatja, mennyit rajzolt újra
-  a képernyő az előző sor óta, és hány animáció és időzítő fut. Ez segít
-  megtalálni az okát, ha hosszabb használat után szétesik a kép.
-
 ## [0.7.28] - 2026-10-10
-
-### English
-
-- Button: the press that goes straight back to the child selector is now
-  three times as long as a long press (1.2 s with the default 400 ms, was
-  0.8 s). The long press itself is unchanged.
-- New pictures: TV time with a child, TV time with mum, and a cookie. Like
-  every picture, they can be chosen for tasks, routines, checkpoints and
-  rewards.
-- Knob menus always open at their first item, the shop too (it keeps its
-  place only when coming back from the purchase question). Only the selected
-  child is remembered.
 
 ### Magyar
 
@@ -1077,15 +1146,19 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   kérdésről visszatérve marad a helyén). Csak a kiválasztott gyereket jegyzi
   meg.
 
-## [0.7.27] - 2026-10-10
-
 ### English
 
-- Less picture memory, less breaking up: downloaded pictures the new screen
-  does not show are freed as soon as another screen opens (they come back
-  from the flash cache when needed); while a screen is open at most 256 KB of
-  unused pictures are kept (was 1 MB). Leaving the shop also frees its drawn
-  items. A downloaded picture is no longer held once its item has been drawn.
+- Button: the press that goes straight back to the child selector is now
+  three times as long as a long press (1.2 s with the default 400 ms, was
+  0.8 s). The long press itself is unchanged.
+- New pictures: TV time with a child, TV time with mum, and a cookie. Like
+  every picture, they can be chosen for tasks, routines, checkpoints and
+  rewards.
+- Knob menus always open at their first item, the shop too (it keeps its
+  place only when coming back from the purchase question). Only the selected
+  child is remembered.
+
+## [0.7.27] - 2026-10-10
 
 ### Magyar
 
@@ -1096,20 +1169,15 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   megrajzolt bolti elemeket is felszabadítja. Egy letöltött képet a gomb nem
   tart meg, ha az eleme már megrajzolódott.
 
-## [0.7.26] - 2026-10-10
-
 ### English
 
-- Routine templates keep the children: a template is saved with the
-  routine's children (also those of its checkpoints), and filling a routine
-  from it brings them back. A template saved earlier without children keeps
-  the children chosen in the form.
-- Stripes and steps on the track after opening the shop (#37), most likely
-  cause: once the picture memory was broken up, every small picture the shop loaded counted as
-  "not fitting" because a large fixed reserve was kept free besides it, and
-  the knob kept freeing and reloading pictures, which disturbed the display.
-  The reserve now depends on the picture's size, so small pictures fit. The
-  knob logs when it has to make room for a picture.
+- Less picture memory, less breaking up: downloaded pictures the new screen
+  does not show are freed as soon as another screen opens (they come back
+  from the flash cache when needed); while a screen is open at most 256 KB of
+  unused pictures are kept (was 1 MB). Leaving the shop also frees its drawn
+  items. A downloaded picture is no longer held once its item has been drawn.
+
+## [0.7.26] - 2026-10-10
 
 ### Magyar
 
@@ -1124,26 +1192,20 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   tartalék most a kép méretétől függ, így a kis képek elférnek. A gomb
   naplózza, amikor helyet kell csinálnia egy képnek.
 
-## [0.7.25] - 2026-10-10
-
 ### English
 
-- Background: choosing **no background** takes effect at once, without a
-  restart; the old picture's memory is freed. A change to a picture still
-  restarts each knob once, after 1 minute without use.
-- Knob menu: a routine is shown only while it is running; with no routine
-  running, the shop is the first item.
-- Button: holding the press twice as long as a long press goes straight back
-  to the child selector from anywhere in the menu (after the long press has
-  stepped back one level).
-- Panel: the avatars in the children list are twice as big, like on the
-  child's page; the pencil and the red X there sit on a white circle with a
-  thin border in the child's colour.
-- Routine templates: filling a routine from a template keeps the children
-  chosen in the form.
-- Diagnostics: the knob logs its free memory every 10 minutes and when a new
-  uploaded picture (photo, background) is loaded (picture memory and the
-  memory the display transfer uses).
+- Routine templates keep the children: a template is saved with the
+  routine's children (also those of its checkpoints), and filling a routine
+  from it brings them back. A template saved earlier without children keeps
+  the children chosen in the form.
+- Stripes and steps on the track after opening the shop (#37), most likely
+  cause: once the picture memory was broken up, every small picture the shop loaded counted as
+  "not fitting" because a large fixed reserve was kept free besides it, and
+  the knob kept freeing and reloading pictures, which disturbed the display.
+  The reserve now depends on the picture's size, so small pictures fit. The
+  knob logs when it has to make room for a picture.
+
+## [0.7.25] - 2026-10-10
 
 ### Magyar
 
@@ -1164,28 +1226,26 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   háttér) betöltésekor naplózza a szabad memóriáját (a képmemóriát és a
   kijelző adatátviteléhez használt memóriát).
 
-## [0.7.24] - 2026-10-10
-
 ### English
 
-- New artwork for all rewards (toy car, doll, bricks, long story, extra
-  story, choose a game, treat, family activity), for the green check (also its
-  small version on the knob) and for the completed day of the streak; the old
-  drawings are gone everywhere.
-- Icons: rewards, tasks, routines and checkpoints offer the same pictures:
-  every reward, task and routine picture can be chosen for any of them.
-- Background: choosing the background that is already active again does
-  nothing (no download, no restart). A real change still restarts each knob
-  once, after 1 minute without use.
-- Child photo: a picture with a transparent background stays transparent
-  (uploaded as PNG). Framing can be skipped: **Upload without framing**
-  uploads the picture as it is.
-- Child form: the picture is about twice as big; a small pencil (change) sits
-  in its lower left corner and, with a photo, a small red X (remove) in the
-  lower right corner.
-- Routine templates: a new routine and a routine changed for one day (in the
-  calendar) can be filled from a saved template at the top of the form; a day
-  keeps its children.
+- Background: choosing **no background** takes effect at once, without a
+  restart; the old picture's memory is freed. A change to a picture still
+  restarts each knob once, after 1 minute without use.
+- Knob menu: a routine is shown only while it is running; with no routine
+  running, the shop is the first item.
+- Button: holding the press twice as long as a long press goes straight back
+  to the child selector from anywhere in the menu (after the long press has
+  stepped back one level).
+- Panel: the avatars in the children list are twice as big, like on the
+  child's page; the pencil and the red X there sit on a white circle with a
+  thin border in the child's colour.
+- Routine templates: filling a routine from a template keeps the children
+  chosen in the form.
+- Diagnostics: the knob logs its free memory every 10 minutes and when a new
+  uploaded picture (photo, background) is loaded (picture memory and the
+  memory the display transfer uses).
+
+## [0.7.24] - 2026-10-10
 
 ### Magyar
 
@@ -1208,21 +1268,28 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
 - Rutinsablonok: új rutin és a naptárban egy napra módosított rutin az űrlap
   tetején mentett sablonból tölthető ki; a nap megtartja a gyerekeit.
 
-## [0.7.23] - 2026-10-10
-
 ### English
 
-- Background change: after every background change each knob restarts once,
-  also when the same picture is chosen again. It first stores the new
-  picture in its flash cache and restarts only after it has not been used for
-  1 minute (no turn, no press), so it never restarts in the middle of use. If
-  the picture cannot be stored (e.g. no network), it does not restart.
-- New action `kis_segito.set_background` to change the background from
-  automations (for example a night background at sunset), with the same
-  restart rule; see docs/automations.md.
-- Settings: all times (back to the child selector, screensaver, dimming,
-  drawing off, backlight off, also per knob) are set in minutes. The values
-  already set are kept and shown in minutes.
+- New artwork for all rewards (toy car, doll, bricks, long story, extra
+  story, choose a game, treat, family activity), for the green check (also its
+  small version on the knob) and for the completed day of the streak; the old
+  drawings are gone everywhere.
+- Icons: rewards, tasks, routines and checkpoints offer the same pictures:
+  every reward, task and routine picture can be chosen for any of them.
+- Background: choosing the background that is already active again does
+  nothing (no download, no restart). A real change still restarts each knob
+  once, after 1 minute without use.
+- Child photo: a picture with a transparent background stays transparent
+  (uploaded as PNG). Framing can be skipped: **Upload without framing**
+  uploads the picture as it is.
+- Child form: the picture is about twice as big; a small pencil (change) sits
+  in its lower left corner and, with a photo, a small red X (remove) in the
+  lower right corner.
+- Routine templates: a new routine and a routine changed for one day (in the
+  calendar) can be filled from a saved template at the top of the form; a day
+  keeps its children.
+
+## [0.7.23] - 2026-10-10
 
 ### Magyar
 
@@ -1239,21 +1306,21 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   is) percben állítható. A már beállított értékek megmaradnak, percben
   jelennek meg.
 
-## [0.7.22] - 2026-10-10
-
 ### English
 
-- Child picture: one field shows the child's photo or avatar. A click on it
-  or on the pencil opens the avatar list, which also offers a photo upload; a
-  chosen avatar replaces the photo. The red X removes an uploaded photo and
-  brings back the default avatar.
-- Photo upload with framing: the photo is shown with a circle (what the knob
-  and the panel show) and the rest dimmed; drag to move it, zoom with the
-  slider or the mouse wheel. Only the framed square is uploaded (512 px).
-- New artwork for the default avatar and the red X (also on the knob's
-  confirm screen), and a pencil icon.
-- Routine templates: **Save as template** is also on a routine opened from
-  the calendar for one day, and saves that day's version of the routine.
+- Background change: after every background change each knob restarts once,
+  also when the same picture is chosen again. It first stores the new
+  picture in its flash cache and restarts only after it has not been used for
+  1 minute (no turn, no press), so it never restarts in the middle of use. If
+  the picture cannot be stored (e.g. no network), it does not restart.
+- New action `kis_segito.set_background` to change the background from
+  automations (for example a night background at sunset), with the same
+  restart rule; see docs/automations.md.
+- Settings: all times (back to the child selector, screensaver, dimming,
+  drawing off, backlight off, also per knob) are set in minutes. The values
+  already set are kept and shown in minutes.
+
+## [0.7.22] - 2026-10-10
 
 ### Magyar
 
@@ -1270,16 +1337,21 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
 - Rutinsablonok: a **Mentés sablonként** a naptárból egy napra megnyitott
   rutinnál is megvan, és a rutin aznapi változatát menti.
 
-## [0.7.21] - 2026-10-10
-
 ### English
 
-- Routine templates: a routine can be saved as a template under its own name
-  (**Save as template** at the bottom of the routine form), with its tasks,
-  their order, icons, times and checkpoints. The routine list shows the saved
-  templates; **New routine from this** opens a new routine filled from the
-  template, for any children (no children are preselected). Templates can be
-  deleted there.
+- Child picture: one field shows the child's photo or avatar. A click on it
+  or on the pencil opens the avatar list, which also offers a photo upload; a
+  chosen avatar replaces the photo. The red X removes an uploaded photo and
+  brings back the default avatar.
+- Photo upload with framing: the photo is shown with a circle (what the knob
+  and the panel show) and the rest dimmed; drag to move it, zoom with the
+  slider or the mouse wheel. Only the framed square is uploaded (512 px).
+- New artwork for the default avatar and the red X (also on the knob's
+  confirm screen), and a pencil icon.
+- Routine templates: **Save as template** is also on a routine opened from
+  the calendar for one day, and saves that day's version of the routine.
+
+## [0.7.21] - 2026-10-10
 
 ### Magyar
 
@@ -1290,20 +1362,16 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   rutint, bármelyik gyereknek (gyerek nincs előre kiválasztva). A sablonok
   ugyanott törölhetők.
 
-## [0.7.20] - 2026-10-10
-
 ### English
 
-- Fixed: version 0.7.19 could crash at every start, so the knob went back to
-  the previous firmware (#35). The cause was ESP-IDF's handling of the small
-  unused piece of picture memory after the firmware's data; that piece is now
-  left unused (at most 64 KB).
-- New neutral avatar (neither a boy nor a girl). It is preselected for a new
-  child and replaces the removed sample avatars.
-- A new installation starts with the second built-in background; the choice
-  on the **Settings** page is kept as before.
-- Background change: the knob logs the restart and waits 2 s before it
-  restarts, so the log line reaches Home Assistant.
+- Routine templates: a routine can be saved as a template under its own name
+  (**Save as template** at the bottom of the routine form), with its tasks,
+  their order, icons, times and checkpoints. The routine list shows the saved
+  templates; **New routine from this** opens a new routine filled from the
+  template, for any children (no children are preselected). Templates can be
+  deleted there.
+
+## [0.7.20] - 2026-10-10
 
 ### Magyar
 
@@ -1318,19 +1386,20 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
 - Háttércsere: a gomb naplózza az újraindítást, és 2 mp-et vár előtte, így a
   naplósor eljut a Home Assistantig.
 
-## [0.7.19] - 2026-10-10
-
 ### English
 
-- One background for all children: a child can no longer have a background of
-  their own. The child's page no longer has a background choice, and the knob
-  keeps the same background when the selected child changes (it no longer
-  restarts for a child's background). Backgrounds already set for a child
-  are dropped; the background on the **Settings** page is used everywhere.
-- Sample avatars removed: the grey silhouette and the three simple faces are
-  gone from the avatar choice, the panel and the knob. Children that still
-  used one get the first drawn avatar. While an avatar is still downloading,
-  the knob shows the child's coloured circle without a placeholder.
+- Fixed: version 0.7.19 could crash at every start, so the knob went back to
+  the previous firmware (#35). The cause was ESP-IDF's handling of the small
+  unused piece of picture memory after the firmware's data; that piece is now
+  left unused (at most 64 KB).
+- New neutral avatar (neither a boy nor a girl). It is preselected for a new
+  child and replaces the removed sample avatars.
+- A new installation starts with the second built-in background; the choice
+  on the **Settings** page is kept as before.
+- Background change: the knob logs the restart and waits 2 s before it
+  restarts, so the log line reaches Home Assistant.
+
+## [0.7.19] - 2026-10-10
 
 ### Magyar
 
@@ -1344,17 +1413,19 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   gyerekek az első rajzolt avatart kapják. Amíg egy avatar letöltődik, a gomb
   a gyerek színes körét mutatja helyettesítő kép nélkül.
 
-## [0.7.18] - 2026-10-10
-
 ### English
 
-- Background change: a new or changed background now always shows the same
-  way. The knob downloads it straight into its flash cache, which needs no
-  free picture memory, and then restarts and shows it from there. It restarts
-  only after the picture is stored. When several new backgrounds arrive
-  together, it restarts once. It never restarts twice in a row for the same
-  picture, and when the download fails (e.g. no network) it does not restart.
-  A knob without the cache area loads backgrounds as before.
+- One background for all children: a child can no longer have a background of
+  their own. The child's page no longer has a background choice, and the knob
+  keeps the same background when the selected child changes (it no longer
+  restarts for a child's background). Backgrounds already set for a child
+  are dropped; the background on the **Settings** page is used everywhere.
+- Sample avatars removed: the grey silhouette and the three simple faces are
+  gone from the avatar choice, the panel and the knob. Children that still
+  used one get the first drawn avatar. While an avatar is still downloading,
+  the knob shows the child's coloured circle without a placeholder.
+
+## [0.7.18] - 2026-10-10
 
 ### Magyar
 
@@ -1366,21 +1437,17 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   letöltésnél (pl. nincs hálózat) nem indul újra. A gyorsítótár nélküli gomb
   a hátteret a korábbi módon tölti be.
 
-## [0.7.17] - 2026-10-10
-
 ### English
 
-- Display: the pixel clock is now 16 MHz (was 18 MHz). At the higher clock
-  the panel showed short bright lines on the left half of the picture, seen
-  as stepped edges on the left of the time track and an occasional flashing
-  streak (#32).
-- Panel: where a photo is uploaded (child avatar, reward), the edit form shows
-  only the photo; the icon choice appears again when the photo is removed.
-- A new background could fail to load (`Not enough PSRAM`) when memory was
-  fragmented. The knob now first tries again with less room kept free; if
-  there is still no room, it stores the background in its flash cache and
-  restarts once to load it into empty memory. It restarts only after the
-  picture is stored, and never twice in a row for this reason.
+- Background change: a new or changed background now always shows the same
+  way. The knob downloads it straight into its flash cache, which needs no
+  free picture memory, and then restarts and shows it from there. It restarts
+  only after the picture is stored. When several new backgrounds arrive
+  together, it restarts once. It never restarts twice in a row for the same
+  picture, and when the download fails (e.g. no network) it does not restart.
+  A knob without the cache area loads backgrounds as before.
+
+## [0.7.17] - 2026-10-10
 
 ### Magyar
 
@@ -1397,29 +1464,21 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   hogy üres memóriába töltse be. Csak a sikeres mentés után indul újra, és
   emiatt sosem kétszer egymás után.
 
-## [0.7.16] - 2026-10-10
-
 ### English
 
-- Stripes, the moving band and steps on the track after opening the shop
-  (#26, #32): the knob measured its free memory on every pass of its main
-  loop, which walks through the whole picture memory, and once the memory was
-  fragmented (as after the shop) every picture it loaded made it free all
-  pictures and drawn items not on screen, which were then loaded and drawn
-  again. This kept the memory busy, and the panel briefly got no data. Free
-  memory is now checked only when a picture actually needs room, and only as
-  much is freed as that picture needs.
-- Drawn carousel items take memory blocks close to their real size (in 32 KB
-  steps) instead of 254 KB each, so more items stay ready and turning back
-  draws less again.
-- Time track: the ring is computed faster (pixels away from a track are
-  skipped sooner).
-- Pictures were loaded twice after every update of the integration: Home
-  Assistant identified them by the file time, which an update changes, so the
-  knob showed its stored copy and then downloaded the same picture again
-  (redrawing everything showing it). Pictures are now identified by their
-  content, and a downloaded picture identical to the stored one is not shown
-  again.
+- Display: the pixel clock is now 16 MHz (was 18 MHz). At the higher clock
+  the panel showed short bright lines on the left half of the picture, seen
+  as stepped edges on the left of the time track and an occasional flashing
+  streak (#32).
+- Panel: where a photo is uploaded (child avatar, reward), the edit form shows
+  only the photo; the icon choice appears again when the photo is removed.
+- A new background could fail to load (`Not enough PSRAM`) when memory was
+  fragmented. The knob now first tries again with less room kept free; if
+  there is still no room, it stores the background in its flash cache and
+  restarts once to load it into empty memory. It restarts only after the
+  picture is stored, and never twice in a row for this reason.
+
+## [0.7.16] - 2026-10-10
 
 ### Magyar
 
@@ -1443,23 +1502,29 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   tartalmuk azonosítja, és a tárolttal azonos letöltött kép nem jelenik meg
   újra.
 
-## [0.7.15] - 2026-10-10
-
 ### English
 
-- Stripes and the slowly moving band (#26, #32): the knob kept freeing
-  pictures it needed again a moment later (shop icons, avatars, backgrounds)
-  whenever memory was a little fragmented, then loaded and drew them again,
-  every few seconds. This constant work kept the memory busy, and the panel
-  then briefly got no data (rows shifted sideways, a band moving down, steps
-  on the track). Pictures are now freed only when memory is really short, and
-  the item store is no longer emptied in that case.
-- Item store: an item drawn once with its picture stays valid even when the
-  picture itself has left the memory; an item drawn with a stand-in (picture
-  still on its way) is not stored and is drawn again when the picture
-  arrives.
-- Time track: on a child change and once a minute (elapsed time) only the
-  band of the tracks and their glow is computed again, not the whole ring.
+- Stripes, the moving band and steps on the track after opening the shop
+  (#26, #32): the knob measured its free memory on every pass of its main
+  loop, which walks through the whole picture memory, and once the memory was
+  fragmented (as after the shop) every picture it loaded made it free all
+  pictures and drawn items not on screen, which were then loaded and drawn
+  again. This kept the memory busy, and the panel briefly got no data. Free
+  memory is now checked only when a picture actually needs room, and only as
+  much is freed as that picture needs.
+- Drawn carousel items take memory blocks close to their real size (in 32 KB
+  steps) instead of 254 KB each, so more items stay ready and turning back
+  draws less again.
+- Time track: the ring is computed faster (pixels away from a track are
+  skipped sooner).
+- Pictures were loaded twice after every update of the integration: Home
+  Assistant identified them by the file time, which an update changes, so the
+  knob showed its stored copy and then downloaded the same picture again
+  (redrawing everything showing it). Pictures are now identified by their
+  content, and a downloaded picture identical to the stored one is not shown
+  again.
+
+## [0.7.15] - 2026-10-10
 
 ### Magyar
 
@@ -1477,24 +1542,23 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
 - Időpálya: gyermekváltáskor és percenként (eltelt idő) csak a pályák és a
   ragyogásuk sávja számolódik újra, nem az egész gyűrű.
 
-## [0.7.14] - 2026-10-10
-
 ### English
 
-- Faster drawing (#10, #26, #32): the time track was made of about 260 small
-  pictures (the inner track and its glow alone in about 200 tiles), and every
-  frame had to handle each of them. It is now 20 larger pictures with
-  everything in them, so a moving frame has much less to do.
-- The track ring is drawn again only when something on it changes (the
-  background, the screen colour, the selected child, the routine) and the
-  elapsed part once a minute, in one go instead of piece by piece over a few
-  seconds. The band that ran down the screen came from the piecewise drawing.
-- Item store: it no longer empties itself before drawing a new item when
-  memory is fragmented, and all item pictures use blocks of the same size, so
-  freed memory is reused. The function carousel is stored too. Items you turn
-  back to are shown from the store.
-- A background picture that does not fit at first is tried again for longer
-  (memory is made free meanwhile) instead of being left out.
+- Stripes and the slowly moving band (#26, #32): the knob kept freeing
+  pictures it needed again a moment later (shop icons, avatars, backgrounds)
+  whenever memory was a little fragmented, then loaded and drew them again,
+  every few seconds. This constant work kept the memory busy, and the panel
+  then briefly got no data (rows shifted sideways, a band moving down, steps
+  on the track). Pictures are now freed only when memory is really short, and
+  the item store is no longer emptied in that case.
+- Item store: an item drawn once with its picture stays valid even when the
+  picture itself has left the memory; an item drawn with a stand-in (picture
+  still on its way) is not stored and is drawn again when the picture
+  arrives.
+- Time track: on a child change and once a minute (elapsed time) only the
+  band of the tracks and their glow is computed again, not the whole ring.
+
+## [0.7.14] - 2026-10-10
 
 ### Magyar
 
@@ -1513,28 +1577,24 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
 - Egy háttérkép, amely elsőre nem fér el, tovább próbálkozik (közben memória
   szabadul fel), nem marad el.
 
-## [0.7.13] - 2026-10-10
-
 ### English
 
-- Child selector and shop (#32): instead of a token pile, one coin and the
-  number show the tokens (the full pile stays on the token screen). The
-  pictures of these items are much smaller, so they are drawn and moved
-  faster.
-- The item store keeps its pictures when the same avatar or icon is loaded
-  again; an item is drawn again only when its content really changes. Before,
-  reloading a picture made every item that used it count as new.
-- Time track (#26, #34): when only the dimmed elapsed part moves on, just the
-  few tiles where it changed are drawn again, not the whole ring; loading the
-  same background picture again no longer redraws the ring. This removes the
-  band that moved down the home screen every minute or so.
-- Display: the RGB transfer restarts at every vertical sync (substitution
-  `display_restart_in_vsync`), so a picture shifted by a moment without data
-  (the whole screen jumping up or down) is put right at the next frame.
-- Before a restart (e.g. after an update) the picture download stops, so it
-  is not writing the flash cache while the knob restarts.
-- The debug log of a slide also shows how much of the frame time goes to
-  sending to the panel and how many pixels are drawn per frame.
+- Faster drawing (#10, #26, #32): the time track was made of about 260 small
+  pictures (the inner track and its glow alone in about 200 tiles), and every
+  frame had to handle each of them. It is now 20 larger pictures with
+  everything in them, so a moving frame has much less to do.
+- The track ring is drawn again only when something on it changes (the
+  background, the screen colour, the selected child, the routine) and the
+  elapsed part once a minute, in one go instead of piece by piece over a few
+  seconds. The band that ran down the screen came from the piecewise drawing.
+- Item store: it no longer empties itself before drawing a new item when
+  memory is fragmented, and all item pictures use blocks of the same size, so
+  freed memory is reused. The function carousel is stored too. Items you turn
+  back to are shown from the store.
+- A background picture that does not fit at first is tried again for longer
+  (memory is made free meanwhile) instead of being left out.
+
+## [0.7.13] - 2026-10-10
 
 ### Magyar
 
@@ -1558,27 +1618,28 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
 - A csúszás hibakereső naplója azt is mutatja, a képkocka idejéből mennyi a
   panelre küldés, és hány pixel rajzolódik képkockánként.
 
-## [0.7.12] - 2026-10-09
-
 ### English
 
-- Memory (#32): 0.7.11 could run out of PSRAM within minutes, and then
-  backgrounds and pictures failed to load or came and went.
-  - The separate moving picture for slides (about 740 KB) is gone: as the
-    background stays in place anyway, the sharp items themselves slide, at the
-    same cost per frame and without blur.
-  - The four fixed buffers for carousel items (about 1.4 MB) are gone: a slot
-    shows the item's picture straight from the item store, at its real size.
-    Items you turn back to are now really shown from the store instead of
-    being drawn again.
-  - Downloaded pictures come first: when one needs memory, unused item
-    pictures and pictures not on screen are dropped and the download is tried
-    again, instead of failing.
-- After a restart the track ring is drawn at once, not piece by piece.
-- Time track (#33): the glow around the shared track no longer leaves a thin
-  gap next to it.
-- Stars (#32): shooting stars always follow an arc bending up and left: they
-  start almost level and curve down to the left.
+- Child selector and shop (#32): instead of a token pile, one coin and the
+  number show the tokens (the full pile stays on the token screen). The
+  pictures of these items are much smaller, so they are drawn and moved
+  faster.
+- The item store keeps its pictures when the same avatar or icon is loaded
+  again; an item is drawn again only when its content really changes. Before,
+  reloading a picture made every item that used it count as new.
+- Time track (#26, #34): when only the dimmed elapsed part moves on, just the
+  few tiles where it changed are drawn again, not the whole ring; loading the
+  same background picture again no longer redraws the ring. This removes the
+  band that moved down the home screen every minute or so.
+- Display: the RGB transfer restarts at every vertical sync (substitution
+  `display_restart_in_vsync`), so a picture shifted by a moment without data
+  (the whole screen jumping up or down) is put right at the next frame.
+- Before a restart (e.g. after an update) the picture download stops, so it
+  is not writing the flash cache while the knob restarts.
+- The debug log of a slide also shows how much of the frame time goes to
+  sending to the panel and how many pixels are drawn per frame.
+
+## [0.7.12] - 2026-10-09
 
 ### Magyar
 
@@ -1600,35 +1661,27 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
 - Csillagok (#32): a hullócsillagok mindig fent-balra ívelő pályán haladnak:
   szinte vízszintesen indulnak, és balra lefelé kanyarodnak.
 
-## [0.7.11] - 2026-10-09
-
 ### English
 
-- Carousels (#10, #26, #32):
-  - An item that was drawn once (a child with avatar, token pile and number,
-    a reward) is kept as a picture and copied when it comes back, until its
-    content changes (tokens, picture, colour). Before, every turn drew the
-    next item again, token by token.
-  - Turns that pile up while the knob is busy are added up: one jump and one
-    slide, however many turns. Before, every turn was drawn one by one, which
-    could block the knob for many seconds after waking.
-  - While sliding, only the items move, blurred sideways; the background stays
-    sharp and still, and there are no hard edges.
-  - The parts of the time track that cover their area completely are copied
-    instead of blended, which makes every frame cheaper.
-- Display: the default pixel clock is 18 MHz (was 26 MHz). The panel is
-  refreshed a little less often, which leaves more memory bandwidth for
-  drawing: smoother movement and no flicker. A device config can still set
-  `display_pclk_frequency`.
-- Time track (#33): a glow in the selected child's colour around the inner
-  track and the shared track (at most as wide as the inner track, under half
-  as strong as the colour), and a narrow, soft edge between the ring and the
-  screen content, instead of the dark shading.
-- Knob (#27): after a rest the detent the knob sits in is taken as the
-  reference again, so counts lost while the knob was busy do not shift it.
-- Screensavers (#32): shooting stars always travel down and to the left; a
-  confetti piece is redrawn in one go at its old and new place, so it never
-  disappears for a moment.
+- Memory (#32): 0.7.11 could run out of PSRAM within minutes, and then
+  backgrounds and pictures failed to load or came and went.
+  - The separate moving picture for slides (about 740 KB) is gone: as the
+    background stays in place anyway, the sharp items themselves slide, at the
+    same cost per frame and without blur.
+  - The four fixed buffers for carousel items (about 1.4 MB) are gone: a slot
+    shows the item's picture straight from the item store, at its real size.
+    Items you turn back to are now really shown from the store instead of
+    being drawn again.
+  - Downloaded pictures come first: when one needs memory, unused item
+    pictures and pictures not on screen are dropped and the download is tried
+    again, instead of failing.
+- After a restart the track ring is drawn at once, not piece by piece.
+- Time track (#33): the glow around the shared track no longer leaves a thin
+  gap next to it.
+- Stars (#32): shooting stars always follow an arc bending up and left: they
+  start almost level and curve down to the left.
+
+## [0.7.11] - 2026-10-09
 
 ### Magyar
 
@@ -1659,34 +1712,35 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   konfettidarab régi és új helye egyszerre rajzolódik újra, így egy
   pillanatra sem tűnik el.
 
-## [0.7.10] - 2026-10-09
-
 ### English
 
-- Fix: waking the knob after a long idle time could restart it (task
-  watchdog during the first, large redraw). The watchdog is now fed during
-  long redraws and while the screen is built (#32).
-- Time track (#32, #33):
-  - The ring is computed several times faster and in small parts between
-    other work, so turning and pressing are no longer held up (before: about
-    0.6 s after every child change). The child's inner track is a separate
-    layer; a new child only changes its colour.
-  - The background picture behind the rings is shaded darker, so the smooth
-    fade from the rings inwards is visible again.
-- Carousels (#10, #26): the moving picture repeats the background sideways,
-  so no black area appears while sliding. The sharp items are shown before the
-  next slide is prepared, without a hitch.
-- Knob (#27): the detent that wakes the screen is not a step, and the
-  direction is kept, so the next detent counts in either direction.
-- The default long press time is 0.4 s (a value you set yourself stays).
-- Screensavers (#32):
-  - Confetti pieces are small pictures like the bouncing balls, at the same
-    frame rate.
-  - Stars: they no longer fall. Stars of different sizes appear at random
-    places, brighten and dim slowly, and vanish; now and then a shooting star
-    crosses from top right to bottom left on a curve.
-  - The log shows when the screensaver starts and after how many seconds
-    without input.
+- Carousels (#10, #26, #32):
+  - An item that was drawn once (a child with avatar, token pile and number,
+    a reward) is kept as a picture and copied when it comes back, until its
+    content changes (tokens, picture, colour). Before, every turn drew the
+    next item again, token by token.
+  - Turns that pile up while the knob is busy are added up: one jump and one
+    slide, however many turns. Before, every turn was drawn one by one, which
+    could block the knob for many seconds after waking.
+  - While sliding, only the items move, blurred sideways; the background stays
+    sharp and still, and there are no hard edges.
+  - The parts of the time track that cover their area completely are copied
+    instead of blended, which makes every frame cheaper.
+- Display: the default pixel clock is 18 MHz (was 26 MHz). The panel is
+  refreshed a little less often, which leaves more memory bandwidth for
+  drawing: smoother movement and no flicker. A device config can still set
+  `display_pclk_frequency`.
+- Time track (#33): a glow in the selected child's colour around the inner
+  track and the shared track (at most as wide as the inner track, under half
+  as strong as the colour), and a narrow, soft edge between the ring and the
+  screen content, instead of the dark shading.
+- Knob (#27): after a rest the detent the knob sits in is taken as the
+  reference again, so counts lost while the knob was busy do not shift it.
+- Screensavers (#32): shooting stars always travel down and to the left; a
+  confetti piece is redrawn in one go at its old and new place, so it never
+  disappears for a moment.
+
+## [0.7.10] - 2026-10-09
 
 ### Magyar
 
@@ -1717,37 +1771,34 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   - A naplóban látszik, mikor indul a képernyővédő, és hány másodperc
     tétlenség után.
 
-## [0.7.9] - 2026-10-09
-
 ### English
 
-- Sliding carousels (#10, #26):
-  - While a carousel slides, one prepared picture of the whole strip moves,
-    blurred sideways like a fast movement; when it stops, the sharp items are
-    shown again. Each frame is a plain copy, so the slide gets many frames. The
-    picture for the next turn in the same direction is prepared while the
-    knob rests.
-  - Starting a slide no longer redraws the whole screen (the child's inner
-    track is no longer hidden during the slide).
-  - Turns that pile up while the screen is busy are done at once, all but the
-    last without animation, so the carousel stops when the knob stops.
+- Fix: waking the knob after a long idle time could restart it (task
+  watchdog during the first, large redraw). The watchdog is now fed during
+  long redraws and while the screen is built (#32).
 - Time track (#32, #33):
-  - The ring (band, zones, elapsed part, the child's inner track) is computed
-    pixel by pixel in a fraction of the time, only when something on it
-    changes, and the old ring stays on screen meanwhile. Before, it took up to
-    2 s, also during the screensaver, and the knob did not react in that time,
-    which is why a press sometimes did not wake it.
-  - The background picture now reaches the outer edge of the screen, behind
-    the rings too.
-  - The fade from the rings inwards is smooth, without visible steps.
-- Knob (#27): turning is followed detent by detent. The first detent after a
-  change of direction arrives one count early, and now always counts.
+  - The ring is computed several times faster and in small parts between
+    other work, so turning and pressing are no longer held up (before: about
+    0.6 s after every child change). The child's inner track is a separate
+    layer; a new child only changes its colour.
+  - The background picture behind the rings is shaded darker, so the smooth
+    fade from the rings inwards is visible again.
+- Carousels (#10, #26): the moving picture repeats the background sideways,
+  so no black area appears while sliding. The sharp items are shown before the
+  next slide is prepared, without a hitch.
+- Knob (#27): the detent that wakes the screen is not a step, and the
+  direction is kept, so the next detent counts in either direction.
+- The default long press time is 0.4 s (a value you set yourself stays).
 - Screensavers (#32):
-  - Stars brighten and dim slowly, like breathing, instead of flickering.
-  - Confetti and stars move at about 50 frames a second, in smaller steps.
-- Panel: number and text settings (e.g. the screensaver time) are saved 2 s
-  after you stop typing, or when you leave the field; pressing Enter is no
-  longer needed. The field keeps the focus while it is saved.
+  - Confetti pieces are small pictures like the bouncing balls, at the same
+    frame rate.
+  - Stars: they no longer fall. Stars of different sizes appear at random
+    places, brighten and dim slowly, and vanish; now and then a shooting star
+    crosses from top right to bottom left on a curve.
+  - The log shows when the screensaver starts and after how many seconds
+    without input.
+
+## [0.7.9] - 2026-10-09
 
 ### Magyar
 
@@ -1781,39 +1832,37 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   utolsó gépelés után, vagy a mező elhagyásakor mentődnek; Entert nyomni már
   nem kell. Mentés közben a mező megtartja a fókuszt.
 
-## [0.7.8] - 2026-10-09
-
 ### English
 
-- Faster sliding carousels (#10, #26):
-  - The time track's band and arcs are drawn once into small pictures along
-    the ring, instead of on every frame; these arcs took most of the time of a
-    frame. They are drawn again only when the track changes; the dimmed
-    elapsed part follows in steps of 1 %, while nobody uses the knob.
-  - The carousel items are drawn only inside the inner circle (everything
-    outside is under the track band), as compact pictures cut to their
-    content. The memory for them is reserved once and reused.
-  - The function and reward carousels slide as pictures too.
-  - The child's inner track is hidden while a carousel slides and comes back
-    when it stops.
-  - A token pile is one picture instead of hundreds of separate coins; the
-    newest few coins stay separate in front of it. This also removes the long
-    pauses (up to 3 s) after turning on the child screen.
-- Knob (#27): the first click after a change of direction now always counts.
-  The encoder reports that click one count early; this is taken into account.
-  With "Encoder clicks per step" above 1, the first click after a change of
-  direction or a rest makes a step at once.
-- A long press on the home screen connects to Home Assistant again only when
-  it is not connected; while connected it does nothing (#32).
+- Sliding carousels (#10, #26):
+  - While a carousel slides, one prepared picture of the whole strip moves,
+    blurred sideways like a fast movement; when it stops, the sharp items are
+    shown again. Each frame is a plain copy, so the slide gets many frames. The
+    picture for the next turn in the same direction is prepared while the
+    knob rests.
+  - Starting a slide no longer redraws the whole screen (the child's inner
+    track is no longer hidden during the slide).
+  - Turns that pile up while the screen is busy are done at once, all but the
+    last without animation, so the carousel stops when the knob stops.
+- Time track (#32, #33):
+  - The ring (band, zones, elapsed part, the child's inner track) is computed
+    pixel by pixel in a fraction of the time, only when something on it
+    changes, and the old ring stays on screen meanwhile. Before, it took up to
+    2 s, also during the screensaver, and the knob did not react in that time,
+    which is why a press sometimes did not wake it.
+  - The background picture now reaches the outer edge of the screen, behind
+    the rings too.
+  - The fade from the rings inwards is smooth, without visible steps.
+- Knob (#27): turning is followed detent by detent. The first detent after a
+  change of direction arrives one count early, and now always counts.
 - Screensavers (#32):
-  - Confetti runs on its own screen, so nothing else is drawn under it, and
-    the pieces only move: no flicker. They fall faster, on swaying paths with
-    a sideways drift that changes direction now and then; gusts blow a few
-    pieces away, each differently.
-  - New screensaver: stars (falling small stars, at most the size of a
-    confetti piece). Choose it in the panel: Settings → Knob screen.
-- The knob logs button presses with the screen state (debug log), to find out
-  why a press does not wake it from the screensaver.
+  - Stars brighten and dim slowly, like breathing, instead of flickering.
+  - Confetti and stars move at about 50 frames a second, in smaller steps.
+- Panel: number and text settings (e.g. the screensaver time) are saved 2 s
+  after you stop typing, or when you leave the field; pressing Enter is no
+  longer needed. The field keeps the focus while it is saved.
+
+## [0.7.8] - 2026-10-09
 
 ### Magyar
 
@@ -1850,51 +1899,39 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   gombnyomásokat, hogy kiderüljön, miért nem ébreszt a nyomás a
   képernyővédőből.
 
-## [0.7.7] - 2026-10-08
-
 ### English
 
-- Pictures (#31):
-  - A picture that is replaced or no longer shown now leaves the memory. Before,
-    every background change kept about 450 KB of PSRAM until the carousels
-    could not slide smoothly any more.
-  - The knob keeps the downloaded pictures in a 4 MB cache in its flash: after a
-    restart they appear at once and are not downloaded again. Once after each
-    start it asks Home Assistant whether a picture changed; an unchanged one is
-    not sent again. A knob first installed with 0.7.6 or older needs the
-    factory firmware flashed over USB once for the cache (see
-    docs/hardware.md); without it everything works as before.
-  - An arriving picture is drawn only where it is shown, instead of building
-    the whole screen again, and a snapshot from Home Assistant in which only
-    the time changed no longer redraws the screen.
-  - Less PSRAM is held back (384 KB instead of 768 KB), so the carousel
-    snapshots fit more often.
-- Carousels (#10): the next item is prepared while the knob rests, so a slide
-  starts at once. The debug log shows how long a frame takes while sliding.
-- Moving pictures are no longer drawn in two halves with a visible cut (#26):
-  the full-screen draw buffer is back as the default (substitution
-  `lvgl_buffer_size`).
-- Knob and button (#27, #32):
-  - Turns and presses are queued and handled by the screen right after, so the
-    knob's input never waits for drawing; after a busy moment the encoder
-    counts from the detent it came from, so no step is lost.
-  - A long press acts as soon as the button has been held long enough, without
-    waiting for the release. The time is a new setting, "Long press time"
-    (default 0.5 s).
-  - A press wakes the knob from the screensaver, dimming or a dark screen, and
-    does nothing else.
-  - A long press on the home screen connects to Home Assistant again: Home
-    Assistant sends the texts and the data anew.
-- The offline mark (crossed-out cloud) shows only when Home Assistant is not
-  connected; another connection, such as a log viewer, no longer switches it on
-  or off (#32).
-- No light patches at the outer rim of the screen: the background picture no
-  longer shows through at the edge (#32).
-- New confetti screensaver: pieces fall faster and smoothly on swaying paths,
-  each at its own speed and with its own flutter, in slightly different sizes;
-  now and then a gust blows a few of them away, each a little differently.
-- The knob logs its screen power settings (screensaver, dimming, drawing off,
-  backlight off) when they arrive from Home Assistant.
+- Faster sliding carousels (#10, #26):
+  - The time track's band and arcs are drawn once into small pictures along
+    the ring, instead of on every frame; these arcs took most of the time of a
+    frame. They are drawn again only when the track changes; the dimmed
+    elapsed part follows in steps of 1 %, while nobody uses the knob.
+  - The carousel items are drawn only inside the inner circle (everything
+    outside is under the track band), as compact pictures cut to their
+    content. The memory for them is reserved once and reused.
+  - The function and reward carousels slide as pictures too.
+  - The child's inner track is hidden while a carousel slides and comes back
+    when it stops.
+  - A token pile is one picture instead of hundreds of separate coins; the
+    newest few coins stay separate in front of it. This also removes the long
+    pauses (up to 3 s) after turning on the child screen.
+- Knob (#27): the first click after a change of direction now always counts.
+  The encoder reports that click one count early; this is taken into account.
+  With "Encoder clicks per step" above 1, the first click after a change of
+  direction or a rest makes a step at once.
+- A long press on the home screen connects to Home Assistant again only when
+  it is not connected; while connected it does nothing (#32).
+- Screensavers (#32):
+  - Confetti runs on its own screen, so nothing else is drawn under it, and
+    the pieces only move: no flicker. They fall faster, on swaying paths with
+    a sideways drift that changes direction now and then; gusts blow a few
+    pieces away, each differently.
+  - New screensaver: stars (falling small stars, at most the size of a
+    confetti piece). Choose it in the panel: Settings → Knob screen.
+- The knob logs button presses with the screen state (debug log), to find out
+  why a press does not wake it from the screensaver.
+
+## [0.7.7] - 2026-10-08
 
 ### Magyar
 
@@ -1942,23 +1979,51 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
 - A gomb naplózza a képernyő-beállításait (képernyővédő, halványítás, rajzolás
   ki, háttérvilágítás ki), amikor megérkeznek a Home Assistanttől.
 
-## [0.7.6] - 2026-10-08
-
 ### English
 
-- Fix (#31): the knob restarted about every 40 seconds (task watchdog), and
-  avatars and backgrounds did not show because PSRAM ran out.
-  - Most icons (routines, tasks, rewards) are no longer part of the firmware:
-    the knob downloads the ones it shows from Home Assistant. The firmware
-    keeps only the few images it needs before Home Assistant answers (brand
-    mark, loading screen, coins and symbols), which frees about 3.7 MB of
-    PSRAM.
-  - The drawing buffer is a quarter of the screen instead of a full screen,
-    which frees another 340 KB.
-  - When memory is short, the carousels draw at most 30 coins per pile, so a
-    slide never takes long enough to trigger the watchdog.
-  - When the background changes, the old one stays until the new one has
-    arrived; if it cannot be loaded, the plain colour is shown.
+- Pictures (#31):
+  - A picture that is replaced or no longer shown now leaves the memory. Before,
+    every background change kept about 450 KB of PSRAM until the carousels
+    could not slide smoothly any more.
+  - The knob keeps the downloaded pictures in a 4 MB cache in its flash: after a
+    restart they appear at once and are not downloaded again. Once after each
+    start it asks Home Assistant whether a picture changed; an unchanged one is
+    not sent again. A knob first installed with 0.7.6 or older needs the
+    factory firmware flashed over USB once for the cache (see
+    docs/hardware.md); without it everything works as before.
+  - An arriving picture is drawn only where it is shown, instead of building
+    the whole screen again, and a snapshot from Home Assistant in which only
+    the time changed no longer redraws the screen.
+  - Less PSRAM is held back (384 KB instead of 768 KB), so the carousel
+    snapshots fit more often.
+- Carousels (#10): the next item is prepared while the knob rests, so a slide
+  starts at once. The debug log shows how long a frame takes while sliding.
+- Moving pictures are no longer drawn in two halves with a visible cut (#26):
+  the full-screen draw buffer is back as the default (substitution
+  `lvgl_buffer_size`).
+- Knob and button (#27, #32):
+  - Turns and presses are queued and handled by the screen right after, so the
+    knob's input never waits for drawing; after a busy moment the encoder
+    counts from the detent it came from, so no step is lost.
+  - A long press acts as soon as the button has been held long enough, without
+    waiting for the release. The time is a new setting, "Long press time"
+    (default 0.5 s).
+  - A press wakes the knob from the screensaver, dimming or a dark screen, and
+    does nothing else.
+  - A long press on the home screen connects to Home Assistant again: Home
+    Assistant sends the texts and the data anew.
+- The offline mark (crossed-out cloud) shows only when Home Assistant is not
+  connected; another connection, such as a log viewer, no longer switches it on
+  or off (#32).
+- No light patches at the outer rim of the screen: the background picture no
+  longer shows through at the edge (#32).
+- New confetti screensaver: pieces fall faster and smoothly on swaying paths,
+  each at its own speed and with its own flutter, in slightly different sizes;
+  now and then a gust blows a few of them away, each a little differently.
+- The knob logs its screen power settings (screensaver, dimming, drawing off,
+  backlight off) when they arrive from Home Assistant.
+
+## [0.7.6] - 2026-10-08
 
 ### Magyar
 
@@ -1977,27 +2042,23 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   - Háttércserénél a régi háttér marad, amíg az új meg nem érkezik; ha nem
     tölthető be, a sima szín látszik.
 
-## [0.7.5] - 2026-10-08
-
 ### English
 
-- Fix (#30): 0.7.4 did not start on the knob; it restarted before the start
-  was confirmed, and the knob went back to 0.7.3. The firmware runs from PSRAM
-  again, as in 0.7.3 (running it from flash is now an experimental option,
-  `psram_xip: "n"`). Everything else from 0.7.4 stays: smoother carousels,
-  the detent-based encoder and the screen settings in the panel.
-- New artwork for every task icon and the checkpoint flag (each with a
-  simplified small variant), new tasks: pyjamas and coat for boys and for
-  girls, and the six built-in backgrounds.
-- Icons that are the same picture for a task and a routine (bath, tidying up,
-  ready to leave, dinner, bed, play, packing) are stored once; existing
-  routines keep working, and every routine icon can be chosen for tasks and
-  checkpoints and the other way round. The firmware got smaller.
-- A second screensaver: continuous confetti, next to the bouncing balls
-  (Settings → Knob screen, also per knob).
-- After a restart the knob logs why its previous run ended (for example a
-  crash or a power dip), also to Home Assistant.
-- Hardware notes: how to read the knob's serial log with a USB-UART adapter.
+- Fix (#31): the knob restarted about every 40 seconds (task watchdog), and
+  avatars and backgrounds did not show because PSRAM ran out.
+  - Most icons (routines, tasks, rewards) are no longer part of the firmware:
+    the knob downloads the ones it shows from Home Assistant. The firmware
+    keeps only the few images it needs before Home Assistant answers (brand
+    mark, loading screen, coins and symbols), which frees about 3.7 MB of
+    PSRAM.
+  - The drawing buffer is a quarter of the screen instead of a full screen,
+    which frees another 340 KB.
+  - When memory is short, the carousels draw at most 30 coins per pile, so a
+    slide never takes long enough to trigger the watchdog.
+  - When the background changes, the old one stays until the new one has
+    arrived; if it cannot be loaded, the plain colour is shown.
+
+## [0.7.5] - 2026-10-08
 
 ### Magyar
 
@@ -2019,28 +2080,27 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   összeomlás vagy feszültségesés), a Home Assistant felé is.
 - Hardverleírás: a gomb soros naplójának kiolvasása USB-UART adapterrel.
 
-## [0.7.4] - 2026-10-08
-
 ### English
 
-- More memory on the knob (#26): the firmware now runs from flash instead of
-  being copied into PSRAM, which leaves several MB of PSRAM for drawing, the
-  carousels' pre-rendered slots and backgrounds. The display keeps working
-  while the knob writes to its flash, and recovers at the next frame if a
-  frame was disturbed (against the horizontal flicker line while animating).
-- Smoother carousels (#10): the side items no longer fade through an extra
-  rendering pass on every frame, which made the child carousel jump instead
-  of sliding.
-- Encoder (#27): a step counts only after a full detent, so the knob no
-  longer snaps back when released; after a pause the first detent always
-  counts; the first turn or press wakes a dimmed or dark screen at once (a
-  press wakes it on pressing, not on releasing). `encoder_debug: "true"` logs
-  the raw encoder counts.
-- Screen power in the panel (#28): Settings → Knob screen sets the idle times
-  of the screensaver (the bouncing balls), dimming (with its brightness),
-  drawing off (black screen) and backlight off, 0 = never; each knob can have
-  its own values. The "Screen dim after" and "Screen off after" device
-  settings of the knob are replaced by these.
+- Fix (#30): 0.7.4 did not start on the knob; it restarted before the start
+  was confirmed, and the knob went back to 0.7.3. The firmware runs from PSRAM
+  again, as in 0.7.3 (running it from flash is now an experimental option,
+  `psram_xip: "n"`). Everything else from 0.7.4 stays: smoother carousels,
+  the detent-based encoder and the screen settings in the panel.
+- New artwork for every task icon and the checkpoint flag (each with a
+  simplified small variant), new tasks: pyjamas and coat for boys and for
+  girls, and the six built-in backgrounds.
+- Icons that are the same picture for a task and a routine (bath, tidying up,
+  ready to leave, dinner, bed, play, packing) are stored once; existing
+  routines keep working, and every routine icon can be chosen for tasks and
+  checkpoints and the other way round. The firmware got smaller.
+- A second screensaver: continuous confetti, next to the bouncing balls
+  (Settings → Knob screen, also per knob).
+- After a restart the knob logs why its previous run ended (for example a
+  crash or a power dip), also to Home Assistant.
+- Hardware notes: how to read the knob's serial log with a USB-UART adapter.
+
+## [0.7.4] - 2026-10-08
 
 ### Magyar
 
@@ -2063,22 +2123,28 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   ideje, 0 = soha; gombonként saját értékek is megadhatók. Ezek váltják a gomb
   „Screen dim after” és „Screen off after” eszközbeállításait.
 
-## [0.7.3] - 2026-10-08
-
 ### English
 
-- Fix (#23): with 0.7.1 the knob's screen stayed black, because the firmware
-  ran out of PSRAM. The knob keeps its program and built-in images in PSRAM,
-  and the twelve new avatars took about 1.2 MB of it. The avatars are no longer
-  part of the firmware: the knob downloads the chosen avatar from Home
-  Assistant like an uploaded picture (the firmware is about 1.2 MB smaller).
-- The knob always keeps 768 KB of PSRAM free for drawing: when memory is
-  short, the carousels draw their content directly instead of keeping
-  pre-rendered copies, and a picture or background that does not fit is
-  skipped. Either case is logged once as an error.
-- The knob logs its free PSRAM and the largest free block at boot and after
-  each update from Home Assistant.
-- Backgrounds are shown only on the knob; the panel keeps its normal look.
+- More memory on the knob (#26): the firmware now runs from flash instead of
+  being copied into PSRAM, which leaves several MB of PSRAM for drawing, the
+  carousels' pre-rendered slots and backgrounds. The display keeps working
+  while the knob writes to its flash, and recovers at the next frame if a
+  frame was disturbed (against the horizontal flicker line while animating).
+- Smoother carousels (#10): the side items no longer fade through an extra
+  rendering pass on every frame, which made the child carousel jump instead
+  of sliding.
+- Encoder (#27): a step counts only after a full detent, so the knob no
+  longer snaps back when released; after a pause the first detent always
+  counts; the first turn or press wakes a dimmed or dark screen at once (a
+  press wakes it on pressing, not on releasing). `encoder_debug: "true"` logs
+  the raw encoder counts.
+- Screen power in the panel (#28): Settings → Knob screen sets the idle times
+  of the screensaver (the bouncing balls), dimming (with its brightness),
+  drawing off (black screen) and backlight off, 0 = never; each knob can have
+  its own values. The "Screen dim after" and "Screen off after" device
+  settings of the knob are replaced by these.
+
+## [0.7.3] - 2026-10-08
 
 ### Magyar
 
@@ -2096,14 +2162,22 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   PSRAM-ot és a legnagyobb szabad blokkot.
 - A háttér csak a gombon látszik; a panel a megszokott kinézetű marad.
 
-## [0.7.2] - 2026-10-08
-
 ### English
 
-- Fix (#22): the summary and child sensors refreshed their state every minute
-  from a worker thread instead of Home Assistant's event loop. Home Assistant
-  warned about it at every start, and it could have led to a crash or
-  corrupted state. They now refresh from the event loop.
+- Fix (#23): with 0.7.1 the knob's screen stayed black, because the firmware
+  ran out of PSRAM. The knob keeps its program and built-in images in PSRAM,
+  and the twelve new avatars took about 1.2 MB of it. The avatars are no longer
+  part of the firmware: the knob downloads the chosen avatar from Home
+  Assistant like an uploaded picture (the firmware is about 1.2 MB smaller).
+- The knob always keeps 768 KB of PSRAM free for drawing: when memory is
+  short, the carousels draw their content directly instead of keeping
+  pre-rendered copies, and a picture or background that does not fit is
+  skipped. Either case is logged once as an error.
+- The knob logs its free PSRAM and the largest free block at boot and after
+  each update from Home Assistant.
+- Backgrounds are shown only on the knob; the panel keeps its normal look.
+
+## [0.7.2] - 2026-10-08
 
 ### Magyar
 
@@ -2113,21 +2187,14 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   vagy sérült állapothoz vezethetett volna. Most az eseményhurokból
   frissülnek.
 
-## [0.7.1] - 2026-10-08
-
 ### English
 
-- Backgrounds: a general background for the knobs and the panel (Settings),
-  and each child can have their own (child's page), shown on that child's
-  screens on the knob and on the child's card in the panel. Six built-in
-  backgrounds (temporary artwork for now) or your own uploaded picture. The
-  knob downloads the background from Home Assistant like the pictures.
-- New artwork: twelve avatars to choose for the children, the routine icons
-  (each with a simplified small variant), the function icons, the piggy bank,
-  the brand mark, the logo and the integration icon.
-- The routine icons can also be chosen for tasks and checkpoints; small
-  places on the knob and in the panel use their simplified variant.
-- Pictures for the knob are prepared several times faster.
+- Fix (#22): the summary and child sensors refreshed their state every minute
+  from a worker thread instead of Home Assistant's event loop. Home Assistant
+  warned about it at every start, and it could have led to a crash or
+  corrupted state. They now refresh from the event loop.
+
+## [0.7.1] - 2026-10-08
 
 ### Magyar
 
@@ -2143,7 +2210,49 @@ Minden lényeges változás itt szerepel, angolul és magyarul.
   panelen a kis helyeken az egyszerűsített változatuk látszik.
 - A gombnak szánt képek többszörösen gyorsabban készülnek el.
 
+### English
+
+- Backgrounds: a general background for the knobs and the panel (Settings),
+  and each child can have their own (child's page), shown on that child's
+  screens on the knob and on the child's card in the panel. Six built-in
+  backgrounds (temporary artwork for now) or your own uploaded picture. The
+  knob downloads the background from Home Assistant like the pictures.
+- New artwork: twelve avatars to choose for the children, the routine icons
+  (each with a simplified small variant), the function icons, the piggy bank,
+  the brand mark, the logo and the integration icon.
+- The routine icons can also be chosen for tasks and checkpoints; small
+  places on the knob and in the panel use their simplified variant.
+- Pictures for the knob are prepared several times faster.
+
 ## [0.7.0] - 2026-10-08
+
+### Magyar
+
+Biztonsági megerősítés (#21). **A gomb firmware-ét az integrációval együtt
+frissítsd**, különben a feltöltött képek nem jelennek meg a gombon.
+
+- Gomb-firmware: a mintakonfiguráció OTA-jelszót (`ota_password`) és a
+  tartalék hozzáférési ponthoz jelszót (`ap_password`) kér, és gombonként
+  külön API titkosítási kulcsot használ (lásd a README-t). A kész firmware
+  ESPHome Builderbe való átvételekor a kiadott verzió kerül be.
+- Képkulcs csak titkosított kapcsolaton: a Home Assistant csak akkor küldi el
+  a gombnak a képkulcsát, ha a gomb API-kapcsolata titkosított; különben a
+  gomb ikonokat mutat, és egy javítási értesítés elmagyarázza, hogyan kell
+  kulcsot beállítani.
+- A képek csak a helyi hálózatról jutnak el a gombra, Home Assistant Cloudon
+  és az interneten át soha. A gomb a kulcsát a kérés fejlécében küldi a cím
+  helyett (így nem kerül naplóba), a kulcsok összehasonlítása konstans idejű.
+  Panel → Beállítások → Gombok → „Új képkulcs”: a gomb azonnal új kulcsot kap.
+- A gomb üzeneteit szigorúan ellenőrzi (méret, pontosan a várt mezők, típusok
+  és tartományok), gombonként legfeljebb 20-at percenként; a már könyvelt
+  műveletek listája kor és méret szerint korlátozott.
+- Feltöltött képek: a valódi képtípust ellenőrzi, a 30 MB-nál nagyobb fájlokat
+  és a 100 megapixelnél nagyobb képeket beolvasás előtt elutasítja, a nagy
+  fotókat csökkentett felbontásban olvassa be; a gombra kerülő példányban
+  nincs metaadat (EXIF, helyadat).
+- A kiadások pontos verzióra rögzített build-lépésekkel készülnek.
+- 15 új rutinikon (egyelőre ideiglenes rajzokkal).
+- README: új „Biztonság” szakasz, részletek a docs/security.md-ben.
 
 ### English
 
@@ -2174,58 +2283,7 @@ integration**, otherwise uploaded pictures do not appear on the knob.
 - 15 new routine icons (temporary artwork for now).
 - README: new "Security" section, details in docs/security.md.
 
-### Magyar
-
-Biztonsági megerősítés (#21). **A gomb firmware-ét az integrációval együtt
-frissítsd**, különben a feltöltött képek nem jelennek meg a gombon.
-
-- Gomb-firmware: a mintakonfiguráció OTA-jelszót (`ota_password`) és a
-  tartalék hozzáférési ponthoz jelszót (`ap_password`) kér, és gombonként
-  külön API titkosítási kulcsot használ (lásd a README-t). A kész firmware
-  ESPHome Builderbe való átvételekor a kiadott verzió kerül be.
-- Képkulcs csak titkosított kapcsolaton: a Home Assistant csak akkor küldi el
-  a gombnak a képkulcsát, ha a gomb API-kapcsolata titkosított; különben a
-  gomb ikonokat mutat, és egy javítási értesítés elmagyarázza, hogyan kell
-  kulcsot beállítani.
-- A képek csak a helyi hálózatról jutnak el a gombra, Home Assistant Cloudon
-  és az interneten át soha. A gomb a kulcsát a kérés fejlécében küldi a cím
-  helyett (így nem kerül naplóba), a kulcsok összehasonlítása konstans idejű.
-  Panel → Beállítások → Gombok → „Új képkulcs”: a gomb azonnal új kulcsot kap.
-- A gomb üzeneteit szigorúan ellenőrzi (méret, pontosan a várt mezők, típusok
-  és tartományok), gombonként legfeljebb 20-at percenként; a már könyvelt
-  műveletek listája kor és méret szerint korlátozott.
-- Feltöltött képek: a valódi képtípust ellenőrzi, a 30 MB-nál nagyobb fájlokat
-  és a 100 megapixelnél nagyobb képeket beolvasás előtt elutasítja, a nagy
-  fotókat csökkentett felbontásban olvassa be; a gombra kerülő példányban
-  nincs metaadat (EXIF, helyadat).
-- A kiadások pontos verzióra rögzített build-lépésekkel készülnek.
-- 15 új rutinikon (egyelőre ideiglenes rajzokkal).
-- README: új „Biztonság” szakasz, részletek a docs/security.md-ben.
-
 ## [0.6.0] - 2026-10-07
-
-### English
-
-- Calendar (#17, #19): day, 3-day and week views in a Google Calendar-like
-  style; the last chosen view is remembered per user, phones start with the
-  day view.
-- Only this occurrence or the whole series (#17): clicking a routine in the
-  calendar asks, like Outlook. "This occurrence only" opens the full routine
-  editor for that date (times, colour zones, checkpoints with reward bands,
-  tasks, children) with the changed parts marked, "Restore the original",
-  and everything logged; the routine itself is unchanged. Clicking an empty
-  place adds a routine for that day only. Past days are read-only. The Today
-  page has the same editor for today.
-- Dragging in the calendar (#17): drag a routine to move it for that day
-  (its checkpoints move with it), drag its top or bottom edge to change the
-  start or end; 5-minute grid, live time label, Undo; long press on touch
-  screens.
-- Routine colours (#18): every routine gets its own calendar colour (palette
-  and colour picker, a distinct colour for new routines, a hint for similar
-  colours), separate from the knob's time track base colour. Changed
-  occurrences carry a badge and a dashed outline, not only a colour.
-- Mobile (#19): the whole panel works on phones: one column, no sideways
-  scrolling, 44 px touch targets, editors as full-screen sheets.
 
 ### Magyar
 
@@ -2251,30 +2309,30 @@ frissítsd**, különben a feltöltött képek nem jelennek meg a gombon.
   vízszintes görgetés, 44 px-es érintési célok, a szerkesztők teljes képernyős
   lapként nyílnak.
 
-## [0.5.0] - 2026-10-07
-
 ### English
 
-- Day templates (e.g. weekday, weekend, holiday) say which routines run on a
-  day; each weekday can have a default template and a single date its own
-  (also on the Today page and with the `kis_segito.set_today_template`
-  action). Days without a template use each routine's own days.
-- Home Assistant entities: `sensor.kis_segito` (active/idle, day template,
-  running routines, next checkpoint), one sensor per child (wallet balance
-  with piggy bank, streak, routine progress, next checkpoint, last
-  transaction) and `calendar.kis_segito` with the routines as events.
-- Own pictures: a photo for each child and a picture for each reward,
-  uploaded in the panel (Home Assistant image_upload); the knob downloads
-  them from Home Assistant in the background and shows the icon until then.
-- Knob: interest paid while the child was away shows a piggy badge on the
-  child selector; opening the piggy bank drops exactly that many tokens in.
-- Knob (full animations): now and then a token rolls off the pile and a
-  cartoon hand puts it back; any input cancels it.
-- Notifications through scripts (#15): a rule can target a script, with the
-  script fields for message and title and fixed values for the others; only
-  scripts with the configured label are listed; a Send test button.
-- History (#16): every entry shows its own booked amount; the effective
-  value of a corrected entry is in its expandable chain.
+- Calendar (#17, #19): day, 3-day and week views in a Google Calendar-like
+  style; the last chosen view is remembered per user, phones start with the
+  day view.
+- Only this occurrence or the whole series (#17): clicking a routine in the
+  calendar asks, like Outlook. "This occurrence only" opens the full routine
+  editor for that date (times, colour zones, checkpoints with reward bands,
+  tasks, children) with the changed parts marked, "Restore the original",
+  and everything logged; the routine itself is unchanged. Clicking an empty
+  place adds a routine for that day only. Past days are read-only. The Today
+  page has the same editor for today.
+- Dragging in the calendar (#17): drag a routine to move it for that day
+  (its checkpoints move with it), drag its top or bottom edge to change the
+  start or end; 5-minute grid, live time label, Undo; long press on touch
+  screens.
+- Routine colours (#18): every routine gets its own calendar colour (palette
+  and colour picker, a distinct colour for new routines, a hint for similar
+  colours), separate from the knob's time track base colour. Changed
+  occurrences carry a badge and a dashed outline, not only a colour.
+- Mobile (#19): the whole panel works on phones: one column, no sideways
+  scrolling, 44 px touch targets, editors as full-screen sheets.
+
+## [0.5.0] - 2026-10-07
 
 ### Magyar
 
@@ -2299,29 +2357,30 @@ frissítsd**, különben a feltöltött képek nem jelennek meg a gombon.
 - Előzmények (#16): minden bejegyzés a saját könyvelt összegét mutatja; a
   módosított bejegyzés érvényes értéke a kinyitható láncban látszik.
 
-## [0.4.0] - 2026-10-07
-
 ### English
 
-- Calendar: a week view in the panel with the routines as blocks at their
-  times, checkpoints, a child filter and one-day changes highlighted.
-- Modify today (on the Today page): skip a routine or shift all its times for
-  today only; the routine itself stays unchanged; changes are logged.
-- Notification rules: any number of rules, each with a Home Assistant notify
-  target, event types and children; texts in English and Hungarian.
-- History: filter by child, type, account and date range, and search by name,
-  note or #number (#13). Entry references (#n) are links that jump to the
-  entry and highlight it, also via a link like …/kis-segito#tx-12; corrected
-  entries show their original amount; old/new amounts of corrections made
-  before 0.3.1 are computed from the ledger (#14).
-- Piggy bank on the knob: turning chooses how many tokens move (clockwise into
-  the piggy bank, anticlockwise out), pressing moves exactly that many.
-- The knob returns to the child selector after the inactivity time set in the
-  panel.
-- Settings: JSON export of all settings and the full token history.
-- The panel shows a reload bar when the browser still runs an older copy after
-  an update.
-- Configuration audit log (settings, one-day changes, notification rules).
+- Day templates (e.g. weekday, weekend, holiday) say which routines run on a
+  day; each weekday can have a default template and a single date its own
+  (also on the Today page and with the `kis_segito.set_today_template`
+  action). Days without a template use each routine's own days.
+- Home Assistant entities: `sensor.kis_segito` (active/idle, day template,
+  running routines, next checkpoint), one sensor per child (wallet balance
+  with piggy bank, streak, routine progress, next checkpoint, last
+  transaction) and `calendar.kis_segito` with the routines as events.
+- Own pictures: a photo for each child and a picture for each reward,
+  uploaded in the panel (Home Assistant image_upload); the knob downloads
+  them from Home Assistant in the background and shows the icon until then.
+- Knob: interest paid while the child was away shows a piggy badge on the
+  child selector; opening the piggy bank drops exactly that many tokens in.
+- Knob (full animations): now and then a token rolls off the pile and a
+  cartoon hand puts it back; any input cancels it.
+- Notifications through scripts (#15): a rule can target a script, with the
+  script fields for message and title and fixed values for the others; only
+  scripts with the configured label are listed; a Send test button.
+- History (#16): every entry shows its own booked amount; the effective
+  value of a corrected entry is in its expandable chain.
+
+## [0.4.0] - 2026-10-07
 
 ### Magyar
 
@@ -2346,13 +2405,29 @@ frissítsd**, különben a feltöltött képek nem jelennek meg a gombon.
   változatot futtatja.
 - Beállítás-napló (beállítások, egynapos módosítások, értesítési szabályok).
 
-## [0.3.2] - 2026-10-07
-
 ### English
 
-- Once a child's piggy bank is unlocked, the piggy-bank unlock reward no
-  longer appears in that child's shop on the knob at all (#11; replaces the
-  "owned" check of 0.3.1).
+- Calendar: a week view in the panel with the routines as blocks at their
+  times, checkpoints, a child filter and one-day changes highlighted.
+- Modify today (on the Today page): skip a routine or shift all its times for
+  today only; the routine itself stays unchanged; changes are logged.
+- Notification rules: any number of rules, each with a Home Assistant notify
+  target, event types and children; texts in English and Hungarian.
+- History: filter by child, type, account and date range, and search by name,
+  note or #number (#13). Entry references (#n) are links that jump to the
+  entry and highlight it, also via a link like …/kis-segito#tx-12; corrected
+  entries show their original amount; old/new amounts of corrections made
+  before 0.3.1 are computed from the ledger (#14).
+- Piggy bank on the knob: turning chooses how many tokens move (clockwise into
+  the piggy bank, anticlockwise out), pressing moves exactly that many.
+- The knob returns to the child selector after the inactivity time set in the
+  panel.
+- Settings: JSON export of all settings and the full token history.
+- The panel shows a reload bar when the browser still runs an older copy after
+  an update.
+- Configuration audit log (settings, one-day changes, notification rules).
+
+## [0.3.2] - 2026-10-07
 
 ### Magyar
 
@@ -2360,19 +2435,13 @@ frissítsd**, különben a feltöltött képek nem jelennek meg a gombon.
   nem jelenik meg az ő boltjában a gombon (#11; a 0.3.1 „megvan” pipája
   helyett).
 
-## [0.3.1] - 2026-10-07
-
 ### English
 
-- Piggy-bank unlock reward (#11): once the piggy bank is unlocked, the knob
-  shows the reward with a check ("owned") instead of a lock and a price; the
-  lock now only means "not enough tokens". A new child's piggy bank starts
-  locked when a reward can unlock it (open when no such reward exists).
-- History (#12): every entry has a sequence number. Corrections and reversals
-  are entries of their own that point to the original ("Correction of #1:
-  +3 → +5", "Reversal of #2") with who, when and an optional note; the
-  original lists its corrections and its reversal and shows the effective
-  amount.
+- Once a child's piggy bank is unlocked, the piggy-bank unlock reward no
+  longer appears in that child's shop on the knob at all (#11; replaces the
+  "owned" check of 0.3.1).
+
+## [0.3.1] - 2026-10-07
 
 ### Magyar
 
@@ -2386,7 +2455,58 @@ frissítsd**, különben a feltöltött képek nem jelennek meg a gombon.
   bejegyzés felsorolja a módosításait és a sztornóját, és az érvényes összeget
   mutatja.
 
+### English
+
+- Piggy-bank unlock reward (#11): once the piggy bank is unlocked, the knob
+  shows the reward with a check ("owned") instead of a lock and a price; the
+  lock now only means "not enough tokens". A new child's piggy bank starts
+  locked when a reward can unlock it (open when no such reward exists).
+- History (#12): every entry has a sequence number. Corrections and reversals
+  are entries of their own that point to the original ("Correction of #1:
+  +3 → +5", "Reversal of #2") with who, when and an optional note; the
+  original lists its corrections and its reversal and shows the effective
+  amount.
+
 ## [0.3.0] - 2026-10-07
+
+### Magyar
+
+Valódi adatok: a gomb most a Home Assistantben beállított adatokat mutatja a
+tesztadatok helyett (a tesztadatok csak addig látszanak, amíg a Home Assistant
+először adatot nem küld).
+
+- Home Assistant panel Ma, Gyerekek, Rutinok, Jutalmak, Zsetonok, Előzmények és
+  Beállítások oldallal:
+  - gyerekek: név, születési dátum, szín (előre megadott színek, színválasztó,
+    figyelmeztetés, ha közel van egy időzóna-színhez), avatar, gomb-hozzárendelés,
+    persely, sorrend;
+  - rutinok: a hét napjai, kezdés és vége, gyerekek, színzónák, checkpointok
+    (közös vagy gyerekenkénti, jutalomsávok aszerint, mennyivel előtte, beleszámít-e
+    a sorozatba), checkpointokhoz kötött feladatok; példa-rutinok egy gombnyomásra;
+  - jutalmak: ikon, zsetonkupacként mutatott ár, perselyfeloldás; példák;
+  - zsetonok: kézi jóváírás és levonás; előzmények visszavonással és
+    összegmódosítással;
+  - beállítások: nyelv, animációk, napi sorozat, heti perselykamat, a gombok a
+    hozzájuk rendelt gyerekek avatarjaival.
+- Csak bővülő zsetonnapló (pénztárca és persely): az egyenleg mindig az
+  előzmények összege; visszavonás és módosítás soha nem töröl semmit.
+- Checkpoint-jutalom időbeli sávok szerint, napi sorozat (éjfél után értékelve,
+  a cél elérésekor jutalommal), heti kamatos perselykamat opcionális minimummal
+  és maximummal.
+- Eszköz–gyerek hozzárendelés: egy gyerek legfeljebb egy gombhoz tartozik; ha egy
+  gombhoz vannak gyerekek rendelve, a többiek szürkén, zárolva látszanak; a gyerek
+  nélküli (vagy mindenkihez rendelt) gomb mindenkinek működik.
+- A gomb a Home Assistanttől kapja az adatait, és visszajelzi az elvégzett
+  feladatokat és a beváltott jutalmakat; mindegyik legfeljebb egyszer
+  könyvelődik, újracsatlakozás után is.
+- A gombon a funkció-körhinta a gyerek mai rutinjait mutatja; az időív a rutin
+  színzónáit, a közös checkpointokat a külső, a gyerek sajátjait a belső íven, és az
+  éppen elérhető jutalmat.
+- Home Assistant műveletek automatizáláshoz (`kis_segito.complete_task`,
+  `complete_checkpoint`, `adjust_tokens`, `redeem_reward`, `piggy_deposit`,
+  `piggy_withdraw`, `reverse_transaction`) és a `kis_segito_event` esemény
+  (docs/automations.md).
+- Az ikonkészlet minden ikonja elérhető a gombon és a panelen.
 
 ### English
 
@@ -2423,67 +2543,7 @@ data (the test data remains only until Home Assistant first sends data).
   (docs/automations.md).
 - Every icon of the set is now available on the knob and in the panel.
 
-### Magyar
-
-Valódi adatok: a knob most a Home Assistantben beállított adatokat mutatja a
-tesztadatok helyett (a tesztadatok csak addig látszanak, amíg a Home Assistant
-először adatot nem küld).
-
-- Home Assistant panel Ma, Gyerekek, Rutinok, Jutalmak, Zsetonok, Előzmények és
-  Beállítások oldallal:
-  - gyerekek: név, születési dátum, szín (előre megadott színek, színválasztó,
-    figyelmeztetés, ha közel van egy időzóna-színhez), avatar, gomb-hozzárendelés,
-    persely, sorrend;
-  - rutinok: a hét napjai, kezdés és vége, gyerekek, színzónák, checkpointok
-    (közös vagy gyerekenkénti, jutalomsávok aszerint, mennyivel előtte, beleszámít-e
-    a sorozatba), checkpointokhoz kötött feladatok; példa-rutinok egy gombnyomásra;
-  - jutalmak: ikon, zsetonkupacként mutatott ár, perselyfeloldás; példák;
-  - zsetonok: kézi jóváírás és levonás; előzmények visszavonással és
-    összegmódosítással;
-  - beállítások: nyelv, animációk, napi sorozat, heti perselykamat, a gombok a
-    hozzájuk rendelt gyerekek avatarjaival.
-- Csak bővülő zsetonnapló (pénztárca és persely): az egyenleg mindig az
-  előzmények összege; visszavonás és módosítás soha nem töröl semmit.
-- Checkpoint-jutalom időbeli sávok szerint, napi sorozat (éjfél után értékelve,
-  a cél elérésekor jutalommal), heti kamatos perselykamat opcionális minimummal
-  és maximummal.
-- Eszköz–gyerek hozzárendelés: egy gyerek legfeljebb egy gombhoz tartozik; ha egy
-  gombhoz vannak gyerekek rendelve, a többiek szürkén, zárolva látszanak; a gyerek
-  nélküli (vagy mindenkihez rendelt) gomb mindenkinek működik.
-- A knob a Home Assistanttől kapja az adatait, és visszajelzi az elvégzett
-  feladatokat és a beváltott jutalmakat; mindegyik legfeljebb egyszer
-  könyvelődik, újracsatlakozás után is.
-- A knobon a funkció-körhinta a gyerek mai rutinjait mutatja; az időív a rutin
-  színzónáit, a közös checkpointokat a külső, a gyerek sajátjait a belső íven, és az
-  éppen elérhető jutalmat.
-- Home Assistant műveletek automatizáláshoz (`kis_segito.complete_task`,
-  `complete_checkpoint`, `adjust_tokens`, `redeem_reward`, `piggy_deposit`,
-  `piggy_withdraw`, `reverse_transaction`) és a `kis_segito_event` esemény
-  (docs/automations.md).
-- Az ikonkészlet minden ikonja elérhető a knobon és a panelen.
-
 ## [0.2.2] - 2026-10-07
-
-### English
-
-- The time track is shown on every screen, above the content, on a band in
-  the background colour with a soft inner edge, so sliding carousel items do
-  not disturb it: the shared outer track (colour zones, elapsed time, now
-  marker, global checkpoints) and the selected child's inner track (also on
-  the child carousel, following the centred child).
-- The top gap shows the brand mark on every screen; on a routine it shows
-  the reward available now instead. Screen content moved inside the track.
-- The child carousel slides smoothly: each slot (avatar, token pile, number)
-  is rendered into one image (#10).
-- Language changes apply live (texts, brand mark, boot screen) without a
-  restart, and are written to flash right away.
-- The offline marker moved to the right of the top gap.
-- Screen saver against burn-in: the backlight dims after 60 s and switches
-  off after 120 s without knob input; any input wakes it without acting.
-  "Screen dim after" and "Screen off after" are adjustable from Home
-  Assistant (0 disables a step).
-- Whenever the backlight is off (switch, screen saver, automation), the screen
-  content is black and drawing pauses; it comes back when the backlight is on.
 
 ### Magyar
 
@@ -2507,27 +2567,79 @@ először adatot nem küld).
   automatizmus), a kijelző tartalma fekete, és a rajzolás szünetel;
   bekapcsoláskor visszajön.
 
+### English
+
+- The time track is shown on every screen, above the content, on a band in
+  the background colour with a soft inner edge, so sliding carousel items do
+  not disturb it: the shared outer track (colour zones, elapsed time, now
+  marker, global checkpoints) and the selected child's inner track (also on
+  the child carousel, following the centred child).
+- The top gap shows the brand mark on every screen; on a routine it shows
+  the reward available now instead. Screen content moved inside the track.
+- The child carousel slides smoothly: each slot (avatar, token pile, number)
+  is rendered into one image (#10).
+- Language changes apply live (texts, brand mark, boot screen) without a
+  restart, and are written to flash right away.
+- The offline marker moved to the right of the top gap.
+- Screen saver against burn-in: the backlight dims after 60 s and switches
+  off after 120 s without knob input; any input wakes it without acting.
+  "Screen dim after" and "Screen off after" are adjustable from Home
+  Assistant (0 disables a step).
+- Whenever the backlight is off (switch, screen saver, automation), the screen
+  content is black and drawing pauses; it comes back when the backlight is on.
+
 ## [0.2.1] - 2026-10-07
+
+### Magyar
+
+- Indítóképernyő: középen a Kis Segítő márkajel, alatta a betöltés felirat,
+  mögöttük pattognak a labdák. Magyar nyelv esetén a magyar, minden más
+  nyelven az angol („Little Helper”) márkajel látszik. A nyelvet a gomb a
+  következő indításhoz flash-ben tárolja.
+- Az időív felső résében is ez a nyelvfüggő márkajel látszik.
+- Logó a README tetején (a magyar és az angol részben is).
 
 ### English
 
-- Boot screen: the Kis Segítő brand mark in the middle, the loading text below
+- Boot screen: the Little Helper brand mark in the middle, the loading text below
   it, the balls bouncing behind them. The brand mark is Hungarian when the
   language is Hungarian and English ("Little Helper") otherwise. The language
   is kept in flash for the next boot.
 - The routine screen's top gap uses the same language-specific brand mark.
 - Logo at the top of the README (Hungarian and English section).
 
+## [0.2.0] - 2026-10-06
+
 ### Magyar
 
-- Indítóképernyő: középen a Kis Segítő márkajel, alatta a betöltés felirat,
-  mögöttük pattognak a labdák. Magyar nyelv esetén a magyar, minden más
-  nyelven az angol („Little Helper”) márkajel látszik. A nyelvet a knob a
-  következő indításhoz flash-ben tárolja.
-- Az időív felső résében is ez a nyelvfüggő márkajel látszik.
-- Logó a README tetején (a magyar és az angol részben is).
+A gomb gyerekfelületének első változata, beépített tesztadatokkal (a Home
+Assistant adatai egy későbbi verzióban jönnek):
 
-## [0.2.0] - 2026-10-06
+- Gyerek-körhinta (végtelen) avatarral és valódi zsetonkupaccal, pontosan a tárca
+  egyenlegével; nagy egyenlegnél a kupac szétterül, majd „lefolyik” a
+  kijelzőről. Az utoljára kiválasztott gyerek újraindítás után is megmarad.
+- Gyerekenkénti funkció-körhinta: reggeli és esti rutin, jutalmak, persely (ha
+  feloldották), zsetonok és sorozat.
+- Rutinképernyő: nyitott időív 11 órától 1 óráig, a jövőbeli színzónák az
+  elejétől látszanak, az eltelt idő elhalványul, checkpoint-jelölők a külső és a
+  belső íven, a most járó jutalom a felső résben, az aktuális feladat nagyban, a
+  többi egy íves idővonalon (a kész feladatok balra, szürkén). Feladat
+  teljesítésekor pattanás és pipa, a rutin végén ünneplés.
+- Jutalombolt-körhinta, az árak zsetonkupacként, a nem megfizethető jutalmak
+  szürkén, X/✓ megerősítés gyűrűvel a kiválasztott elem körül; a pontos számú
+  elköltött zseton elrepül.
+- Rövid nyomás: kiválasztás, hosszú nyomás: egy szinttel vissza; 60 s tétlenség
+  után vissza a gyerek-körhintára. Home Assistant-kapcsolat nélkül offline jelzés
+  látszik, és a zseton-tranzakciók le vannak tiltva.
+- Animációs szint (teljes / csökkentett / ki) beállításként a Home Assistantben.
+- A betöltőképernyő labdái rétegzett képek: színezett kerek labda, amely
+  ütközéskor rövid időre horpadt labdára vált (a horpadás az ütközési pont felé
+  néz), és egy csillanás, amely sosem forog és nem torzul. A csillanás helye a
+  `ball_highlight_dx` / `ball_highlight_dy` helyettesítésekkel állítható.
+- Nyelvválasztó a Kis Segítő panelen: „Automatikus” (a Home Assistant nyelve,
+  fordítás hiányában angol) vagy bármelyik elérhető fordítás. A gombokra és a
+  panelre is érvényes; a lista a fordítási fájlokból jön.
+- Az ikonok egyelőre ideiglenes vázlatok.
 
 ### English
 
@@ -2555,56 +2667,40 @@ Assistant data follows in a later version):
   briefly turns into a dented ball on impact (the dent faces the contact point),
   and a highlight that never rotates or deforms. The highlight position is
   adjustable with the `ball_highlight_dx` / `ball_highlight_dy` substitutions.
-- Language setting in the Kis Segítő panel: "Automatic" (the Home Assistant
+- Language setting in the Little Helper panel: "Automatic" (the Home Assistant
   language, English when there is no translation) or any available
   translation. It applies to the knobs and to the panel; the list comes from the
   translation files.
 - The icons are temporary sketches for now.
 
-### Magyar
-
-A knob gyerekfelületének első változata, beépített tesztadatokkal (a Home
-Assistant adatai egy későbbi verzióban jönnek):
-
-- Gyerek-körhinta (végtelen) avatarral és valódi zsetonkupaccal, pontosan a tárca
-  egyenlegével; nagy egyenlegnél a kupac szétterül, majd „lefolyik” a
-  kijelzőről. Az utoljára kiválasztott gyerek újraindítás után is megmarad.
-- Gyerekenkénti funkció-körhinta: reggeli és esti rutin, jutalmak, persely (ha
-  feloldották), zsetonok és sorozat.
-- Rutinképernyő: nyitott időív 11 órától 1 óráig, a jövőbeli színzónák az
-  elejétől látszanak, az eltelt idő elhalványul, checkpoint-jelölők a külső és a
-  belső íven, a most járó jutalom a felső résben, az aktuális feladat nagyban, a
-  többi egy íves idővonalon (a kész feladatok balra, szürkén). Feladat
-  teljesítésekor pattanás és pipa, a rutin végén ünneplés.
-- Jutalombolt-körhinta, az árak zsetonkupacként, a nem megfizethető jutalmak
-  szürkén, X/✓ megerősítés gyűrűvel a kiválasztott elem körül; a pontos számú
-  elköltött zseton elrepül.
-- Rövid nyomás: kiválasztás, hosszú nyomás: egy szinttel vissza; 60 s tétlenség
-  után vissza a gyerek-körhintára. Home Assistant-kapcsolat nélkül offline jelzés
-  látszik, és a zseton-tranzakciók le vannak tiltva.
-- Animációs szint (teljes / csökkentett / ki) beállításként a Home Assistantben.
-- A betöltőképernyő labdái rétegzett képek: színezett kerek labda, amely
-  ütközéskor rövid időre horpadt labdára vált (a horpadás az ütközési pont felé
-  néz), és egy csillanás, amely sosem forog és nem torzul. A csillanás helye a
-  `ball_highlight_dx` / `ball_highlight_dy` helyettesítésekkel állítható.
-- Nyelvválasztó a Kis Segítő panelen: „Automatikus” (a Home Assistant nyelve,
-  fordítás hiányában angol) vagy bármelyik elérhető fordítás. A knobokra és a
-  panelre is érvényes; a lista a fordítási fájlokból jön.
-- Az ikonok egyelőre ideiglenes vázlatok.
-
 ## [0.1.11] - 2026-10-06
-
-### English
-
-- Loading screen: five bouncing balls (one more), and they now also bounce off
-  each other, not only off the round edge.
 
 ### Magyar
 
 - Betöltőképernyő: öt pattogó labda (eggyel több), és most már egymásról is
   visszapattannak, nem csak a kerek szélről.
 
+### English
+
+- Loading screen: five bouncing balls (one more), and they now also bounce off
+  each other, not only off the round edge.
+
 ## [0.1.10] - 2026-10-06
+
+### Magyar
+
+- Javítás: töltőről a kijelző üres maradt, csak számítógépről működött (#8). Az
+  ok az ESP-IDF másodlagos konzolja volt a natív USB-porton. Ez most ki van
+  kapcsolva, a soros napló az UART0-ra (GPIO43/44) került; a
+  `logger_baud_rate: "0"` kikapcsolja, és felszabadítja az UART0-t más
+  hardvernek. A napló hálózaton továbbra is elérhető.
+- Az USB-s Improv kikerült (a natív USB-portot használná); a WiFi a gomb saját
+  hozzáférési pontján (captive portal) állítható be.
+- A `no-usb-console.yaml` diagnosztikai package kikerült, mert ez lett az
+  alapállapot.
+- A betöltőképernyőn a forgó jel helyett színes pattogó labdák vannak (#9). A
+  kerek kijelző szélén pattannak vissza, kicsit összenyomódva; a tartalom
+  megérkezésekor az animáció leáll, és az időzítője felszabadul.
 
 ### English
 
@@ -2621,31 +2717,7 @@ Assistant adatai egy későbbi verzióban jönnek):
   (#9). They bounce off the round edge with a small squash; the animation stops
   and its timer is freed once the content arrives.
 
-### Magyar
-
-- Javítás: töltőről a kijelző üres maradt, csak számítógépről működött (#8). Az
-  ok az ESP-IDF másodlagos konzolja volt a natív USB-porton. Ez most ki van
-  kapcsolva, a soros napló az UART0-ra (GPIO43/44) került; a
-  `logger_baud_rate: "0"` kikapcsolja, és felszabadítja az UART0-t más
-  hardvernek. A napló hálózaton továbbra is elérhető.
-- Az USB-s Improv kikerült (a natív USB-portot használná); a WiFi a knob saját
-  hozzáférési pontján (captive portal) állítható be.
-- A `no-usb-console.yaml` diagnosztikai package kikerült, mert ez lett az
-  alapállapot.
-- A betöltőképernyőn a forgó jel helyett színes pattogó labdák vannak (#9). A
-  kerek kijelző szélén pattannak vissza, kicsit összenyomódva; a tartalom
-  megérkezésekor az animáció leáll, és az időzítője felszabadul.
-
 ## [0.1.9] - 2026-10-06
-
-### English
-
-- Diagnostic packages for the display staying blank on USB chargers (#8, still
-  open), in `esphome/diagnostics/`: `no-usb-console.yaml` (native USB port
-  unused, logs over the network only), `jtag-pins.yaml` (GPIO39–42 reset to
-  plain GPIO before the RGB panel starts) and `verbose-display-log.yaml`
-  (verbose display/LVGL logs). See `docs/hardware.md`. The normal firmware is
-  unchanged.
 
 ### Magyar
 
@@ -2656,16 +2728,16 @@ Assistant adatai egy későbbi verzióban jönnek):
   indulása előtt) és `verbose-display-log.yaml` (részletes kijelző/LVGL-napló).
   Lásd: `docs/hardware.md`. A normál firmware nem változott.
 
-## [0.1.8] - 2026-10-06
-
 ### English
 
-- The encoder sensitivity is adjustable from Home Assistant (#7): a new
-  **Encoder clicks per step** setting (1–5, default 1) on the device, kept
-  across reboots. The encoder now counts at full resolution and the firmware
-  turns clicks into steps. The `encoder_resolution` substitution is replaced by
-  `encoder_counts_per_click` (default `"2"`) for other encoders. The raw
-  encoder counter is no longer exposed to Home Assistant.
+- Diagnostic packages for the display staying blank on USB chargers (#8, still
+  open), in `esphome/diagnostics/`: `no-usb-console.yaml` (native USB port
+  unused, logs over the network only), `jtag-pins.yaml` (GPIO39–42 reset to
+  plain GPIO before the RGB panel starts) and `verbose-display-log.yaml`
+  (verbose display/LVGL logs). See `docs/hardware.md`. The normal firmware is
+  unchanged.
+
+## [0.1.8] - 2026-10-06
 
 ### Magyar
 
@@ -2676,17 +2748,16 @@ Assistant adatai egy későbbi verzióban jönnek):
   más enkóderhez az `encoder_counts_per_click` állítható (alapból `"2"`). A nyers
   enkóderszámláló már nem jelenik meg a Home Assistantben.
 
-## [0.1.7] - 2026-10-06
-
 ### English
 
-- Fix: one encoder click is now one step; `encoder_resolution` defaults to `"2"`
-  (#7). The README explains how to tune it for other encoders.
-- Display diagnostics for the faint stripes on black (#6, still open):
-  `display-test.yaml` can show solid black, white, grey, very dark grey or a
-  grey ramp (`display_test_pattern`), and the new `display_drive_strength`
-  substitution sets the drive strength of the RGB bus pins. COLMOD 0x77 can be
-  tested with `display_colmod: "0x77"`.
+- The encoder sensitivity is adjustable from Home Assistant (#7): a new
+  **Encoder clicks per step** setting (1–5, default 1) on the device, kept
+  across reboots. The encoder now counts at full resolution and the firmware
+  turns clicks into steps. The `encoder_resolution` substitution is replaced by
+  `encoder_counts_per_click` (default `"2"`) for other encoders. The raw
+  encoder counter is no longer exposed to Home Assistant.
+
+## [0.1.7] - 2026-10-06
 
 ### Magyar
 
@@ -2698,19 +2769,17 @@ Assistant adatai egy későbbi verzióban jönnek):
   `display_drive_strength` substitution az RGB-busz lábainak meghajtóerejét
   állítja. A COLMOD 0x77 a `display_colmod: "0x77"` beállítással próbálható.
 
-## [0.1.6] - 2026-10-06
-
 ### English
 
-- Fix attempt for wrong mid-tone colours on the MD80E (#4). The panel init now
-  follows the factory demo exactly: init table, 120 ms, DISPON, with **no
-  COLMOD**, so the panel stays in its 24-bit power-on mode, which matches the
-  board wiring. ESPHome's own COLMOD/MADCTL/INVOFF are no longer sent (the
-  sequence is replaced at boot, before the display starts).
-- New substitution `display_colmod` (`"0"` = none, default; `"0x55"` restores
-  the v0.1.5 behaviour). It replaces `display_pixel_mode`; the no-longer-used
-  `display_color_order` and `display_invert_colors` are removed.
-- Fix: the encoder counted down when turned clockwise; A/B pins swapped (#5).
+- Fix: one encoder click is now one step; `encoder_resolution` defaults to `"2"`
+  (#7). The README explains how to tune it for other encoders.
+- Display diagnostics for the faint stripes on black (#6, still open):
+  `display-test.yaml` can show solid black, white, grey, very dark grey or a
+  grey ramp (`display_test_pattern`), and the new `display_drive_strength`
+  substitution sets the drive strength of the RGB bus pins. COLMOD 0x77 can be
+  tested with `display_colmod: "0x77"`.
+
+## [0.1.6] - 2026-10-06
 
 ### Magyar
 
@@ -2724,17 +2793,19 @@ Assistant adatai egy későbbi verzióban jönnek):
   használaton kívüli `display_color_order` és `display_invert_colors` kikerült.
 - Javítás: az enkóder jobbra forgatásra csökkent; az A/B láb felcserélve (#5).
 
-## [0.1.5] - 2026-10-06
-
 ### English
 
-- Fix: correct colours on the MD80E display (#3). The cause was the COLMOD the
-  display driver sends after the init table: 18-bit (0x66) breaks the colours
-  on this panel, 16-bit (0x55) gives a correct picture. `display_pixel_mode` now
-  defaults to `16bit`.
-- The v0.1.4 change (sending the init with custom bit-banged SPI) is reverted:
-  the init already reached the panel. The board definition is the tested v0.1.3
-  one again (GC9503 table, 26 MHz, non-inverted PCLK, 8/20/40, 8/20/50).
+- Fix attempt for wrong mid-tone colours on the MD80E (#4). The panel init now
+  follows the factory demo exactly: init table, 120 ms, DISPON, with **no
+  COLMOD**, so the panel stays in its 24-bit power-on mode, which matches the
+  board wiring. ESPHome's own COLMOD/MADCTL/INVOFF are no longer sent (the
+  sequence is replaced at boot, before the display starts).
+- New substitution `display_colmod` (`"0"` = none, default; `"0x55"` restores
+  the v0.1.5 behaviour). It replaces `display_pixel_mode`; the no-longer-used
+  `display_color_order` and `display_invert_colors` are removed.
+- Fix: the encoder counted down when turned clockwise; A/B pins swapped (#5).
+
+## [0.1.5] - 2026-10-06
 
 ### Magyar
 
@@ -2746,19 +2817,17 @@ Assistant adatai egy későbbi verzióban jönnek):
   eddig is eljutott a panelhez. A lapdefiníció újra a tesztelt v0.1.3-as (GC9503
   tábla, 26 MHz, nem invertált PCLK, 8/20/40, 8/20/50).
 
-## [0.1.4] - 2026-10-06
-
 ### English
 
-- Fix attempt for the MD80E display (#3): the panel init is now sent exactly the
-  way the vendor code does it (bit-banged 9-bit 3-wire SPI with idle-high lines
-  at about 50 kHz, no reset pulse, 120 ms, DISPON, then GPIO12/13 released) from
-  an `on_boot` step before the display starts. The `mipi_rgb` display uses
-  ESPHome's generic `RPI` model and sends no init of its own.
-- New diagnostic substitution `display_init_test_invert`: sends INVON after the
-  init table, so a colour inversion proves the init reaches the panel.
-- Removed the substitutions that no longer have an effect
-  (`display_pixel_mode`, `display_color_order`, `display_invert_colors`).
+- Fix: correct colours on the MD80E display (#3). The cause was the COLMOD the
+  display driver sends after the init table: 18-bit (0x66) breaks the colours
+  on this panel, 16-bit (0x55) gives a correct picture. `display_pixel_mode` now
+  defaults to `16bit`.
+- The v0.1.4 change (sending the init with custom bit-banged SPI) is reverted:
+  the init already reached the panel. The board definition is the tested v0.1.3
+  one again (GC9503 table, 26 MHz, non-inverted PCLK, 8/20/40, 8/20/50).
+
+## [0.1.4] - 2026-10-06
 
 ### Magyar
 
@@ -2773,15 +2842,19 @@ Assistant adatai egy későbbi verzióban jönnek):
 - Kikerültek a már hatástalan substitutionök (`display_pixel_mode`,
   `display_color_order`, `display_invert_colors`).
 
-## [0.1.3] - 2026-10-06
-
 ### English
 
-- Fix: red was missing and the test card was wrong on the MD80E (#2). The panel
-  has a GC9503CV controller; the display now uses the vendor's GC9503 init
-  table (the one the factory demo runs) with the vendor timings (26 MHz,
-  non-inverted PCLK, 8/20/40, 8/20/50). The previous ST7701-style table stays
-  available with `display_controller: st7701`.
+- Fix attempt for the MD80E display (#3): the panel init is now sent exactly the
+  way the vendor code does it (bit-banged 9-bit 3-wire SPI with idle-high lines
+  at about 50 kHz, no reset pulse, 120 ms, DISPON, then GPIO12/13 released) from
+  an `on_boot` step before the display starts. The `mipi_rgb` display uses
+  ESPHome's generic `RPI` model and sends no init of its own.
+- New diagnostic substitution `display_init_test_invert`: sends INVON after the
+  init table, so a colour inversion proves the init reaches the panel.
+- Removed the substitutions that no longer have an effect
+  (`display_pixel_mode`, `display_color_order`, `display_invert_colors`).
+
+## [0.1.3] - 2026-10-06
 
 ### Magyar
 
@@ -2791,7 +2864,25 @@ Assistant adatai egy későbbi verzióban jönnek):
   nem invertált PCLK, 8/20/40, 8/20/50). Az előző, ST7701-es tábla
   `display_controller: st7701` beállítással továbbra is elérhető.
 
+### English
+
+- Fix: red was missing and the test card was wrong on the MD80E (#2). The panel
+  has a GC9503CV controller; the display now uses the vendor's GC9503 init
+  table (the one the factory demo runs) with the vendor timings (26 MHz,
+  non-inverted PCLK, 8/20/40, 8/20/50). The previous ST7701-style table stays
+  available with `display_controller: st7701`.
+
 ## [0.1.2] - 2026-10-06
+
+### Magyar
+
+- Javítás: az MD80E (nem érintős) kijelzőn csak csíkok látszottak. A kijelző
+  most a gyártói MD80E ESP-IDF példa beállításait használja az ESPHome beépített
+  `UEDX48480021-MD80ET` modellje helyett: 26 MHz, nem invertált PCLK, 8/20/40 és
+  8/20/50 porch, a gyártói init szekvencia, valamint a gyártói PSRAM/cache
+  beállítások. Minden időzítés substitution, így az eszközkonfigból hangolható (#1).
+- Új `esphome/display-test.yaml`: ugyanaz a lap LVGL nélkül, az ESPHome
+  tesztképével (test card), a kijelző önálló ellenőrzéséhez.
 
 ### English
 
@@ -2804,17 +2895,15 @@ Assistant adatai egy későbbi verzióban jönnek):
 - New `esphome/display-test.yaml`: the same board without LVGL, showing
   ESPHome's test card, for checking the panel on its own.
 
+## [0.1.1] - 2026-10-06
+
 ### Magyar
 
-- Javítás: az MD80E (nem érintős) kijelzőn csak csíkok látszottak. A kijelző
-  most a gyártói MD80E ESP-IDF példa beállításait használja az ESPHome beépített
-  `UEDX48480021-MD80ET` modellje helyett: 26 MHz, nem invertált PCLK, 8/20/40 és
-  8/20/50 porch, a gyártói init szekvencia, valamint a gyártói PSRAM/cache
-  beállítások. Minden időzítés substitution, így az eszközkonfigból hangolható (#1).
-- Új `esphome/display-test.yaml`: ugyanaz a lap LVGL nélkül, az ESPHome
-  tesztképével (test card), a kijelző önálló ellenőrzéséhez.
-
-## [0.1.1] - 2026-10-06
+- Gomb: betöltőképernyő a bekapcsolástól addig, amíg a Home Assistant el nem
+  küldi a tartalmat (forgó jel; később ide kerül a logó). A felirata
+  („Betöltés...”) a Home Assistanttől utoljára kapott nyelven a flash-ben
+  marad, így áramszünet után is ezen a nyelven jelenik meg. Az első
+  csatlakozás előtt üres.
 
 ### English
 
@@ -2823,29 +2912,7 @@ Assistant adatai egy későbbi verzióban jönnek):
   in the last language received from Home Assistant, so it is shown in that
   language after a power cut too. Empty before the first connection.
 
-### Magyar
-
-- Knob: betöltőképernyő a bekapcsolástól addig, amíg a Home Assistant el nem
-  küldi a tartalmat (forgó jel; később ide kerül a logó). A felirata
-  („Betöltés...”) a Home Assistanttől utoljára kapott nyelven a flash-ben
-  marad, így áramszünet után is ezen a nyelven jelenik meg. Az első
-  csatlakozás előtt üres.
-
 ## [0.1.0] - 2026-10-06
-
-### English
-
-First testable skeleton.
-
-- **ESPHome firmware** (`esphome/kis-segito.yaml`), usable as a package: ST7701S
-  480×480 display (built-in `UEDX48480021-MD80ET` model), dimmable backlight,
-  rotary encoder, push button, and an LVGL test screen: turning changes a number,
-  pressing gives visual feedback. On-screen texts come from Home Assistant in its
-  language (`set_ui_strings` API action); fonts cover Latin, Greek and Cyrillic.
-- **Home Assistant integration** `kis_segito` (HACS): config flow that links an
-  ESPHome knob, an empty "Kis Segítő" sidebar panel, versioned storage, English
-  and Hungarian translations. Sends the knob texts on connect and on language change.
-- Each release has the ready-made factory and OTA firmware attached.
 
 ### Magyar
 
@@ -2858,8 +2925,8 @@ Első, tesztelhető váz.
   a saját nyelvén (`set_ui_strings` API action); a betűkészlet latin, görög és
   cirill betűket tartalmaz.
 - **Home Assistant integráció** `kis_segito` (HACS): config flow az ESPHome-os
-  knob kiválasztásához, üres „Kis Segítő” oldalsáv-panel, verziózott adattárolás,
-  angol és magyar fordítás. Csatlakozáskor és nyelvváltáskor elküldi a knob szövegeit.
+  gomb kiválasztásához, üres „Kis Segítő” oldalsáv-panel, verziózott adattárolás,
+  angol és magyar fordítás. Csatlakozáskor és nyelvváltáskor elküldi a gomb szövegeit.
 - Minden release-hez csatolva van a kész factory és OTA firmware.
 
 [0.2.0]: https://github.com/bazsc20ne/kis-segito/releases/tag/v0.2.0
@@ -2875,3 +2942,17 @@ Első, tesztelhető váz.
 [0.1.2]: https://github.com/bazsc20ne/kis-segito/releases/tag/v0.1.2
 [0.1.1]: https://github.com/bazsc20ne/kis-segito/releases/tag/v0.1.1
 [0.1.0]: https://github.com/bazsc20ne/kis-segito/releases/tag/v0.1.0
+
+### English
+
+First testable skeleton.
+
+- **ESPHome firmware** (`esphome/kis-segito.yaml`), usable as a package: ST7701S
+  480×480 display (built-in `UEDX48480021-MD80ET` model), dimmable backlight,
+  rotary encoder, push button, and an LVGL test screen: turning changes a number,
+  pressing gives visual feedback. On-screen texts come from Home Assistant in its
+  language (`set_ui_strings` API action); fonts cover Latin, Greek and Cyrillic.
+- **Home Assistant integration** `kis_segito` (HACS): config flow that links an
+  ESPHome knob, an empty "Little Helper" sidebar panel, versioned storage, English
+  and Hungarian translations. Sends the knob texts on connect and on language change.
+- Each release has the ready-made factory and OTA firmware attached.

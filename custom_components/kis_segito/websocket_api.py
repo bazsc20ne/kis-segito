@@ -107,6 +107,7 @@ def async_register_commands(hass: HomeAssistant) -> None:
         ws_events,
         ws_import,
         ws_event_remove,
+        ws_event_remove_group,
         ws_event_credit,
     ):
         websocket_api.async_register_command(hass, command)
@@ -1053,6 +1054,51 @@ async def ws_event_remove(
         connection,
         msg["id"],
         _manager(hass).async_remove_event(msg["event_id"], who=user or "parent"),
+    )
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/event/remove_group",
+        vol.Required("event_id"): str,
+        vol.Required("scope"): vol.In(["checkpoint", "routine"]),
+        vol.Optional("every_child", default=False): bool,
+        vol.Optional("preview", default=False): bool,
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_event_remove_group(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Undo a whole checkpoint or routine of a day (or list what it undoes)."""
+    manager = _manager(hass)
+    if msg["preview"]:
+        try:
+            group = manager.event_group(msg["event_id"], msg["scope"], msg["every_child"])
+        except KisSegitoError as err:
+            connection.send_error(msg["id"], err.code, str(err))
+            return
+        connection.send_result(
+            msg["id"],
+            [
+                {
+                    key: event.get(key)
+                    for key in ("id", "type", "child_id", "task_name", "checkpoint_name", "routine_name")
+                }
+                for event in group
+            ],
+        )
+        return
+    user = connection.user.name if connection.user else "parent"
+    await _run(
+        connection,
+        msg["id"],
+        manager.async_remove_events(
+            msg["event_id"], msg["scope"], msg["every_child"], who=user or "parent"
+        ),
     )
 
 

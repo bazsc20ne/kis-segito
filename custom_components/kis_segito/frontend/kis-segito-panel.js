@@ -10,7 +10,7 @@
 
 // Must equal the integration version (scripts/check_versions.py checks it):
 // a browser that still runs an older copy of this file shows a reload bar.
-const PANEL_VERSION = "0.9.11";
+const PANEL_VERSION = "0.9.12";
 const FALLBACK_LANGUAGE = "en";
 const LANGUAGE_AUTO = "auto";
 const TABS = ["today", "calendar", "children", "routines", "rewards", "tokens", "history", "notifications", "settings"];
@@ -159,6 +159,50 @@ function applyTimes(item, start, end) {
   item.start = fromMinutes(start);
   item.end = fromMinutes(end);
   return item;
+}
+
+// A changed time of a routine being edited, applied to the others: the last
+// checkpoint is tied to the end (moving one moves the other); a checkpoint
+// moved past the last one pushes the last one and the end by the same
+// amount; a checkpoint before the start moves the start.
+function syncRoutineTimes(item, path, before, after) {
+  const cps = (item.checkpoints || []).filter((c) => c.time);
+  const t = (v) => toMinutes(v);
+  const clampDay = (m) => Math.max(0, Math.min(23 * 60 + 59, m));
+  if (path === "end") {
+    for (const c of cps) {
+      if (c.time === before) c.time = after;
+    }
+  } else {
+    const m = /^checkpoints\.(\d+)\.time$/.exec(path);
+    const moved = m ? item.checkpoints[Number(m[1])] : null;
+    if (moved?.time) {
+      const others = cps.filter((c) => c !== moved);
+      const last = others.length ? Math.max(...others.map((c) => t(c.time))) : null;
+      const wasLast = last === null || t(before) >= last;
+      if (wasLast) {
+        if (before === item.end || t(after) > t(item.end)) item.end = after;
+      } else if (t(after) > last) {
+        const shift = t(after) - last;
+        for (const c of others) {
+          if (t(c.time) === last) c.time = fromMinutes(clampDay(last + shift));
+        }
+        if (t(item.end) >= last) item.end = fromMinutes(clampDay(t(item.end) + shift));
+      }
+    }
+  }
+  // Every checkpoint inside the routine.
+  for (const c of cps) {
+    if (t(c.time) > t(item.end)) item.end = c.time;
+    if (t(c.time) < t(item.start)) item.start = c.time;
+  }
+}
+
+// Where a checkpoint's line sits in a calendar block (px from its top),
+// always inside the block; above CPM_TEXT are the name and the times.
+const CPM_TEXT = 36;
+function cpMarkerY(minutes, start, height) {
+  return Math.round(Math.max(0, Math.min(height - 2, (minutes - start) * CAL_PX)));
 }
 
 function applies(list, childId) {
@@ -796,7 +840,7 @@ class KisSegitoPanel extends HTMLElement {
     return `<div class="card"><h3>${this._e(this._t("icons.title"))}</h3>
       <div class="field"><span>${this._e(this._t("icons.own_title"))}${this._help("help.icons_own", this._t("icons.own_title"))}</span><div class="own-icons">${own || `<span class="muted small">${this._e(this._t("icons.none"))}</span>`}
         ${this._isAdmin ? `<label class="upload-tile" title="${this._e(this._t("icons.upload"))}"><span style="font-size:1.6rem">＋</span><span class="small">${this._e(this._t("icons.upload"))}</span><input type="file" accept="image/*" data-crop-upload="@icon" hidden></label>` : ""}</div></div>
-      <details><summary>${this._e(this._t("icons.builtin_title"))} (${disabled.size ? `${this._e(this._t("icons.off_count").replace("{n}", disabled.size))}` : this._e(this._t("icons.all_on"))})${this._help("help.icons_builtin", this._t("icons.builtin_title"))}</summary>
+      <details><summary>${this._e(this._t("icons.builtin_title"))}${this._help("help.icons_builtin", this._t("icons.builtin_title"))}</summary>
         <div class="icon-grid builtin" style="margin-top:10px">${builtin}</div></details></div>`;
   }
 
@@ -849,6 +893,16 @@ class KisSegitoPanel extends HTMLElement {
         <div class="row wrap" style="gap:6px;margin-top:10px">${children}</div>
         <div class="row" style="gap:6px;margin-top:10px"><label class="switch"><input type="checkbox" data-knob-hide="${this._e(d.device_id)}" ${d.hide_locked ? "checked" : ""} ${dis}>${this._e(this._t("settings.knob_hide_locked"))}</label>${this._help("help.knob_hide_locked", this._t("settings.knob_hide_locked"))}</div></details>
       <details><summary>${this._e(this._t("settings.knob_bg"))}${this._help(d.virtual ? "help.knob_bg_virtual" : "help.knob_bg", this._t("settings.knob_bg"))}</summary><div class="stack" style="gap:8px;margin-top:10px">${bgChoices}<div class="bgs">${bgs}</div></div></details>`;
+  }
+
+  // A count of minutes as people say it: above an hour in hours and minutes
+  // ("7 óra 6 perc", "7 h 6 min").
+  _duration(minutes) {
+    const total = Math.round(Math.abs(Number(minutes) || 0));
+    const h = Math.floor(total / 60);
+    const m = total % 60;
+    const key = h && m ? "duration.hm" : h ? "duration.h" : "duration.m";
+    return this._t(key).replace("{h}", h).replace("{m}", m);
   }
 
   _set(path, value) {
@@ -996,14 +1050,14 @@ class KisSegitoPanel extends HTMLElement {
         })
         .join("");
       const left = running
-        ? this._t("today.left").replace("{n}", toMinutes(full.end) - n)
-        : this._t("today.in").replace("{n}", toMinutes(full.start) - n);
+        ? this._t("today.left").replace("{n}", this._duration(toMinutes(full.end) - n))
+        : this._t("today.in").replace("{n}", this._duration(toMinutes(full.start) - n));
       nowCard = `<div class="now-card">${this._dial(full, 190, { now: n })}
         <div class="stack" style="gap:8px">
           <span class="tag ${running ? "good" : "sun"}" style="align-self:flex-start">${this._e(this._t(running ? "today.now" : "today.next"))}</span>
           <h2 style="font-size:1.9rem">${this._e(full.name || this._t("routines.unnamed"))}</h2>
           <div class="muted num" style="font-weight:600">${this._e(full.start)}–${this._e(full.end)} · ${this._e(left)}</div>
-          ${running && nextCp ? `<div class="row wrap" style="gap:6px"><span class="lbl">${this._e(this._t("today.next_cp"))}</span><span class="cp-chip">${this._icon(nextCp.icon || "checkpoint_flag", 20)} ${this._e(nextCp.name)} <span class="num">${this._e(nextCp.time)}</span> · <b class="num">${toMinutes(nextCp.time) - n}′</b></span></div>` : ""}
+          ${running && nextCp ? `<div class="row wrap" style="gap:6px"><span class="lbl">${this._e(this._t("today.next_cp"))}</span><span class="cp-chip">${this._icon(nextCp.icon || "checkpoint_flag", 20)} ${this._e(nextCp.name)} <span class="num">${this._e(nextCp.time)}</span> · <b class="num">${this._e(this._duration(toMinutes(nextCp.time) - n))}</b></span></div>` : ""}
           ${flow ? `<div class="flow">${flow}</div>` : ""}
           <div class="muted small">${this._e(this._t("today.on_knob"))}</div>
         </div></div>`;
@@ -1108,7 +1162,7 @@ class KisSegitoPanel extends HTMLElement {
         const state = skipped
           ? `<span class="tag warn">${this._e(this._t("modify.skipped"))}</span>`
           : shift
-            ? `<span class="tag warn">${this._e(this._t("modify.shifted").replace("{n}", sign(shift)))}</span>`
+            ? `<span class="tag warn">${this._e(this._t("modify.shifted").replace("{n}", `${shift > 0 ? "+" : "−"}${this._duration(Math.abs(shift))}`))}</span>`
             : running?.edited
               ? `<span class="badge" title="${this._e(this._t("calendar.changed"))}">${this._icon("action_edit", 18, "glyph")}</span>`
               : "";
@@ -1235,7 +1289,13 @@ class KisSegitoPanel extends HTMLElement {
             const who = r.children.length ? r.children.map((id) => this._child(id)?.name).filter(Boolean).join(", ") : this._t("routines.everyone");
             const cps = (r.checkpoints || [])
               .filter((c) => c.time)
-              .map((c) => `<img class="cpm" data-t="${toMinutes(c.time)}" src="${this._iconUrl(c.icon || "checkpoint_flag", 16)}" style="top:${(Math.max(st, toMinutes(c.time)) - st) * CAL_PX - 8}px" title="${this._e(c.name)} ${this._e(c.time)}" alt="">`)
+              .map((c) => {
+                // A thin line at the checkpoint's time with a flag and the
+                // time, inside the block; in the title area only a tick on
+                // the edge, so the name and the times stay readable.
+                const y = cpMarkerY(toMinutes(c.time), st, h);
+                return `<span class="cpm ${y < CPM_TEXT ? "tick" : ""} ${y < 16 ? "below" : ""}" data-t="${toMinutes(c.time)}" style="top:${y}px"><i class="ln"></i><span class="lb"><img src="${this._iconUrl("checkpoint_flag", 16)}" alt=""><span class="cpt num">${this._e(c.time)}</span></span></span>`;
+              })
               .join("");
             const badge = oneDay
               ? `<span class="badge" title="${this._e(this._t("calendar.one_day"))}">1</span>`
@@ -1486,13 +1546,13 @@ class KisSegitoPanel extends HTMLElement {
     const best = st.cps.filter((p) => p.avg !== null && p.avg >= 0).sort((a, b) => b.avg - a.avg)[0];
     const missed = st.cps.filter((p) => p.missed).sort((a, b) => b.missed - a.missed)[0];
     if (late) {
-      ins.push(["status_lock", this._t("stats.ins_late").replace("{cp}", this._e(late.name)).replace("{m}", -late.avg)]);
+      ins.push(["status_lock", this._t("stats.ins_late").replace("{cp}", this._e(late.name)).replace("{m}", this._e(this._duration(-late.avg)))]);
     }
     if (missed) {
       ins.push(["checkpoint_flag", this._t("stats.ins_missed").replace("{cp}", this._e(missed.name)).replace("{n}", missed.missed)]);
     }
     if (best) {
-      ins.push(["celebrate_star", this._t("stats.ins_best").replace("{cp}", this._e(best.name)).replace("{m}", best.avg)]);
+      ins.push(["celebrate_star", this._t("stats.ins_best").replace("{cp}", this._e(best.name)).replace("{m}", this._e(this._duration(best.avg)))]);
     }
     if (st.morning !== null && st.evening !== null) {
       ins.push(["routine_morning", this._t("stats.ins_mornev").replace("{a}", st.morning).replace("{b}", st.evening)]);
@@ -1669,7 +1729,7 @@ class KisSegitoPanel extends HTMLElement {
           <div style="min-width:0"><div class="what">${this._e(tx.type?.startsWith("approval_") ? `${this._t(`reason.${tx.type}`)}: ${tx.name || ""}` : tx.task_name || tx.checkpoint_name || this._t(`reason.${tx.type}`))}</div>
           <div class="meta">${this._e(this._fmtTime(tx.timestamp))} · ${who} · ${this._e(this._t(`reason.${tx.type}`))} · ${this._e(tx.routine_name || "")}${tx.by && tx.type === "task_done" ? ` · ${this._e(tx.by)}` : ""}${tx.removed ? ` · <span class="tag">${this._e(this._t("history.event_removed"))}</span>` : ""}${tx.credit_tx ? ` · <span class="tag">${this._e(this._t("history.event_credited"))}</span>` : ""}</div>
           ${this._isAdmin && (tx.type === "task_done" || tx.type === "checkpoint_done") && !tx.removed && !tx.credit_tx
-            ? `<div class="tx-actions"><button class="btn sm" data-act="event-credit" data-arg="${this._e(tx.id)}">${this._icon("token_coin_front", 16)} ${this._e(this._t("history.event_credit"))}</button><button class="btn sm danger" data-act="event-remove" data-arg="${this._e(tx.id)}">${this._e(this._t("history.event_remove"))}</button></div>`
+            ? `<div class="tx-actions"><button class="btn sm" data-act="event-credit" data-arg="${this._e(tx.id)}">${this._icon("token_coin_front", 16)} ${this._e(this._t("history.event_credit"))}</button><button class="btn sm danger" data-act="event-remove" data-arg="${this._e(tx.id)}">${this._e(this._t("history.event_remove"))}</button><button class="btn sm danger ghost" data-act="event-remove-group" data-arg="${this._e(tx.id)}">${this._e(this._t("history.group_remove"))}</button></div>`
             : ""}</div><div></div></div>`;
         continue;
       }
@@ -2422,6 +2482,18 @@ ${tab === "data" ? `
       <div class="picker-scroll">${upload}${sections}</div></div>`;
   }
 
+  async _loadGroup() {
+    const d = this._dialog;
+    if (!d || d.type !== "group") return;
+    try {
+      const items = await this._ws({ type: "kis_segito/event/remove_group", event_id: d.event, scope: d.scope, every_child: d.every, preview: true });
+      if (this._dialog === d) d.items = items || [];
+    } catch (_err) {
+      if (this._dialog === d) d.items = [];
+    }
+    this._render();
+  }
+
   _viewDialog() {
     const d = this._dialog;
     if (!d) {
@@ -2444,6 +2516,18 @@ ${tab === "data" ? `
       inner = `<h2>${this._e(this._t("history.event_credit"))}</h2><p class="muted" style="margin:0">${this._e(d.name)}</p>
         <label class="field"><span>${this._e(this._t("history.event_credit_amount"))}</span><input type="number" min="1" id="dlg-amount" value="${d.amount}"></label>
         <div class="row wrap" style="justify-content:flex-end">${cancel}<button class="btn primary" data-act="dlg-ok">${this._e(this._t("history.event_credit"))}</button></div>`;
+    } else if (d.type === "group") {
+      const seg = (act, value, label, on) => `<button class="${on ? "on" : ""}" data-act="${act}" data-arg="${value}">${this._e(label)}</button>`;
+      const list = d.items === null
+        ? `<div class="muted">${this._e(this._t("common.loading"))}</div>`
+        : d.items.length
+          ? `<ul class="group-list">${d.items.map((e) => `<li>${this._e(this._child(e.child_id)?.name || "")}: ${this._e(e.type === "checkpoint_done" ? `${this._t("history.group_checkpoint")} ${e.checkpoint_name || ""}` : e.task_name || "")}</li>`).join("")}</ul>`
+          : `<div class="muted">${this._e(this._t("history.group_none"))}</div>`;
+      inner = `<h2>${this._e(this._t("history.group_remove"))}</h2>
+        <div class="seg">${seg("group-scope", "checkpoint", this._t("history.group_scope_checkpoint"), d.scope === "checkpoint")}${seg("group-scope", "routine", this._t("history.group_scope_routine"), d.scope === "routine")}</div>
+        <div class="seg">${seg("group-every", "0", this._t("history.group_this_child"), !d.every)}${seg("group-every", "1", this._t("history.group_every_child"), d.every)}</div>
+        <p class="muted" style="margin:0">${this._e(this._t("history.group_confirm"))}</p>${list}
+        <div class="row wrap" style="justify-content:flex-end">${cancel}<button class="btn danger" data-act="group-ok" ${d.items?.length ? "" : "disabled"}>${this._e(this._t("history.group_remove"))}</button></div>`;
     } else if (d.type === "reverse") {
       inner = `<h2>${this._e(this._t("history.reverse"))} · #${d.seq}</h2><p class="muted" style="margin:0">${this._e(this._t("history.confirm_reverse"))}</p>
         <div class="row wrap" style="justify-content:flex-end">${cancel}<button class="btn danger" data-act="dlg-ok">${this._e(this._t("history.reverse"))}</button></div>`;
@@ -2851,7 +2935,9 @@ ${tab === "data" ? `
     }
     if (focusKey) {
       const field = [...this.shadowRoot.querySelectorAll("input, textarea, select")].find((el) => this._fieldKey(el) === focusKey);
-      if (field) {
+      // Only a field that lost the focus gets it back: focusing the focused
+      // field again would reset a half-typed time ("1", then "7" → 07:00).
+      if (field && field !== this.shadowRoot.activeElement) {
         field.focus({ preventScroll: true });
         if (selection) {
           try {
@@ -3466,6 +3552,35 @@ ${tab === "data" ? `
         };
         break;
       }
+      case "event-remove-group": {
+        // Undo a whole checkpoint or routine at once, for this child or every
+        // child; the dialog lists what it undoes.
+        this._dialog = { type: "group", event: arg, scope: "checkpoint", every: false, items: null };
+        this._render();
+        await this._loadGroup();
+        return;
+      }
+      case "group-scope":
+      case "group-every": {
+        if (!this._dialog || this._dialog.type !== "group") return;
+        if (act === "group-scope") this._dialog.scope = arg;
+        else this._dialog.every = arg === "1";
+        this._dialog.items = null;
+        this._render();
+        await this._loadGroup();
+        return;
+      }
+      case "group-ok": {
+        const d = this._dialog;
+        if (!d || d.type !== "group" || !d.items?.length) return;
+        this._dialog = null;
+        this._render();
+        await this._ws({ type: "kis_segito/event/remove_group", event_id: d.event, scope: d.scope, every_child: d.every });
+        this._toast(this._t("toast.saved"));
+        await this._load();
+        await this._loadHistory();
+        return;
+      }
       case "event-credit": {
         const ev = this._historyEvents.find((e) => e.id === arg);
         this._dialog = {
@@ -4077,9 +4192,15 @@ ${tab === "data" ? `
     d.block.style.top = `${(st - CAL_FROM) * CAL_PX}px`;
     d.block.style.height = `${Math.max(22, (en - st) * CAL_PX)}px`;
     // Checkpoints keep their distance from the end, inside the routine.
-    for (const img of d.block.querySelectorAll(".cpm")) {
-      const t = Math.min(en, Math.max(st, Number(img.dataset.t) + (en - d.en)));
-      img.style.top = `${(t - st) * CAL_PX - 8}px`;
+    const height = Math.max(22, (en - st) * CAL_PX);
+    for (const mark of d.block.querySelectorAll(".cpm")) {
+      const t = Math.min(en, Math.max(st, Number(mark.dataset.t) + (en - d.en)));
+      const y = cpMarkerY(t, st, height);
+      mark.style.top = `${y}px`;
+      mark.classList.toggle("tick", y < CPM_TEXT);
+      mark.classList.toggle("below", y < 16);
+      const time = mark.querySelector(".cpt");
+      if (time) time.textContent = fromMinutes(t);
     }
     const sub = d.block.querySelector(".bs");
     if (sub) {
@@ -4159,6 +4280,24 @@ ${tab === "data" ? `
     }
     this._listening = true;
     const root = this.shadowRoot;
+    // A routine's times follow each other once a time field is left (not
+    // while it is typed: "1" then "7" passes 01:00 on the way to 17:00).
+    root.addEventListener("focusin", (ev) => {
+      const el = ev.target;
+      if (el.matches?.("input[type=time][data-path]") && this._edit) {
+        this._timeFocus = { path: el.dataset.path, value: el.value, item: this._edit.item };
+      }
+    });
+    root.addEventListener("focusout", (ev) => {
+      const el = ev.target;
+      const focus = this._timeFocus;
+      if (!focus || !el.matches?.("input[type=time][data-path]") || el.dataset.path !== focus.path) return;
+      this._timeFocus = null;
+      if (!this._edit || this._edit.item !== focus.item || !el.value || el.value === focus.value) return;
+      if (!["routines", "day"].includes(this._edit.coll)) return;
+      syncRoutineTimes(this._edit.item, focus.path, focus.value, el.value);
+      this._scheduleRender(0);
+    });
     root.addEventListener("click", (ev) => {
       // An info button (also in a section's summary: it does not open it).
       const info = ev.target.closest?.(".info-btn");
@@ -4546,7 +4685,15 @@ const STYLE = `
   .blk:hover .grip { opacity: .8; }
   .blk .bt { font-weight: 800; display: flex; gap: 4px; align-items: center; color: var(--ink); white-space: nowrap; overflow: hidden; }
   .blk .bs { color: var(--muted); font-size: .74rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .blk .cpm { position: absolute; right: 5px; width: 16px; height: 16px; }
+  .blk .cpm { position: absolute; left: 0; right: 0; height: 0; pointer-events: none; }
+  .blk .cpm .ln { position: absolute; left: 0; right: 0; top: 0; border-top: 1.5px dashed color-mix(in srgb, var(--rc) 80%, var(--ink)); }
+  .blk .cpm .lb { position: absolute; right: 3px; bottom: 1px; display: flex; align-items: center; gap: 2px; padding: 0 4px 0 2px; border-radius: 6px; background: color-mix(in srgb, var(--rc) 22%, var(--surface)); font-size: .66rem; font-weight: 700; line-height: 15px; color: var(--ink); }
+  .blk .cpm .lb img { width: 13px; height: 13px; }
+  .blk .cpm.below .lb { bottom: auto; top: 2px; }
+  .blk { container-type: inline-size; }
+  @container (max-width: 110px) { .cpm .cpt { display: none; } }
+  .blk .cpm.tick .ln { left: -4px; right: auto; width: 9px; border-top-style: solid; border-top-width: 2px; }
+  .blk .cpm.tick .lb { display: none; }
   .now-line { position: absolute; left: 0; right: 0; height: 2px; background: var(--bad); z-index: 4; pointer-events: none; }
   .now-line::before { content: ""; position: absolute; left: -5px; top: -4px; width: 10px; height: 10px; border-radius: 50%; background: var(--bad); }
 
@@ -4669,6 +4816,7 @@ const STYLE = `
   .crop-canvas { width: 100%; max-width: 360px; aspect-ratio: 1; align-self: center; touch-action: none; cursor: grab; border-radius: 12px; background: repeating-conic-gradient(#ccc 0 25%, #fff 0 50%) 50% / 16px 16px; }
   .toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 18px; border-radius: 999px; font-weight: 700; z-index: 80; box-shadow: var(--shadow-lg); animation: toast .35s var(--ease); display: flex; gap: 8px; align-items: center; max-width: calc(100% - 32px); }
   .toast.error { background: var(--bad); }
+  .group-list { margin: 0; padding-left: 20px; max-height: 40vh; overflow: auto; }
   .tip { position: fixed; z-index: 95; pointer-events: none; background: var(--ink); color: var(--bg); font-size: .8rem; font-weight: 600; padding: 6px 10px; border-radius: 10px; box-shadow: var(--shadow-lg); max-width: 240px; transform: translate(-50%, calc(-100% - 10px)); }
   .tip[hidden] { display: none; }
 

@@ -1,5 +1,5 @@
 {
-  "title": "Kis Segítő",
+  "title": "Little Helper",
   "reward_redeemed": "{child} bought: {reward} (−{amount_abs}). Wallet: {wallet}.",
   "checkpoint_completed": "{child} reached a checkpoint: +{amount}. Wallet: {wallet}.",
   "task_completed": "{child} finished a task.",
@@ -13,5 +13,5 @@
   "approval_requested": "{child} is waiting for approval.",
   "approval_approved": "Approved for {child}. Wallet: {wallet}.",
   "approval_rejected": "Rejected for {child}. Wallet: {wallet}.",
-  "test": "Test message from Kis Segítő: this rule works."
+  "test": "Test message from Little Helper: this rule works."
 }

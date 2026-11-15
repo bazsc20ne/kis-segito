@@ -2,7 +2,7 @@
   "prefix": "[őőő|ő|hát|na|és|akkor|itt|hé|oké|szóval|figyelj|mondd csak|mondd meg]",
   "words": {
     "<MENNYI>": "(mennyi|mennyei|menyi|hány|hányat|mekkora|mennyise)",
-    "<ZS>": "(zseton|zsetonja|zsetonjai|zsetont|zsetonok|zsetonod|zsetonjuk|zsetom|zsetonya|zsetonjával|se tomje|jeton|jetonja|jetont|jetonok|érme|érméje|érméi|érmét|érmék|pénz|pénze|pénzt|pont|pontja|pontot|pontjai|pontok|tallér|tallérja|tomje|hilton)",
+    "<ZS>": "(zseton|zsetonja|zsetonjai|zsetont|zsetonok|zsetonod|zsetonjuk|zsetom|zsetonya|zsetonjával|se tomje|jeton|jetonja|jetont|jetonok|érme|érméje|érméi|érmét|érmék|pénz|pénze|pénzt|pont|pontja|pontot|pontjai|pontok|tallér|tallérja|tomje|hilton|token|tokenje|tokenjei|tokent|tokenek|tokenjük)",
     "<EGYENLEG>": "(egyenleg|egyenlege|egyenlegét|egyenlegük|kassza|kasszája)",
     "<KP>": "(ellenőrzőpont|ellenőrzőpontja|ellenőrző pont|ellenőrző pontja|csekkpont|csekkpontja|csekk pont|csekk pontja|check pont|check pontja|checkpoint|checkpointja|határidő|határideje)",
     "<KP0>": "(ellenőrzőpont|ellenőrző pont|csekkpont|csekk pont|check pont|checkpoint|határidő)",
@@ -17,7 +17,7 @@
     "<MA>": "[ma|mára|a mai napon]",
     "<KOVETKEZO>": "(következő|következö|kovetkezo|legközelebbi)",
     "<MINDENKI>": "(mindenkinek|kinek|kiknek|a gyerekeknek|a gyerekeknél|gyerekeknek|valakinek|mindenkinél|kinél|mindkettőnek|mindkét gyereknek|kettőjüknek|nekik|őnekik|a gyerekek őnekik)",
-    "<ZS1>": "(zsetonom|zsetonjaim|jetonom|eszonyom|pénzem|pontom|pontjaim|érmém|érméim|tallérom|asszonyom)",
+    "<ZS1>": "(zsetonom|zsetonjaim|jetonom|eszonyom|pénzem|pontom|pontjaim|érmém|érméim|tallérom|asszonyom|tokenem|tokenjeim)",
     "<EGYENLEG1>": "(egyenlegem|kasszám)",
     "<HOL_ZS>": "(pénztárcájában|perselyében|perselyben|kasszájában)",
     "<HOL_ZS1>": "(pénztárcámban|perselyemben|kasszámban)",

@@ -6,26 +6,28 @@
 
 <a id="magyar"></a>
 
+## Magyar
+
 [![hacs](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz/)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
 
-## Mi ez?
+### Mi ez?
 
 A Kis Segítő egy nyílt forrású eszköz, amely a gyerekeket segíti a napi rutinjukban.
 Két, egymással együttműködő részből áll:
 
-- **Knob** – egy kerek kijelzős forgatógomb ESPHome firmware-rel. Forgatással és
+- **Gomb** – egy kerek kijelzős forgatógomb ESPHome firmware-rel. Forgatással és
   nyomással kezelhető, érintőképernyő nélkül.
 - **Home Assistant integráció** – HACS-ból telepíthető, saját adattárolással és saját
-  „Kis Segítő” oldalsáv-menüponttal. A knobot az ESPHome natív API-n keresztül kezeli.
+  „Kis Segítő” oldalsáv-menüponttal. A gombot az ESPHome natív API-n keresztül kezeli.
 
 Mindkét rész független a Home Assistant többi beállításától. A szülő a Home Assistant
 panelen állítja be a gyerekeket, a rutinokat (feladatok, időzített checkpointok, színzónák,
-időalapú zsetonjutalom), a jutalmakat és a perselyt; a gyerek a knobon követi a rutinját,
+időalapú zsetonjutalom), a jutalmakat és a perselyt; a gyerek a gombon követi a rutinját,
 zsetont gyűjt és jutalmat vált be. Minden zsetonmozgás visszakereshető, visszavonható
 előzményként tárolódik. A projekt aktív fejlesztés alatt áll.
 
-## Hardver
+### Hardver
 
 - **VIEWE UEDX48480021-MD80E** (érintés **nélküli** változat) – 2.1" kerek, 480×480 IPS
   kijelzős forgatógomb
@@ -46,9 +48,9 @@ Assistant entitásai továbbíthatók neki: [docs/sensors.md](docs/sensors.md).
 Más gomb: a firmware magja és a gomb hardverleírása (gombprofil) külön van, így
 más gombhoz is írható profil: [docs/boards.md](docs/boards.md).
 
-## Telepítés
+### Telepítés
 
-### 1. Firmware a knobra (ESPHome)
+#### 1. Firmware a gombra (ESPHome)
 
 **A) ESPHome package-ként (ajánlott).** A Home Assistant ESPHome Builderében hozz létre
 egy új eszközt, és a YAML-ja legyen ehhez hasonló (minta: [esphome/example.yaml](esphome/example.yaml)):
@@ -102,18 +104,32 @@ tartalma fekete.
 **B) Kész firmware.** Minden [release](https://github.com/bazsc20ne/kis-segito/releases)
 mellett ott van a lefordított firmware: a `*.factory.bin` USB-s első felíráshoz
 (pl. [ESPHome Web](https://web.esphome.io/)), az `*.ota.bin` frissítéshez. A WiFi
-ilyenkor a knob saját hozzáférési pontján állítható be (a telefonnal rá kell
+ilyenkor a gomb saját hozzáférési pontján állítható be (a telefonnal rá kell
 csatlakozni, és megnyílik a beállítóoldal), utána az eszköz átvehető az ESPHome Builderbe. Böngészős telepítő később jön.
 
-Ezután add hozzá a knobot a Home Assistanthez az **ESPHome** integrációval.
+Ezután add hozzá a gombot a Home Assistanthez az **ESPHome** integrációval.
 
-### 2. Home Assistant integráció (HACS)
+#### 2. Home Assistant integráció (HACS)
 
-1. HACS → jobb felső menü → **Egyéni tárolók** → URL: `https://github.com/bazsc20ne/kis-segito`,
-   típus: **Integráció**.
-2. Telepítsd a **Kis Segítő** integrációt, majd indítsd újra a Home Assistantet.
-3. **Beállítások → Eszközök és szolgáltatások → Integráció hozzáadása → Kis Segítő**,
-   és válaszd ki a knobot.
+**HACS-szal (ajánlott):**
+
+[![Open your Home Assistant instance and open this repository in HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=bazsc20ne&repository=kis-segito&category=integration)
+
+1. Kattints a fenti gombra: megnyílik a saját Home Assistantedben a HACS ezzel a tárolóval.
+   (Vagy kézzel: HACS → jobb felső menü ⋮ → **Egyéni tárolók** → URL:
+   `https://github.com/bazsc20ne/kis-segito`, típus: **Integráció**.)
+2. Töltsd le a **Kis Segítő - Little Helper** integrációt, majd indítsd újra a Home
+   Assistantet. A frissítések ezután a HACS-ban jelennek meg, mint bármely más integrációé.
+3. Állítsd be:
+
+   [![Open your Home Assistant instance and start setting up Kis Segítő - Little Helper.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=kis_segito)
+
+   (Vagy: **Beállítások → Eszközök és szolgáltatások → Integráció hozzáadása → Kis Segítő -
+   Little Helper**.) Válaszd ki a gombot.
+
+**Kézzel:** másold a tároló `custom_components/kis_segito` mappáját a Home Assistant
+`custom_components` mappájába, indítsd újra a Home Assistantet, majd állítsd be a 3. lépés
+szerint. Így a frissítéseket is kézzel kell bemásolni.
 
 Az oldalsávban megjelenik a **Kis Segítő** menüpont: **Ma** (gyerekenkénti áttekintés és
 a mai nap módosítása: egy rutin mára kihagyható vagy eltolható), **Naptár** (heti nézet),
@@ -127,7 +143,7 @@ szenzor és egy naptár (`calendar.kis_segito`) jelenik meg.
 Üres rendszerben a Rutinok és a Jutalmak oldalon egy gombnyomással példa-rutinok és
 -jutalmak hozhatók létre. Gombonként (**Beállítások → Gombok**) bepipálható, mely
 gyerekek használhatják az adott gombot (alapból mindenki); a többiek ott szürkén, lakattal
-látszanak, vagy – gombonként kapcsolható – rejtve vannak. A knob perselyképernyőjén tekeréssel választható ki,
+látszanak, vagy – gombonként kapcsolható – rejtve vannak. A gomb perselyképernyőjén tekeréssel választható ki,
 hány zseton kerüljön a perselybe vagy onnan vissza; a gombnyomás könyveli. Háttér: a **Beállítások** oldalon egy közös
 háttér választható a gombokra (6 beépített vagy saját feltöltött kép), és gombonként saját
 is; cseréjekor a fizikai gomb 1 perc használaton kívüli idő után egyszer újraindul
@@ -194,13 +210,13 @@ Gyerekek ugyanúgy rendelhetők hozzá, mint egy valódi gombhoz. Telefonon a Ho
 alkalmazásban is működik; a gyerek kezébe adott telefonhoz egy csak ezt a kártyát mutató
 irányítópult ajánlott.
 
-A knob kijelzőjének és a panelnek a
+A gomb kijelzőjének és a panelnek a
 szövegei alapból a Home Assistant nyelvén jelennek meg (jelenleg angol és magyar; ha egy
 nyelvhez nincs fordítás, angolul). A panel **Beállítások** kártyáján más nyelv is
-választható; ez a knobokra és a panelre is érvényes. Új nyelv:
+választható; ez a gombokra és a panelre is érvényes. Új nyelv:
 [docs/translations.md](docs/translations.md).
 
-## Biztonság
+### Biztonság
 
 - **Kötelező titkos adatok** gombonként, a saját ESPHome `secrets.yaml`-odban:
   `kis_segito_api_key` – az API titkosítási kulcsa, **minden gombnak külön**;
@@ -225,18 +241,18 @@ választható; ez a knobokra és a panelre is érvényes. Új nyelv:
 
 Részletek: [docs/security.md](docs/security.md).
 
-## Köszönet és források
+### Köszönet és források
 
 - **VIEWESMART** – gyári mintakód, kapcsolási rajz, lábkiosztás és kijelző-inicializálás
-  (MIT licenc): [UEDX48480021-MD80ESP32_2.1inch-Knob](https://github.com/VIEWESMART/UEDX48480021-MD80ESP32_2.1inch-Knob),
-  [UEDX48480021-MD80ESP32-2.1inch-Touch-Knob-Display](https://github.com/VIEWESMART/UEDX48480021-MD80ESP32-2.1inch-Touch-Knob-Display)
+  (MIT licenc): [UEDX48480021-MD80ESP32_2.1inch-Gomb](https://github.com/VIEWESMART/UEDX48480021-MD80ESP32_2.1inch-Gomb),
+  [UEDX48480021-MD80ESP32-2.1inch-Touch-Gomb-Display](https://github.com/VIEWESMART/UEDX48480021-MD80ESP32-2.1inch-Touch-Gomb-Display)
 - **Greg-79** – ESPHome-konfiguráció ehhez a kijelzőhöz (a README szerint MIT licenc; csak referencia):
-  [UEDX48480021-MD80ESP32-2.1inch-Knob-Display-no-touch-](https://github.com/Greg-79/UEDX48480021-MD80ESP32-2.1inch-Knob-Display-no-touch-)
+  [UEDX48480021-MD80ESP32-2.1inch-Gomb-Display-no-touch-](https://github.com/Greg-79/UEDX48480021-MD80ESP32-2.1inch-Gomb-Display-no-touch-)
 - **ESPHome** – a kijelző-meghajtó (`mipi_rgb`)
 - ESPHome feature request: [esphome/feature-requests#3254](https://github.com/esphome/feature-requests/issues/3254)
-- Spotpear wiki: <https://spotpear.com/wiki/ESP32-S3-2.1-inch-Round-Rotary-LCD-Screen-Knob-Display.html>
+- Spotpear wiki: <https://spotpear.com/wiki/ESP32-S3-2.1-inch-Round-Rotary-LCD-Screen-Gomb-Display.html>
 
-## Licenc
+### Licenc
 
 **GNU Affero General Public License v3.0** – szabadon használható, forkolható és
 módosítható. Aki módosított változatot terjeszt vagy hálózati szolgáltatásként futtat,
@@ -244,6 +260,15 @@ köteles a teljes forráskódot ugyanezen licenc alatt közzétenni.
 
 A felhasznált harmadik féltől származó anyagok a saját licencük alatt maradnak
 (pl. VIEWESMART – MIT, lásd [NOTICE](NOTICE); ESPHome – GPLv3/MIT).
+
+**Jogi nyilatkozat:** a Kis Segítő nem áll kapcsolatban a The Walt Disney Company, a Disney
+Enterprises, Inc., a Pixar, a 20th Television, a 20th Century Studios (korábban Twentieth
+Century Fox), a Warner Bros. Discovery, a Turner Entertainment Co. vagy más jogtulajdonos
+vállalattal, és azok nem támogatják vagy szponzorálják. A
+The Simpsons, a Frozen, a Cars, a Toy Story, a Planes, a Winnie the Pooh, a Tom and Jerry, a Mickey Mouse és
+a DuckTales a jogtulajdonosaik védjegyei. A nevek csak azt a vizuális stílust jelölik, amelyből egy téma ihletet merít. A
+témák minden rajza eredeti: nem tartalmaznak szereplőket, logókat vagy más elemeket az
+eredetiekből.
 
 ---
 
@@ -263,7 +288,7 @@ daily routine. It has two parts that work together:
 - **Knob** – a rotary knob with a round display, running ESPHome firmware. It is
   operated by turning and pressing; there is no touch screen.
 - **Home Assistant integration** – installable from HACS, with its own storage and its
-  own "Kis Segítő" sidebar entry. It controls the knob through the ESPHome native API.
+  own "Little Helper" sidebar entry. It controls the knob through the ESPHome native API.
 
 Both parts are independent of the rest of your Home Assistant setup. Parents set up
 children, routines (tasks, timed checkpoints, colour zones, time-based token rewards),
@@ -355,12 +380,27 @@ Then add the knob to Home Assistant with the **ESPHome** integration.
 
 #### 2. Home Assistant integration (HACS)
 
-1. HACS → top-right menu → **Custom repositories** → URL:
-   `https://github.com/bazsc20ne/kis-segito`, type: **Integration**.
-2. Install **Kis Segítő** and restart Home Assistant.
-3. **Settings → Devices & services → Add integration → Kis Segítő**, then select the knob.
+**With HACS (recommended):**
 
-A **Kis Segítő** entry appears in the sidebar: **Today** (per-child overview and "Modify
+[![Open your Home Assistant instance and open this repository in HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=bazsc20ne&repository=kis-segito&category=integration)
+
+1. Click the button above: HACS opens in your own Home Assistant with this repository.
+   (Or by hand: HACS → top-right menu ⋮ → **Custom repositories** → URL:
+   `https://github.com/bazsc20ne/kis-segito`, type: **Integration**.)
+2. Download **Kis Segítő - Little Helper** and restart Home Assistant. Updates then show up
+   in HACS like those of any other integration.
+3. Set it up:
+
+   [![Open your Home Assistant instance and start setting up Kis Segítő - Little Helper.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=kis_segito)
+
+   (Or: **Settings → Devices & services → Add integration → Kis Segítő - Little Helper**.)
+   Select the knob.
+
+**By hand:** copy the repository's `custom_components/kis_segito` folder into Home
+Assistant's `custom_components` folder, restart Home Assistant and set it up as in step 3.
+Updates then have to be copied by hand too.
+
+A **Little Helper** entry appears in the sidebar: **Today** (per-child overview and "Modify
 today": skip or shift a routine for today only), **Calendar** (week view), **Children**,
 **Routines**, **Rewards** (own pictures too), **Tokens**, **History** (filterable, numbered,
 with links), **Notifications** (rules for any Home Assistant notify target or labelled
@@ -425,8 +465,8 @@ recognises, or the children you assigned to the voice satellite in the panel
 (**Settings → General → Voice satellites**). It never guesses one child.
 
 With only the built-in agent, it answers these sentences. With an LLM agent and "Prefer
-handling commands locally" on, Kis Segítő still answers these sentences and the LLM
-everything else; with it off, the LLM asks Kis Segítő's tool. The children's sensors are
+handling commands locally" on, Little Helper still answers these sentences and the LLM
+everything else; with it off, the LLM asks Little Helper's tool. The children's sensors are
 shared with Assist by default (this can be turned off). Full sentence list and setup:
 [docs/assist.md](docs/assist.md).
 
@@ -434,7 +474,7 @@ shared with Assist by default (this can be turned off). Full sentence list and s
 trip or when the knob does not work. The same screens, pictures and animations, operated
 by touch: swipe left/right = turn, tap = press, press and hold = back (a mouse wheel and
 the keyboard work too). To create one: panel → **Settings → Knobs → Add a virtual knob**,
-then on a dashboard **Add card → Kis Segítő**, and choose the knob in the card settings
+then on a dashboard **Add card → Little Helper**, and choose the knob in the card settings
 (the card comes with the integration). Children can be assigned to it like to a real
 knob. It works in the Home Assistant app on a phone too; for a phone handed to a child, a
 dashboard showing only this card is recommended.
@@ -493,16 +533,7 @@ Third-party material keeps its own license (e.g. VIEWESMART – MIT, see
 
 ---
 
-**Jogi nyilatkozat:** a Kis Segítő nem áll kapcsolatban a The Walt Disney Company, a Disney
-Enterprises, Inc., a Pixar, a 20th Television, a 20th Century Studios (korábban Twentieth
-Century Fox), a Warner Bros. Discovery, a Turner Entertainment Co. vagy más jogtulajdonos
-vállalattal, és azok nem támogatják vagy szponzorálják. A
-The Simpsons, a Frozen, a Cars, a Toy Story, a Planes, a Winnie the Pooh, a Tom and Jerry, a Mickey Mouse és
-a DuckTales a jogtulajdonosaik védjegyei. A nevek csak azt a vizuális stílust jelölik, amelyből egy téma ihletet merít. A
-témák minden rajza eredeti: nem tartalmaznak szereplőket, logókat vagy más elemeket az
-eredetiekből.
-
-**Disclaimer:** Kis Segítő is not affiliated with, endorsed by or sponsored by The Walt Disney
+**Disclaimer:** Little Helper is not affiliated with, endorsed by or sponsored by The Walt Disney
 Company, Disney Enterprises, Inc., Pixar, 20th Television, 20th Century Studios (formerly
 Twentieth Century Fox), Warner Bros. Discovery, Turner Entertainment Co. or any other rights
 holder. The Simpsons, Frozen, Cars, Toy Story, Planes, Winnie the Pooh, Tom and Jerry, Mickey Mouse

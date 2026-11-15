@@ -116,7 +116,7 @@ static lv_draw_buf_t *g_snap_tmp = nullptr;
 
 // Item pictures get blocks in steps of this size, so a freed block is reused
 // by a later picture and the memory does not break up into small pieces.
-static constexpr size_t ITEM_BLOCK_STEP = 32 * 1024;
+static constexpr size_t ITEM_BLOCK_STEP = 64 * 1024;
 
 static bool snapshot_tmp_ready() {
   if (g_snap_tmp == nullptr)
@@ -166,6 +166,10 @@ static std::shared_ptr<ItemPic> crop_item(const lv_draw_buf_t *src) {
   // the full snapshot width.
   const size_t block = (static_cast<size_t>(cw) * ch * 3 + ITEM_BLOCK_STEP - 1) / ITEM_BLOCK_STEP * ITEM_BLOCK_STEP;
   const uint32_t rows = (block + SNAP_MAX_W * 3 - 1) / (SNAP_MAX_W * 3);
+  // Without a free block of that size the objects stay (asked before LVGL
+  // tries, so a short memory is not an error).
+  if (!psram_has(static_cast<size_t>(rows) * SNAP_MAX_W * 3))
+    return nullptr;
   pic->buf = lv_draw_buf_create(SNAP_MAX_W, rows, LV_COLOR_FORMAT_RGB565A8, SNAP_MAX_W * 2);
   if (pic->buf == nullptr)
     return nullptr;
@@ -472,6 +476,17 @@ void Carousel::fill_slot_(int i) {
   if (hidden)
     lv_obj_add_flag(slot, LV_OBJ_FLAG_HIDDEN);
   auto pic = res == LV_RESULT_OK ? crop_item(g_snap_tmp) : nullptr;
+  if (pic == nullptr && res == LV_RESULT_OK) {
+    // No block big enough: drop stored pictures that are not shown, and
+    // downloaded ones not in use, then try once more.
+    pic_cache_trim(SIZE_MAX / 2);
+    if (this->on_memory_needed)
+      this->on_memory_needed(static_cast<size_t>(this->slot_w_) * this->slot_h_ * 3);
+    pic = crop_item(g_snap_tmp);
+    if (pic == nullptr)
+      ESP_LOGW(TAG, "Carousel picture: no free block (largest PSRAM block %u KB); drawing the objects",
+               (unsigned) (psram_largest_block() / 1024));
+  }
   if (pic == nullptr) {
     if (res != LV_RESULT_OK)
       ESP_LOGW(TAG, "Carousel picture failed; drawing the objects");
@@ -1224,6 +1239,7 @@ void KisSegitoUI::start() {
 
   // The inner track belongs to the centred child: drawn for it when a slide
   // on the child carousel has ended.
+  this->carousel_.on_memory_needed = [this](size_t need) { this->release_photos_(need, 0); };
   this->carousel_.on_settled = [this]() {
     if (this->screen_ != Screen::CHILDREN)
       return;
@@ -1310,6 +1326,7 @@ void KisSegitoUI::unbind_cb_(lv_event_t *e) {
   lv_obj_t *obj = lv_event_get_target_obj(e);
   auto &b = self->bindings_;
   b.erase(std::remove_if(b.begin(), b.end(), [obj](const Binding &x) { return x.obj == obj; }), b.end());
+  self->stand_ins_.erase(obj);
 }
 
 // A downloaded picture arrived (or changed): shown where it is used, without
@@ -1324,6 +1341,11 @@ void KisSegitoUI::picture_ready_(const std::string &key) {
       continue;
     lv_image_set_src(b.obj, dsc);
     lv_obj_set_pos(b.obj, b.cx - dsc->header.w / 2, b.cy - dsc->header.h / 2);
+    if (this->stand_ins_.erase(b.obj)) {
+      // The big picture replaces the small icon that stood in for it.
+      lv_image_set_pivot(b.obj, dsc->header.w / 2, dsc->header.h / 2);
+      lv_image_set_scale(b.obj, 256);
+    }
   }
   if (!this->started_)
     return;  // the loading screen's pictures only
@@ -1399,7 +1421,7 @@ const lv_image_dsc_t *KisSegitoUI::background_(const std::string &id) {
   return this->img_(key);
 }
 
-void KisSegitoUI::request_photo_(const std::string &key) {
+void KisSegitoUI::request_photo_(const std::string &key, bool urgent) {
   if (this->img_base_.empty()) {
     // Before Home Assistant's address is known (the loading screen after a
     // restart): only the flash cache is asked, once.
@@ -1412,8 +1434,20 @@ void KisSegitoUI::request_photo_(const std::string &key) {
     }
     return;
   }
-  if (this->photo_requested_.count(key))
+  if (this->photo_requested_.count(key)) {
+    if (urgent) {
+      // Already waiting: to the front of the queue.
+      std::lock_guard<std::mutex> lock(this->photo_mutex_);
+      auto it = std::find_if(this->photo_queue_.begin(), this->photo_queue_.end(),
+                             [&key](const auto &job) { return job.key == key; });
+      if (it != this->photo_queue_.end() && it != this->photo_queue_.begin()) {
+        auto job = *it;
+        this->photo_queue_.erase(it);
+        this->photo_queue_.push_front(job);
+      }
+    }
     return;
+  }
   this->photo_requested_.insert(key);
   // "@<id>_<size>" -> <base>/api/kis_segito/knob_image/<id>/<size>; the token goes
   // in a header, never in the URL (URLs end up in logs).
@@ -1428,9 +1462,21 @@ void KisSegitoUI::request_photo_(const std::string &key) {
       this->img_base_ + "/api/kis_segito/knob_image/" + key.substr(1, sep - 1) + "/" + std::to_string(pixels);
   {
     std::lock_guard<std::mutex> lock(this->photo_mutex_);
-    this->photo_queue_.push_back({key, url, this->img_token_});
+    if (urgent)
+      this->photo_queue_.push_front({key, url, this->img_token_});
+    else
+      this->photo_queue_.push_back({key, url, this->img_token_});
   }
   this->start_photo_task_();
+}
+
+// A picture needed next (the next task's big picture): fetched before the
+// others that are waiting.
+void KisSegitoUI::want_photo_(const std::string &key) {
+  const std::string pk = this->photo_key_(key);
+  if (pk.empty() || this->photos_.count(pk))
+    return;
+  this->request_photo_(pk, true);
 }
 
 void KisSegitoUI::start_photo_task_() {
@@ -1916,6 +1962,24 @@ lv_obj_t *KisSegitoUI::disc_(lv_obj_t *parent, int cx, int cy, int d, lv_color_t
   lv_obj_set_style_bg_color(obj, color, 0);
   lv_obj_set_style_bg_opa(obj, LV_OPA_COVER, 0);
   return obj;
+}
+
+// A task's big picture. Until it is here, the task's small icon stands in,
+// scaled up to the same size (a task is never shown without a picture); the
+// big picture replaces it when it arrives.
+lv_obj_t *KisSegitoUI::task_image_(lv_obj_t *parent, const std::string &icon, int cx, int cy) {
+  lv_obj_t *img = this->image_(parent, icon + "_150", cx, cy);
+  const lv_image_dsc_t *small = lv_image_get_src(img) == nullptr ? this->img_(icon + "_40") : nullptr;
+  if (small != nullptr && small->header.w > 0) {
+    lv_image_set_src(img, small);
+    lv_obj_set_pos(img, cx - small->header.w / 2, cy - small->header.h / 2);
+    lv_image_set_pivot(img, small->header.w / 2, small->header.h / 2);
+    lv_image_set_scale(img, S(150) * 256 / small->header.w);
+    this->stand_ins_.insert(img);
+  } else {
+    lv_image_set_pivot(img, S(75), S(75));
+  }
+  return img;
 }
 
 lv_obj_t *KisSegitoUI::image_(lv_obj_t *parent, const std::string &key, int cx, int cy) {
@@ -3000,16 +3064,20 @@ void KisSegitoUI::build_routine_() {
       break;
     }
   }
-  this->task_big_ =
-      this->image_(this->screen_obj_, current >= 0 ? r.tasks[current].icon + "_150" : "action_check_88", CENTER, S(205));
-  lv_image_set_pivot(this->task_big_, S(75), S(75));
-  // The next task's big picture is fetched now, so it can grow into the
-  // middle when this task is done (not only appear after it).
+  // The next task's big picture is fetched first of all, so it can grow
+  // into the middle when this task is done; the current one before it.
   for (size_t i = current + 1; current >= 0 && i < r.tasks.size(); i++) {
     if (!this->is_done_(r, r.tasks[i].id)) {
-      this->img_(r.tasks[i].icon + "_150");
+      this->want_photo_(r.tasks[i].icon + "_150");
       break;
     }
+  }
+  if (current >= 0) {
+    this->want_photo_(r.tasks[current].icon + "_150");
+    this->task_big_ = this->task_image_(this->screen_obj_, r.tasks[current].icon, CENTER, S(205));
+  } else {
+    this->task_big_ = this->image_(this->screen_obj_, "action_check_88", CENTER, S(205));
+    lv_image_set_pivot(this->task_big_, S(75), S(75));
   }
 
   // Completed tasks collect on the left (grey), future ones on the right.
@@ -3508,7 +3576,9 @@ void KisSegitoUI::complete_task_() {
     lv_anim_t a;
     lv_anim_init(&a);
     lv_anim_set_var(&a, this->task_big_);
-    lv_anim_set_values(&a, 256, 300);
+    // From its own scale (a small icon standing in is scaled up already).
+    const int32_t base = this->task_big_ != nullptr ? lv_image_get_scale(this->task_big_) : 256;
+    lv_anim_set_values(&a, base, base * 300 / 256);
     lv_anim_set_duration(&a, ms / 3);
     lv_anim_set_reverse_duration(&a, ms / 3);
     lv_anim_set_exec_cb(&a, [](void *var, int32_t v) { lv_image_set_scale(static_cast<lv_obj_t *>(var), v); });
@@ -3532,7 +3602,9 @@ void KisSegitoUI::complete_task_() {
     const int half = lv_obj_get_width(m.done) / 2;
     m.done_x1 = CENTER + static_cast<int>(S(150) * std::cos(rad)) - half;
     m.done_y1 = CENTER + static_cast<int>(S(150) * std::sin(rad)) - half;
-    m.done_s1 = 256 * 40 / 150;
+    // To the size of a small icon, from whatever scale it has now.
+    m.done_s0 = lv_image_get_scale(m.done);
+    m.done_s1 = half > 0 ? S(20) * 256 / half : 256;
     // The next task: its big picture starts small where its icon is.
     int next = -1;
     for (size_t i = current + 1; i < r.tasks.size(); i++) {
@@ -3545,11 +3617,13 @@ void KisSegitoUI::complete_task_() {
       lv_obj_t *small = this->task_icons_[next];
       const int sx = lv_obj_get_x(small) + lv_obj_get_width(small) / 2;
       const int sy = lv_obj_get_y(small) + lv_obj_get_height(small) / 2;
-      m.next = this->image_(this->screen_obj_, r.tasks[next].icon + "_150", sx, sy);
+      m.next = this->task_image_(this->screen_obj_, r.tasks[next].icon, sx, sy);
       lv_obj_update_layout(m.next);
       const int nhalf = lv_obj_get_width(m.next) / 2;
-      lv_image_set_pivot(m.next, nhalf, lv_obj_get_height(m.next) / 2);
-      m.next_s0 = 256 * 40 / 150;
+      // From the size of its small icon to the size of the big picture (a
+      // small icon standing in for a big picture not here yet is scaled up).
+      m.next_s1 = lv_image_get_scale(m.next);
+      m.next_s0 = nhalf > 0 ? S(20) * 256 / nhalf : m.next_s1;
       lv_image_set_scale(m.next, m.next_s0);
       m.next_x0 = sx - nhalf;
       m.next_y0 = sy - lv_obj_get_height(m.next) / 2;
@@ -3558,9 +3632,16 @@ void KisSegitoUI::complete_task_() {
       if (nhalf > 0) {
         lv_obj_add_flag(small, LV_OBJ_FLAG_HIDDEN);
       } else {
-        // Its picture is not here yet: the next task just appears after the move.
+        // Not even its small icon is here: the next task appears after the move.
         lv_obj_delete(m.next);
         m.next = nullptr;
+      }
+      // And the picture of the task after it, for a quick next press.
+      for (size_t i = next + 1; i < r.tasks.size(); i++) {
+        if (!this->is_done_(r, r.tasks[i].id)) {
+          this->want_photo_(r.tasks[i].icon + "_150");
+          break;
+        }
       }
     }
     // The check goes when the move starts.
@@ -3619,14 +3700,14 @@ void KisSegitoUI::task_move_step_(int32_t v) {
   TaskMove &m = this->task_move_;
   auto lerp = [v](int a, int b) { return a + (b - a) * v / 1024; };
   if (m.done != nullptr) {
-    lv_image_set_scale(m.done, lerp(256, m.done_s1));
+    lv_image_set_scale(m.done, lerp(m.done_s0, m.done_s1));
     lv_obj_set_pos(m.done, lerp(m.done_x0, m.done_x1), lerp(m.done_y0, m.done_y1));
     // Greys out like the other finished tasks on its way.
     lv_obj_set_style_image_recolor(m.done, lv_color_hex(0x8C96A5), 0);
     lv_obj_set_style_image_recolor_opa(m.done, static_cast<lv_opa_t>(200 * v / 1024), 0);
   }
   if (m.next != nullptr) {
-    lv_image_set_scale(m.next, lerp(m.next_s0, 256));
+    lv_image_set_scale(m.next, lerp(m.next_s0, m.next_s1));
     lv_obj_set_pos(m.next, lerp(m.next_x0, m.next_x1), lerp(m.next_y0, m.next_y1));
   }
 }
@@ -3634,7 +3715,7 @@ void KisSegitoUI::task_move_step_(int32_t v) {
 void KisSegitoUI::celebrate_(int tokens) {
   Child &c = this->children_[this->child_];
   c.wallet += tokens;
-  ESP_LOGI(TAG, "Test reward: +%d tokens", tokens);
+  ESP_LOGI(TAG, "Checkpoint reward: +%d tokens", tokens);
   if (this->anim_mode_ < 2)
     return;
   // Confetti on the top layer, so the screen rebuild does not remove it.

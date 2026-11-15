@@ -289,6 +289,17 @@ def _child_parts(
                 add("one" if left == 1 else "many")
         elif status["task_status"] == "done":
             add("done")
+        elif topic == "task" and "start_clock" in values and values["later"] and not summary:
+            # Between two routines: when the next one starts and its tasks.
+            parts.append(
+                say(
+                    language,
+                    scope,
+                    "remaining",
+                    "later",
+                    **(values | {"routine": values["next_routine"], "routine_art": values["next_routine_art"]}),
+                )
+            )
         elif topic == "task" and "cp_clock" in values and not summary:
             add("none_next")
         elif topic == "remaining" and "start_clock" in values and values["later"]:
@@ -396,6 +407,25 @@ def _all_parts(
         return numbers("streak", statuses)
     if topic == "task":
         kinds = {s["task_status"] for s in statuses}
+        later = {(s["next_routine"], s["next_routine_time"]) for s in statuses}
+        if (
+            kinds == {"none"}
+            and not summary
+            and len(later) == 1
+            and first["next_routine_time"]
+            and first["next_routine_tasks"]
+        ):
+            # Between two routines: when the next one starts and its tasks.
+            values = _values(first, language) | common
+            return [
+                say(
+                    language,
+                    "all",
+                    "remaining",
+                    "all_later",
+                    **(values | {"routine": values["next_routine"], "routine_art": values["next_routine_art"]}),
+                )
+            ]
         if kinds == {"none"}:
             nexts = {(s["next_checkpoint"], s["next_checkpoint_time"]) for s in statuses}
             if len(nexts) == 1 and first["next_checkpoint_time"] and not summary:

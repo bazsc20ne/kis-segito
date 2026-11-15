@@ -1,9 +1,54 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
-# Dashboard cards / Irányítópult-kártyák
+# Irányítópult-kártyák / Dashboard cards
 
-Kis Segítő comes with dashboard cards for parents. They are installed with the
-integration: on a dashboard choose **Add card** and search for "Kis Segítő".
+🇬🇧 English version below → [English](#english)
+
+<a id="magyar"></a>
+
+## Magyar
+
+A Kis Segítő a szülőknek szóló irányítópult-kártyákkal érkezik. Az integrációval
+együtt települnek: az irányítópulton válaszd a **Kártya hozzáadása** lehetőséget,
+és keress rá: „Kis Segítő”. Minden kártyának vizuális szerkesztője van, az
+irányítópult témájához igazodik, és a felhasználó nyelvén jeleníti meg a
+szövegeit.
+
+| Kártya | Mit mutat |
+|---|---|
+| **Gyerek** (`kis-segito-child-card`) | Egy gyerek: tárca, persely, sorozat és a mai rutinok (választható, mi látszik). |
+| **Mai rutin** (`kis-segito-routine-card`) | Egy gyerek mai rutinjai a feladatokkal. A feladatok kipipálhatók; a pipa a szülő nevével kerül a naplóba. *Csak állapot* beállítással semmi nem pipálható. |
+| **Jutalombolt** (`kis-segito-shop-card`) | Kiválasztott gyerekkel: mit tud megvenni a gyerek, Beváltás gombbal. Gyerek nélkül: jutalmanként, mely gyerekeknek van rá elég zsetonja; előbb gyereket kell választani, utána Beváltás. |
+| **Jóváhagyások** (`kis-segito-approvals-card`) | A jóváhagyásra váró jutalmak és ellenőrzőpontok, jóváhagyás és elutasítás gombbal. |
+| **Heti statisztika** (`kis-segito-week-card`) | Egy gyerek utolsó 7 napja: az elvégzett feladatok aránya százalékban naponként és rutinonként, és a sorozat. |
+| **Gyors +/−** (`kis-segito-tokens-card`) | Zseton egy gyereknek, megjegyzéssel; minden zsetonmozgáshoz hasonlóan naplózva. |
+| **Eseménynapló** (`kis-segito-log-card`) | Az utolsó események (feladatok, ellenőrzőpontok, jóváhagyások, zsetonok); a darabszám a kártyán állítható. Szűrhető egy gyerekre. |
+| **Gomb állapota** (`kis-segito-knob-status-card`) | Minden fizikai gomb (vagy egy gomb): fényerő, fény, jelenlét és firmware-verzió, ébresztés, képernyővédő és éjszakai fény gombbal. |
+| **Gyerekek röviden** (`kis-segito-mini-card`) | Gyerekenként egy sor: kép, mai haladás és zsetonok. |
+
+A pipálás, beváltás, jóváhagyás, zsetonadás és a gombok vezérlése – a panelhez
+hasonlóan – Home Assistant rendszergazda felhasználót igényel.
+
+YAML-ben például:
+
+```yaml
+type: custom:kis-segito-shop-card
+child: <a gyerek azonosítója, a kártyaszerkesztőben választható>
+```
+
+A virtuális gomb kártya (`kis-segito-knob-card`) a gyerekeknek mutatja a gomb
+képernyőjét; lásd a README-t.
+
+---
+
+<a id="english"></a>
+
+## English
+
+🇭🇺 [Magyar változat](#magyar)
+
+Little Helper comes with dashboard cards for parents. They are installed with the
+integration: on a dashboard choose **Add card** and search for "Little Helper".
 Every card has a visual editor, follows the dashboard theme and shows its texts
 in the user's language.
 
@@ -31,32 +76,3 @@ child: <child id, chosen in the card editor>
 
 The virtual knob card (`kis-segito-knob-card`) shows the knob screen for
 children; see the README.
-
----
-
-A Kis Segítő a szülőknek szóló irányítópult-kártyákkal érkezik. Az integrációval
-együtt települnek: az irányítópulton **Kártya hozzáadása**, és keress rá: „Kis
-Segítő”. Minden kártyának vizuális szerkesztője van, a témához igazodik, és a
-felhasználó nyelvén ír.
-
-- **Gyerek:** egy gyerek tárcája, perselye, sorozata és mai rutinjai (választható, mi
-  látszik).
-- **Mai rutin:** egy gyerek mai rutinjai a feladatokkal. A feladatok kipipálhatók; a
-  pipa a szülő nevével kerül a naplóba. *Csak állapot* beállítással nem pipálható.
-- **Jutalombolt:** kiválasztott gyerekkel: mit tud megvenni, Beváltás gombbal. Gyerek
-  nélkül: jutalmanként, mely gyerekeknek van rá elég zsetonja; előbb gyereket kell
-  választani, utána Beváltás.
-- **Jóváhagyások:** a jóváhagyásra váró jutalmak és ellenőrzőpontok, jóváhagyás és elutasítás
-  gombbal.
-- **Heti statisztika:** egy gyerek utolsó 7 napja: az elvégzett feladatok aránya
-  naponként és rutinonként, és a sorozat.
-- **Gyors +/−:** zseton egy gyereknek, megjegyzéssel; minden zsetonmozgáshoz hasonlóan
-  naplózva.
-- **Eseménynapló:** az utolsó események (feladatok, checkpointok, jóváhagyások,
-  zsetonok); a darabszám a kártyán állítható, szűrhető egy gyerekre.
-- **Gomb állapota:** fizikai gombonként (vagy egy gombra) fényerő, fény, jelenlét és
-  firmware-verzió, ébresztés, képernyővédő és éjszakai fény gombbal.
-- **Gyerekek röviden:** gyerekenként egy sor: kép, mai haladás és zsetonok.
-
-A pipálás, beváltás, jóváhagyás, zsetonadás és a gombok vezérlése – a panelhez
-hasonlóan – Home Assistant rendszergazda felhasználót igényel.

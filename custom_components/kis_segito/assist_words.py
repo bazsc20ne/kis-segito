@@ -148,7 +148,7 @@ def hu_day_part(when: datetime) -> str:
         return "délelőtt"
     if hour < 18:
         return "délután"
-    if hour < 22:
+    if hour < 23:
         return "este"
     return "éjjel"
 
@@ -263,7 +263,7 @@ def en_number(n: int) -> str:
 def en_day_part(when: datetime) -> str:
     """The part of the day a time is in (in the morning, in the evening …)."""
     hour = when.hour
-    if hour < 4 or hour >= 22:
+    if hour < 4 or hour >= 23:
         return "at night"
     if hour < 12:
         return "in the morning"

@@ -131,6 +131,8 @@ class Carousel {
   bool uses(const std::string &key) const;
   // Called when a slide has ended.
   std::function<void()> on_settled;
+  // Asked to free memory (bytes needed) when an item picture finds no block.
+  std::function<void(size_t)> on_memory_needed;
   // Optional: what an item's picture depends on; items with the same value
   // are drawn once and then copied (see fill_slot_).
   std::function<std::string(int index)> sig;
@@ -324,7 +326,10 @@ class KisSegitoUI : public Component {
   RingSpec ring_spec_;
   bool ring_drawn_{false};
   // Uploaded pictures ("@<id>_<size>" keys), downloaded in the background.
-  void request_photo_(const std::string &key);
+  void request_photo_(const std::string &key, bool urgent = false);
+  void want_photo_(const std::string &key);
+  lv_obj_t *task_image_(lv_obj_t *parent, const std::string &icon, int cx, int cy);
+  std::set<lv_obj_t *> stand_ins_;  // small icons standing in for big pictures
   void log_reset_reason_();
   const lv_image_dsc_t *background_(const std::string &id);
   void apply_background_(const std::string &id);
@@ -575,8 +580,8 @@ class KisSegitoUI : public Component {
   struct TaskMove {
     lv_obj_t *done{nullptr};  // the finished task: shrinks to its place on the left
     lv_obj_t *next{nullptr};  // the next task: grows from the right into the middle
-    int done_x0{0}, done_y0{0}, done_x1{0}, done_y1{0}, done_s1{256};
-    int next_x0{0}, next_y0{0}, next_x1{0}, next_y1{0}, next_s0{256};
+    int done_x0{0}, done_y0{0}, done_x1{0}, done_y1{0}, done_s0{256}, done_s1{256};
+    int next_x0{0}, next_y0{0}, next_x1{0}, next_y1{0}, next_s0{256}, next_s1{256};
   } task_move_;
   void task_move_step_(int32_t v);
   int task_reward_{0};  // tokens of a reached checkpoint: confetti after the change

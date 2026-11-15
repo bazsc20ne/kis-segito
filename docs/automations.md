@@ -1,8 +1,151 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
-# Automations / Automatizálás
+# Automatizálás / Automations
 
-## Event `kis_segito_event`
+🇬🇧 English version below → [English](#english)
+
+<a id="magyar"></a>
+
+## Magyar
+
+### Esemény: `kis_segito_event`
+
+Minden fontos változáskor kiváltódik. Közös mezők: `event_type`, `child_id`,
+`child_name`, `wallet_balance`, `piggy_balance`, `timestamp`; ezeken felül az
+eseménytípus saját mezői:
+
+| `event_type` | További mezők |
+|---|---|
+| `task_completed` | `routine_id`, `task_id` |
+| `checkpoint_completed` | `routine_id`, `checkpoint_id`, `amount` |
+| `reward_redeemed` | `transaction_id`, `reward_id`, `reward_name`, `amount` |
+| `piggy_deposit`, `piggy_withdrawal` | `transaction_id`, `amount` |
+| `piggy_interest` | `transaction_id`, `amount` |
+| `streak_completed` | `transaction_id`, `amount` |
+| `manual_adjustment` | `transaction_id`, `amount` |
+| `transaction_reversed` | `transaction_id`, `reverses` |
+| `transaction_revised` | `transaction_id`, `corrects`, `amount` |
+| `approval_requested` | `approval_id`, `kind` (`reward` vagy `checkpoint`), valamint `reward_id`, `reward_name`, `amount` (jutalmaknál) vagy `routine_id`, `checkpoint_id`, `amount` (ellenőrzőpontoknál) |
+| `approval_approved`, `approval_rejected` | `approval_id`, `kind`, `amount` |
+
+Példa: értesítés, amikor egy jutalmat megvesznek.
+
+```yaml
+triggers:
+  - trigger: event
+    event_type: kis_segito_event
+    event_data:
+      event_type: reward_redeemed
+actions:
+  - action: notify.notify
+    data:
+      message: "{{ trigger.event.data.child_name }}: {{ trigger.event.data.reward_name }}"
+```
+
+### Értesítési szabályok
+
+A panel **Értesítések** oldalán minden szabály egy Home Assistant értesítési
+műveleten (például a mobilalkalmazáson) keresztül rövid üzenetet küld a
+kiválasztott eseménytípusokról és gyerekekről. Sikertelen értesítés soha nem von
+vissza zsetontranzakciót.
+
+### Műveletek
+
+`kis_segito.complete_task`, `kis_segito.complete_checkpoint`,
+`kis_segito.adjust_tokens`, `kis_segito.redeem_reward`,
+`kis_segito.piggy_deposit`, `kis_segito.piggy_withdraw`,
+`kis_segito.reverse_transaction`, `kis_segito.set_today_template`,
+`kis_segito.set_background`. Az azonosítók a panelen (a rutinszerkesztőben) és
+az esemény adataiban látszanak. Példa: egy ellenőrzőpontot a saját érzékelőd
+teljesít:
+
+```yaml
+actions:
+  - action: kis_segito.complete_checkpoint
+    data:
+      child_id: "…"
+      routine_id: "…"
+      checkpoint_id: "…"
+```
+
+#### Háttér
+
+A `kis_segito.set_background` egy gomb vagy minden gomb hátterét választja ki,
+mint a **Beállítások** oldal: `bg_1` … `bg_6` (a választott téma hátterei: a
+`bg_1` … `bg_3` nappali, a `bg_4` … `bg_6` éjszakai; a témával együtt
+változnak), `t_<téma>__bg_1` … `t_<téma>__bg_6` (egy adott téma háttere,
+például `t_frozen__bg_5`; témaváltáskor is megmarad, a beépített kinézeté
+`t_kis_segito__…`), egy feltöltött kép azonosítója (a kép címében látható),
+vagy üresen: nincs kép. `knob` (nem kötelező): a gomb neve vagy
+eszközazonosítója, ahogy a **Beállítások → Gombok** részen látszik; nélküle
+minden gomb vált. Csere után a fizikai gomb 1 perc használaton kívüli idő után
+egyszer újraindul, hogy az új képet mutassa; a virtuális gomb azonnal mutatja.
+Így például napnyugtakor éjszakai háttérre válthatsz:
+
+```yaml
+triggers:
+  - trigger: sun
+    event: sunset
+    id: night
+  - trigger: sun
+    event: sunrise
+    id: day
+actions:
+  - action: kis_segito.set_background
+    data:
+      background: "{{ 'bg_4' if trigger.id == 'night' else 'bg_1' }}"
+```
+
+### A gomb képernyője
+
+A gomb saját ESPHome-műveletei, a gomb nevével elnevezve
+(`esphome.<név>_<művelet>`; az alapértelmezett `kis-segito` névvel például
+`esphome.kis_segito_wake`):
+
+| Művelet | Adatok | Mit csinál |
+|---|---|---|
+| `wake` | – | Lágy áttűnéssel felébreszti a képernyőt. |
+| `screensaver` | `enable: true` / `false` | Elindítja vagy befejezi a képernyővédőt. |
+| `night_light` | `enable`, `brightness` (%), `kelvin` | Bekapcsolja vagy kikapcsolja az éjszakai fényt; 0 esetén a panel beállítása érvényes. |
+
+Az állapotuk a gomb eszközén látható: **Night light** (éjszakai fény),
+**Screensaver** (képernyővédő), **Screen brightness** (fényerő), valamint a
+**Presence** (jelenlét), **Distance** (távolság) és **Illuminance**
+(megvilágítás) érzékelőbemenet (lásd [sensors.md](sensors.md)).
+
+Példa: éjszakai fény lefekvéskor, reggel kikapcsolva.
+
+```yaml
+triggers:
+  - trigger: time
+    at: "20:00:00"
+    id: "on"
+  - trigger: time
+    at: "07:00:00"
+    id: "off"
+actions:
+  - action: esphome.kis_segito_night_light
+    data:
+      enable: "{{ trigger.id == 'on' }}"
+      brightness: 20
+      kelvin: 2400
+```
+
+### Zsetonelőzmények
+
+A zsetonokat egy csak bővülő napló tárolja: semmi nem törlődik. A visszavonás
+ellentétes tételt, az összeg módosítása korrekciós tételt ad hozzá; az egyenleg
+mindig az előzmények összege.
+
+---
+
+<a id="english"></a>
+
+## English
+
+🇭🇺 [Magyar változat](#magyar)
+
+### Event `kis_segito_event`
 
 Fired for every important change. Common fields: `event_type`, `child_id`,
 `child_name`, `wallet_balance`, `piggy_balance`, `timestamp`; plus the fields
@@ -36,17 +179,13 @@ actions:
       message: "{{ trigger.event.data.child_name }}: {{ trigger.event.data.reward_name }}"
 ```
 
-## Notification rules / Értesítési szabályok
+### Notification rules
 
 On the panel's **Notifications** page each rule sends a short message through a Home
 Assistant notify action (for example the companion app) for the chosen event types and
 children. A failed notification never undoes a token transaction.
 
-A panel **Értesítések** oldalán minden szabály egy Home Assistant értesítési célponton
-(pl. mobilalkalmazás) keresztül rövid üzenetet küld a kiválasztott eseményekről és
-gyerekekről. Sikertelen értesítés soha nem von vissza zsetontranzakciót.
-
-## Actions
+### Actions
 
 `kis_segito.complete_task`, `kis_segito.complete_checkpoint`,
 `kis_segito.adjust_tokens`, `kis_segito.redeem_reward`,
@@ -65,7 +204,7 @@ actions:
       checkpoint_id: "…"
 ```
 
-### Background / Háttér
+#### Background
 
 `kis_segito.set_background` chooses the background of one knob or of every
 knob, like the **Settings** page: `bg_1` … `bg_6` (the chosen theme's
@@ -78,18 +217,6 @@ background, for example `t_frozen__bg_5`; it stays when the theme changes,
 it every knob changes. After a change a physical knob restarts once, after 1
 minute without use, to show the new picture; a virtual knob shows it at once.
 With it you can, for example, switch to a night background at sunset:
-
-A `kis_segito.set_background` egy gomb vagy minden gomb hátterét választja
-ki, mint a **Beállítások** oldal: `bg_1` … `bg_6` (a választott téma
-hátterei: a `bg_1` … `bg_3` nappali, a `bg_4` … `bg_6` éjszakai; a témával
-együtt változnak), `t_<téma>__bg_1` … `t_<téma>__bg_6` (egy adott téma
-háttere, például `t_frozen__bg_5`; témaváltáskor is megmarad, a beépített
-kinézeté `t_kis_segito__…`), egy feltöltött kép azonosítója, vagy üresen:
-nincs kép. `knob` (nem kötelező): a gomb neve vagy
-eszközazonosítója, ahogy a **Beállítások → Gombok** részen látszik; nélküle
-minden gomb vált. Csere után a fizikai gomb 1 perc használaton kívüli idő után
-egyszer újraindul, hogy az új képet mutassa; a virtuális gomb azonnal
-mutatja. Így például napnyugtakor éjszakai háttérre válthatsz:
 
 ```yaml
 triggers:
@@ -105,7 +232,7 @@ actions:
       background: "{{ 'bg_4' if trigger.id == 'night' else 'bg_1' }}"
 ```
 
-## Knob screen / A gomb képernyője
+### Knob screen
 
 The knob's own ESPHome actions, named after its node name
 (`esphome.<node>_<action>`; with the default name `kis-segito` for example
@@ -120,12 +247,6 @@ The knob's own ESPHome actions, named after its node name
 Its state is on the knob's device: **Night light**, **Screensaver**, **Screen
 brightness**, and the sensor inputs **Presence**, **Distance**, **Illuminance**
 (see [sensors.md](sensors.md)).
-
-A gomb saját ESPHome-műveletei a gomb nevével (`esphome.<név>_<művelet>`;
-alapértelmezett névvel például `esphome.kis_segito_wake`): `wake` (lágy
-felébresztés), `screensaver` (`enable`: képernyővédő be/ki), `night_light`
-(`enable`, `brightness` %, `kelvin`; 0 = a panel beállítása). Az állapotuk a
-gomb eszközén látható.
 
 Example: night light at bedtime, off in the morning.
 
@@ -145,12 +266,8 @@ actions:
       kelvin: 2400
 ```
 
-## Token history
+### Token history
 
 Tokens are kept in an append-only ledger: nothing is deleted. Reversing adds an
 opposite entry, changing an amount adds a correction; balances are always the
 sum of the history.
-
-A zsetonokat egy csak bővülő napló tárolja: semmi nem törlődik. A visszavonás
-ellentétes tételt, az összeg módosítása korrekciós tételt ad hozzá; az egyenleg
-mindig az előzmények összege.
