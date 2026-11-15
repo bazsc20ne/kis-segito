@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 #include "kis_segito_ui.h"
+#include "inflate.h"
 
 #include <algorithm>
 #include <cctype>
@@ -11,7 +12,6 @@
 #include <strings.h>
 
 #include <esp_heap_caps.h>
-#include "rom/miniz.h"
 #include <esp_attr.h>
 #include <esp_system.h>
 #include <esp_http_client.h>
@@ -1530,19 +1530,7 @@ static uint8_t *unpack_picture(uint8_t *buf, size_t *size) {
   uint8_t *out = out_len > 0 && out_len < 1024 * 1024 && psram_has(out_len)
                      ? static_cast<uint8_t *>(heap_caps_malloc(out_len, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT))
                      : nullptr;
-  auto *inflator =
-      static_cast<tinfl_decompressor *>(heap_caps_malloc(sizeof(tinfl_decompressor), MALLOC_CAP_SPIRAM));
-  bool ok = false;
-  if (out != nullptr && inflator != nullptr) {
-    tinfl_init(inflator);
-    size_t in_bytes = *size - 8;
-    size_t out_bytes = out_len;
-    const tinfl_status status =
-        tinfl_decompress(inflator, buf + 8, &in_bytes, out, out, &out_bytes,
-                         TINFL_FLAG_PARSE_ZLIB_HEADER | TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF);
-    ok = status == TINFL_STATUS_DONE && out_bytes == out_len;
-  }
-  heap_caps_free(inflator);
+  const bool ok = out != nullptr && zlib_inflate(buf + 8, *size - 8, out, out_len);
   heap_caps_free(buf);
   if (!ok) {
     heap_caps_free(out);
