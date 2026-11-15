@@ -411,6 +411,7 @@ class KisSegitoUI : public Component {
     int tries{0};  // waits for memory so far
     bool store{false};  // only store it in the flash cache (a new background)
     uint32_t gen{0};    // which background change it belongs to
+    bool prestore{false};  // a picture of a new theme, stored before its restart
   };
   struct Download {
     std::string key;
@@ -473,6 +474,10 @@ class KisSegitoUI : public Component {
   uint32_t idle_ms_{0};        // time since the knob was last used
   volatile bool stopping_{false};
   volatile bool worker_idle_{true};
+  volatile uint32_t pending_stores_{0};  // new theme pictures still to store
+  uint32_t prestore_ms_{0};
+  std::set<std::string> used_icons_;  // theme pictures shown so far
+  void prestore_theme_(const std::string &theme);
   // Download task only: the flash cache and the pictures checked with Home
   // Assistant since the start.
   PictureCache cache_;

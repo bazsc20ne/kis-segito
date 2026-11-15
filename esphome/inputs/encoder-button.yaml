@@ -6,8 +6,9 @@
 #
 # Needs from the board profile: knob_encoder (a rotary_encoder sensor at its
 # finest resolution, resolution: 4), knob_button (a binary_sensor, pressed =
-# on) and the substitution encoder_counts_per_click (encoder counts per
-# mechanical click).
+# on), the substitutions encoder_counts_per_click (encoder counts per
+# mechanical click), button_gpio and button_pressed_level (the button's GPIO
+# and its level when pressed).
 
 substitutions:
   # "true": log every raw encoder count (to check the encoder's detents).
@@ -45,6 +46,18 @@ globals:
   - id: long_press_fired
     type: bool
     initial_value: "false"
+  # When the button went down and up (ms), and whether it is held, as seen by
+  # a small task that watches the button every 5 ms: a press is timed by the
+  # button itself, not by when a busy main loop gets to it.
+  - id: button_down_ms
+    type: uint32_t
+    initial_value: "0"
+  - id: button_up_ms
+    type: uint32_t
+    initial_value: "0"
+  - id: button_held
+    type: bool
+    initial_value: "false"
 
 script:
   # Long press: acts as soon as the button has been held for the set time,
@@ -54,7 +67,10 @@ script:
     then:
       - delay: !lambda return (uint32_t) id(long_press_time).state;
       - lambda: |-
-          if (id(knob_button).state && !id(swallow_click)) {
+          // Held for the long-press time by the button's own timing (this
+          // step may run late while the screen is busy drawing).
+          if (id(button_held) && !id(swallow_click) && !id(long_press_fired) &&
+              millis() - id(button_down_ms) >= (uint32_t) id(long_press_time).state) {
             id(long_press_fired) = true;
             id(last_input_ms) = millis();
             id(ui).long_press();
@@ -157,6 +173,35 @@ binary_sensor:
     # connects to Home Assistant again).
     on_press:
       - lambda: |-
+          // The task that times presses (started at the first press).
+          static bool watching = false;
+          if (!watching) {
+            watching = true;
+            id(button_held) = true;
+            id(button_down_ms) = millis();
+            xTaskCreate(
+                [](void *) {
+                  const gpio_num_t pin = static_cast<gpio_num_t>(${button_gpio});
+                  bool held = true;
+                  int same = 0;
+                  while (true) {
+                    const bool now = gpio_get_level(pin) == ${button_pressed_level};
+                    // Two equal readings in a row (10 ms) count as a change.
+                    same = now != held ? same + 1 : 0;
+                    if (same >= 2) {
+                      held = now;
+                      same = 0;
+                      if (held)
+                        id(button_down_ms) = millis() - 10;
+                      else
+                        id(button_up_ms) = millis() - 10;
+                      id(button_held) = held;
+                    }
+                    vTaskDelay(pdMS_TO_TICKS(5));
+                  }
+                },
+                "ks_button", 2048, nullptr, 5, nullptr);
+          }
           id(last_input_ms) = millis();
           id(long_press_fired) = false;
           ESP_LOGD("kis_segito", "Button pressed (screen state %d)", id(screen_state));
@@ -172,7 +217,15 @@ binary_sensor:
       - script.stop: long_press_timer
       - lambda: |-
           id(last_input_ms) = millis();
-          if (!id(swallow_click) && !id(long_press_fired))
-            id(ui).click();
+          // How long it was held, by the button's own timing.
+          const uint32_t held_ms = id(button_up_ms) - id(button_down_ms);
+          if (!id(swallow_click) && !id(long_press_fired)) {
+            if (id(button_up_ms) >= id(button_down_ms) && held_ms >= (uint32_t) id(long_press_time).state) {
+              ESP_LOGD("kis_segito", "Long press of %u ms recognised on release", (unsigned) held_ms);
+              id(ui).long_press();
+            } else {
+              id(ui).click();
+            }
+          }
           id(swallow_click) = false;
           id(long_press_fired) = false;

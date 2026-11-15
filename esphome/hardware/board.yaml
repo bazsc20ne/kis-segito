@@ -14,6 +14,10 @@
 # device config without changing this file.
 
 substitutions:
+  # The push button's GPIO and its level when pressed (knob_button below);
+  # the input profile times presses on it.
+  button_gpio: "0"
+  button_pressed_level: "0"
   # The round display is 480x480 pixels.
   screen_size: "480"
   # Panel controller init sequence: gc9503 (MD80E panel per its datasheet and

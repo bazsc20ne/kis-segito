@@ -875,6 +875,8 @@ void KisSegitoUI::set_state(const std::string &json) {
         lv_obj_set_style_bg_color(this->root_, lv_color_hex(BASE_BG), 0);
     }
   } else if (theme != this->theme_ || colours_changed) {
+    if (theme != this->theme_)
+      this->prestore_theme_(theme);
     this->theme_ = theme;
     this->save_theme_();
     if (!this->bg_change_) {
@@ -1271,6 +1273,13 @@ std::string KisSegitoUI::photo_key_(const std::string &key) const {
 }
 
 const lv_image_dsc_t *KisSegitoUI::img_(const std::string &key) {
+  {
+    // The theme pictures shown so far, so a new theme can store them all
+    // before its restart (see prestore_theme_()).
+    const std::string plain = !key.empty() && key[0] == '@' ? key.substr(1) : key;
+    if (this->used_icons_.size() < 600 && is_theme_icon(plain))
+      this->used_icons_.insert(plain);
+  }
   const std::string pk = this->photo_key_(key);
   if (!pk.empty()) {
     // A downloaded picture: shown once it is here; until then nothing (an
@@ -1525,6 +1534,12 @@ void KisSegitoUI::photo_task_(void *arg) {
     self->worker_idle_ = false;
     if (job.store) {
       const int result = !self->cache_.ready() ? BG_NO_CACHE : self->store_picture_(job) ? BG_STORED : BG_FAILED;
+      if (job.prestore) {
+        // A picture of the new theme (one it does not have is just skipped).
+        if (self->pending_stores_ > 0)
+          self->pending_stores_ = self->pending_stores_ - 1;
+        continue;
+      }
       if (job.gen == self->bg_gen_)
         self->bg_store_ = result;
       continue;
@@ -1701,6 +1716,42 @@ void KisSegitoUI::save_theme_() {
   this->theme_pref_.save(&pref);
 }
 
+// A new theme: every picture shown so far in the old one is stored from the
+// new theme in the flash cache before the restart, so the first round after
+// it is as quick as any other (not downloaded and decoded on first use).
+void KisSegitoUI::prestore_theme_(const std::string &theme) {
+  if (theme.empty() || theme == "kis_segito" || this->img_base_.empty() || !this->cache_.ready())
+    return;
+  std::vector<PhotoJob> jobs;
+  for (const auto &plain : this->used_icons_) {
+    const size_t sep = plain.rfind('_');
+    if (sep == std::string::npos || sep == 0)
+      continue;
+    const int nominal = atoi(plain.c_str() + sep + 1);
+    if (nominal <= 0)
+      continue;
+    const std::string key = "@t_" + theme + "__" + plain;
+    PhotoJob job{key,
+                 this->img_base_ + "/api/kis_segito/knob_image/" + key.substr(1, key.rfind('_') - 1) + "/" +
+                     std::to_string(S(nominal)),
+                 this->img_token_};
+    job.store = true;
+    job.prestore = true;
+    jobs.push_back(job);
+  }
+  if (jobs.empty())
+    return;
+  {
+    std::lock_guard<std::mutex> lock(this->photo_mutex_);
+    for (const auto &job : jobs)
+      this->photo_queue_.push_back(job);
+  }
+  this->pending_stores_ = this->pending_stores_ + jobs.size();
+  this->prestore_ms_ = millis();
+  ESP_LOGI(TAG, "New theme: storing %u pictures before the restart", (unsigned) jobs.size());
+  this->start_photo_task_();
+}
+
 void KisSegitoUI::start_background_change_(const std::string &bg) {
   const uint32_t gen = ++this->bg_gen_;
   this->restart_at_ms_ = 0;
@@ -1759,6 +1810,9 @@ void KisSegitoUI::check_background_restart_(uint32_t now) {
     return;
   }
   if (this->bg_store_ != BG_STORED)
+    return;
+  // The new theme's pictures are stored first (at most 3 minutes).
+  if (this->pending_stores_ > 0 && now - this->prestore_ms_ < 180000)
     return;
   if (this->restart_at_ms_ == 0) {
     if (this->idle_ms_ < BG_RESTART_IDLE_MS)

@@ -827,19 +827,19 @@ class KisSegitoPanel extends HTMLElement {
     const own = (this._data.own_icons || [])
       .map((i) => `<div class="icon-own ${i.active === false ? "inactive" : ""}">${this._icon(i.key, 56)}
         <div class="row" style="gap:4px">
-          <label class="iconbtn" title="${this._e(this._t("icons.replace"))}">⟳<input type="file" accept="image/*" data-crop-upload="@replace:${this._e(i.key)}" hidden ${dis}></label>
-          <button class="iconbtn" data-act="icon-active" data-arg="${this._e(i.key)}:${i.active === false ? 1 : 0}" title="${this._e(this._t(i.active === false ? "icons.activate" : "icons.deactivate"))}" ${dis}>${i.active === false ? "○" : "◉"}</button>
-          <button class="iconbtn" data-act="icon-delete" data-arg="${this._e(i.key)}" title="${this._e(this._t("common.delete"))}" ${dis}>✕</button></div></div>`)
+          <label class="iconbtn" data-tip="${this._e(this._t("icons.replace"))}">⟳<input type="file" accept="image/*" data-crop-upload="@replace:${this._e(i.key)}" hidden ${dis}></label>
+          <button class="iconbtn" data-act="icon-active" data-arg="${this._e(i.key)}:${i.active === false ? 1 : 0}" data-tip="${this._e(this._t(i.active === false ? "icons.activate" : "icons.deactivate"))}" ${dis}>${i.active === false ? "○" : "◉"}</button>
+          <button class="iconbtn" data-act="icon-delete" data-arg="${this._e(i.key)}" data-tip="${this._e(this._t("common.delete"))}" ${dis}>✕</button></div></div>`)
       .join("");
     const disabled = new Set(this._data.disabled_icons || []);
     const content = (n) => n.startsWith("routine_") || n.startsWith("task_") || n.startsWith("reward_") || n === "checkpoint_flag" || n === "fn_rewards" || n === "fn_piggy";
     const builtin = this._data.icons
       .filter(content)
-      .map((n) => `<button class="pickable ${disabled.has(n) ? "off" : ""}" data-act="icon-active" data-arg="${this._e(n)}:${disabled.has(n) ? 1 : 0}" title="${this._e(n)}" ${dis}>${this._icon(n, 44)}</button>`)
+      .map((n) => `<button class="pickable ${disabled.has(n) ? "off" : ""}" data-act="icon-active" data-arg="${this._e(n)}:${disabled.has(n) ? 1 : 0}" data-tip="${this._e(n)}" ${dis}>${this._icon(n, 44)}</button>`)
       .join("");
     return `<div class="card"><h3>${this._e(this._t("icons.title"))}</h3>
       <div class="field"><span>${this._e(this._t("icons.own_title"))}${this._help("help.icons_own", this._t("icons.own_title"))}</span><div class="own-icons">${own || `<span class="muted small">${this._e(this._t("icons.none"))}</span>`}
-        ${this._isAdmin ? `<label class="upload-tile" title="${this._e(this._t("icons.upload"))}"><span style="font-size:1.6rem">＋</span><span class="small">${this._e(this._t("icons.upload"))}</span><input type="file" accept="image/*" data-crop-upload="@icon" hidden></label>` : ""}</div></div>
+        ${this._isAdmin ? `<label class="upload-tile" data-tip="${this._e(this._t("icons.upload"))}"><span style="font-size:1.6rem">＋</span><span class="small">${this._e(this._t("icons.upload"))}</span><input type="file" accept="image/*" data-crop-upload="@icon" hidden></label>` : ""}</div></div>
       <details><summary>${this._e(this._t("icons.builtin_title"))}${this._help("help.icons_builtin", this._t("icons.builtin_title"))}</summary>
         <div class="icon-grid builtin" style="margin-top:10px">${builtin}</div></details></div>`;
   }
@@ -859,7 +859,7 @@ class KisSegitoPanel extends HTMLElement {
     const tile = (value) => {
       const n = Number(value.slice(-1));
       const when = this._t(n <= 3 ? "background.day" : "background.night");
-      return `<button class="bg ${current === value ? "on" : ""}" style="background-image:url('${this._backgroundUrl(value)}')" ${attrs} data-arg="${this._e(value)}" title="${this._e(when)}" aria-label="${this._e(when)}" ${dis}><span class="bg-when">${n <= 3 ? "☀" : "☾"}</span></button>`;
+      return `<button class="bg ${current === value ? "on" : ""}" style="background-image:url('${this._backgroundUrl(value)}')" ${attrs} data-arg="${this._e(value)}" data-tip="${this._e(when)}" data-preview="${this._backgroundUrl(value)}" aria-label="${this._e(when)}" ${dis}><span class="bg-when">${n <= 3 ? "☀" : "☾"}</span></button>`;
     };
     const themeId = this._data.theme?.id || "kis_segito";
     const name = (t) => this._e(t.name?.[lang] || t.name?.en || t.id);
@@ -1102,13 +1102,13 @@ class KisSegitoPanel extends HTMLElement {
         for (let i = 0; i < Math.min(target, 14); i++) {
           dots += `<img src="${this._iconUrl(i < c.streak ? "streak_day_done" : "streak_day_empty", 20)}" alt="">`;
         }
-        return `<div class="card child-hero clickable" style="--c:${this._e(c.color)}" data-act="child-stats" data-arg="${c.id}" tabindex="0" title="${this._e(this._t("stats.title"))}">
+        return `<div class="card child-hero clickable" style="--c:${this._e(c.color)}" data-act="child-stats" data-arg="${c.id}" tabindex="0" aria-label="${this._e(`${c.name}: ${this._t("stats.title")}`)}">
           <div class="child-top">${this._avatar(c, 84)}
             <div><div class="name">${this._e(c.name)}</div>
               <div class="row small muted" style="gap:4px;margin-top:4px">${this._icon("streak_flame", 18)} <b class="num">${c.streak}/${target}</b></div>
               <div class="streak">${dots}</div></div>
-            <div class="balances"><span class="bal">${this._icon("wallet", 30)}<span class="num">${c.balances.wallet}</span></span>
-              ${c.piggy_unlocked ? `<span class="bal">${this._icon("fn_piggy", 30)}<span class="num">${c.balances.piggy}</span></span>` : ""}</div>
+            <div class="balances"><span class="bal" data-tip="${this._e(this._t("tip.wallet").replace("{n}", c.balances.wallet))}">${this._icon("wallet", 30)}<span class="num">${c.balances.wallet}</span></span>
+              ${c.piggy_unlocked ? `<span class="bal" data-tip="${this._e(this._t("tip.piggy").replace("{n}", c.balances.piggy))}">${this._icon("fn_piggy", 30)}<span class="num">${c.balances.piggy}</span></span>` : ""}</div>
           </div>
           ${rows || `<div class="muted">${this._e(this._t("today.no_routines"))}</div>`}
         </div>`;
@@ -1149,7 +1149,7 @@ class KisSegitoPanel extends HTMLElement {
     );
     const admin = this._isAdmin;
     const nameBlock = (r, times, state) => {
-      const attrs = admin ? `data-act="day-edit" data-arg="${this._e(r.id)}" data-date="${day.date}" tabindex="0" title="${this._e(this._t("modify.edit"))}"` : "";
+      const attrs = admin ? `data-act="day-edit" data-arg="${this._e(r.id)}" data-date="${day.date}" tabindex="0" data-tip="${this._e(this._t("modify.edit"))}"` : "";
       return `<div class="grow row nameblk" ${attrs}>${this._icon(r.icon, 36)}<div class="grow"><b class="name">${this._e(r.name || this._t("routines.unnamed"))}</b> <span class="muted num">${this._e(times)}</span> ${state} ${admin ? `<span class="pen">${this._icon("action_edit", 18, "glyph")}</span>` : ""}</div></div>`;
     };
     const rows = scheduled
@@ -1164,7 +1164,7 @@ class KisSegitoPanel extends HTMLElement {
           : shift
             ? `<span class="tag warn">${this._e(this._t("modify.shifted").replace("{n}", `${shift > 0 ? "+" : "−"}${this._duration(Math.abs(shift))}`))}</span>`
             : running?.edited
-              ? `<span class="badge" title="${this._e(this._t("calendar.changed"))}">${this._icon("action_edit", 18, "glyph")}</span>`
+              ? `<span class="badge" data-tip="${this._e(this._t("calendar.changed"))}">${this._icon("action_edit", 18, "glyph")}</span>`
               : "";
         // The controls keep fixed places: the Restore button's place is kept
         // even while it is hidden, so "+" never moves; on a phone they get a
@@ -1174,7 +1174,7 @@ class KisSegitoPanel extends HTMLElement {
           ? ""
           : skipped
             ? `<div class="mod-ctl"><button class="btn sm" data-act="ov-restore" data-arg="${this._e(r.id)}">${this._e(restoreLabel)}</button></div>`
-            : `<div class="mod-ctl"><button class="btn sm ghost restore ${shift ? "" : "idle"}" data-act="ov-restore" data-arg="${this._e(r.id)}" title="${this._e(restoreLabel)}" aria-label="${this._e(restoreLabel)}" ${shift ? "" : `tabindex="-1" aria-hidden="true"`}>↺<span class="wide"> ${this._e(restoreLabel)}</span></button>
+            : `<div class="mod-ctl"><button class="btn sm ghost restore ${shift ? "" : "idle"}" data-act="ov-restore" data-arg="${this._e(r.id)}" data-tip="${this._e(restoreLabel)}" aria-label="${this._e(restoreLabel)}" ${shift ? "" : `tabindex="-1" aria-hidden="true"`}>↺<span class="wide"> ${this._e(restoreLabel)}</span></button>
                <span class="stepper"><button data-act="ov-shift" data-arg="${this._e(r.id)}" data-d="-5" aria-label="-5">−</button><span>${sign(shift)} ${this._e(this._t("modify.minutes"))}</span><button data-act="ov-shift" data-arg="${this._e(r.id)}" data-d="5" aria-label="+5">+</button></span>
                <button class="btn sm" data-act="ov-skip" data-arg="${this._e(r.id)}">${this._e(this._t("modify.skip"))}</button>${this._help("help.modify_row", this._t("modify.title"))}</div>`;
         return `<div class="mod-row ${skipped ? "skipped" : ""}">${nameBlock(r, times, state)}${controls}</div>`;
@@ -1182,7 +1182,7 @@ class KisSegitoPanel extends HTMLElement {
       .join("");
     const oneDay = day.routines
       .filter((r) => r.one_day)
-      .map((r) => `<div class="mod-row">${nameBlock(r, `${r.start}–${r.end}`, r.moved_from ? `<span class="badge" title="${this._e(this._t("calendar.changed"))}">${this._icon("action_edit", 18, "glyph")}</span>` : `<span class="badge" title="${this._e(this._t("calendar.one_day"))}">1</span>`)}</div>`)
+      .map((r) => `<div class="mod-row">${nameBlock(r, `${r.start}–${r.end}`, r.moved_from ? `<span class="badge" data-tip="${this._e(this._t("calendar.changed"))}">${this._icon("action_edit", 18, "glyph")}</span>` : `<span class="badge" data-tip="${this._e(this._t("calendar.one_day"))}">1</span>`)}</div>`)
       .join("");
     const templates = this._data.templates || [];
     const chosen = this._data.date_templates?.[day.date];
@@ -1298,9 +1298,9 @@ class KisSegitoPanel extends HTMLElement {
               })
               .join("");
             const badge = oneDay
-              ? `<span class="badge" title="${this._e(this._t("calendar.one_day"))}">1</span>`
+              ? `<span class="badge" data-tip="${this._e(this._t("calendar.one_day"))}">1</span>`
               : changed
-                ? `<span class="badge" title="${this._e(this._t(r.moved_from ? "calendar.moved_here" : "calendar.changed"))}">${this._icon("action_edit", 18, "glyph")}</span>`
+                ? `<span class="badge" data-tip="${this._e(this._t(r.moved_from ? "calendar.moved_here" : "calendar.changed"))}">${this._icon("action_edit", 18, "glyph")}</span>`
                 : "";
             return `<div class="blk ${changed ? "changed" : ""} ${oneDay ? "oneday" : ""} ${count > 1 ? "lane" : ""}" style="top:${top}px;height:${h}px;${place}--rc:${this._e(color)}"
               data-block data-routine="${this._e(r.id)}" data-date="${d.date}" data-st="${st}" data-en="${en}" data-past="${past ? 1 : ""}" tabindex="0">
@@ -1633,7 +1633,7 @@ class KisSegitoPanel extends HTMLElement {
           <div class="grow"><div class="rt-title">${this._e(r.name || this._t("routines.unnamed"))}</div>
             <div class="muted num small" style="font-weight:600">${this._e(r.start)}–${this._e(r.end)} · ${tasks.length} ${this._e(this._t("routines.tasks_count"))}${r.active === false ? ` · ${this._e(this._t("common.inactive"))}` : ""}</div>
             <div class="days">${dots(r)}</div>
-            <div class="row" style="gap:4px">${who}<span class="grow"></span><span style="width:14px;height:14px;border-radius:4px;background:${this._e(r.color || "#6BCB77")}" title="${this._e(this._t("routines.color"))}"></span></div>
+            <div class="row" style="gap:4px">${who}<span class="grow"></span><span style="width:14px;height:14px;border-radius:4px;background:${this._e(r.color || "#6BCB77")}" data-tip="${this._e(this._t("routines.color"))}"></span></div>
             <div class="strip" style="margin-top:6px">${tasks.slice(0, 10).map((x) => `<img src="${this._iconUrl(x.icon, 26)}" alt="">`).join("")}${tasks.length > 10 ? `<span class="muted small">+${tasks.length - 10}</span>` : ""}</div>
           </div></div>`;
       })
@@ -1659,7 +1659,7 @@ class KisSegitoPanel extends HTMLElement {
     const list = this._data.rewards;
     const cards = list
       .map((r, i) => `<div class="card rw ${r.active === false ? "inactive" : ""}" data-act="edit" data-coll="rewards" data-arg="${this._e(r.id)}" tabindex="0">
-        ${r.kind === "piggy_unlock" ? `<span class="corner tag good" title="${this._e(this._t("rewards.piggy_unlock"))}">${this._icon("badge_piggy_plus", 16)}</span>` : ""}
+        ${r.kind === "piggy_unlock" ? `<span class="corner tag good" data-tip="${this._e(this._t("rewards.piggy_unlock"))}">${this._icon("badge_piggy_plus", 16)}</span>` : ""}
         <div class="img">${this._rewardPicture(r)}</div>
         <div class="nm">${this._e(r.name)}</div>
         <div class="price">${this._icon("token_coin_front", 26)}<span class="num">${r.cost}</span></div>
@@ -1828,7 +1828,7 @@ class KisSegitoPanel extends HTMLElement {
         const result = this._testResult?.[i];
         return `<div class="card stack ${rule.enabled !== false ? "" : "inactive"}">
           <div class="row">${this._icon("nav_notifications", 36)}<input class="grow" data-rule="${i}:name" value="${this._e(rule.name)}" placeholder="${this._e(this._t("notifications.rule_name"))}" ${dis} style="font-weight:700">
-            <label class="switch" title="${this._e(this._t("common.active"))}"><input type="checkbox" data-rule="${i}:enabled" data-rerender ${rule.enabled !== false ? "checked" : ""} ${dis}></label>
+            <label class="switch" data-tip="${this._e(this._t("common.active"))}"><input type="checkbox" data-rule="${i}:enabled" data-rerender ${rule.enabled !== false ? "checked" : ""} ${dis}></label>
             ${this._isAdmin ? `<button class="iconbtn" data-act="rule-remove" data-arg="${i}" aria-label="${this._e(this._t("common.delete"))}">✕</button>` : ""}</div>
           <label class="field"><span>${this._e(this._t("notifications.target"))}${this._help("help.notify_target", this._t("notifications.target"))}</span>${target}</label>
           ${mapping}
@@ -1954,7 +1954,7 @@ class KisSegitoPanel extends HTMLElement {
     const uploaded = s.background && !this._isPresetBackground(s.background) ? s.background : "";
     const backgrounds = `${this._backgroundChoices(s.background || "", `data-act="bg-set"`)}<div class="bgs"><button class="bg ${!s.background ? "on" : ""}" data-act="bg-set" data-arg="" ${dis}>${this._e(this._t("background.none"))}</button>
       ${uploaded ? `<button class="bg on" style="background-image:url('${this._backgroundUrl(uploaded)}')" data-act="bg-set" data-arg="${this._e(uploaded)}" aria-label="${this._e(this._t("background.own"))}" ${dis}></button>` : ""}
-      ${this._isAdmin ? `<label class="bg upload" title="${this._e(this._t("background.upload"))}">＋<br>${this._e(this._t("background.own"))}<input type="file" accept="image/*" data-upload-bg hidden></label>` : ""}</div>`;
+      ${this._isAdmin ? `<label class="bg upload" data-tip="${this._e(this._t("background.upload"))}">＋<br>${this._e(this._t("background.own"))}<input type="file" accept="image/*" data-upload-bg hidden></label>` : ""}</div>`;
     const weekdays = WEEKDAYS.map((d) => `<option value="${d}" ${Number(s.piggy_interest_weekday) === d ? "selected" : ""}>${this._e(this._t(`weekday.${d}`))}</option>`).join("");
     return `<div class="section-title" style="margin-top:6px">${this._icon("nav_settings", 40)}<h2>${this._e(this._t("settings.title"))}</h2></div>
       ${this._isAdmin ? "" : `<div class="banner">${this._icon("status_lock", 28)} ${this._e(this._t("settings.admin_only"))}</div>`}
@@ -2256,9 +2256,9 @@ ${tab === "data" ? `
       : `<img class="ic" src="${this._avatarUrl(c.avatar, c.avatar_theme)}" width="132" height="132" alt="">`;
     const edit = this._t("children.avatar_change");
     return `<div class="avatar-edit" style="--c:${this._e(c.color || "#6CB8FF")}">
-        <button class="plain face" data-act="pick" data-path="avatar" data-arg="avatar" title="${this._e(edit)}">${picture}</button>
-        <button class="plain corner left" data-act="pick" data-path="avatar" data-arg="avatar" title="${this._e(edit)}">${this._icon("action_edit", 24)}</button>
-        ${c.avatar_image ? `<button class="plain corner right" data-act="clear-picture" data-arg="avatar_image" title="${this._e(this._t("children.photo_remove"))}">${this._icon("action_x", 24)}</button>` : ""}
+        <button class="plain face" data-act="pick" data-path="avatar" data-arg="avatar" data-tip="${this._e(edit)}">${picture}</button>
+        <button class="plain corner left" data-act="pick" data-path="avatar" data-arg="avatar" data-tip="${this._e(edit)}">${this._icon("action_edit", 24)}</button>
+        ${c.avatar_image ? `<button class="plain corner right" data-act="clear-picture" data-arg="avatar_image" data-tip="${this._e(this._t("children.photo_remove"))}">${this._icon("action_x", 24)}</button>` : ""}
       </div>`;
   }
 
@@ -2322,7 +2322,7 @@ ${tab === "data" ? `
     // In "only this day" mode, sections that differ from the routine are marked.
     const diff = (key) =>
       dayMode && base && JSON.stringify(r[key] ?? null) !== JSON.stringify(base[key] ?? null)
-        ? ` <span class="badge" title="${this._e(this._t("calendar.changed"))}">${this._icon("action_edit", 18, "glyph")}</span>`
+        ? ` <span class="badge" data-tip="${this._e(this._t("calendar.changed"))}">${this._icon("action_edit", 18, "glyph")}</span>`
         : "";
     const templates = this._data.routine_templates || [];
     const chooser = (dayMode || ed.isNew) && !ed.readonly && templates.length
@@ -2440,15 +2440,15 @@ ${tab === "data" ? `
     const own = this._picker.filter === "avatar" ? [] : (this._data.own_icons || []).filter((i) => i.active !== false || i.key === current).map((i) => i.key);
     const icons = own
       .concat(this._data.icons.filter((n) => filter(n) && (!disabled.has(n) || n === current)))
-      .map((n) => `<button class="${n === current ? "on" : ""}" title="${this._e(n.startsWith("own_") ? this._t("icons.own") : n)}" data-act="pick-icon" data-arg="${this._e(n)}">${this._icon(n, 56)}</button>`)
+      .map((n) => `<button class="${n === current ? "on" : ""}" data-tip="${this._e(n.startsWith("own_") ? this._t("icons.own") : n)}" data-act="pick-icon" data-arg="${this._e(n)}">${this._icon(n, 56)}</button>`)
       .join("");
     if (this._picker.filter === "avatar") {
       return this._viewAvatarPicker(current);
     }
     const upload = this._picker.filter === "avatar"
-      ? `<label class="upload-tile" title="${this._e(this._t("picture.upload"))}"><span style="font-size:1.6rem">＋</span><span class="small">${this._e(this._t("picture.upload"))}</span><input type="file" accept="image/*" data-crop-upload="avatar_image" hidden></label>`
+      ? `<label class="upload-tile" data-tip="${this._e(this._t("picture.upload"))}"><span style="font-size:1.6rem">＋</span><span class="small">${this._e(this._t("picture.upload"))}</span><input type="file" accept="image/*" data-crop-upload="avatar_image" hidden></label>`
       : this._isAdmin
-        ? `<label class="upload-tile" title="${this._e(this._t("icons.upload"))}"><span style="font-size:1.6rem">＋</span><span class="small">${this._e(this._t("icons.upload"))}</span><input type="file" accept="image/*" data-crop-upload="@icon" hidden></label>`
+        ? `<label class="upload-tile" data-tip="${this._e(this._t("icons.upload"))}"><span style="font-size:1.6rem">＋</span><span class="small">${this._e(this._t("icons.upload"))}</span><input type="file" accept="image/*" data-crop-upload="@icon" hidden></label>`
         : "";
     return `<div class="backdrop over" data-act="pick-close"></div><div class="dialog wide over" role="dialog" aria-modal="true">
       <div class="row"><h2 class="grow">${this._e(this._t(this._picker.filter === "avatar" ? "children.avatar_choose" : "common.choose_icon"))}</h2><button class="iconbtn" data-act="pick-close" aria-label="✕">✕</button></div>
@@ -2469,14 +2469,14 @@ ${tab === "data" ? `
         const tiles = names
           .map((n) => {
             const on = n === current && id === currentTheme && !this._edit?.item?.avatar_image;
-            return `<button class="${on ? "on" : ""}" title="${this._e(n)}" data-act="pick-avatar" data-arg="${this._e(`${n}|${id}`)}"><img src="${this._avatarUrl(n, id)}" width="56" height="56" alt=""></button>`;
+            return `<button class="${on ? "on" : ""}" data-tip="" data-preview="${this._avatarUrl(n, id)}" aria-label="${this._e(n)}" data-act="pick-avatar" data-arg="${this._e(`${n}|${id}`)}"><img src="${this._avatarUrl(n, id)}" width="56" height="56" alt=""></button>`;
           })
           .join("");
         const title = this._e(t.name?.[lang] || t.name?.en || t.id);
         return `<h3 class="picker-section">${title}</h3><div class="icon-grid">${tiles}</div>`;
       })
       .join("");
-    const upload = `<div class="icon-grid"><label class="upload-tile" title="${this._e(this._t("picture.upload"))}"><span style="font-size:1.6rem">＋</span><span class="small">${this._e(this._t("picture.upload"))}</span><input type="file" accept="image/*" data-crop-upload="avatar_image" hidden></label></div>`;
+    const upload = `<div class="icon-grid"><label class="upload-tile" data-tip="${this._e(this._t("picture.upload"))}"><span style="font-size:1.6rem">＋</span><span class="small">${this._e(this._t("picture.upload"))}</span><input type="file" accept="image/*" data-crop-upload="avatar_image" hidden></label></div>`;
     return `<div class="backdrop over" data-act="pick-close"></div><div class="dialog wide over" role="dialog" aria-modal="true">
       <div class="row"><h2 class="grow">${this._e(this._t("children.avatar_choose"))}</h2><button class="iconbtn" data-act="pick-close" aria-label="✕">✕</button></div>
       <div class="picker-scroll">${upload}${sections}</div></div>`;
@@ -2873,8 +2873,8 @@ ${tab === "data" ? `
             ${this._isNarrow ? `<ha-menu-button></ha-menu-button>` : ""}
             <div class="brand"><img class="logo" src="${this._asset(`icons/${logo}.webp`)}" alt="${this._e(this._t("panel.title"))}"></div>
             <div class="top-actions">
-              ${languages.length > 1 ? `<div class="pill-switch" role="group" aria-label="${this._e(this._t("settings.language"))}">${languages.map((l) => `<button class="${languageNow.split("-")[0] === l.code ? "on" : ""}" data-act="lang" data-arg="${this._e(l.code)}" title="${this._e(l.name)}">${this._e(l.code.toUpperCase())}</button>`).join("")}</div>` : ""}
-              <button class="daynight ${night ? "night" : ""}" data-act="theme" aria-label="${this._e(this._t(night ? "theme.day" : "theme.night"))}" title="${this._e(this._t(night ? "theme.night" : "theme.day"))}">${stars}<span class="knob"></span></button>
+              ${languages.length > 1 ? `<div class="pill-switch" role="group" aria-label="${this._e(this._t("settings.language"))}">${languages.map((l) => `<button class="${languageNow.split("-")[0] === l.code ? "on" : ""}" data-act="lang" data-arg="${this._e(l.code)}" data-tip="${this._e(l.name)}">${this._e(l.code.toUpperCase())}</button>`).join("")}</div>` : ""}
+              <button class="daynight ${night ? "night" : ""}" data-act="theme" aria-label="${this._e(this._t(night ? "theme.day" : "theme.night"))}" data-tip="${this._e(this._t(night ? "theme.night" : "theme.day"))}">${stars}<span class="knob"></span></button>
             </div>
           </div>
           <nav class="tabs" aria-label="tabs">${tabs}</nav>
@@ -3033,7 +3033,7 @@ ${tab === "data" ? `
   // An info button right next to the thing it explains; its text comes from
   // the translations (several paragraphs separated by a blank line).
   _help(key, title = "") {
-    return `<button type="button" class="info-btn" data-help="${this._e(key)}" data-help-title="${this._e(title)}" title="${this._e(this._t("info.open"))}" aria-label="${this._e(this._t("info.open"))}">i</button>`;
+    return `<button type="button" class="info-btn" data-help="${this._e(key)}" data-help-title="${this._e(title)}" data-tip="${this._e(this._t("info.open"))}" aria-label="${this._e(this._t("info.open"))}">i</button>`;
   }
 
   _viewInfo() {
@@ -4258,20 +4258,53 @@ ${tab === "data" ? `
     await this._load();
   }
 
+  // One tooltip for the whole panel, in its style: a text, or (where there
+  // is room, on a mouse) a large preview of a picture with its text.
+  _showTip(target, x, y) {
+    const tip = this.shadowRoot.querySelector(".tip");
+    if (!tip) return;
+    const preview = target.dataset.preview && window.matchMedia("(hover: hover) and (min-width: 720px)").matches ? target.dataset.preview : "";
+    const key = `${preview}|${target.dataset.tip || ""}`;
+    if (tip.dataset.key !== key) {
+      tip.dataset.key = key;
+      tip.replaceChildren();
+      if (preview) {
+        const img = document.createElement("img");
+        img.src = preview;
+        img.alt = "";
+        tip.append(img);
+      }
+      if (target.dataset.tip) {
+        const text = document.createElement("span");
+        text.textContent = target.dataset.tip;
+        tip.append(text);
+      }
+    }
+    tip.classList.toggle("preview", Boolean(preview));
+    if (!preview && !target.dataset.tip) {
+      tip.hidden = true;
+      return;
+    }
+    tip.hidden = false;
+    const half = preview ? 190 : 130;
+    tip.style.left = `${Math.min(Math.max(x, half), window.innerWidth - half)}px`;
+    // A preview opens below the pointer when there is no room above it.
+    const below = preview && y < 420;
+    tip.classList.toggle("below", below);
+    tip.style.top = `${y}px`;
+  }
+
   _moveTip(ev) {
     const tip = this.shadowRoot.querySelector(".tip");
     if (!tip) {
       return;
     }
-    const target = ev.target.closest?.("[data-tip]");
-    if (!target) {
+    const target = ev.target.closest?.("[data-tip], [data-preview]");
+    if (!target || (!target.dataset.tip && !target.dataset.preview)) {
       tip.hidden = true;
       return;
     }
-    tip.textContent = target.dataset.tip;
-    tip.hidden = false;
-    tip.style.left = `${Math.min(Math.max(ev.clientX, 130), window.innerWidth - 130)}px`;
-    tip.style.top = `${ev.clientY}px`;
+    this._showTip(target, ev.clientX, ev.clientY);
   }
 
   _listen() {
@@ -4284,12 +4317,20 @@ ${tab === "data" ? `
     // while it is typed: "1" then "7" passes 01:00 on the way to 17:00).
     root.addEventListener("focusin", (ev) => {
       const el = ev.target;
+      if (el.matches?.(":focus-visible") && (el.dataset?.tip || el.dataset?.preview)) {
+        const r = el.getBoundingClientRect();
+        this._showTip(el, r.left + r.width / 2, r.top);
+      }
       if (el.matches?.("input[type=time][data-path]") && this._edit) {
         this._timeFocus = { path: el.dataset.path, value: el.value, item: this._edit.item };
       }
     });
     root.addEventListener("focusout", (ev) => {
       const el = ev.target;
+      if (el.dataset?.tip || el.dataset?.preview) {
+        const tip = root.querySelector(".tip");
+        if (tip) tip.hidden = true;
+      }
       const focus = this._timeFocus;
       if (!focus || !el.matches?.("input[type=time][data-path]") || el.dataset.path !== focus.path) return;
       this._timeFocus = null;
@@ -4819,6 +4860,9 @@ const STYLE = `
   .group-list { margin: 0; padding-left: 20px; max-height: 40vh; overflow: auto; }
   .tip { position: fixed; z-index: 95; pointer-events: none; background: var(--ink); color: var(--bg); font-size: .8rem; font-weight: 600; padding: 6px 10px; border-radius: 10px; box-shadow: var(--shadow-lg); max-width: 240px; transform: translate(-50%, calc(-100% - 10px)); }
   .tip[hidden] { display: none; }
+  .tip.preview { max-width: none; padding: 6px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .tip.preview img { width: 360px; height: 360px; object-fit: cover; border-radius: 12px; display: block; }
+  .tip.below { transform: translate(-50%, 18px); }
 
   /* bottom bar (phones) */
   .bnav { display: none; }

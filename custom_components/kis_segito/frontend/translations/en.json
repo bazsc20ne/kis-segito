@@ -644,5 +644,7 @@
   "history.group_every_child": "Every child",
   "history.group_confirm": "These go back to not done: they leave today's progress, the knob and the streak, and their tokens are reversed (from the piggy bank when the wallet no longer holds them). The entries stay in the log.",
   "history.group_checkpoint": "checkpoint:",
-  "history.group_none": "Nothing here can be undone."
+  "history.group_none": "Nothing here can be undone.",
+  "tip.wallet": "Wallet: {n} tokens",
+  "tip.piggy": "Piggy bank: {n} tokens"
 }

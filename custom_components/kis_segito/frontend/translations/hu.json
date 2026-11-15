@@ -644,5 +644,7 @@
   "history.group_every_child": "Minden gyereknél",
   "history.group_confirm": "Ezek újra nem készek lesznek: kikerülnek a mai haladásból, a gombról és a sorozatból, és a zsetonjaik visszavonásra kerülnek (ha a pénztárcában már nincs meg, a perselyből). A bejegyzések naplózva maradnak.",
   "history.group_checkpoint": "ellenőrzőpont:",
-  "history.group_none": "Ehhez nincs visszavonható bejegyzés."
+  "history.group_none": "Ehhez nincs visszavonható bejegyzés.",
+  "tip.wallet": "Pénztárca: {n} zseton",
+  "tip.piggy": "Persely: {n} zseton"
 }

@@ -50,6 +50,14 @@ uses [Semantic Versioning](https://semver.org/).
   (felül a magyar), a magyar szövegek „gomb”-ot mondanak.
 - A tároló sorvégei mindenhol egységesek, így a kézi telepítés pontosan
   megegyezik a HACS-ból letöltöttel.
+- A panel minden súgóbuboréka egyféle, a panel stílusában; nincs több dupla
+  buborék, és a gyerekkártya nem takarja a benne lévők buborékát. A
+  pénztárca és a persely buboréka megmondja az összeget. Asztali gépen a
+  hátterek és az avatarok fölé víve nagy előnézet jelenik meg.
+- A gomb témaváltáskor az új téma összes eddig használt képét eltárolja az
+  újraindulás előtt, így utána az első kör is gyors. A rövid és a hosszú
+  gombnyomást a gomb saját időzítése dönti el, így lassú rajzolás közben sem
+  téveszti össze őket.
 
 ### English
 
@@ -86,6 +94,14 @@ uses [Semantic Versioning](https://semver.org/).
   Hungarian and English parts separate and whole (Hungarian first).
 - Line endings are the same everywhere in the repository, so an install by
   hand matches the HACS download exactly.
+- Every tooltip of the panel is one kind, in the panel's style; no more
+  double tooltips, and the child card no longer covers the tooltips inside
+  it. The wallet and piggy bank tooltips say the amount. On a desktop,
+  backgrounds and avatars show a large preview under the pointer.
+- On a theme change the knob stores every picture of the new theme it has
+  used so far before the restart, so the first round after it is quick too.
+  Short and long presses are told apart by the button's own timing, so slow
+  drawing no longer mixes them up.
 
 ## [0.9.11] - 2026-11-14
 
