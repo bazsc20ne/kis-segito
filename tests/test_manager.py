@@ -722,3 +722,29 @@ async def test_events_log_tasks_and_checkpoints(
     assert missed["type"] == "checkpoint_missed"
     assert missed["checkpoint_name"] == "Door"
     assert manager.balances(kid) == {"wallet": 0, "piggy": 0}
+
+
+async def test_template_day_extras_refresh_and_off(manager: KisSegitoManager) -> None:
+    """A copy runs even when its routine is off; an existing routine can be
+    added to a template's day; a copy can be refreshed; no empty groups."""
+    morning = await manager.async_save_item("routines", {"name": "Morning", "start": "07:00", "end": "07:45"})
+    music = await manager.async_save_item("routines", {"name": "Music", "start": "16:00", "end": "17:00"})
+    group = await manager.async_save_template_group(None, "Saturday", [morning["id"]])
+    day = manager.today()
+    await manager.async_set_day_template(day=day, template_id=group["id"])
+    await manager.async_save_item("routines", {"id": morning["id"], "active": False, "start": "06:00"})
+    assert [(r["name"], r["start"]) for r in manager.routines_on_day(day)] == [("Morning", "07:00")]
+    await manager.async_set_day_extra(day, music["id"], True)
+    assert [r["name"] for r in manager.routines_on_day(day)] == ["Morning", "Music"]
+    assert manager.routines_on_day(day)[1]["extra"]
+    await manager.async_set_override(day, music["id"], skip=True)
+    assert [r["name"] for r in manager.routines_on_day(day)] == ["Morning"]
+    await manager.async_set_day_extra(day, music["id"], False)
+    assert manager.data["day_extras"] == {}
+    [member] = manager.template_members(group)
+    await manager.async_refresh_template(member["id"])
+    assert manager.template_members(group)[0]["routine"]["start"] == "06:00"
+    with pytest.raises(KisSegitoError):
+        await manager.async_save_template_group(None, "Empty", [])
+    with pytest.raises(KisSegitoError):
+        await manager.async_save_template_group(group["id"], "Saturday", [], keep=[])

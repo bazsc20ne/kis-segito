@@ -86,6 +86,8 @@ def async_register_commands(hass: HomeAssistant) -> None:
         ws_day_template,
         ws_template_group_save,
         ws_template_group_delete,
+        ws_template_refresh,
+        ws_day_extra,
         ws_notify_targets,
         ws_notify_test,
         ws_day_routine,
@@ -686,6 +688,7 @@ async def ws_data(
             "routine_templates": manager.data["routine_templates"],
             "weekday_templates": manager.data["weekday_templates"],
             "date_templates": manager.data["date_templates"],
+            "day_extras": manager.data["day_extras"],
             "devices": _devices(hass),
             "icons": await hass.async_add_executor_job(_icons),
             "small_icons": await hass.async_add_executor_job(_small_icons),
@@ -1013,6 +1016,8 @@ def ws_week(
                     {
                         "routine": r,
                         "one_day": bool(r.get("one_day")),
+                        # A live routine added to a template's day.
+                        "extra": bool(r.get("extra")),
                         "moved_from": (manager.override(day, r["id"]) or {}).get(
                             "moved_from"
                         ),
@@ -1293,6 +1298,52 @@ async def ws_template_group_delete(
         msg["id"],
         _manager(hass).async_delete_template_group(
             msg["group_id"], with_templates=msg["with_templates"], who=_who(connection)
+        ),
+    )
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/template/refresh",
+        vol.Required("template_id"): str,
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_template_refresh(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Save a routine template again from its routine as it is now."""
+    await _run(
+        connection,
+        msg["id"],
+        _manager(hass).async_refresh_template(msg["template_id"], who=_who(connection)),
+    )
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/day_extra",
+        vol.Required("date"): str,
+        vol.Required("routine_id"): str,
+        vol.Required("add"): bool,
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_day_extra(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Add a live routine to a template's day, or take it off."""
+    await _run(
+        connection,
+        msg["id"],
+        _manager(hass).async_set_day_extra(
+            date.fromisoformat(msg["date"]), msg["routine_id"], msg["add"], who=_who(connection)
         ),
     )
 

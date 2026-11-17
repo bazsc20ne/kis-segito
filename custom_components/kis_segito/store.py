@@ -110,6 +110,8 @@ def _empty_config() -> dict[str, Any]:
         "routine_templates": [],
         "weekday_templates": {},
         "date_templates": {},
+        # Live routines added to a template's day: {date: [routine ids]}.
+        "day_extras": {},
         "notifications": [],
         "audit": [],
         # Child sensors already shared with Assist once (unique ids).

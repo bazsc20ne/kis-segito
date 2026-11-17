@@ -10,7 +10,7 @@
 
 // Must equal the integration version (scripts/check_versions.py checks it):
 // a browser that still runs an older copy of this file shows a reload bar.
-const PANEL_VERSION = "0.9.18";
+const PANEL_VERSION = "0.9.19";
 const FALLBACK_LANGUAGE = "en";
 const LANGUAGE_AUTO = "auto";
 const TABS = ["today", "calendar", "children", "routines", "rewards", "tokens", "history", "notifications", "settings"];
@@ -1229,7 +1229,8 @@ class KisSegitoPanel extends HTMLElement {
             : `<div class="mod-ctl"><button class="btn sm ghost restore ${shift ? "" : "idle"}" data-act="ov-restore" data-arg="${this._e(r.id)}" data-tip="${this._e(restoreLabel)}" aria-label="${this._e(restoreLabel)}" ${shift ? "" : `tabindex="-1" aria-hidden="true"`}>↺<span class="wide"> ${this._e(restoreLabel)}</span></button>
                <span class="stepper"><button data-act="ov-shift" data-arg="${this._e(r.id)}" data-d="-5" aria-label="-5">−</button><span>${sign(shift)} ${this._e(this._t("modify.minutes"))}</span><button data-act="ov-shift" data-arg="${this._e(r.id)}" data-d="5" aria-label="+5">+</button></span>
                <button class="btn sm" data-act="ov-skip" data-arg="${this._e(r.id)}">${this._e(this._t("modify.skip"))}</button>${this._help("help.modify_row", this._t("modify.title"))}</div>`;
-        return `<div class="mod-row ${skipped ? "skipped" : ""}">${nameBlock(r, times, state)}${controls}</div>`;
+        const extra = admin && r.extra && !skipped ? `<button class="btn sm ghost" data-act="day-extra-remove" data-arg="${this._e(r.id)}" data-date="${day.date}">${this._e(this._t("templates.extra_remove"))}</button>${this._help("help.template_extra_remove", this._t("templates.extra_remove"))}` : "";
+        return `<div class="mod-row ${skipped ? "skipped" : ""}">${nameBlock(r, times, state)}${extra}${controls}</div>`;
       })
       .join("");
     const oneDay = day.routines
@@ -1244,8 +1245,17 @@ class KisSegitoPanel extends HTMLElement {
           <option value="-" ${chosen === "" ? "selected" : ""}>${this._e(this._t("templates.own_days"))}</option>
           ${templates.map((t) => `<option value="${this._e(t.id)}" ${t.id === chosen ? "selected" : ""}>${this._e(t.name)}</option>`).join("")}</select></label>`
       : "";
+    // On a template's day: which template runs instead of the routines' own
+    // days, and an existing routine can be added to the day.
+    let templateNote = "";
+    if (day.template) {
+      const replaced = this._data.routines.filter((r) => r.active !== false && (!r.weekdays?.length || r.weekdays.includes(weekday)) && !day.routines.some((x) => x.id === r.id));
+      const addable = this._data.routines.filter((r) => !day.routines.some((x) => x.id === r.id));
+      templateNote = `<div class="banner" style="margin-bottom:10px"><span class="grow">${this._e(this._t("templates.today_runs").replace("{name}", day.template_name || ""))}${replaced.length ? ` ${this._e(this._t("templates.today_replaced").replace("{routines}", replaced.map((r) => r.name).join(", ")))}` : ""}</span>${this._help("help.template_today", this._t("modify.template"))}</div>
+        ${admin && addable.length ? `<div class="row wrap" style="gap:6px;margin-bottom:10px"><select data-day-extra="${day.date}" style="width:auto">${addable.map((r) => `<option value="${this._e(r.id)}">${this._e(r.name || this._t("routines.unnamed"))}</option>`).join("")}</select><button class="btn sm" data-act="day-extra-add" data-date="${day.date}">＋ ${this._e(this._t("templates.extra_add"))}</button>${this._help("help.template_extra_add", this._t("templates.extra_add"))}</div>` : ""}`;
+    }
     return `<div class="section-title">${this._icon("nav_calendar", 34)}<h2>${this._e(this._t("modify.title"))}${this._help("help.modify_today", this._t("modify.title"))}</h2></div>
-      <div class="card">${select}${rows}${oneDay}
+      <div class="card">${select}${templateNote}${rows}${oneDay}
       ${admin ? `<div class="row" style="margin-top:12px;gap:6px"><button class="btn" data-act="day-new" data-date="${day.date}">＋ ${this._e(this._t("modify.add_one_day"))}</button>${this._help("help.one_day", this._t("modify.add_one_day"))}</div>` : ""}</div>`;
   }
 
@@ -1388,32 +1398,44 @@ class KisSegitoPanel extends HTMLElement {
     const all = this._data.routine_templates || [];
     const admin = this._isAdmin;
     const groupIds = new Set(groups.map((g) => g.id));
+    // The buttons sit in one right-hand column of fixed slots, so they line
+    // up from row to row (an empty slot keeps its place).
+    const slot = (act, arg, label, help, cls = "") =>
+      act ? `<span class="tpl-slot"><button class="btn sm ${cls}" data-act="${act}" data-arg="${this._e(arg)}">${this._e(label)}</button>${this._help(help, label)}</span>` : `<span class="tpl-slot"></span>`;
     const row = (t, nested) => {
       const r = t.routine || {};
       const times = r.start && r.end ? `${r.start}–${r.end}` : "";
+      const live = t.source ? this._routine(t.source) : null;
       const buttons = admin
-        ? `<button class="btn sm primary" data-act="from-rtemplate" data-arg="${this._e(t.id)}">＋ ${this._e(this._t("rtemplates.create"))}</button>${this._help("help.rtemplate_create", this._t("rtemplates.create"))}<button class="btn sm danger" data-act="delete-rtemplate" data-arg="${this._e(t.id)}">${this._e(this._t("templates.delete_one"))}</button>${this._help("help.rtemplate_delete", this._t("templates.delete_one"))}`
+        ? slot(live ? "refresh-rtemplate" : "", t.id, this._t("templates.refresh"), "help.template_refresh") +
+          slot("from-rtemplate", t.id, `＋ ${this._t("rtemplates.create")}`, "help.rtemplate_create", "primary") +
+          slot("delete-rtemplate", t.id, this._t("templates.delete_one"), "help.rtemplate_delete", "danger")
         : "";
-      return `<div class="mod-row ${nested ? "tpl-member" : ""}">${this._icon(r.icon || "routine_generic", nested ? 28 : 36)}<div class="grow"><b>${this._e(t.name || r.name || this._t("routines.unnamed"))}</b> <span class="muted num small">${this._e(times)}</span></div><div class="tpl-ctl">${buttons}</div></div>`;
+      return `<div class="tpl-row ${nested ? "tpl-member" : ""}">${this._icon(r.icon || "routine_generic", nested ? 28 : 36)}<div class="grow"><b>${this._e(t.name || r.name || this._t("routines.unnamed"))}</b> <span class="muted num small">${this._e(times)}</span></div><div class="tpl-ctl">${buttons}</div></div>`;
     };
     const cards = groups
       .map((g) => {
         const members = all.filter((t) => t.group === g.id).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
-        const head = `<div class="row tpl-head">${this._icon(g.icon || "nav_calendar", 34)}<b class="grow">${this._e(g.name || this._t("templates.unnamed"))}</b>
-          ${admin ? `<button class="btn sm danger" data-act="delete-tgroup" data-arg="${this._e(g.id)}">${this._e(this._t("templates.delete_group"))}</button>${this._help("help.template_group_delete", this._t("templates.delete_group"))}` : ""}</div>`;
-        return `<div class="tpl-group">${head}${members.map((t) => row(t, true)).join("") || `<div class="muted small">${this._e(this._t("templates.group_empty"))}</div>`}</div>`;
+        const buttons = admin
+          ? slot("", "", "", "") + `<span class="tpl-slot"><button class="btn sm" data-act="edit" data-coll="templates" data-arg="${this._e(g.id)}">${this._icon("action_edit", 18, "glyph")} ${this._e(this._t("templates.edit_group"))}</button>${this._help("help.template_group_edit", this._t("templates.edit_group"))}</span>` +
+            slot("delete-tgroup", g.id, this._t("templates.delete_group"), "help.template_group_delete", "danger")
+          : "";
+        return `<div class="tpl-group"><div class="tpl-row tpl-head">${this._icon(g.icon || "nav_calendar", 34)}<div class="grow"><b>${this._e(g.name || this._t("templates.unnamed"))}</b></div><div class="tpl-ctl">${buttons}</div></div>${members.map((t) => row(t, true)).join("") || `<div class="muted small">${this._e(this._t("templates.group_empty"))}</div>`}</div>`;
       })
       .join("");
     const singles = all.filter((t) => !t.group || !groupIds.has(t.group)).map((t) => row(t, false)).join("");
-    const choices = [...groups.map((g) => ({ id: g.id, name: g.name })), ...all.filter((t) => !t.group || !groupIds.has(t.group)).map((t) => ({ id: t.id, name: t.name }))];
+    const choices = this._dayTemplateChoices();
     const defaults = WEEKDAYS.map((d) => {
       const current = this._data.weekday_templates?.[String(d)] || "";
       return `<label class="field"><span>${this._e(this._t(`weekday.${d}`))}</span><select data-weekday-template="${d}" ${this._dis()}><option value="">${this._e(this._t("templates.own_days"))}</option>${choices.map((x) => `<option value="${this._e(x.id)}" ${x.id === current ? "selected" : ""}>${this._e(x.name)}</option>`).join("")}</select></label>`;
     }).join("");
     const empty = !cards && !singles;
     if (empty && page === "routines" && !admin) return "";
-    return `<div class="section-title">${this._icon("routine_helper", 34)}<h2>${this._e(this._t("templates.title"))}${this._help("help.templates", this._t("templates.title"))}</h2>${admin ? `<button class="btn primary" data-act="new" data-arg="templates">＋ ${this._e(this._t("templates.add_group"))}</button>${this._help("help.template_group_add", this._t("templates.add_group"))}` : ""}</div>
-      <div class="card">${cards}${singles}${empty ? `<div class="empty">${this._e(this._t("templates.none"))}</div>` : ""}
+    const add = admin
+      ? `<span class="row" style="gap:6px;flex-wrap:wrap"><button class="btn primary" data-act="new" data-arg="tsingle">＋ ${this._e(this._t("templates.add_single"))}</button>${this._help("help.template_add_single", this._t("templates.add_single"))}<button class="btn primary" data-act="new" data-arg="templates">＋ ${this._e(this._t("templates.add_group"))}</button>${this._help("help.template_group_add", this._t("templates.add_group"))}</span>`
+      : "";
+    return `<div class="section-title">${this._icon("routine_helper", 34)}<h2>${this._e(this._t("templates.title"))}${this._help("help.templates", this._t("templates.title"))}</h2>${add}</div>
+      <div class="card">${cards}${singles ? `<div class="tpl-group plain">${singles}</div>` : ""}${empty ? `<div class="empty">${this._e(this._t("templates.none"))}</div>` : ""}
       ${page === "calendar" && choices.length ? `<h3 style="margin:18px 0 10px">${this._e(this._t("templates.weekdays"))}${this._help("help.weekday_templates", this._t("templates.weekdays"))}</h3><div class="form-grid" style="grid-template-columns:repeat(auto-fill,minmax(120px,1fr))">${defaults}</div>` : ""}</div>`;
   }
 
@@ -2112,6 +2134,8 @@ ${tab === "data" ? `
         return { name: "", icon: "fn_rewards", cost: 5, active: true, kind: "normal" };
       case "templates":
         return { name: "", icon: "nav_calendar", keep: [], add: [] };
+      case "tsingle":
+        return { name: "", pick: "" };
       default:
         return {
           name: "",
@@ -2241,7 +2265,7 @@ ${tab === "data" ? `
   }
 
   async _openEdit(coll, id, extra = {}) {
-    const found = id ? this._data[coll].find((x) => x.id === id) : null;
+    const found = id ? (this._data[coll] || []).find((x) => x.id === id) : null;
     const item = found ? clone(found) : this._newItem(coll);
     if (coll === "templates" && found) {
       // A group: its routine templates (kept unless taken out) and routines
@@ -2394,6 +2418,16 @@ ${tab === "data" ? `
     };
   }
 
+  // A new single template: a copy of one routine as it is now.
+  _editSingleTemplate() {
+    const x = this._edit.item;
+    return {
+      title: this._t("templates.add_single"),
+      body: `<div class="field"><span>${this._e(this._t("templates.single_routine"))}${this._help("help.template_single_routine", this._t("templates.single_routine"))}</span><div class="row wrap" style="gap:6px">${this._data.routines.map((r) => `<button class="chip ${x.pick === r.id ? "on" : ""}" data-act="tsingle-pick" data-arg="${this._e(r.id)}">${this._icon(r.icon || "routine_generic", 22)} ${this._e(r.name || this._t("routines.unnamed"))}</button>`).join("")}</div></div>
+        <label class="field"><span>${this._e(this._t("rtemplates.name"))}</span><input data-path="name" value="${this._e(x.name)}"></label>`,
+    };
+  }
+
   _editTemplate() {
     const x = this._edit.item;
     const members = x.id ? (this._data.routine_templates || []).filter((t) => t.group === x.id) : [];
@@ -2404,6 +2438,30 @@ ${tab === "data" ? `
         ${members.length ? `<div class="field"><span>${this._e(this._t("templates.group_members"))}${this._help("help.template_group_members", this._t("templates.group_members"))}</span><div class="row wrap" style="gap:6px">${members.map((t) => chip(x.keep.includes(t.id), "toggle-keep", t.id, t.routine?.icon, t.name)).join("")}</div></div>` : ""}
         <div class="field"><span>${this._e(this._t("templates.group_add"))}${this._help("help.template_group_routines", this._t("templates.group_add"))}</span><div class="row wrap" style="gap:6px">${this._data.routines.map((r) => chip(x.add.includes(r.id), "toggle-routine", r.id, r.icon, r.name)).join("")}</div></div>`,
     };
+  }
+
+  // In a routine's editor: the weekdays and dates on which a template runs
+  // instead of the routine (it is not in that template).
+  _templateRunsNote(ed) {
+    if (ed.coll !== "routines" || !ed.item.id) return "";
+    const r = ed.item;
+    const groups = this._data.templates || [];
+    const singles = this._data.routine_templates || [];
+    const find = (id) => groups.find((g) => g.id === id) || singles.find((t) => t.id === id);
+    const holds = (t) => (t.routine ? [t] : singles.filter((m) => m.group === t.id)).some((m) => m.source === r.id);
+    const parts = [];
+    for (const d of WEEKDAYS) {
+      const t = find(this._data.weekday_templates?.[String(d)]);
+      if (t && (!r.weekdays?.length || r.weekdays.includes(d)) && !holds(t)) parts.push(`${this._t(`weekday.${d}`)}: ${t.name}`);
+    }
+    const today = this._todayStr();
+    for (const [date, id] of Object.entries(this._data.date_templates || {}).sort()) {
+      const t = find(id);
+      if (date >= today && t && !holds(t)) parts.push(`${date}: ${t.name}`);
+    }
+    return parts.length
+      ? `<div class="banner" style="margin-bottom:12px"><span class="grow">${this._e(this._t("templates.runs_instead").replace("{list}", parts.join(" · ")))}</span>${this._help("help.template_runs_instead", this._t("templates.title"))}</div>`
+      : "";
   }
 
   // Grouping from a routine editor: tick routines and name the group; the
@@ -2481,7 +2539,7 @@ ${tab === "data" ? `
     const template = `<div class="field"><span>${this._e(this._t("rtemplates.save_title"))}${this._help("help.rtemplate_save", this._t("rtemplates.save_title"))}</span><div class="row"><input id="rtpl-name" value="${this._e(r.name || "")}" placeholder="${this._e(this._t("rtemplates.name"))}"><button class="btn" data-act="save-rtemplate">${this._e(this._t("rtemplates.save"))}</button></div>
       ${this._rtplSaved ? `<div class="tag good">${this._e(this._t("rtemplates.saved"))}: ${this._e(this._rtplSaved)}</div>` : ""}</div>`;
     const sections = {
-      basics: [this._t("ed.basics"), basics, "name"],
+      basics: [this._t("ed.basics"), this._templateRunsNote(ed) + basics, "name"],
       look: [this._t("routines.zones"), look, "zones"],
       cps: [`${this._t("routines.checkpoints")} · ${r.checkpoints.length}`, cps, "checkpoints"],
       tasks: [`${this._t("routines.tasks")} · ${r.tasks.length}`, tasks, "tasks"],
@@ -2504,7 +2562,7 @@ ${tab === "data" ? `
     if (!ed) {
       return "";
     }
-    const view = { children: () => this._editChild(), rewards: () => this._editReward(), templates: () => this._editTemplate(), routines: () => this._editRoutine(), day: () => this._editRoutine() }[ed.coll]();
+    const view = { children: () => this._editChild(), rewards: () => this._editReward(), templates: () => this._editTemplate(), tsingle: () => this._editSingleTemplate(), routines: () => this._editRoutine(), day: () => this._editRoutine() }[ed.coll]();
     const close = `<button class="btn" data-act="cancel">${this._e(this._t("common.close"))}</button>`;
     let foot;
     if (view.plain) {
@@ -3203,12 +3261,24 @@ ${tab === "data" ? `
 
   async _saveEdit() {
     const ed = this._edit;
+    // A group needs at least one routine; a single template its routine.
+    if ((ed.coll === "templates" && !ed.item.add.length && !ed.item.keep.length) || (ed.coll === "tsingle" && !ed.item.pick)) {
+      this._error = this._t(ed.coll === "tsingle" ? "templates.pick_routine" : "error.empty_template");
+      this._render();
+      return;
+    }
     if (ed.coll === "day") {
       const msg = { type: "kis_segito/day_routine", date: ed.date, routine_id: ed.routine_id, routine: ed.item };
       if (ed.newDate && ed.newDate !== ed.date) {
         msg.target_date = ed.newDate;
       }
       await this._ws(msg);
+    } else if (ed.coll === "tsingle") {
+      const live = this._routine(ed.item.pick);
+      if (!live) return;
+      const routine = clone(live);
+      for (const key of ["id", "sort_order", "active"]) delete routine[key];
+      await this._ws({ type: "kis_segito/save", collection: "routine_templates", item: { name: ed.item.name || live.name || "", routine, source: live.id } });
     } else if (ed.coll === "templates") {
       const x = ed.item;
       await this._ws({ type: "kis_segito/template_group/save", group_id: x.id || null, name: x.name || "", icon: x.icon || null, routine_ids: x.add, keep: x.keep });
@@ -3512,6 +3582,29 @@ ${tab === "data" ? `
         this._set(path, list.includes(arg) ? list.filter((x) => x !== arg) : [...list, arg]);
         break;
       }
+      case "tsingle-pick": {
+        const it = this._edit.item;
+        const before = this._routine(it.pick)?.name || "";
+        it.pick = arg;
+        if (!it.name || it.name === before) it.name = this._routine(arg)?.name || "";
+        break;
+      }
+      case "refresh-rtemplate":
+        await this._ws({ type: "kis_segito/template/refresh", template_id: arg });
+        this._toast(this._t("toast.trefresh"));
+        await this._load();
+        return;
+      case "day-extra-add": {
+        const sel = this.shadowRoot.querySelector(`[data-day-extra="${el.dataset.date}"]`);
+        if (!sel?.value) return;
+        await this._ws({ type: "kis_segito/day_extra", date: el.dataset.date, routine_id: sel.value, add: true });
+        await this._load();
+        return;
+      }
+      case "day-extra-remove":
+        await this._ws({ type: "kis_segito/day_extra", date: el.dataset.date, routine_id: arg, add: false });
+        await this._load();
+        return;
       case "toggle-keep": {
         const keep = this._edit.item.keep;
         const at = keep.indexOf(arg);
@@ -3521,7 +3614,7 @@ ${tab === "data" ? `
       }
       case "toggle-routine": {
         const list = this._edit.item.add;
-        this._edit.item.routines = list.includes(arg) ? list.filter((x) => x !== arg) : [...list, arg];
+        this._edit.item.add = list.includes(arg) ? list.filter((x) => x !== arg) : [...list, arg];
         break;
       }
       case "cost":
@@ -4834,10 +4927,13 @@ const STYLE = `
   .cp-chip.waiting { background: var(--sun-soft); color: var(--sun); }
   .mod-row { display: flex; align-items: center; gap: 10px; padding: 12px 0; border-top: 1px solid var(--line); flex-wrap: wrap; }
   .mod-row.skipped { opacity: .55; }
-  .tpl-group { border: 1px solid var(--line); border-radius: 16px; padding: 10px 14px; margin: 10px 0; background: var(--surface-2, transparent); }
-  .tpl-head { gap: 8px; flex-wrap: wrap; }
-  .mod-row.tpl-member { padding: 8px 0 8px 18px; }
-  .tpl-ctl { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+  .tpl-group { border: 1px solid var(--line); border-radius: 16px; padding: 4px 14px; margin: 10px 0; background: var(--surface-2, transparent); }
+  .tpl-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); flex-wrap: wrap; }
+  .tpl-group > .tpl-row:first-child { border-top: 0; }
+  .tpl-group.plain { border-color: transparent; background: transparent; }
+  .tpl-row.tpl-member { padding-left: 18px; }
+  .tpl-ctl { display: grid; grid-template-columns: 200px 230px 180px; gap: 6px; margin-left: auto; justify-items: end; align-items: center; }
+  .tpl-slot { display: inline-flex; align-items: center; gap: 4px; }
   .mod-row .nameblk { min-width: 0; }
   .mod-ctl { display: flex; align-items: center; gap: 8px; margin-left: auto; flex-wrap: nowrap; }
   .mod-ctl .restore.idle { visibility: hidden; }
@@ -5065,6 +5161,7 @@ const STYLE = `
     main { padding-bottom: 110px; }
     .mod-row .nameblk { flex: 1 1 100%; }
     .mod-ctl { flex: 1 1 100%; justify-content: flex-end; }
+    .tpl-ctl { grid-template-columns: 1fr; width: 100%; }
     .mod-ctl .restore .wide { display: none; }
     .bnav { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; background: var(--surface); border-top: 1px solid var(--line); padding: 6px 6px calc(6px + env(safe-area-inset-bottom, 0px)); gap: 2px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; box-shadow: 0 -8px 24px rgb(0 0 0 / .08);
       -webkit-mask-image: linear-gradient(to right, transparent, #000 18px, #000 calc(100% - 18px), transparent); mask-image: linear-gradient(to right, transparent, #000 18px, #000 calc(100% - 18px), transparent); }

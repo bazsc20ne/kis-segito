@@ -224,14 +224,13 @@ class KisSegitoManager:
 
         Each runs under the id of the live routine it was copied from (so the
         day's progress and changes follow that routine), or under its own id
-        when that routine is gone; a routine switched off does not run.
+        when that routine is gone. Live routines added to the day run too.
         """
         result = []
         used: set[str] = set()
         for member in self.template_members(template):
+            # The copy runs even when its routine is switched off or deleted.
             source = self.routine(member.get("source") or "")
-            if source is not None and not source.get("active", True):
-                continue
             routine_id = source["id"] if source is not None and source["id"] not in used else member["id"]
             used.add(routine_id)
             routine = dict(member.get("routine") or {}) | {"id": routine_id, "active": True}
@@ -239,7 +238,49 @@ class KisSegitoManager:
                 routine = self._with_day_changes(routine, day)
             if routine is not None:
                 result.append(routine)
+        for routine_id in self.data["day_extras"].get(day.isoformat(), []):
+            live = self.routine(routine_id)
+            if live is None or routine_id in used:
+                continue
+            used.add(routine_id)
+            routine = dict(live) | {"extra": True}
+            if day_changes:
+                routine = self._with_day_changes(routine, day)
+            if routine is not None:
+                result.append(routine)
         return result
+
+    async def async_set_day_extra(
+        self, day: date, routine_id: str, add: bool, *, who: str = "parent"
+    ) -> None:
+        """Add a live routine to a template's day (or take it off again)."""
+        if day < self.today():
+            raise KisSegitoError("past_day")
+        if self.routine(routine_id) is None:
+            raise KisSegitoError("unknown_routine")
+        extras = self.data["day_extras"].setdefault(day.isoformat(), [])
+        if add and routine_id not in extras:
+            extras.append(routine_id)
+        elif not add and routine_id in extras:
+            extras.remove(routine_id)
+        if not extras:
+            self.data["day_extras"].pop(day.isoformat(), None)
+        self._audit(who, f"day_extra.{day.isoformat()}.{routine_id}", not add, add)
+        await self._changed()
+
+    async def async_refresh_template(self, template_id: str, *, who: str = "parent") -> dict[str, Any]:
+        """Save a routine template again from its routine as it is now."""
+        template = next((t for t in self.data["routine_templates"] if t["id"] == template_id), None)
+        if template is None:
+            raise KisSegitoError("unknown_template")
+        routine = self.routine(template.get("source") or "")
+        if routine is None:
+            raise KisSegitoError("unknown_routine")
+        template["routine"] = self.routine_snapshot(routine)
+        template["name"] = routine.get("name", "") or template.get("name", "")
+        self._audit(who, f"template.{template_id}", None, "refreshed")
+        await self._changed()
+        return template
 
     def template_by_id(self, template_id: str) -> dict[str, Any] | None:
         """A day template: a group of routine templates, or a single one."""
@@ -290,6 +331,10 @@ class KisSegitoManager:
         others leave the group and are deleted); None keeps them all.
         """
         groups = self.data["templates"]
+        if not group_id and not routine_ids:
+            raise KisSegitoError("empty_template")
+        if any(self.routine(routine_id) is None for routine_id in routine_ids):
+            raise KisSegitoError("unknown_routine")
         if group_id:
             group = next((g for g in groups if g["id"] == group_id), None)
             if group is None:
@@ -297,16 +342,20 @@ class KisSegitoManager:
         else:
             group = {"id": lg.new_id(), "sort_order": len(groups)}
             groups.append(group)
+        members = self.template_members(group)
+        if keep is not None and not routine_ids and not any(m["id"] in keep for m in members):
+            raise KisSegitoError("empty_template")
         group["name"] = name.strip() or group.get("name") or ""
         group["icon"] = icon or group.get("icon") or "nav_calendar"
         group.pop("routines", None)
-        members = self.template_members(group)
         if keep is not None:
             gone = {m["id"] for m in members if m["id"] not in keep}
             self.data["routine_templates"] = [
                 t for t in self.data["routine_templates"] if t["id"] not in gone
             ]
             members = [m for m in members if m["id"] not in gone]
+        if not members and not routine_ids:
+            raise KisSegitoError("empty_template")
         order = len(members)
         for routine_id in routine_ids:
             routine = self.routine(routine_id)
@@ -2350,6 +2399,8 @@ class KisSegitoManager:
             del self.data["overrides"][key]
         for key in [k for k in self.data["date_templates"] if k < keep]:
             del self.data["date_templates"][key]
+        for key in [k for k in self.data["day_extras"] if k < keep]:
+            del self.data["day_extras"][key]
 
     # ------------------------------------------------------------ streaks & interest
 

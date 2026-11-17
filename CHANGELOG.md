@@ -12,6 +12,55 @@ All notable changes to this project are documented here, in Hungarian and Englis
 The format follows [Keep a Changelog](https://keepachangelog.com/) and the project
 uses [Semantic Versioning](https://semver.org/).
 
+## [0.9.19] - 2026-11-17
+
+### Magyar
+
+- **Üres csoport nem menthető, és a csoport rutinjai megmaradnak.** Az „Új
+  sablon-csoport” ablakban bejelölt rutinok most bekerülnek a csoportba; rutin nélkül a
+  csoport nem menthető.
+- **Két gomb indítja a sablonokat.** A Rutinok és a Naptár oldalon az „Új sablon” egy
+  rutinról készít sablont, az „Új sablon-csoport” több rutinból napsablont.
+- **A csoport szerkeszthető.** A „Csoport szerkesztése” gombbal átnevezhető, sablon
+  vehető ki belőle, és rutin tehető bele másolatként.
+- **A sablon másolata frissíthető.** A „Másolat frissítése” gomb a sablont újra elmenti
+  abból a rutinból, amelyből készült, annak mostani állapotában.
+- **A sablonok gombjai egy oszlopba rendeződnek.** A Sablonok lista minden sorában a
+  gombok ugyanott állnak, így a lista könnyebben átlátható.
+- **Látszik, hol fut sablon egy rutin helyett.** A Ma oldal kiírja, melyik sablon fut
+  aznap és mely rutinok maradnak ki; a rutinszerkesztő megmutatja, mely napokon cseréli
+  le egy sablon a rutint.
+- **Sablonos napra meglévő rutin is tehető.** A Ma oldalon egy rutin hozzáadható
+  az aznapi sablon rutinjai mellé, és le is vehető onnan.
+- **A sablon másolata a kikapcsolt vagy törölt rutin után is fut.** A sablonos napokon a
+  másolat attól függetlenül fut, hogy az eredeti rutin ki van-e kapcsolva vagy megvan-e
+  még.
+- **A README megemlíti a Marketplace-t.** A Home Assistant 2026.11-től a HACS
+  Marketplace néven része a Home Assistantnek; a telepítés lépései ugyanezek.
+
+### English
+
+- **An empty group cannot be saved, and a group keeps its routines.** Routines ticked in
+  the "New template group" dialog now go into the group; without a routine the group
+  cannot be saved.
+- **Two buttons start templates.** On the Routines and Calendar pages, "New template"
+  makes a template of one routine and "New template group" a day template of several.
+- **A group can be edited.** "Edit group" renames it, takes templates out of it and adds
+  routines to it as copies.
+- **A template's copy can be refreshed.** "Refresh copy" saves the template again from
+  the routine it was made from, as that routine is now.
+- **The template buttons line up in one column.** In every row of the template list the
+  buttons stand in the same place, so the list is easier to scan.
+- **It shows where a template runs instead of a routine.** The Today page says which
+  template runs that day and which routines are left out; the routine editor shows on
+  which days a template replaces the routine.
+- **An existing routine can be added to a template's day.** On the Today page a routine
+  can be added next to the day's template routines, and taken off again.
+- **A template's copy runs even when its routine is off or deleted.** On template days
+  the copy runs whether the original routine is switched off or still exists.
+- **The README mentions Marketplace.** From Home Assistant 2026.11, HACS is part of Home
+  Assistant as Marketplace; the install steps are the same.
+
 ## [0.9.18] - 2026-11-17
 
 ### Magyar
