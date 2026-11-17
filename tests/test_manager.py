@@ -310,25 +310,89 @@ async def test_day_templates(manager: KisSegitoManager) -> None:
     free = await manager.async_save_item(
         "routines", {"name": "Free morning", "start": "08:30", "end": "09:30"}
     )
-    weekday = await manager.async_save_item(
-        "templates", {"name": "Weekday", "routines": [school["id"]]}
-    )
-    holiday = await manager.async_save_item(
-        "templates", {"name": "Holiday", "routines": [free["id"]]}
-    )
+    weekday = await manager.async_save_template_group(None, "Weekday", [school["id"]])
+    holiday = await manager.async_save_template_group(None, "Holiday", [free["id"]])
     day = manager.today()
     # Without templates both routines follow their own (all) weekdays.
     assert len(manager.routines_on_day(day)) == 2
     await manager.async_set_day_template(
         weekday=day.weekday(), template_id=weekday["id"]
     )
-    assert [r["name"] for r in manager.routines_on_day(day)] == ["School morning"]
+    # The template's copy runs, under the id of the routine it came from.
+    assert [(r["id"], r["name"]) for r in manager.routines_on_day(day)] == [(school["id"], "School morning")]
     await manager.async_set_day_template(day=day, template_id=holiday["id"])
     assert [r["name"] for r in manager.routines_on_day(day)] == ["Free morning"]
     await manager.async_set_day_template(day=day, template_id=None)
     assert manager.template_for_day(day)["name"] == "Weekday"
     with pytest.raises(KisSegitoError):
         await manager.async_set_day_template(day=day, template_id="nope")
+
+
+async def test_template_is_a_copy(manager: KisSegitoManager) -> None:
+    """A group keeps the routines as they were; a single routine template can
+    be put on a day too; one-day changes follow the routine's id."""
+    morning = await manager.async_save_item(
+        "routines", {"name": "Morning", "start": "07:00", "end": "07:45"}
+    )
+    evening = await manager.async_save_item(
+        "routines", {"name": "Evening", "start": "19:00", "end": "20:00"}
+    )
+    group = await manager.async_save_template_group(None, "Saturday", [morning["id"], evening["id"]])
+    members = manager.template_members(group)
+    assert [m["name"] for m in members] == ["Morning", "Evening"]
+    await manager.async_save_item("routines", {"id": morning["id"], "name": "Morning 2", "start": "06:00"})
+    day = manager.today()
+    await manager.async_set_day_template(day=day, template_id=group["id"])
+    assert [(r["name"], r["start"]) for r in manager.routines_on_day(day)] == [("Morning", "07:00"), ("Evening", "19:00")]
+    await manager.async_set_override(day, morning["id"], skip=True)
+    assert [r["name"] for r in manager.routines_on_day(day)] == ["Evening"]
+    # A template whose routine was deleted still runs, under its own id.
+    await manager.async_delete_item("routines", evening["id"])
+    assert [r["id"] for r in manager.routines_on_day(day)] == [members[1]["id"]]
+    await manager.async_set_override(day, members[1]["id"], shift_min=10)
+    assert manager.routines_on_day(day)[0]["start"] == "19:10"
+    # A single routine template on a day.
+    single = await manager.async_save_item("routine_templates", {"name": "Solo", "routine": {"name": "Solo", "start": "10:00", "end": "11:00"}})
+    await manager.async_set_day_template(day=day, template_id=single["id"])
+    assert [r["name"] for r in manager.routines_on_day(day)] == ["Solo"]
+
+
+async def test_template_group_delete(manager: KisSegitoManager) -> None:
+    morning = await manager.async_save_item("routines", {"name": "Morning", "start": "07:00", "end": "07:45"})
+    group = await manager.async_save_template_group(None, "Weekday", [morning["id"]])
+    await manager.async_set_day_template(weekday=0, template_id=group["id"])
+    await manager.async_delete_template_group(group["id"], with_templates=False)
+    assert manager.data["templates"] == [] and "0" not in manager.data["weekday_templates"]
+    [single] = manager.data["routine_templates"]
+    assert "group" not in single and single["name"] == "Morning"
+    group = await manager.async_save_template_group(None, "Again", [morning["id"]])
+    await manager.async_delete_template_group(group["id"], with_templates=True)
+    assert manager.data["routine_templates"] == [single]
+    assert manager.routine(morning["id"]) is not None  # live routines stay
+    # Changing a group: keep some members, add copies.
+    group = await manager.async_save_template_group(None, "Third", [morning["id"]])
+    [first] = manager.template_members(group)
+    await manager.async_save_template_group(group["id"], "Third", [morning["id"]], keep=[])
+    assert [m["id"] for m in manager.template_members(group)] != [first["id"]]
+    assert len(manager.template_members(group)) == 1
+
+
+def test_old_day_templates_become_groups() -> None:
+    data = _migrate_config(
+        {
+            "routines": [{"id": "r1", "name": "Morning", "start": "07:00", "active": True, "sort_order": 0}],
+            "templates": [{"id": "t1", "name": "Weekday", "routines": ["r1", "gone"]}],
+            "routine_templates": [{"id": "x1", "name": "Evening", "routine": {"name": "Evening"}}],
+            "weekday_templates": {"0": "t1"},
+        }
+    )
+    assert data["templates"] == [{"id": "t1", "name": "Weekday"}]
+    assert data["weekday_templates"] == {"0": "t1"}
+    member = next(t for t in data["routine_templates"] if t.get("group") == "t1")
+    assert member["source"] == "r1" and member["routine"] == {"name": "Morning", "start": "07:00"}
+    assert len(data["routine_templates"]) == 2
+    # Migrating again changes nothing.
+    assert _migrate_config(data) == data
 
 
 async def test_script_notification_rule(

@@ -12,6 +12,43 @@ All notable changes to this project are documented here, in Hungarian and Englis
 The format follows [Keep a Changelog](https://keepachangelog.com/) and the project
 uses [Semantic Versioning](https://semver.org/).
 
+## [0.9.18] - 2026-11-17
+
+### Magyar
+
+- **Egyféle sablon van, mindenhol ugyanaz a lista.** A korábbi „Mentett rutinok” és
+  „Napsablonok” egy listába kerültek, amely a Rutinok és a Naptár oldalon is ugyanígy
+  látszik. Egy sablon egy rutin mentett másolata; több sablon egy csoportba
+  (napsablonba) fogható, amely egy kártyán, egymás alatti sorokban jelenik meg.
+- **Sablon vagy csoport tehető egy napra vagy a hét egy napjára.** Azon a napon a
+  benne lévő rutinok futnak, a mentett állapotukban, a többi rutin nem. Ha egy rutint
+  később módosítasz, a sablonja nem változik.
+- **A meglévő sablonok veszteség nélkül átkerültek.** Egy korábbi napsablonból csoport
+  lett a benne lévő rutinok másolataival, és a napok meg a hét napjai ugyanazokat a
+  rutinokat futtatják, mint eddig.
+- **Új rutin soronként készül, és minden rutinszerkesztőben lehet csoportosítani.**
+  Minden sablon sorában „Új rutin ebből” és „Sablon törlése” gomb van; a
+  rutinszerkesztő „Sablonok” lapján bejelölt rutinokból csoport menthető.
+- **Csoport törlésekor választhatsz.** Csak a csoport törlődik (a sablonjai önállóan
+  megmaradnak), vagy a sablonjaival együtt; az élő rutinokat egyik sem érinti.
+
+### English
+
+- **There is one kind of template, the same list everywhere.** The former "Saved
+  routines" and "Day templates" are one list, shown the same way on the Routines and the
+  Calendar page. A template is a saved copy of a routine; several templates can form a
+  group (a day template), shown as one card with a row for each routine.
+- **A template or a group can be put on a day or a weekday.** That day its routines run
+  as they were saved, and the other routines do not. Editing a routine later does not
+  change its template.
+- **Existing templates moved over without loss.** A former day template became a group
+  with copies of its routines, and days and weekdays run the same routines as before.
+- **New routines are made row by row, and every routine editor can group.** Each
+  template row has "New routine from this" and "Delete template" buttons; on the
+  routine editor's "Templates" tab, ticked routines can be saved as a group.
+- **Deleting a group offers a choice.** Delete only the group (its templates stay as
+  single templates) or the group with its templates; neither touches live routines.
+
 ## [0.9.17] - 2026-11-15
 
 ### Magyar

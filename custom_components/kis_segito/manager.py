@@ -9,6 +9,7 @@ or from Home Assistant actions. After each change listeners are notified
 
 from __future__ import annotations
 
+import copy
 import hmac
 import logging
 import re
@@ -185,31 +186,175 @@ class KisSegitoManager:
     ) -> dict[str, Any] | None:
         """The routine as it runs on ``day`` (None: not scheduled or skipped).
 
-        With a day template for ``day`` the template decides which routines
-        run; without one each routine's own weekdays do.
+        With a template for ``day`` the template's routines run (its saved
+        copies, under the id of the routine each was made from); without one
+        each routine's own weekdays decide.
         """
         template = self.template_for_day(day)
         if template is not None:
-            if not routine.get("active", True) or routine["id"] not in template.get(
-                "routines", []
-            ):
-                return None
-        elif not routine_runs_on(routine, day):
+            return next(
+                (r for r in self.template_routines(template, day) if r["id"] == routine["id"]),
+                None,
+            )
+        if not routine_runs_on(routine, day):
             return None
+        return self._with_day_changes(routine, day)
+
+    def _with_day_changes(self, routine: dict[str, Any], day: date) -> dict[str, Any] | None:
         override = self.override(day, routine["id"])
         if override and override.get("routine"):
             # Edited for this day only: the day's copy replaces the routine.
             routine = override["routine"] | {"id": routine["id"]}
         return routine_with_override(routine, override)
 
+    def template_members(self, template: dict[str, Any]) -> list[dict[str, Any]]:
+        """The routine templates of a template: a group's members, or a single
+        routine template itself."""
+        if "routine" in template:
+            return [template]
+        return sorted(
+            (t for t in self.data["routine_templates"] if t.get("group") == template["id"]),
+            key=lambda t: t.get("sort_order", 0),
+        )
+
+    def template_routines(
+        self, template: dict[str, Any], day: date, *, day_changes: bool = True
+    ) -> list[dict[str, Any]]:
+        """The routines a template runs on ``day``, with that day's changes.
+
+        Each runs under the id of the live routine it was copied from (so the
+        day's progress and changes follow that routine), or under its own id
+        when that routine is gone; a routine switched off does not run.
+        """
+        result = []
+        used: set[str] = set()
+        for member in self.template_members(template):
+            source = self.routine(member.get("source") or "")
+            if source is not None and not source.get("active", True):
+                continue
+            routine_id = source["id"] if source is not None and source["id"] not in used else member["id"]
+            used.add(routine_id)
+            routine = dict(member.get("routine") or {}) | {"id": routine_id, "active": True}
+            if day_changes:
+                routine = self._with_day_changes(routine, day)
+            if routine is not None:
+                result.append(routine)
+        return result
+
+    def template_by_id(self, template_id: str) -> dict[str, Any] | None:
+        """A day template: a group of routine templates, or a single one."""
+        return next(
+            (t for t in self.data["templates"] if t["id"] == template_id), None
+        ) or next((t for t in self.data["routine_templates"] if t["id"] == template_id), None)
+
     def template_for_day(self, day: date) -> dict[str, Any] | None:
-        """The day template of ``day``: chosen for the date, else the weekday's."""
+        """The template of ``day``: chosen for the date, else the weekday's."""
         template_id = self.data["date_templates"].get(day.isoformat())
         if template_id is None:
             template_id = self.data["weekday_templates"].get(str(day.weekday()))
         if not template_id:
             return None
-        return next((t for t in self.data["templates"] if t["id"] == template_id), None)
+        return self.template_by_id(template_id)
+
+    def _known_routine(self, routine_id: str, day: date) -> bool:
+        """A live routine, or one a template runs on ``day``."""
+        if self.routine(routine_id) is not None:
+            return True
+        template = self.template_for_day(day)
+        return template is not None and any(
+            m["id"] == routine_id for m in self.template_members(template)
+        )
+
+    @staticmethod
+    def routine_snapshot(routine: dict[str, Any]) -> dict[str, Any]:
+        """A routine as a template keeps it: a copy without its identity."""
+        snapshot = copy.deepcopy(routine)
+        for key in ("id", "sort_order", "active", "one_day"):
+            snapshot.pop(key, None)
+        return snapshot
+
+    async def async_save_template_group(
+        self,
+        group_id: str | None,
+        name: str,
+        routine_ids: list[str],
+        *,
+        icon: str | None = None,
+        keep: list[str] | None = None,
+        who: str = "parent",
+    ) -> dict[str, Any]:
+        """Create or change a group of routine templates (a day template).
+
+        ``routine_ids``: live routines to save into the group as copies (as
+        they are now). ``keep``: routine templates of the group to keep (the
+        others leave the group and are deleted); None keeps them all.
+        """
+        groups = self.data["templates"]
+        if group_id:
+            group = next((g for g in groups if g["id"] == group_id), None)
+            if group is None:
+                raise KisSegitoError("unknown_template")
+        else:
+            group = {"id": lg.new_id(), "sort_order": len(groups)}
+            groups.append(group)
+        group["name"] = name.strip() or group.get("name") or ""
+        group["icon"] = icon or group.get("icon") or "nav_calendar"
+        group.pop("routines", None)
+        members = self.template_members(group)
+        if keep is not None:
+            gone = {m["id"] for m in members if m["id"] not in keep}
+            self.data["routine_templates"] = [
+                t for t in self.data["routine_templates"] if t["id"] not in gone
+            ]
+            members = [m for m in members if m["id"] not in gone]
+        order = len(members)
+        for routine_id in routine_ids:
+            routine = self.routine(routine_id)
+            if routine is None:
+                raise KisSegitoError("unknown_routine")
+            self.data["routine_templates"].append(
+                {
+                    "id": lg.new_id(),
+                    "name": routine.get("name", ""),
+                    "routine": self.routine_snapshot(routine),
+                    "source": routine_id,
+                    "group": group["id"],
+                    "sort_order": order,
+                }
+            )
+            order += 1
+        self._audit(who, f"template_group.{group['id']}", None, group["name"])
+        await self._changed()
+        return group
+
+    async def async_delete_template_group(
+        self, group_id: str, *, with_templates: bool, who: str = "parent"
+    ) -> None:
+        """Delete a group; its routine templates stay as single templates, or
+        go with it. Live routines are never touched."""
+        if not any(g["id"] == group_id for g in self.data["templates"]):
+            raise KisSegitoError("unknown_template")
+        self.data["templates"] = [g for g in self.data["templates"] if g["id"] != group_id]
+        gone = {group_id}
+        kept = []
+        for template in self.data["routine_templates"]:
+            if template.get("group") == group_id:
+                if with_templates:
+                    gone.add(template["id"])
+                    continue
+                template = {k: v for k, v in template.items() if k != "group"}
+            kept.append(template)
+        self.data["routine_templates"] = kept
+        self._forget_day_templates(gone)
+        self._audit(who, f"template_group.{group_id}", group_id, None)
+        await self._changed()
+
+    def _forget_day_templates(self, template_ids: set[str]) -> None:
+        """Days and weekdays that used a deleted template follow their own
+        routines again."""
+        for store in (self.data["date_templates"], self.data["weekday_templates"]):
+            for key in [k for k, v in store.items() if v in template_ids]:
+                del store[key]
 
     async def async_set_day_template(
         self,
@@ -224,9 +369,7 @@ class KisSegitoManager:
         ``template_id`` None removes the choice ("" for a date means: no
         template that day, routines follow their own weekdays).
         """
-        if template_id and not any(
-            t["id"] == template_id for t in self.data["templates"]
-        ):
+        if template_id and self.template_by_id(template_id) is None:
             raise KisSegitoError("unknown_template")
         if day is not None:
             key, store = day.isoformat(), self.data["date_templates"]
@@ -244,11 +387,15 @@ class KisSegitoManager:
 
     def routines_on_day(self, day: date) -> list[dict[str, Any]]:
         """Routines running on ``day`` with that day's changes, by start time."""
-        result = [
-            r
-            for r in (self.routine_on_day(r, day) for r in self.data["routines"])
-            if r is not None
-        ]
+        template = self.template_for_day(day)
+        if template is not None:
+            result = self.template_routines(template, day)
+        else:
+            result = [
+                r
+                for r in (self.routine_on_day(r, day) for r in self.data["routines"])
+                if r is not None
+            ]
         # Routines added for this day only.
         for routine_id, override in (
             self.data["overrides"].get(day.isoformat(), {}).items()
@@ -324,6 +471,13 @@ class KisSegitoManager:
         self.data[collection] = [i for i in self.data[collection] if i["id"] != item_id]
         if len(self.data[collection]) == before:
             raise KisSegitoError("unknown_item")
+        if collection in ("templates", "routine_templates"):
+            if collection == "templates":
+                # A group deleted this way takes its routine templates along.
+                self.data["routine_templates"] = [
+                    t for t in self.data["routine_templates"] if t.get("group") != item_id
+                ]
+            self._forget_day_templates({item_id})
         if collection == "children":
             # Its sensor goes too (sensor.py): forget that it was shared.
             exposed = self.data.get("assist_exposed", [])
@@ -402,7 +556,7 @@ class KisSegitoManager:
         who: str = "parent",
     ) -> None:
         """Change a routine for one day only (skip it or shift its times)."""
-        if self.routine(routine_id) is None and not self.override(day, routine_id):
+        if not self._known_routine(routine_id, day) and not self.override(day, routine_id):
             raise KisSegitoError("unknown_routine")
         day_overrides = self.data["overrides"].setdefault(day.isoformat(), {})
         old = day_overrides.get(routine_id)
@@ -459,7 +613,7 @@ class KisSegitoManager:
             return await self._add_one_day(target_day, routine, None, who)
         old = day_overrides.get(routine_id)
         one_day = bool(old and old.get("one_day"))
-        if not one_day and self.routine(routine_id) is None:
+        if not one_day and not self._known_routine(routine_id, day):
             raise KisSegitoError("unknown_routine")
         if routine is None:
             self._restore_occurrence(day, routine_id, who)

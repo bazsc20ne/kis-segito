@@ -14,6 +14,7 @@ Both carry a schema version; ``_migrate_config`` upgrades older layouts.
 
 from __future__ import annotations
 
+import copy
 from typing import Any
 
 from homeassistant.core import HomeAssistant
@@ -141,8 +142,42 @@ def _migrate_config(data: dict[str, Any]) -> dict[str, Any]:
             # The early sample avatars are gone; their children get a drawn one.
             if child.get("avatar") in RETIRED_AVATARS:
                 child["avatar"] = DEFAULT_AVATAR
+    _merge_templates(result)
     result["schema"] = SCHEMA
     return result
+
+
+def _merge_templates(data: dict[str, Any]) -> None:
+    """One kind of template: a day template that listed live routines becomes
+    a group of routine templates, copies of those routines as they are now,
+    each remembering the routine it came from. Days and weekdays keep the
+    group's id, so they still run the same routines."""
+    routines = {r.get("id"): r for r in data["routines"] if isinstance(r, dict)}
+    taken = {t.get("id") for t in data["routine_templates"] if isinstance(t, dict)}
+    for group in data["templates"]:
+        if not isinstance(group, dict) or "routines" not in group:
+            continue
+        for order, routine_id in enumerate(group.pop("routines") or []):
+            routine = routines.get(routine_id)
+            if routine is None:
+                continue
+            template_id = f"{group['id']}_{order}"
+            while template_id in taken:
+                template_id += "_"
+            taken.add(template_id)
+            snapshot = copy.deepcopy(routine)
+            for key in ("id", "sort_order", "active", "one_day"):
+                snapshot.pop(key, None)
+            data["routine_templates"].append(
+                {
+                    "id": template_id,
+                    "name": routine.get("name", ""),
+                    "routine": snapshot,
+                    "source": routine_id,
+                    "group": group["id"],
+                    "sort_order": order,
+                }
+            )
 
 
 class KisSegitoStore:

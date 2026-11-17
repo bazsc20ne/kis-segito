@@ -10,7 +10,7 @@
 
 // Must equal the integration version (scripts/check_versions.py checks it):
 // a browser that still runs an older copy of this file shows a reload bar.
-const PANEL_VERSION = "0.9.17";
+const PANEL_VERSION = "0.9.18";
 const FALLBACK_LANGUAGE = "en";
 const LANGUAGE_AUTO = "auto";
 const TABS = ["today", "calendar", "children", "routines", "rewards", "tokens", "history", "notifications", "settings"];
@@ -1194,10 +1194,11 @@ class KisSegitoPanel extends HTMLElement {
       return "";
     }
     const weekday = (new Date(`${day.date}T12:00:00`).getDay() + 6) % 7;
-    const template = (this._data.templates || []).find((t) => t.id === day.template);
-    const scheduled = this._data.routines.filter(
-      (r) => r.active !== false && (template ? template.routines.includes(r.id) : !r.weekdays?.length || r.weekdays.includes(weekday))
-    );
+    // On a template's day its routines run (copies, mostly under the id of
+    // the routine they came from); skipped ones are still listed.
+    const scheduled = day.template
+      ? [...(day.routines || []).filter((r) => !r.one_day), ...(day.template_routines || []).filter((r) => day.skipped.includes(r.id))]
+      : this._data.routines.filter((r) => r.active !== false && (!r.weekdays?.length || r.weekdays.includes(weekday)));
     const admin = this._isAdmin;
     const nameBlock = (r, times, state) => {
       const attrs = admin ? `data-act="day-edit" data-arg="${this._e(r.id)}" data-date="${day.date}" tabindex="0" data-tip="${this._e(this._t("modify.edit"))}"` : "";
@@ -1235,7 +1236,7 @@ class KisSegitoPanel extends HTMLElement {
       .filter((r) => r.one_day)
       .map((r) => `<div class="mod-row">${nameBlock(r, `${r.start}–${r.end}`, r.moved_from ? `<span class="badge" data-tip="${this._e(this._t("calendar.changed"))}">${this._icon("action_edit", 18, "glyph")}</span>` : `<span class="badge" data-tip="${this._e(this._t("calendar.one_day"))}">1</span>`)}</div>`)
       .join("");
-    const templates = this._data.templates || [];
+    const templates = this._dayTemplateChoices();
     const chosen = this._data.date_templates?.[day.date];
     const select = templates.length
       ? `<label class="field" style="max-width:340px"><span>${this._e(this._t("modify.template"))}${this._help("help.today_template", this._t("modify.template"))}</span><select data-date-template="${day.date}" ${this._dis()}>
@@ -1375,21 +1376,52 @@ class KisSegitoPanel extends HTMLElement {
       <div class="card" style="padding:10px 10px 14px"><div class="cal-scroll"><div class="cal ${days.length === 1 ? "n1" : ""}" style="--n:${days.length}">
         <div></div>${heads}<div class="cal-hours" style="height:${H}px">${hours}</div>${cols}</div></div></div>
       <div class="row wrap small muted" style="margin:10px 4px;gap:14px"><span class="row" style="gap:6px"><span class="badge">${this._icon("action_edit", 18, "glyph")}</span>${this._e(this._t("calendar.legend_changed"))}</span><span class="row" style="gap:6px"><span class="badge">1</span>${this._e(this._t("calendar.legend_one"))}</span></div>
-      ${this._viewTemplates()}`;
+      ${this._viewTemplates("calendar")}`;
   }
 
-  _viewTemplates() {
-    const templates = this._data.templates || [];
-    const rows = templates
-      .map((x) => `<div class="mod-row"><div class="grow row nameblk" data-act="edit" data-coll="templates" data-arg="${this._e(x.id)}" tabindex="0">${this._icon(x.icon || "nav_calendar", 34)}<div class="grow"><b>${this._e(x.name)}</b> ${this._isAdmin ? `<span class="pen">${this._icon("action_edit", 18, "glyph")}</span>` : ""}<div class="muted small">${this._e(x.routines.map((id) => this._routine(id)?.name).filter(Boolean).join(" · ") || "—")}</div></div></div></div>`)
+  // The templates, the same list on the Routines page and in the Calendar:
+  // single routine templates (saved copies of a routine) and groups of them
+  // (day templates), shown nested. In the Calendar the weekdays' templates
+  // are chosen below the list.
+  _viewTemplates(page) {
+    const groups = this._data.templates || [];
+    const all = this._data.routine_templates || [];
+    const admin = this._isAdmin;
+    const groupIds = new Set(groups.map((g) => g.id));
+    const row = (t, nested) => {
+      const r = t.routine || {};
+      const times = r.start && r.end ? `${r.start}–${r.end}` : "";
+      const buttons = admin
+        ? `<button class="btn sm primary" data-act="from-rtemplate" data-arg="${this._e(t.id)}">＋ ${this._e(this._t("rtemplates.create"))}</button>${this._help("help.rtemplate_create", this._t("rtemplates.create"))}<button class="btn sm danger" data-act="delete-rtemplate" data-arg="${this._e(t.id)}">${this._e(this._t("templates.delete_one"))}</button>${this._help("help.rtemplate_delete", this._t("templates.delete_one"))}`
+        : "";
+      return `<div class="mod-row ${nested ? "tpl-member" : ""}">${this._icon(r.icon || "routine_generic", nested ? 28 : 36)}<div class="grow"><b>${this._e(t.name || r.name || this._t("routines.unnamed"))}</b> <span class="muted num small">${this._e(times)}</span></div><div class="tpl-ctl">${buttons}</div></div>`;
+    };
+    const cards = groups
+      .map((g) => {
+        const members = all.filter((t) => t.group === g.id).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+        const head = `<div class="row tpl-head">${this._icon(g.icon || "nav_calendar", 34)}<b class="grow">${this._e(g.name || this._t("templates.unnamed"))}</b>
+          ${admin ? `<button class="btn sm danger" data-act="delete-tgroup" data-arg="${this._e(g.id)}">${this._e(this._t("templates.delete_group"))}</button>${this._help("help.template_group_delete", this._t("templates.delete_group"))}` : ""}</div>`;
+        return `<div class="tpl-group">${head}${members.map((t) => row(t, true)).join("") || `<div class="muted small">${this._e(this._t("templates.group_empty"))}</div>`}</div>`;
+      })
       .join("");
+    const singles = all.filter((t) => !t.group || !groupIds.has(t.group)).map((t) => row(t, false)).join("");
+    const choices = [...groups.map((g) => ({ id: g.id, name: g.name })), ...all.filter((t) => !t.group || !groupIds.has(t.group)).map((t) => ({ id: t.id, name: t.name }))];
     const defaults = WEEKDAYS.map((d) => {
       const current = this._data.weekday_templates?.[String(d)] || "";
-      return `<label class="field"><span>${this._e(this._t(`weekday.${d}`))}</span><select data-weekday-template="${d}" ${this._dis()}><option value="">${this._e(this._t("templates.own_days"))}</option>${templates.map((x) => `<option value="${this._e(x.id)}" ${x.id === current ? "selected" : ""}>${this._e(x.name)}</option>`).join("")}</select></label>`;
+      return `<label class="field"><span>${this._e(this._t(`weekday.${d}`))}</span><select data-weekday-template="${d}" ${this._dis()}><option value="">${this._e(this._t("templates.own_days"))}</option>${choices.map((x) => `<option value="${this._e(x.id)}" ${x.id === current ? "selected" : ""}>${this._e(x.name)}</option>`).join("")}</select></label>`;
     }).join("");
-    return `<div class="section-title">${this._icon("nav_routines", 34)}<h2>${this._e(this._t("templates.title"))}${this._help("help.day_templates", this._t("templates.title"))}</h2>${this._isAdmin ? `<button class="btn primary" data-act="new" data-arg="templates">＋ ${this._e(this._t("templates.add"))}</button>` : ""}</div>
-      <div class="card">${rows || `<div class="empty">${this._e(this._t("templates.none"))}</div>`}
-      ${templates.length ? `<h3 style="margin:18px 0 10px">${this._e(this._t("templates.weekdays"))}${this._help("help.weekday_templates", this._t("templates.weekdays"))}</h3><div class="form-grid" style="grid-template-columns:repeat(auto-fill,minmax(120px,1fr))">${defaults}</div>` : ""}</div>`;
+    const empty = !cards && !singles;
+    if (empty && page === "routines" && !admin) return "";
+    return `<div class="section-title">${this._icon("routine_helper", 34)}<h2>${this._e(this._t("templates.title"))}${this._help("help.templates", this._t("templates.title"))}</h2>${admin ? `<button class="btn primary" data-act="new" data-arg="templates">＋ ${this._e(this._t("templates.add_group"))}</button>${this._help("help.template_group_add", this._t("templates.add_group"))}` : ""}</div>
+      <div class="card">${cards}${singles}${empty ? `<div class="empty">${this._e(this._t("templates.none"))}</div>` : ""}
+      ${page === "calendar" && choices.length ? `<h3 style="margin:18px 0 10px">${this._e(this._t("templates.weekdays"))}${this._help("help.weekday_templates", this._t("templates.weekdays"))}</h3><div class="form-grid" style="grid-template-columns:repeat(auto-fill,minmax(120px,1fr))">${defaults}</div>` : ""}</div>`;
+  }
+
+  // Templates that can be put on a day: groups and single routine templates.
+  _dayTemplateChoices() {
+    const groups = this._data.templates || [];
+    const ids = new Set(groups.map((g) => g.id));
+    return [...groups, ...(this._data.routine_templates || []).filter((t) => !t.group || !ids.has(t.group))];
   }
 
   // ------------------------------------------------------------ statistics
@@ -1689,13 +1721,9 @@ class KisSegitoPanel extends HTMLElement {
           </div></div>`;
       })
       .join("");
-    const templates = (this._data.routine_templates || [])
-      .map((x) => `<div class="mod-row">${this._icon(x.routine?.icon || "routine_generic", 36)}<b class="grow">${this._e(x.name)}</b>
-        ${this._isAdmin ? `<button class="btn sm primary" data-act="from-rtemplate" data-arg="${this._e(x.id)}">＋ ${this._e(this._t("rtemplates.create"))}</button><button class="btn sm danger" data-act="delete-rtemplate" data-arg="${this._e(x.id)}">${this._e(this._t("common.delete"))}</button>` : ""}</div>`)
-      .join("");
     return `<div class="section-title" style="margin-top:6px">${this._icon("nav_routines", 40)}<h2>${this._e(this._t("tab.routines"))}${this._help("help.routines_page", this._t("tab.routines"))}</h2>${this._isAdmin ? `<button class="btn primary" data-act="new" data-arg="routines">＋ ${this._e(this._t("routines.add"))}</button>` : ""}</div>
       ${cards ? `<div class="grid g2">${cards}</div>` : `<div class="card empty">${this._e(this._t("routines.none"))}${this._isAdmin ? `<br><br><button class="btn" data-act="defaults" data-arg="routines">${this._e(this._t("routines.add_defaults"))}</button>` : ""}</div>`}
-      ${templates ? `<div class="section-title">${this._icon("routine_helper", 34)}<h2>${this._e(this._t("rtemplates.title"))}${this._help("help.rtemplates_page", this._t("rtemplates.title"))}</h2></div><div class="card">${templates}</div>` : ""}`;
+      ${this._viewTemplates("routines")}`;
   }
 
   // ------------------------------------------------------------ rewards
@@ -2083,7 +2111,7 @@ ${tab === "data" ? `
       case "rewards":
         return { name: "", icon: "fn_rewards", cost: 5, active: true, kind: "normal" };
       case "templates":
-        return { name: "", icon: "nav_calendar", routines: [] };
+        return { name: "", icon: "nav_calendar", keep: [], add: [] };
       default:
         return {
           name: "",
@@ -2215,12 +2243,19 @@ ${tab === "data" ? `
   async _openEdit(coll, id, extra = {}) {
     const found = id ? this._data[coll].find((x) => x.id === id) : null;
     const item = found ? clone(found) : this._newItem(coll);
+    if (coll === "templates" && found) {
+      // A group: its routine templates (kept unless taken out) and routines
+      // to add as new copies.
+      item.keep = (this._data.routine_templates || []).filter((t) => t.group === found.id).map((t) => t.id);
+      item.add = [];
+    }
     delete item.balances;
     delete item.streak;
     this._edit = { coll, item, isNew: !found, readonly: !this._isAdmin, ...extra };
     this._picker = null;
     this._drawerScroll = 0;
     this._rtplSaved = null;
+    this._groupPick = null;
     this._sec = extra.sec || (coll === "children" ? (this._isAdmin && found ? "data" : found ? "stats" : "data") : "basics");
     if (coll === "children" && found) {
       this._stats = { childId: found.id };
@@ -2274,6 +2309,7 @@ ${tab === "data" ? `
     this._picker = null;
     this._drawerScroll = 0;
     this._rtplSaved = null;
+    this._groupPick = null;
     this._render();
   }
 
@@ -2360,11 +2396,27 @@ ${tab === "data" ? `
 
   _editTemplate() {
     const x = this._edit.item;
+    const members = x.id ? (this._data.routine_templates || []).filter((t) => t.group === x.id) : [];
+    const chip = (on, act, id, icon, name) => `<button class="chip ${on ? "on" : ""}" data-act="${act}" data-arg="${this._e(id)}">${this._icon(icon || "routine_generic", 22)} ${this._e(name || this._t("routines.unnamed"))}</button>`;
     return {
-      title: this._edit.readonly ? x.name : this._t(this._edit.isNew ? "templates.add" : "templates.edit"),
-      body: `<label class="field"><span>${this._e(this._t("common.name"))}</span><input data-path="name" value="${this._e(x.name)}"></label>
-        <div class="field"><span>${this._e(this._t("templates.routines"))}${this._help("help.template_routines", this._t("templates.routines"))}</span><div class="row wrap" style="gap:6px">${this._data.routines.map((r) => `<button class="chip ${x.routines.includes(r.id) ? "on" : ""}" data-act="toggle-routine" data-arg="${this._e(r.id)}">${this._icon(r.icon, 22)} ${this._e(r.name || this._t("routines.unnamed"))}</button>`).join("")}</div></div>`,
+      title: this._edit.readonly ? x.name : this._t(this._edit.isNew ? "templates.add_group" : "templates.edit_group"),
+      body: `<label class="field"><span>${this._e(this._t("templates.group_name"))}</span><input data-path="name" value="${this._e(x.name)}"></label>
+        ${members.length ? `<div class="field"><span>${this._e(this._t("templates.group_members"))}${this._help("help.template_group_members", this._t("templates.group_members"))}</span><div class="row wrap" style="gap:6px">${members.map((t) => chip(x.keep.includes(t.id), "toggle-keep", t.id, t.routine?.icon, t.name)).join("")}</div></div>` : ""}
+        <div class="field"><span>${this._e(this._t("templates.group_add"))}${this._help("help.template_group_routines", this._t("templates.group_add"))}</span><div class="row wrap" style="gap:6px">${this._data.routines.map((r) => chip(x.add.includes(r.id), "toggle-routine", r.id, r.icon, r.name)).join("")}</div></div>`,
     };
+  }
+
+  // Grouping from a routine editor: tick routines and name the group; the
+  // group keeps copies of them as they are now (a day template).
+  _groupFromEditor() {
+    const ed = this._edit;
+    if (!this._groupPick) this._groupPick = ed.coll === "routines" && ed.item.id ? [ed.item.id] : [];
+    const chips = this._data.routines
+      .map((r) => `<button class="chip ${this._groupPick.includes(r.id) ? "on" : ""}" data-act="group-pick" data-arg="${this._e(r.id)}">${this._icon(r.icon || "routine_generic", 22)} ${this._e(r.name || this._t("routines.unnamed"))}</button>`)
+      .join("");
+    return `<div class="field" style="margin-top:14px"><span>${this._e(this._t("templates.group_from_editor"))}${this._help("help.template_group_from_editor", this._t("templates.group_from_editor"))}</span>
+      <div class="row wrap" style="gap:6px">${chips}</div>
+      <div class="row"><input id="tgroup-name" placeholder="${this._e(this._t("templates.group_name"))}"><button class="btn" data-act="save-tgroup" ${this._groupPick.length ? "" : "disabled"}>${this._e(this._t("templates.group_save"))}</button></div></div>`;
   }
 
   _editRoutine() {
@@ -2433,7 +2485,7 @@ ${tab === "data" ? `
       look: [this._t("routines.zones"), look, "zones"],
       cps: [`${this._t("routines.checkpoints")} · ${r.checkpoints.length}`, cps, "checkpoints"],
       tasks: [`${this._t("routines.tasks")} · ${r.tasks.length}`, tasks, "tasks"],
-      ...(ed.readonly ? {} : { tpl: [this._t("rtemplates.save_title"), template, null] }),
+      ...(ed.readonly ? {} : { tpl: [this._t("templates.title"), template + this._groupFromEditor(), null] }),
     };
     const sec = sections[this._sec] ? this._sec : "basics";
     const date = dayMode ? this._fmtDate(ed.newDate || ed.date, { weekday: "long", month: "long", day: "numeric" }) : "";
@@ -2581,6 +2633,10 @@ ${tab === "data" ? `
         <div class="seg">${seg("group-every", "0", this._t("history.group_this_child"), !d.every)}${seg("group-every", "1", this._t("history.group_every_child"), d.every)}</div>
         <p class="muted" style="margin:0">${this._e(this._t("history.group_confirm"))}</p>${list}
         <div class="row wrap" style="justify-content:flex-end">${cancel}<button class="btn danger" data-act="group-ok" ${d.items?.length ? "" : "disabled"}>${this._e(this._t("history.group_remove"))}</button></div>`;
+    } else if (d.type === "tgroup") {
+      const g = (this._data.templates || []).find((x) => x.id === d.id);
+      inner = `<h2>${this._e(this._t("templates.delete_group"))}: ${this._e(g?.name || "")}</h2><p class="muted" style="margin:0">${this._e(this._t("templates.delete_group_hint"))}</p>
+        <div class="stack" style="gap:8px;white-space:normal"><button class="btn" data-act="tgroup-del" data-arg="only">${this._e(this._t("templates.delete_group_only"))}</button><button class="btn danger" data-act="tgroup-del" data-arg="all">${this._e(this._t("templates.delete_group_all"))}</button><button class="btn ghost" data-act="dlg-cancel">${this._e(this._t("common.cancel"))}</button></div>`;
     } else if (d.type === "reverse") {
       inner = `<h2>${this._e(this._t("history.reverse"))} · #${d.seq}</h2><p class="muted" style="margin:0">${this._e(this._t("history.confirm_reverse"))}</p>
         <div class="row wrap" style="justify-content:flex-end">${cancel}<button class="btn danger" data-act="dlg-ok">${this._e(this._t("history.reverse"))}</button></div>`;
@@ -3153,6 +3209,9 @@ ${tab === "data" ? `
         msg.target_date = ed.newDate;
       }
       await this._ws(msg);
+    } else if (ed.coll === "templates") {
+      const x = ed.item;
+      await this._ws({ type: "kis_segito/template_group/save", group_id: x.id || null, name: x.name || "", icon: x.icon || null, routine_ids: x.add, keep: x.keep });
     } else {
       await this._ws({ type: "kis_segito/save", collection: ed.coll, item: ed.item });
     }
@@ -3229,6 +3288,30 @@ ${tab === "data" ? `
         await this._openEdit("routines", null);
         this._edit.item = this._fromRoutineTemplate(arg);
         break;
+      case "group-pick": {
+        const at = this._groupPick.indexOf(arg);
+        if (at >= 0) this._groupPick.splice(at, 1);
+        else this._groupPick.push(arg);
+        break;
+      }
+      case "save-tgroup": {
+        const name = (this.shadowRoot.querySelector("#tgroup-name")?.value || "").trim() || this._t("templates.unnamed");
+        await this._ws({ type: "kis_segito/template_group/save", group_id: null, name, routine_ids: this._groupPick });
+        this._toast(this._t("toast.tgroup"));
+        await this._load();
+        return;
+      }
+      case "delete-tgroup":
+        this._dialog = { type: "tgroup", id: arg };
+        break;
+      case "tgroup-del": {
+        const id = this._dialog?.id;
+        this._dialog = null;
+        await this._ws({ type: "kis_segito/template_group/delete", group_id: id, with_templates: arg === "all" });
+        this._toast(this._t("toast.deleted"));
+        await this._load();
+        return;
+      }
       case "delete-rtemplate":
         this._confirm(this._t("common.delete"), this._t("common.confirm_delete"), async () => {
           await this._ws({ type: "kis_segito/delete", collection: "routine_templates", item_id: arg });
@@ -3242,7 +3325,9 @@ ${tab === "data" ? `
         for (const key of ["id", "sort_order"]) {
           delete routine[key];
         }
-        await this._ws({ type: "kis_segito/save", collection: "routine_templates", item: { name, routine } });
+        const item = { name, routine };
+        if (this._edit.coll === "routines" && this._edit.item.id) item.source = this._edit.item.id;
+        await this._ws({ type: "kis_segito/save", collection: "routine_templates", item });
         this._rtplSaved = name;
         this._toast(this._t("toast.rtpl"));
         await this._load();
@@ -3427,8 +3512,15 @@ ${tab === "data" ? `
         this._set(path, list.includes(arg) ? list.filter((x) => x !== arg) : [...list, arg]);
         break;
       }
+      case "toggle-keep": {
+        const keep = this._edit.item.keep;
+        const at = keep.indexOf(arg);
+        if (at >= 0) keep.splice(at, 1);
+        else keep.push(arg);
+        break;
+      }
       case "toggle-routine": {
-        const list = this._edit.item.routines;
+        const list = this._edit.item.add;
         this._edit.item.routines = list.includes(arg) ? list.filter((x) => x !== arg) : [...list, arg];
         break;
       }
@@ -4742,6 +4834,10 @@ const STYLE = `
   .cp-chip.waiting { background: var(--sun-soft); color: var(--sun); }
   .mod-row { display: flex; align-items: center; gap: 10px; padding: 12px 0; border-top: 1px solid var(--line); flex-wrap: wrap; }
   .mod-row.skipped { opacity: .55; }
+  .tpl-group { border: 1px solid var(--line); border-radius: 16px; padding: 10px 14px; margin: 10px 0; background: var(--surface-2, transparent); }
+  .tpl-head { gap: 8px; flex-wrap: wrap; }
+  .mod-row.tpl-member { padding: 8px 0 8px 18px; }
+  .tpl-ctl { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-left: auto; }
   .mod-row .nameblk { min-width: 0; }
   .mod-ctl { display: flex; align-items: center; gap: 8px; margin-left: auto; flex-wrap: nowrap; }
   .mod-ctl .restore.idle { visibility: hidden; }

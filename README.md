@@ -63,7 +63,7 @@ substitutions:
   friendly_name: Kis Segítő
 
 packages:
-  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.9.17
+  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.9.18
 
 api:
   encryption:
@@ -139,9 +139,10 @@ a mai nap módosítása: egy rutin mára kihagyható vagy eltolható), **Naptár
 **Gyerekek** (fénykép is feltölthető), **Rutinok**, **Jutalmak** (saját kép is), **Zsetonok**,
 **Előzmények** (szűrhető, sorszámozott, hivatkozásokkal), **Értesítések** (szabályok bármely
 Home Assistant értesítési célponthoz vagy címkével megjelölt scripthez), **Beállítások**
-(többek között adatexport JSON-ba). A **Naptár** oldalon napsablonok (pl. hétköznap, hétvége,
-szünet) is megadhatók: a hét napjaihoz alapértelmezett sablon, egy-egy naphoz eltérő sablon
-rendelhető. A Home Assistantben egy összesítő szenzor (`sensor.kis_segito`), gyerekenként egy
+(többek között adatexport JSON-ba). Egyféle sablon van, ugyanaz a lista a **Rutinok** és a
+**Naptár** oldalon: egy sablon egy rutin mentett másolata, több sablon csoportba (napsablonba)
+fogható (pl. hétköznap, hétvége, szünet). A hét napjaihoz alapértelmezett sablon, egy-egy
+naphoz eltérő sablon rendelhető; azon a napon a sablon rutinjai futnak. A Home Assistantben egy összesítő szenzor (`sensor.kis_segito`), gyerekenként egy
 szenzor és egy naptár (`calendar.kis_segito`) jelenik meg.
 Üres rendszerben a Rutinok és a Jutalmak oldalon egy gombnyomással példa-rutinok és
 -jutalmak hozhatók létre. Gombonként (**Beállítások → Gombok**) bepipálható, mely
@@ -411,7 +412,7 @@ substitutions:
   friendly_name: Kis Segítő
 
 packages:
-  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.9.17
+  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.9.18
 
 api:
   encryption:
@@ -486,8 +487,10 @@ today": skip or shift a routine for today only), **Calendar** (week view), **Chi
 **Routines**, **Rewards** (own pictures too), **Tokens**, **History** (filterable, numbered,
 with links), **Notifications** (rules for any Home Assistant notify target or labelled
 script), **Settings** (including a JSON export). Children can have a photo. The **Calendar**
-page also holds day templates (e.g. weekday, weekend, holiday): a default per weekday and
-a different one for a single day. Home Assistant gets a summary sensor
+and the **Routines** page share one list of templates: a template is a saved copy of a
+routine, and several templates can form a group (a day template, e.g. weekday, weekend,
+holiday). A template can be the default of a weekday or be chosen for a single day; that
+day its routines run. Home Assistant gets a summary sensor
 (`sensor.kis_segito`), one sensor per child and a calendar (`calendar.kis_segito`). In an empty
 setup, example routines and rewards can be created with one click on the Routines and
 Rewards pages. Each knob (**Settings → Knobs**) has a ticked list of the

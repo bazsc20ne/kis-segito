@@ -84,6 +84,8 @@ def async_register_commands(hass: HomeAssistant) -> None:
         ws_notifications,
         ws_export,
         ws_day_template,
+        ws_template_group_save,
+        ws_template_group_delete,
         ws_notify_targets,
         ws_notify_test,
         ws_day_routine,
@@ -993,6 +995,20 @@ def ws_week(
                 "today": day == today,
                 "template": template["id"] if template else None,
                 "template_name": template.get("name", "") if template else None,
+                # The template's routines without the day's changes (also the
+                # skipped ones), for "Modify today".
+                "template_routines": [
+                    {
+                        "id": r["id"],
+                        "name": r.get("name", ""),
+                        "icon": r.get("icon", "routine_generic"),
+                        "start": r.get("start"),
+                        "end": r.get("end"),
+                    }
+                    for r in manager.template_routines(template, day, day_changes=False)
+                ]
+                if template
+                else [],
                 "routines": [
                     {
                         "routine": r,
@@ -1221,6 +1237,62 @@ async def ws_day_template(
             weekday=msg.get("weekday"),
             template_id=msg["template_id"],
             who=_who(connection),
+        ),
+    )
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/template_group/save",
+        vol.Optional("group_id"): vol.Any(None, str),
+        vol.Required("name"): str,
+        vol.Optional("icon"): vol.Any(None, str),
+        vol.Optional("routine_ids", default=list): [str],
+        vol.Optional("keep"): vol.Any(None, [str]),
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_template_group_save(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Create or change a group of routine templates (copies of routines)."""
+    await _run(
+        connection,
+        msg["id"],
+        _manager(hass).async_save_template_group(
+            msg.get("group_id"),
+            msg["name"],
+            msg["routine_ids"],
+            icon=msg.get("icon"),
+            keep=msg.get("keep"),
+            who=_who(connection),
+        ),
+    )
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/template_group/delete",
+        vol.Required("group_id"): str,
+        vol.Required("with_templates"): bool,
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_template_group_delete(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Delete a group, with or without its routine templates."""
+    await _run(
+        connection,
+        msg["id"],
+        _manager(hass).async_delete_template_group(
+            msg["group_id"], with_templates=msg["with_templates"], who=_who(connection)
         ),
     )
 
