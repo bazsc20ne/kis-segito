@@ -55,6 +55,9 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     # first-person questions ("how many tokens do I have") are answered for
     # these children. [{"device_id" | "area_id": …, "children": [ids]}]
     "assist_speakers": [],
+    # Non-admin Home Assistant users who may change content ("editor"); the
+    # others can only look ("viewer", also anyone not listed).
+    "user_roles": {},
     # Knob screen power (seconds, 0 = never; dim_level in percent); each knob
     # can override any of them.
     "screen": {

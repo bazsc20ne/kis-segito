@@ -12,6 +12,50 @@ All notable changes to this project are documented here, in Hungarian and Englis
 The format follows [Keep a Changelog](https://keepachangelog.com/) and the project
 uses [Semantic Versioning](https://semver.org/).
 
+## [0.9.20] - 2026-11-18
+
+### Magyar
+
+- **Szerkesztő és csak megtekintő felhasználók.** A Beállítások → Általános oldalon
+  minden nem admin Home Assistant-felhasználó szerkesztő vagy csak megtekintő lehet; a
+  szerkesztő módosíthatja a gyerekeket, rutinokat, jutalmakat, sablonokat, a naptárt,
+  a zsetonokat és a jóváhagyásokat, és a kártyákon is kipipálhat. A beállítások, a
+  gombok, a témák, az értesítések és az import adminnak maradnak; a beállítatlan
+  felhasználó csak megtekintő, mint eddig.
+- **A Marketplace-ről gyorsan települ.** A Kis Segítő minden kiadás mellett egy
+  zip-fájlként is elérhető, így a HACS (Home Assistant 2026.11-től Marketplace) egyetlen
+  letöltéssel telepíti és frissíti, nem több ezer fájlonként, és a mappa egy lépésben
+  cserélődik.
+- **A statisztika telefonon is olvasható.** A grafikonok telefonon keskenyebben
+  rajzolódnak, így a feliratok és az értékek nem zsugorodnak olvashatatlanra.
+- **A rutinszerkesztő a sablon másolatát is jelzi.** Ha egy napon egy sablon ennek a
+  rutinnak a másolatát futtatja, a szerkesztő kiírja, hogy a módosítás ott csak a
+  „Másolat frissítése” után látszik.
+- **A „Másolat frissítése” előbb rákérdez.** A kézzel módosított másolat így nem vész
+  el egy véletlen kattintással.
+- **A hibaüzenet a szerkesztőben jelenik meg.** Ha egy mentés nem sikerül, az üzenet a
+  nyitott szerkesztőben, a Mentés gomb fölött látszik.
+
+### English
+
+- **Editor and view-only users.** Under Settings → General each non-admin Home
+  Assistant user can be an editor or view only; editors can change children, routines,
+  rewards, templates, the calendar, tokens and approvals, and tick tasks on the
+  dashboard cards. Settings, knobs, themes, notifications and import stay admin-only;
+  a user not set is view only, as before.
+- **Installs quickly from Marketplace.** Every release also has Little Helper as one
+  zip file, so HACS (Marketplace from Home Assistant 2026.11) installs and updates it
+  in a single download instead of file by file, and the folder is replaced in one step.
+- **Statistics are readable on a phone.** On a phone the charts are drawn narrower, so
+  their labels and values do not shrink to an unreadable size.
+- **The routine editor also mentions a template's copy.** When a template runs a copy
+  of this routine on some days, the editor says that changes show there only after
+  "Refresh copy".
+- **"Refresh copy" asks first.** A copy changed by hand is no longer lost with one
+  wrong click.
+- **Error messages show in the editor.** When saving fails, the message appears in the
+  open editor, above the Save button.
+
 ## [0.9.19] - 2026-11-17
 
 ### Magyar

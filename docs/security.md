@@ -112,6 +112,20 @@ API-kulcsot elmenti a gomb saját tárolójába (ahol a firmware-ben is benne vo
 és a kiadásból telepített firmware ezeket használja; a hálózati frissítés is az
 API-kulccsal titkosított marad.
 
+### Ki mit módosíthat
+
+A Kis Segítő panelje minden Home Assistant-felhasználónak megnyílik. A Home
+Assistant adminjai mindent módosíthatnak. A többi felhasználó a **Beállítások →
+Általános → Felhasználók és hozzáférés** részen szerkesztő vagy csak megtekintő
+lehet; aki nincs beállítva, az csak megtekintő.
+
+- **Szerkesztő:** gyerekek, rutinok, jutalmak, sablonok, naptár és napi
+  módosítások, zsetonok és javítások, jóváhagyások, valamint a kártyákon a
+  feladatok és a jutalmak.
+- **Csak admin:** a Beállítások oldal (gombok, képernyő, témák, háttér, ikonok,
+  nyelv, Assist, felhasználók), az értesítések, a virtuális gombok, az adatexport
+  és -import.
+
 ### Képek
 
 A feltöltött képek (a gyerekek fényképei, jutalmak, hátterek) csak a helyi
@@ -274,6 +288,18 @@ Firmware 0.9.16 and newer therefore saves the Wi-Fi network and the API key from
 your own config in the knob's own storage (where they already were, inside the
 firmware), and the firmware installed from a release uses them; network updates
 stay encrypted with the API key.
+
+### Who can change what
+
+The Little Helper panel opens for every Home Assistant user. Home Assistant
+admins can change everything. Other users can be editors or view only under
+**Settings → General → Users and access**; anyone not set is view only.
+
+- **Editors:** children, routines, rewards, templates, the calendar and one-day
+  changes, tokens and corrections, approvals, and tasks and rewards on the
+  dashboard cards.
+- **Admins only:** the Settings page (knobs, screen, themes, background, icons,
+  language, Assist, users), notifications, virtual knobs, data export and import.
 
 ### Pictures
 

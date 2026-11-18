@@ -50,6 +50,8 @@ jobs:
           PY
           )
       - run: pytest
+      - name: Integration zip holds every file
+        run: python3 scripts/integration_zip.py "${RUNNER_TEMP}/kis_segito.zip"
 
   versions:
     name: Version consistency

@@ -36,6 +36,9 @@ from .panel import FRONTEND_DIR, panel_language_names
 from .themes import load_themes, theme_assets
 from .themes import theme as theme_of
 from .store import DEFAULT_SETTINGS
+from .access import require_editor, user_role
+
+
 
 # Knob screen power settings: seconds (0 = never), the dim level in percent.
 SCREEN_FIELDS = {
@@ -88,6 +91,7 @@ def async_register_commands(hass: HomeAssistant) -> None:
         ws_template_group_delete,
         ws_template_refresh,
         ws_day_extra,
+        ws_users,
         ws_notify_targets,
         ws_notify_test,
         ws_day_routine,
@@ -190,6 +194,7 @@ async def ws_settings(
         vol.Optional("theme"): str,
         vol.Optional("cards_themed"): bool,
         vol.Optional("screen"): SCREEN_SCHEMA,
+        vol.Optional("user_roles"): {str: vol.In(["editor", "viewer"])},
         vol.Optional("assist_speakers"): [
             {
                 vol.Optional("device_id"): vol.Any(None, str),
@@ -676,6 +681,8 @@ async def ws_data(
         msg["id"],
         {
             "version": hass.data[DOMAIN].version,
+            # What this user may do: "admin", "editor" or "viewer".
+            "role": user_role(hass, connection.user),
             "settings": await _settings(hass),
             "children": _children(manager),
             "routines": sorted(
@@ -739,7 +746,7 @@ async def _run(
         vol.Required("item"): dict,
     }
 )
-@websocket_api.require_admin
+@require_editor
 @websocket_api.async_response
 async def ws_save(
     hass: HomeAssistant,
@@ -760,7 +767,7 @@ async def ws_save(
         vol.Required("item_id"): str,
     }
 )
-@websocket_api.require_admin
+@require_editor
 @websocket_api.async_response
 async def ws_delete(
     hass: HomeAssistant,
@@ -782,7 +789,7 @@ async def ws_delete(
         vol.Required("ids"): [str],
     }
 )
-@websocket_api.require_admin
+@require_editor
 @websocket_api.async_response
 async def ws_reorder(
     hass: HomeAssistant,
@@ -839,7 +846,7 @@ def ws_history(
         vol.Optional("note", default=""): str,
     }
 )
-@websocket_api.require_admin
+@require_editor
 @websocket_api.async_response
 async def ws_adjust(
     hass: HomeAssistant,
@@ -867,7 +874,7 @@ async def ws_adjust(
         vol.Required("transaction_id"): str,
     }
 )
-@websocket_api.require_admin
+@require_editor
 @websocket_api.async_response
 async def ws_reverse(
     hass: HomeAssistant,
@@ -892,7 +899,7 @@ async def ws_reverse(
         vol.Optional("note", default=""): str,
     }
 )
-@websocket_api.require_admin
+@require_editor
 @websocket_api.async_response
 async def ws_correct(
     hass: HomeAssistant,
@@ -948,7 +955,7 @@ def _who(connection: websocket_api.ActiveConnection) -> str:
         ),
     }
 )
-@websocket_api.require_admin
+@require_editor
 @websocket_api.async_response
 async def ws_override(
     hass: HomeAssistant,
@@ -1132,7 +1139,7 @@ async def ws_import(
 @websocket_api.websocket_command(
     {vol.Required("type"): f"{DOMAIN}/event/remove", vol.Required("event_id"): str}
 )
-@websocket_api.require_admin
+@require_editor
 @websocket_api.async_response
 async def ws_event_remove(
     hass: HomeAssistant,
@@ -1157,7 +1164,7 @@ async def ws_event_remove(
         vol.Optional("preview", default=False): bool,
     }
 )
-@websocket_api.require_admin
+@require_editor
 @websocket_api.async_response
 async def ws_event_remove_group(
     hass: HomeAssistant,
@@ -1200,7 +1207,7 @@ async def ws_event_remove_group(
         vol.Required("amount"): vol.All(int, vol.Range(min=1, max=100000)),
     }
 )
-@websocket_api.require_admin
+@require_editor
 @websocket_api.async_response
 async def ws_event_credit(
     hass: HomeAssistant,
@@ -1226,7 +1233,7 @@ async def ws_event_credit(
         vol.Required("template_id"): vol.Any(None, str),
     }
 )
-@websocket_api.require_admin
+@require_editor
 @websocket_api.async_response
 async def ws_day_template(
     hass: HomeAssistant,
@@ -1256,7 +1263,7 @@ async def ws_day_template(
         vol.Optional("keep"): vol.Any(None, [str]),
     }
 )
-@websocket_api.require_admin
+@require_editor
 @websocket_api.async_response
 async def ws_template_group_save(
     hass: HomeAssistant,
@@ -1285,7 +1292,7 @@ async def ws_template_group_save(
         vol.Required("with_templates"): bool,
     }
 )
-@websocket_api.require_admin
+@require_editor
 @websocket_api.async_response
 async def ws_template_group_delete(
     hass: HomeAssistant,
@@ -1308,7 +1315,7 @@ async def ws_template_group_delete(
         vol.Required("template_id"): str,
     }
 )
-@websocket_api.require_admin
+@require_editor
 @websocket_api.async_response
 async def ws_template_refresh(
     hass: HomeAssistant,
@@ -1331,7 +1338,7 @@ async def ws_template_refresh(
         vol.Required("add"): bool,
     }
 )
-@websocket_api.require_admin
+@require_editor
 @websocket_api.async_response
 async def ws_day_extra(
     hass: HomeAssistant,
@@ -1346,6 +1353,29 @@ async def ws_day_extra(
             date.fromisoformat(msg["date"]), msg["routine_id"], msg["add"], who=_who(connection)
         ),
     )
+
+
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/users"})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_users(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """The Home Assistant users (people, not system users) and their role."""
+    roles = _manager(hass).settings.get("user_roles") or {}
+    users = [
+        {
+            "id": user.id,
+            "name": user.name or "",
+            "is_admin": user.is_admin,
+            "role": "admin" if user.is_admin else roles.get(user.id, "viewer"),
+        }
+        for user in await hass.auth.async_get_users()
+        if not user.system_generated and user.is_active
+    ]
+    connection.send_result(msg["id"], sorted(users, key=lambda u: u["name"].casefold()))
 
 
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/notify_targets"})
@@ -1439,7 +1469,7 @@ async def ws_notify_test(
         vol.Optional("target_date"): vol.Any(None, str),
     }
 )
-@websocket_api.require_admin
+@require_editor
 @websocket_api.async_response
 async def ws_day_routine(
     hass: HomeAssistant,
@@ -1678,7 +1708,7 @@ def ws_approvals(
         vol.Required("approve"): bool,
     }
 )
-@websocket_api.require_admin
+@require_editor
 @websocket_api.async_response
 async def ws_resolve_approval(
     hass: HomeAssistant,

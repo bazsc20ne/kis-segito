@@ -11,6 +11,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 
+from .access import require_editor
 from .assist import child_status
 from .const import CONF_DEVICE_ID, DOMAIN, STATIC_URL
 from .logic import applies_to
@@ -205,7 +206,7 @@ async def _run(
         vol.Required("task_id"): str,
     }
 )
-@websocket_api.require_admin
+@require_editor
 @websocket_api.async_response
 async def ws_card_task(
     hass: HomeAssistant,
@@ -233,7 +234,7 @@ async def ws_card_task(
         vol.Required("reward_id"): str,
     }
 )
-@websocket_api.require_admin
+@require_editor
 @websocket_api.async_response
 async def ws_card_redeem(
     hass: HomeAssistant,
@@ -258,7 +259,7 @@ async def ws_card_redeem(
         vol.Optional("enable", default=True): bool,
     }
 )
-@websocket_api.require_admin
+@require_editor
 @websocket_api.async_response
 async def ws_card_knob(
     hass: HomeAssistant,

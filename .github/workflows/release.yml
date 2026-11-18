@@ -64,7 +64,10 @@ jobs:
           mkdir dist
           cp "${{ steps.build.outputs.name }}/${{ steps.build.outputs.name }}.factory.bin" "dist/kis-segito-${TAG}.factory.bin"
           cp "${{ steps.build.outputs.name }}/${{ steps.build.outputs.name }}.ota.bin" "dist/kis-segito-${TAG}.ota.bin"
-          (cd dist && sha256sum *.bin > SHA256SUMS.txt)
+          # The integration as one zip, which HACS installs in one download
+          # (hacs.json: zip_release); the script checks it holds every file.
+          python3 scripts/integration_zip.py dist/kis_segito.zip "${TAG}"
+          (cd dist && sha256sum *.bin kis_segito.zip > SHA256SUMS.txt)
           # The knob's update entity reads this (the latest release's copy).
           python3 scripts/firmware_manifest.py "${TAG}" "$(md5sum "dist/kis-segito-${TAG}.ota.bin" | cut -d' ' -f1)" > dist/update.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

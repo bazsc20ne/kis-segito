@@ -10,7 +10,7 @@
 
 // Must equal the integration version (scripts/check_versions.py checks it):
 // a browser that still runs an older copy of this file shows a reload bar.
-const PANEL_VERSION = "0.9.19";
+const PANEL_VERSION = "0.9.20";
 const FALLBACK_LANGUAGE = "en";
 const LANGUAGE_AUTO = "auto";
 const TABS = ["today", "calendar", "children", "routines", "rewards", "tokens", "history", "notifications", "settings"];
@@ -365,7 +365,14 @@ class KisSegitoPanel extends HTMLElement {
     return this._panel?.config?.version ?? "";
   }
 
+  // Changing content (routines, rewards, children, the calendar, tokens,
+  // approvals): Home Assistant admins and the users set as editors.
   get _isAdmin() {
+    return this._isHaAdmin || this._data?.role === "editor";
+  }
+
+  // The settings, the knobs, themes, notifications, import: admins only.
+  get _isHaAdmin() {
     return this._hass?.user?.is_admin ?? false;
   }
 
@@ -839,7 +846,7 @@ class KisSegitoPanel extends HTMLElement {
   _viewThemes() {
     const themes = this._data.themes || [];
     const current = this._data.theme?.id || "kis_segito";
-    const dis = this._isAdmin ? "" : "disabled";
+    const dis = this._isHaAdmin ? "" : "disabled";
     const lang = (this._language || "en").startsWith("hu") ? "hu" : "en";
     const name = (t) => this._e(t.name?.[lang] || t.name?.en || t.name?.hu || t.id);
     // An own theme without this picture shows the built-in one.
@@ -859,9 +866,9 @@ class KisSegitoPanel extends HTMLElement {
       .map((t) => `<div class="row wrap theme-row"><b class="grow">${name(t)}</b>
         ${t.own ? `<span class="tag">${this._e(this._t("theme.own"))}</span><span class="muted small">${this._e(this._t("theme.pictures").replace("{n}", t.count).replace("{total}", t.total))}</span>` : `<span class="tag">${this._e(this._t("theme.builtin"))}</span>`}
         <label class="switch"><input type="checkbox" data-act="theme-active" data-arg="${this._e(t.id)}" ${t.active ? "checked" : ""} ${dis}>${this._e(this._t("common.active"))}</label>
-        ${t.own && this._isAdmin ? `<button class="btn sm danger" data-act="theme-delete" data-arg="${this._e(t.id)}">${this._e(this._t("common.delete"))}</button>` : ""}</div>`)
+        ${t.own && this._isHaAdmin ? `<button class="btn sm danger" data-act="theme-delete" data-arg="${this._e(t.id)}">${this._e(this._t("common.delete"))}</button>` : ""}</div>`)
       .join("");
-    const tools = this._isAdmin
+    const tools = this._isHaAdmin
       ? `<div class="row wrap"><button class="btn sm" data-act="theme-template">↓ ${this._e(this._t("theme.template"))}</button>
           <label class="btn sm primary">↑ ${this._e(this._t("theme.upload"))}<input type="file" accept=".zip,application/zip" data-upload-theme hidden></label></div>`
       : "";
@@ -874,7 +881,7 @@ class KisSegitoPanel extends HTMLElement {
   }
 
   _viewIconSettings() {
-    const dis = this._dis();
+    const dis = this._adminDis();
     const own = (this._data.own_icons || [])
       .map((i) => `<div class="icon-own ${i.active === false ? "inactive" : ""}">${this._icon(i.key, 56)}
         <div class="row" style="gap:4px">
@@ -890,7 +897,7 @@ class KisSegitoPanel extends HTMLElement {
       .join("");
     return `<div class="card"><h3>${this._e(this._t("icons.title"))}</h3>
       <div class="field"><span>${this._e(this._t("icons.own_title"))}${this._help("help.icons_own", this._t("icons.own_title"))}</span><div class="own-icons">${own || `<span class="muted small">${this._e(this._t("icons.none"))}</span>`}
-        ${this._isAdmin ? `<label class="upload-tile" data-tip="${this._e(this._t("icons.upload"))}"><span style="font-size:1.6rem">＋</span><span class="small">${this._e(this._t("icons.upload"))}</span><input type="file" accept="image/*" data-crop-upload="@icon" hidden></label>` : ""}</div></div>
+        ${this._isHaAdmin ? `<label class="upload-tile" data-tip="${this._e(this._t("icons.upload"))}"><span style="font-size:1.6rem">＋</span><span class="small">${this._e(this._t("icons.upload"))}</span><input type="file" accept="image/*" data-crop-upload="@icon" hidden></label>` : ""}</div></div>
       <details><summary>${this._e(this._t("icons.builtin_title"))}${this._help("help.icons_builtin", this._t("icons.builtin_title"))}</summary>
         <div class="icon-grid builtin" style="margin-top:10px">${builtin}</div></details></div>`;
   }
@@ -967,6 +974,10 @@ class KisSegitoPanel extends HTMLElement {
 
   _dis() {
     return this._isAdmin ? "" : "disabled";
+  }
+
+  _adminDis() {
+    return this._isHaAdmin ? "" : "disabled";
   }
 
   // "measured → room light" for an illuminance entity, with the correction.
@@ -1432,7 +1443,7 @@ class KisSegitoPanel extends HTMLElement {
     const empty = !cards && !singles;
     if (empty && page === "routines" && !admin) return "";
     const add = admin
-      ? `<span class="row" style="gap:6px;flex-wrap:wrap"><button class="btn primary" data-act="new" data-arg="tsingle">＋ ${this._e(this._t("templates.add_single"))}</button>${this._help("help.template_add_single", this._t("templates.add_single"))}<button class="btn primary" data-act="new" data-arg="templates">＋ ${this._e(this._t("templates.add_group"))}</button>${this._help("help.template_group_add", this._t("templates.add_group"))}</span>`
+      ? `<span class="row" style="gap:6px;flex-wrap:wrap;justify-content:flex-end"><span class="nowrap-pair"><button class="btn primary" data-act="new" data-arg="tsingle">＋ ${this._e(this._t("templates.add_single"))}</button>${this._help("help.template_add_single", this._t("templates.add_single"))}</span><span class="nowrap-pair"><button class="btn primary" data-act="new" data-arg="templates">＋ ${this._e(this._t("templates.add_group"))}</button>${this._help("help.template_group_add", this._t("templates.add_group"))}</span></span>`
       : "";
     return `<div class="section-title">${this._icon("routine_helper", 34)}<h2>${this._e(this._t("templates.title"))}${this._help("help.templates", this._t("templates.title"))}</h2>${add}</div>
       <div class="card">${cards}${singles ? `<div class="tpl-group plain">${singles}</div>` : ""}${empty ? `<div class="empty">${this._e(this._t("templates.none"))}</div>` : ""}
@@ -1569,16 +1580,23 @@ class KisSegitoPanel extends HTMLElement {
     };
   }
 
+  // On a phone the charts are drawn narrower (fewer units across), so their
+  // texts stay readable when the chart is scaled to the screen.
+  get _narrowCharts() {
+    return (this.offsetWidth || window.innerWidth) < 640;
+  }
+
   _barChart(st, color) {
-    const W = 560;
-    const H = 170;
+    const narrow = this._narrowCharts;
+    const W = narrow ? 320 : 560;
+    const H = narrow ? 190 : 170;
     const pad = 26;
     const bw = (W - 20) / Math.max(st.days.length, 1);
     const max = Math.max(1, ...Object.values(st.earned));
     const top = Object.entries(st.earned).sort((a, b) => b[1] - a[1])[0]?.[0];
     const today = this._todayStr();
-    const many = st.days.length > 10;
-    const step = Math.ceil(st.days.length / 10);
+    const many = st.days.length > (narrow ? 7 : 10);
+    const step = Math.ceil(st.days.length / (narrow ? 6 : 10));
     let g = `<line x1="0" x2="${W}" y1="${H - pad}" y2="${H - pad}" stroke="var(--line)"/>`;
     st.days.forEach((d, i) => {
       const v = st.earned[d];
@@ -1600,18 +1618,21 @@ class KisSegitoPanel extends HTMLElement {
         ${(d === top && v) || isToday ? `<text class="v" x="${x + w / 2}" y="${y - 6}" text-anchor="middle">${v}</text>` : ""}
         <text x="${x + w / 2}" y="${H - 8}" text-anchor="middle" ${isToday ? `class="v"` : ""}>${this._e(label)}</text></g>`;
     });
-    return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${this._e(this._t("stats.daily"))}">${g}</svg>`;
+    return `<svg class="chart ${narrow ? "narrow" : ""}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${this._e(this._t("stats.daily"))}">${g}</svg>`;
   }
 
   _cpChart(st) {
     if (!st.cps.length) {
       return `<div class="muted small">${this._e(this._t("stats.ins_none"))}</div>`;
     }
-    const W = 560;
-    const row = 44;
+    // On a phone the bar goes below the texts, across the whole width.
+    const narrow = this._narrowCharts;
+    const W = narrow ? 320 : 560;
+    const row = narrow ? 82 : 44;
     const H = st.cps.length * row + 10;
-    const mid = 400;
-    const half = 140;
+    const mid = narrow ? 160 : 400;
+    const half = narrow ? 120 : 140;
+    const barY = narrow ? 56 : 5;
     const max = Math.max(10, ...st.cps.map((p) => Math.abs(p.avg || 0)));
     let g = `<line x1="${mid}" x2="${mid}" y1="0" y2="${H}" stroke="var(--line)" stroke-dasharray="3 3"/>`;
     st.cps.forEach((p, i) => {
@@ -1624,11 +1645,11 @@ class KisSegitoPanel extends HTMLElement {
       g += `<g data-tip="${this._e(p.name)} · ${this._e(p.rname)} (${this._e(p.time)}): ${p.avg === null ? "—" : `${sign(avg)} ${this._e(this._t("stats.min"))}`} · ${p.ok}% · ${this._e(counts)}">
         <rect class="hit" x="0" y="${y - 4}" width="${W}" height="${row}"/>
         <image href="${this._iconUrl(p.icon || "checkpoint_flag", 26)}" x="0" y="${y}" width="26" height="26"/>
-        <text x="32" y="${y + 11}" class="v">${this._e(p.name)}</text><text x="32" y="${y + 24}">${this._e(p.rname)}</text><text x="32" y="${y + 37}">${this._e(p.time)} · ${this._e(counts)} · ${p.ok}% ✓</text>
-        ${len ? `<rect class="bar-m" x="${x}" y="${y + 5}" width="${Math.max(len, 3)}" height="16" rx="4" fill="var(${ok ? "--good" : "--warn"})"/>` : ""}
-        ${p.avg === null ? "" : `<text class="v" x="${ok ? mid + len + 6 : mid - len - 6}" y="${y + 18}" text-anchor="${ok ? "start" : "end"}">${sign(avg)}′</text>`}</g>`;
+        <text x="32" y="${y + (narrow ? 13 : 11)}" class="v">${this._e(p.name)}</text><text x="32" y="${y + (narrow ? 29 : 24)}">${this._e(p.rname)}</text><text x="32" y="${y + (narrow ? 45 : 37)}">${this._e(p.time)} · ${this._e(counts)} · ${p.ok}% ✓</text>
+        ${len ? `<rect class="bar-m" x="${x}" y="${y + barY}" width="${Math.max(len, 3)}" height="16" rx="4" fill="var(${ok ? "--good" : "--warn"})"/>` : ""}
+        ${p.avg === null ? "" : `<text class="v" x="${ok ? mid + len + 6 : mid - len - 6}" y="${y + barY + 13}" text-anchor="${ok ? "start" : "end"}">${sign(avg)}′</text>`}</g>`;
     });
-    return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${this._e(this._t("stats.by_cp"))}">${g}</svg>`;
+    return `<svg class="chart ${narrow ? "narrow" : ""}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${this._e(this._t("stats.by_cp"))}">${g}</svg>`;
   }
 
   _periodPicker() {
@@ -1875,7 +1896,7 @@ class KisSegitoPanel extends HTMLElement {
     if (!this._rules || !this._targets) {
       return `<div class="card empty">${this._e(this._t("common.loading"))}</div>`;
     }
-    const dis = this._dis();
+    const dis = this._adminDis();
     const scripts = this._targets.scripts;
     const rules = this._rules.rules
       .map((rule, i) => {
@@ -1930,12 +1951,12 @@ class KisSegitoPanel extends HTMLElement {
         return `<div class="card stack ${rule.enabled !== false ? "" : "inactive"}">
           <div class="row">${this._icon("nav_notifications", 36)}<input class="grow" data-rule="${i}:name" value="${this._e(rule.name)}" placeholder="${this._e(this._t("notifications.rule_name"))}" ${dis} style="font-weight:700">
             <label class="switch" data-tip="${this._e(this._t("common.active"))}"><input type="checkbox" data-rule="${i}:enabled" data-rerender ${rule.enabled !== false ? "checked" : ""} ${dis}></label>
-            ${this._isAdmin ? `<button class="iconbtn" data-act="rule-remove" data-arg="${i}" aria-label="${this._e(this._t("common.delete"))}">✕</button>` : ""}</div>
+            ${this._isHaAdmin ? `<button class="iconbtn" data-act="rule-remove" data-arg="${i}" aria-label="${this._e(this._t("common.delete"))}">✕</button>` : ""}</div>
           <label class="field"><span>${this._e(this._t("notifications.target"))}${this._help("help.notify_target", this._t("notifications.target"))}</span>${target}</label>
           ${mapping}
           <div class="field"><span>${this._e(this._t("notifications.events"))}${this._help("help.notify_events", this._t("notifications.events"))}</span><div class="row wrap" style="gap:6px">${events}</div></div>
           <div class="field"><span>${this._e(this._t("notifications.children"))}${this._help("help.notify_children", this._t("notifications.children"))}</span><div class="row wrap" style="gap:6px">${children}<span class="muted small">${this._e(this._t(rule.children.length ? "routines.only_these" : "routines.everyone"))}</span></div></div>
-          ${this._isAdmin ? `<div class="row wrap"><button class="btn sm" data-act="rule-test" data-arg="${i}" ${rule.service ? "" : "disabled"}>▷ ${this._e(this._t("notifications.test"))}</button>${this._help("help.notify_test", this._t("notifications.test"))}
+          ${this._isHaAdmin ? `<div class="row wrap"><button class="btn sm" data-act="rule-test" data-arg="${i}" ${rule.service ? "" : "disabled"}>▷ ${this._e(this._t("notifications.test"))}</button>${this._help("help.notify_test", this._t("notifications.test"))}
             ${result ? `<span class="tag ${result.ok ? "good" : "bad"}">${this._e(result.text)}</span>` : ""}</div>` : ""}
         </div>`;
       })
@@ -1947,7 +1968,7 @@ class KisSegitoPanel extends HTMLElement {
         ? `<span class="tag good">✓ ${this._e(this._t("notifications.label_ok"))}</span>`
         : `<span class="tag warn">${this._e(this._t("notifications.label_missing"))}</span>`;
     return `<div class="section-title" style="margin-top:6px">${this._icon("nav_notifications", 40)}<h2>${this._e(this._t("tab.notifications"))}${this._help("help.notifications", this._t("tab.notifications"))}</h2>
-        ${this._isAdmin ? `<button class="btn" data-act="rule-add">＋ ${this._e(this._t("notifications.add"))}</button><button class="btn primary" data-act="rules-save">${this._e(this._t("common.save"))}</button>` : ""}</div>
+        ${this._isHaAdmin ? `<button class="btn" data-act="rule-add">＋ ${this._e(this._t("notifications.add"))}</button><button class="btn primary" data-act="rules-save">${this._e(this._t("common.save"))}</button>` : ""}</div>
       <div class="grid g2">
         <div class="card stack"><label class="field"><span>${this._e(this._t("notifications.label"))}${this._help("help.notify_label", this._t("notifications.label"))}</span><input data-setting="notification_label" value="${this._e(label)}" ${dis}></label>
           <div class="row wrap">${labelState}<span class="grow"></span>
@@ -1975,7 +1996,7 @@ class KisSegitoPanel extends HTMLElement {
   }
 
   _viewAssistSpeakers() {
-    const dis = this._dis();
+    const dis = this._adminDis();
     const rules = this._data.settings.assist_speakers || [];
     const { devices, areas } = this._assistTargets();
     const rows = rules
@@ -1992,13 +2013,13 @@ class KisSegitoPanel extends HTMLElement {
           .map((c) => `<button class="chip ${chosen.includes(c.id) ? "on" : ""}" data-act="assist-child" data-arg="${i}|${this._e(c.id)}" ${dis}>${chosen.includes(c.id) ? "✓" : "○"} ${this._avatar(c, 22)}${this._e(c.name)}</button>`)
           .join("");
         return `<div class="knob-card stack" style="gap:8px"><div class="row wrap" style="gap:6px"><label class="field grow"><span>${this._e(this._t("assist.target"))}</span>${select}</label>
-          ${this._isAdmin ? `<button class="btn sm" data-act="assist-remove" data-arg="${i}">${this._e(this._t("assist.remove"))}</button>` : ""}</div>
+          ${this._isHaAdmin ? `<button class="btn sm" data-act="assist-remove" data-arg="${i}">${this._e(this._t("assist.remove"))}</button>` : ""}</div>
           <div class="row wrap" style="gap:6px">${chips}</div></div>`;
       })
       .join("");
     return `<div class="card"><h3>${this._e(this._t("assist.title"))}${this._help("help.assist_speakers", this._t("assist.title"))}</h3>
       ${rows || `<div class="muted">${this._e(this._t("assist.none"))}</div>`}
-      ${this._isAdmin ? `<div class="row"><button class="btn sm" data-act="assist-add">＋ ${this._e(this._t("assist.add"))}</button></div>` : ""}</div>`;
+      ${this._isHaAdmin ? `<div class="row"><button class="btn sm" data-act="assist-add">＋ ${this._e(this._t("assist.add"))}</button></div>` : ""}</div>`;
   }
 
   async _saveAssistSpeakers(rules) {
@@ -2007,11 +2028,32 @@ class KisSegitoPanel extends HTMLElement {
     await this._load();
   }
 
+  // Users and access: each non-admin Home Assistant user is an editor (may
+  // change content) or can only look; admins can do everything.
+  _viewUserRoles() {
+    if (!this._isHaAdmin) return "";
+    if (this._users === undefined) {
+      this._users = null;
+      this._ws({ type: "kis_segito/users" }).then((users) => {
+        this._users = users || [];
+        this._render();
+      }).catch(() => {
+        this._users = [];
+      });
+    }
+    const rows = (this._users || [])
+      .map((u) => `<div class="mod-row"><b class="grow">${this._e(u.name || "—")}</b>${u.is_admin
+        ? `<span class="tag good">${this._e(this._t("roles.admin"))}</span>`
+        : `<select data-user-role="${this._e(u.id)}" style="width:auto"><option value="editor" ${u.role === "editor" ? "selected" : ""}>${this._e(this._t("roles.editor"))}</option><option value="viewer" ${u.role !== "editor" ? "selected" : ""}>${this._e(this._t("roles.viewer"))}</option></select>`}</div>`)
+      .join("");
+    return `<div class="card"><h3>${this._e(this._t("roles.title"))}${this._help("help.roles", this._t("roles.title"))}</h3>${this._users === null ? `<div class="muted">${this._e(this._t("common.loading"))}</div>` : rows || `<div class="muted">${this._e(this._t("roles.none"))}</div>`}</div>`;
+  }
+
   _viewSettings() {
     const tab = SETTINGS_TABS.includes(this._settingsTab) ? this._settingsTab : "general";
     const s = this._data.settings;
     const sc = s.screen || {};
-    const dis = this._dis();
+    const dis = this._adminDis();
     const languages = [{ code: LANGUAGE_AUTO, name: this._t("settings.language_auto") }, ...s.languages]
       .map((l) => `<option value="${this._e(l.code)}" ${l.code === s.language ? "selected" : ""}>${this._e(l.name)}</option>`)
       .join("");
@@ -2037,7 +2079,7 @@ class KisSegitoPanel extends HTMLElement {
             <div class="grow"><label class="field"><span>${this._e(this._t("settings.virtual_name"))}${this._help("help.virtual", this._t("settings.virtual_name"))}</span><input data-devname="${this._e(d.device_id)}" value="${this._e(d.name)}" ${dis} style="font-weight:700"></label></div>
             <div class="row" style="gap:4px">${kids.length ? kids.map((c) => this._avatar(c, 30)).join("") : `<span class="tag">${this._e(this._t("settings.knob_everyone"))}</span>`}${this._help("help.knob_avatars", this._t("settings.knob_children"))}</div></div>
             ${this._knobOptions(d)}
-            ${this._isAdmin ? `<div class="row wrap"><button class="btn sm" data-act="virtual-delete" data-arg="${this._e(d.device_id)}">${this._e(this._t("settings.virtual_delete"))}</button></div>` : ""}</div>`;
+            ${this._isHaAdmin ? `<div class="row wrap"><button class="btn sm" data-act="virtual-delete" data-arg="${this._e(d.device_id)}">${this._e(this._t("settings.virtual_delete"))}</button></div>` : ""}</div>`;
         }
         return `<div class="knob-card stack" style="gap:10px"><div class="row wrap"><span class="knob-face" style="${bg ? `background-image:url('${bg}')` : ""}"></span>
           <div class="grow"><label class="field"><span>${this._e(this._t("settings.knob_name"))}</span><input data-devname="${this._e(d.device_id)}" value="${this._e(d.name)}" ${dis} style="font-weight:700"></label></div>
@@ -2046,7 +2088,7 @@ class KisSegitoPanel extends HTMLElement {
           ${this._storeNote(d)}
           ${this._firmwareNote(d)}
           ${this._knobOptions(d)}
-          ${this._isAdmin ? `<div class="row wrap" style="gap:6px"><button class="btn sm" data-act="rotate-token" data-arg="${this._e(d.device_id)}">${this._e(this._t("settings.knob_new_key"))}</button>${this._help("help.knob_new_key", this._t("settings.knob_new_key"))}${d.can_restart ? `<span style="width:8px"></span><button class="btn sm" data-act="restart-knob" data-arg="${this._e(d.device_id)}">↻ ${this._e(this._t("settings.knob_restart"))}</button>${this._help("help.knob_restart", this._t("settings.knob_restart"))}` : ""}</div>` : ""}
+          ${this._isHaAdmin ? `<div class="row wrap" style="gap:6px"><button class="btn sm" data-act="rotate-token" data-arg="${this._e(d.device_id)}">${this._e(this._t("settings.knob_new_key"))}</button>${this._help("help.knob_new_key", this._t("settings.knob_new_key"))}${d.can_restart ? `<span style="width:8px"></span><button class="btn sm" data-act="restart-knob" data-arg="${this._e(d.device_id)}">↻ ${this._e(this._t("settings.knob_restart"))}</button>${this._help("help.knob_restart", this._t("settings.knob_restart"))}` : ""}</div>` : ""}
           <details><summary>${this._e(this._t("screen.own"))}${this._help("help.screen_own", this._t("screen.own"))}</summary>
             <div class="form-grid" style="margin-top:10px">${fields}
             <label class="field"><span>${this._e(this._t("screen.saver_type"))}</span><select data-device-screen-type data-device="${this._e(d.device_id)}" ${dis}><option value="">${this._e(this._t("screen.general"))}</option>${SAVER_TYPES.map((x) => `<option value="${x}" ${own.saver_type === x ? "selected" : ""}>${this._e(this._t(`screen.saver_${x}`))}</option>`).join("")}</select></label></div></details>
@@ -2057,10 +2099,10 @@ class KisSegitoPanel extends HTMLElement {
     const uploaded = s.background && !this._isPresetBackground(s.background) ? s.background : "";
     const backgrounds = `${this._backgroundChoices(s.background || "", `data-act="bg-set"`)}<div class="bgs"><button class="bg ${!s.background ? "on" : ""}" data-act="bg-set" data-arg="" ${dis}>${this._e(this._t("background.none"))}</button>
       ${uploaded ? `<button class="bg on" style="background-image:url('${this._backgroundUrl(uploaded)}')" data-act="bg-set" data-arg="${this._e(uploaded)}" aria-label="${this._e(this._t("background.own"))}" ${dis}></button>` : ""}
-      ${this._isAdmin ? `<label class="bg upload" data-tip="${this._e(this._t("background.upload"))}">＋<br>${this._e(this._t("background.own"))}<input type="file" accept="image/*" data-upload-bg hidden></label>` : ""}</div>`;
+      ${this._isHaAdmin ? `<label class="bg upload" data-tip="${this._e(this._t("background.upload"))}">＋<br>${this._e(this._t("background.own"))}<input type="file" accept="image/*" data-upload-bg hidden></label>` : ""}</div>`;
     const weekdays = WEEKDAYS.map((d) => `<option value="${d}" ${Number(s.piggy_interest_weekday) === d ? "selected" : ""}>${this._e(this._t(`weekday.${d}`))}</option>`).join("");
     return `<div class="section-title" style="margin-top:6px">${this._icon("nav_settings", 40)}<h2>${this._e(this._t("settings.title"))}</h2></div>
-      ${this._isAdmin ? "" : `<div class="banner">${this._icon("status_lock", 28)} ${this._e(this._t("settings.admin_only"))}</div>`}
+      ${this._isHaAdmin ? "" : `<div class="banner">${this._icon("status_lock", 28)} ${this._e(this._t("settings.admin_only"))}</div>`}
       <div class="seg settings-tabs" role="tablist">${SETTINGS_TABS.map((k) => `<button role="tab" class="${tab === k ? "on" : ""}" data-act="settings-tab" data-arg="${k}">${this._e(this._t(`settings.tab_${k}`))}</button>`).join("")}</div>
       <div class="set-grid">
 ${tab === "general" ? `
@@ -2070,13 +2112,14 @@ ${tab === "general" ? `
           <label class="field"><span>${this._e(this._t("settings.inactivity"))}${this._help("help.inactivity", this._t("settings.inactivity"))}</span>${this._minuteInput(`data-setting="inactivity_s"`, s.inactivity_s, "", 0.5)}</label>
           <label class="field"><span>${this._e(this._t("settings.routine_menu_grace"))}${this._help("help.routine_menu_grace", this._t("settings.routine_menu_grace"))}</span>${this._minuteInput(`data-setting="routine_menu_grace_s"`, s.routine_menu_grace_s)}</label>
         </div>
-        ${this._viewAssistSpeakers()}` : ""}
+        ${this._viewAssistSpeakers()}
+        ${this._viewUserRoles()}` : ""}
 ${tab === "look" ? `
         ${this._viewThemes()}
         <div class="card"><h3>${this._e(this._t("background.title"))}${this._help("help.background", this._t("background.title"))}</h3>${backgrounds}</div>
         ${this._viewIconSettings()}` : ""}
 ${tab === "knobs" ? `
-        <div class="card"><h3>${this._e(this._t("settings.knobs"))}</h3>${devices || `<div class="muted">${this._e(this._t("settings.no_knobs"))}</div>`}${this._isAdmin ? `<div class="row" style="gap:6px"><button class="btn sm" data-act="virtual-add">＋ ${this._e(this._t("settings.virtual_add"))}</button>${this._help("help.virtual", this._t("settings.virtual_add"))}</div>` : ""}</div>
+        <div class="card"><h3>${this._e(this._t("settings.knobs"))}</h3>${devices || `<div class="muted">${this._e(this._t("settings.no_knobs"))}</div>`}${this._isHaAdmin ? `<div class="row" style="gap:6px"><button class="btn sm" data-act="virtual-add">＋ ${this._e(this._t("settings.virtual_add"))}</button>${this._help("help.virtual", this._t("settings.virtual_add"))}</div>` : ""}</div>
         <div class="card"><h3>${this._e(this._t("screen.title"))}</h3>
           <div class="timeline"><div class="track"></div>${mark("saver_after", this._t("screen.saver_type"))}${mark("dim_after", "☾")}${mark("blank_after", "■")}${mark("off_after", "⏻")}</div>
           <div class="form-grid">${SCREEN_KEYS.map((k) => `<label class="field"><span>${this._e(this._t(`screen.${k}`))}${this._help(`help.screen.${k}`, this._t(`screen.${k}`))}</span>${k === "dim_level" ? `<input type="number" min="1" max="100" data-screen="${k}" value="${sc[k] ?? ""}" ${dis}>` : this._minuteInput(`data-screen="${k}"`, sc[k])}</label>`).join("")}</div>
@@ -2101,7 +2144,7 @@ ${tab === "rewards" ? `
           <label class="field"><span>${this._e(this._t("settings.interest_min"))}${this._help("help.interest_min", this._t("settings.interest_min"))}</span>${num("piggy_interest_min", 0, 1000)}</label>
           <label class="field"><span>${this._e(this._t("settings.interest_max"))}${this._help("help.interest_max", this._t("settings.interest_max"))}</span>${num("piggy_interest_max", 0, 1000)}</label></div></div>` : ""}
 ${tab === "data" ? `
-        ${this._isAdmin ? `<div class="card"><h3>${this._e(this._t("settings.data"))}</h3><div class="row wrap" style="gap:8px"><button class="btn" data-act="export">⇩ ${this._e(this._t("settings.export"))}</button>${this._help("help.export", this._t("settings.export"))}<span style="width:12px"></span><label class="btn">⇧ ${this._e(this._t("settings.import"))}<input type="file" accept=".json,application/json" data-import hidden></label>${this._help("help.import", this._t("settings.import"))}</div></div>` : ""}` : ""}
+        ${this._isHaAdmin ? `<div class="card"><h3>${this._e(this._t("settings.data"))}</h3><div class="row wrap" style="gap:8px"><button class="btn" data-act="export">⇩ ${this._e(this._t("settings.export"))}</button>${this._help("help.export", this._t("settings.export"))}<span style="width:12px"></span><label class="btn">⇧ ${this._e(this._t("settings.import"))}<input type="file" accept=".json,application/json" data-import hidden></label>${this._help("help.import", this._t("settings.import"))}</div></div>` : ""}` : ""}
       </div>
       ${Object.entries(INPUT_KINDS).map(([k, match]) => `<datalist id="ks-inputs-${k}">${Object.entries(this._hass?.states || {}).filter(([id, st]) => match(id, st)).map(([id, st]) => `<option value="${this._e(id)}">${this._e(st.attributes.friendly_name || id)}</option>`).join("")}</datalist>`).join("")}
       <p class="muted small">${this._e(this._t("panel.version"))}: <span class="num">${this._e(this._version)}</span></p>`;
@@ -2449,18 +2492,29 @@ ${tab === "data" ? `
     const singles = this._data.routine_templates || [];
     const find = (id) => groups.find((g) => g.id === id) || singles.find((t) => t.id === id);
     const holds = (t) => (t.routine ? [t] : singles.filter((m) => m.group === t.id)).some((m) => m.source === r.id);
-    const parts = [];
+    const instead = [];
+    const copies = [];
+    const add = (when, t) => {
+      if (holds(t)) copies.push(this._t("templates.copy_runs").replace("{when}", when).replace("{name}", t.name || ""));
+      else if (when) instead.push(`${when}: ${t.name}`);
+    };
     for (const d of WEEKDAYS) {
       const t = find(this._data.weekday_templates?.[String(d)]);
-      if (t && (!r.weekdays?.length || r.weekdays.includes(d)) && !holds(t)) parts.push(`${this._t(`weekday.${d}`)}: ${t.name}`);
+      if (!t) continue;
+      if (holds(t)) add(this._t(`weekday_every.${d}`), t);
+      else if (!r.weekdays?.length || r.weekdays.includes(d)) add(this._t(`weekday.${d}`), t);
     }
     const today = this._todayStr();
     for (const [date, id] of Object.entries(this._data.date_templates || {}).sort()) {
       const t = find(id);
-      if (date >= today && t && !holds(t)) parts.push(`${date}: ${t.name}`);
+      if (date >= today && t) add(date, t);
     }
-    return parts.length
-      ? `<div class="banner" style="margin-bottom:12px"><span class="grow">${this._e(this._t("templates.runs_instead").replace("{list}", parts.join(" · ")))}</span>${this._help("help.template_runs_instead", this._t("templates.title"))}</div>`
+    const lines = [
+      ...copies,
+      ...(instead.length ? [this._t("templates.runs_instead").replace("{list}", instead.join(" · "))] : []),
+    ];
+    return lines.length
+      ? `<div class="banner" style="margin-bottom:12px"><span class="grow">${lines.map((l) => this._e(l)).join("<br>")}</span>${this._help("help.template_runs_instead", this._t("templates.title"))}</div>`
       : "";
   }
 
@@ -2580,6 +2634,7 @@ ${tab === "data" ? `
     return `<div class="backdrop" data-act="cancel"></div><aside class="drawer" role="dialog" aria-modal="true" aria-label="${this._e(view.title)}">
       <div class="drawer-h"><h2>${this._e(view.title)}</h2><button class="iconbtn" data-act="cancel" aria-label="${this._e(this._t("common.close"))}">✕</button></div>${view.nav || ""}
       <div class="drawer-b">${body}${id}</div>
+      ${this._error ? `<div class="banner bad drawer-err"><span class="grow">${this._e(this._error)}</span><button class="iconbtn" data-act="error-close" aria-label="✕">✕</button></div>` : ""}
       <div class="drawer-f">${foot}</div></aside>`;
   }
 
@@ -3050,7 +3105,8 @@ ${tab === "data" ? `
           ${this._data?.version && this._data.version !== PANEL_VERSION
             ? `<div class="banner">${this._icon("celebrate_confetti", 32)}<span class="grow">${this._e(this._t("panel.outdated"))}</span><button class="btn primary sm" data-act="reload">${this._e(this._t("panel.reload"))}</button></div>`
             : ""}
-          ${this._error ? `<div class="banner bad"><span class="grow">${this._e(this._error)}</span><button class="iconbtn" data-act="error-close" aria-label="✕">✕</button></div>` : ""}
+          ${this._data && !this._isAdmin && this._tab !== "settings" ? `<div class="banner">${this._icon("status_lock", 28)}<span class="grow">${this._e(this._t("settings.view_only"))}</span>${this._help("help.roles", this._t("roles.title"))}</div>` : ""}
+          ${this._error && !this._edit ? `<div class="banner bad"><span class="grow">${this._e(this._error)}</span><button class="iconbtn" data-act="error-close" aria-label="✕">✕</button></div>` : ""}
           ${body}
         </main>
       </div>
@@ -3309,7 +3365,7 @@ ${tab === "data" ? `
         await this._switchTab(arg);
         return;
       case "lang":
-        if (this._isAdmin) {
+        if (this._isHaAdmin) {
           this._localLanguage = "";
           try {
             localStorage.removeItem(LANG_KEY);
@@ -3590,9 +3646,11 @@ ${tab === "data" ? `
         break;
       }
       case "refresh-rtemplate":
-        await this._ws({ type: "kis_segito/template/refresh", template_id: arg });
-        this._toast(this._t("toast.trefresh"));
-        await this._load();
+        this._confirm(this._t("templates.refresh"), this._t("templates.refresh_confirm"), async () => {
+          await this._ws({ type: "kis_segito/template/refresh", template_id: arg });
+          this._toast(this._t("toast.trefresh"));
+          await this._load();
+        }, { ok: this._t("templates.refresh") });
         return;
       case "day-extra-add": {
         const sel = this.shadowRoot.querySelector(`[data-day-extra="${el.dataset.date}"]`);
@@ -4299,6 +4357,17 @@ ${tab === "data" ? `
       await this._load();
       return;
     }
+    if (el.dataset.userRole !== undefined) {
+      const user = (this._users || []).find((u) => u.id === el.dataset.userRole);
+      if (user) user.role = el.value;
+      const roles = {};
+      for (const u of this._users || []) {
+        if (!u.is_admin && u.role === "editor") roles[u.id] = "editor";
+      }
+      await this._ws({ type: "kis_segito/settings/update", user_roles: roles });
+      this._toast(this._t("toast.saved"));
+      return;
+    }
     if (el.dataset.weekdayTemplate !== undefined) {
       await this._ws({ type: "kis_segito/day_template", weekday: Number(el.dataset.weekdayTemplate), template_id: el.value || null });
       this._toast(this._t("toast.saved"));
@@ -4934,6 +5003,8 @@ const STYLE = `
   .tpl-row.tpl-member { padding-left: 18px; }
   .tpl-ctl { display: grid; grid-template-columns: 200px 230px 180px; gap: 6px; margin-left: auto; justify-items: end; align-items: center; }
   .tpl-slot { display: inline-flex; align-items: center; gap: 4px; }
+  .nowrap-pair { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+  .drawer-err { margin: 0 18px 8px; }
   .mod-row .nameblk { min-width: 0; }
   .mod-ctl { display: flex; align-items: center; gap: 8px; margin-left: auto; flex-wrap: nowrap; }
   .mod-ctl .restore.idle { visibility: hidden; }
@@ -4958,6 +5029,7 @@ const STYLE = `
   .kpi .lbl { font-size: .7rem; }
   .chart { width: 100%; height: auto; display: block; overflow: visible; }
   .chart text { font-family: var(--f-body); fill: var(--muted); font-size: 11px; }
+  .chart.narrow text { font-size: 13px; }
   .chart .v { fill: var(--ink); font-weight: 700; }
   .chart .hit { fill: transparent; }
   .chart g:hover .bar-m { opacity: .8; }
@@ -5162,6 +5234,7 @@ const STYLE = `
     .mod-row .nameblk { flex: 1 1 100%; }
     .mod-ctl { flex: 1 1 100%; justify-content: flex-end; }
     .tpl-ctl { grid-template-columns: 1fr; width: 100%; }
+    .kpi .lbl { font-size: .8rem; }
     .mod-ctl .restore .wide { display: none; }
     .bnav { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; background: var(--surface); border-top: 1px solid var(--line); padding: 6px 6px calc(6px + env(safe-area-inset-bottom, 0px)); gap: 2px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; box-shadow: 0 -8px 24px rgb(0 0 0 / .08);
       -webkit-mask-image: linear-gradient(to right, transparent, #000 18px, #000 calc(100% - 18px), transparent); mask-image: linear-gradient(to right, transparent, #000 18px, #000 calc(100% - 18px), transparent); }

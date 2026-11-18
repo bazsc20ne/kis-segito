@@ -250,3 +250,25 @@ async def test_firmware_version_and_release_readiness(hass: HomeAssistant) -> No
     assert _firmware(hass, device.id)["ready"] is False
     registry.async_update_entity(ready.entity_id, disabled_by=er.RegistryEntryDisabler.USER)
     assert _firmware(hass, device.id)["ready"] == "disabled"
+
+
+async def test_editor_role(hass: HomeAssistant, hass_ws_client, hass_admin_user) -> None:
+    """A non-admin user can only look until an admin makes them an editor;
+    settings stay admin-only."""
+    entry = MockConfigEntry(domain=DOMAIN, unique_id="dev", data={CONF_DEVICE_ID: "dev"})
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    hass_admin_user.groups = []  # now a normal user
+    client = await hass_ws_client(hass)
+    await client.send_json_auto_id({"type": f"{DOMAIN}/data"})
+    assert (await client.receive_json())["result"]["role"] == "viewer"
+    await client.send_json_auto_id({"type": f"{DOMAIN}/save", "collection": "rewards", "item": {"name": "Ice cream", "cost": 3}})
+    assert not (await client.receive_json())["success"]
+    hass.data[DOMAIN].manager.settings["user_roles"] = {hass_admin_user.id: "editor"}
+    await client.send_json_auto_id({"type": f"{DOMAIN}/data"})
+    assert (await client.receive_json())["result"]["role"] == "editor"
+    await client.send_json_auto_id({"type": f"{DOMAIN}/save", "collection": "rewards", "item": {"name": "Ice cream", "cost": 3}})
+    assert (await client.receive_json())["success"]
+    await client.send_json_auto_id({"type": f"{DOMAIN}/settings/update", "user_roles": {}})
+    assert not (await client.receive_json())["success"]

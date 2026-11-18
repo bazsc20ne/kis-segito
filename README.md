@@ -63,7 +63,7 @@ substitutions:
   friendly_name: Kis Segítő
 
 packages:
-  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.9.19
+  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.9.20
 
 api:
   encryption:
@@ -117,7 +117,9 @@ Ezután add hozzá a gombot a Home Assistanthez az **ESPHome** integrációval.
 **HACS-szal (ajánlott):**
 
 A Home Assistant 2026.11-től a HACS a Home Assistant része, **Marketplace** néven. A lépések
-ugyanezek; ahol lent HACS szerepel, ott a Marketplace-t keresd.
+ugyanezek; ahol lent HACS szerepel, ott a Marketplace-t keresd. Ha a HACS Marketplace-re
+váltása óta még nem tetted meg, a Marketplace megnyitásakor egyszer el kell fogadnod egy
+figyelmeztetést. A Kis Segítő egy zip-fájlként, egyetlen letöltéssel települ és frissül.
 
 [![Open your Home Assistant instance and open this repository in HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=bazsc20ne&repository=kis-segito&category=integration)
 
@@ -415,7 +417,7 @@ substitutions:
   friendly_name: Kis Segítő
 
 packages:
-  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.9.19
+  kis_segito: github://bazsc20ne/kis-segito/esphome/kis-segito.yaml@v0.9.20
 
 api:
   encryption:
@@ -468,7 +470,9 @@ Then add the knob to Home Assistant with the **ESPHome** integration.
 **With HACS (recommended):**
 
 From Home Assistant 2026.11, HACS is part of Home Assistant, named **Marketplace**. The steps
-are the same; where HACS is named below, look for Marketplace.
+are the same; where HACS is named below, look for Marketplace. If you have not done so since
+HACS became Marketplace, you accept a warning once when you open Marketplace. Little Helper installs
+and updates as one zip file, in a single download.
 
 [![Open your Home Assistant instance and open this repository in HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=bazsc20ne&repository=kis-segito&category=integration)
 
