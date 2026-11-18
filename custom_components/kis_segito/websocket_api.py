@@ -243,6 +243,11 @@ async def ws_settings_update(
         )
         if key in msg
     }
+    if "user_roles" in msg:
+        # Only editors are kept: anyone not listed can only look.
+        changes["user_roles"] = {
+            user_id: role for user_id, role in msg["user_roles"].items() if role == "editor"
+        }
     if "screen" in msg:
         changes["screen"] = data.manager.settings.get("screen", {}) | msg["screen"]
     if language is not None:

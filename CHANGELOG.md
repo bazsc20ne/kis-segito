@@ -12,6 +12,24 @@ All notable changes to this project are documented here, in Hungarian and Englis
 The format follows [Keep a Changelog](https://keepachangelog.com/) and the project
 uses [Semantic Versioning](https://semver.org/).
 
+## [0.9.21] - 2026-11-18
+
+### Magyar
+
+- **A szerepek mentése most működik.** A Beállítások → Általános → Felhasználók és
+  hozzáférés részen beállított szerkesztő szerep elmentődik, így egy nem admin
+  felhasználó valóban szerkesztő lehet; eddig a választás elveszett.
+- **A szerkesztő hibaüzenete bezáráskor eltűnik.** Ha egy mentés hibával nem sikerült,
+  és a szerkesztőt bezárod, az üzenet nem marad az oldalon.
+
+### English
+
+- **Saving roles now works.** The editor role set under Settings → General → Users and
+  access is saved, so a non-admin user can really become an editor; until now the
+  choice was lost.
+- **An editor's error message goes when it closes.** When saving failed and you close
+  the editor, the message no longer stays on the page.
+
 ## [0.9.20] - 2026-11-18
 
 ### Magyar

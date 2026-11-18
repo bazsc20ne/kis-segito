@@ -10,7 +10,7 @@
 
 // Must equal the integration version (scripts/check_versions.py checks it):
 // a browser that still runs an older copy of this file shows a reload bar.
-const PANEL_VERSION = "0.9.20";
+const PANEL_VERSION = "0.9.21";
 const FALLBACK_LANGUAGE = "en";
 const LANGUAGE_AUTO = "auto";
 const TABS = ["today", "calendar", "children", "routines", "rewards", "tokens", "history", "notifications", "settings"];
@@ -3286,6 +3286,7 @@ ${tab === "data" ? `
     } else if (this._edit) {
       this._edit = null;
       this._stats = null;
+      this._error = "";
     } else {
       return false;
     }
@@ -3342,6 +3343,7 @@ ${tab === "data" ? `
       await this._ws({ type: "kis_segito/save", collection: ed.coll, item: ed.item });
     }
     this._edit = null;
+    this._error = "";
     this._stats = null;
     this._picker = null;
     this._toast(this._t("toast.saved"));
@@ -3460,6 +3462,8 @@ ${tab === "data" ? `
         return;
       }
       case "cancel":
+        // A message shown in the editor goes with it.
+        if (this._edit) this._error = "";
         this._edit = null;
         this._picker = null;
         this._stats = null;
