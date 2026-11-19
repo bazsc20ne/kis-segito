@@ -10,7 +10,7 @@
 
 // Must equal the integration version (scripts/check_versions.py checks it):
 // a browser that still runs an older copy of this file shows a reload bar.
-const PANEL_VERSION = "0.9.21";
+const PANEL_VERSION = "0.9.22";
 const FALLBACK_LANGUAGE = "en";
 const LANGUAGE_AUTO = "auto";
 const TABS = ["today", "calendar", "children", "routines", "rewards", "tokens", "history", "notifications", "settings"];
@@ -371,9 +371,10 @@ class KisSegitoPanel extends HTMLElement {
     return this._isHaAdmin || this._data?.role === "editor";
   }
 
-  // The settings, the knobs, themes, notifications, import: admins only.
+  // The settings, the knobs, themes, notifications, import: Home Assistant
+  // admins and the users set as Little Helper administrators.
   get _isHaAdmin() {
-    return this._hass?.user?.is_admin ?? false;
+    return (this._hass?.user?.is_admin ?? false) || this._data?.role === "admin";
   }
 
   get _isNarrow() {
@@ -2044,7 +2045,7 @@ class KisSegitoPanel extends HTMLElement {
     const rows = (this._users || [])
       .map((u) => `<div class="mod-row"><b class="grow">${this._e(u.name || "—")}</b>${u.is_admin
         ? `<span class="tag good">${this._e(this._t("roles.admin"))}</span>`
-        : `<select data-user-role="${this._e(u.id)}" style="width:auto"><option value="editor" ${u.role === "editor" ? "selected" : ""}>${this._e(this._t("roles.editor"))}</option><option value="viewer" ${u.role !== "editor" ? "selected" : ""}>${this._e(this._t("roles.viewer"))}</option></select>`}</div>`)
+        : `<select data-user-role="${this._e(u.id)}" style="width:auto">${["admin", "editor", "viewer"].map((r) => `<option value="${r}" ${(u.role === r || (r === "viewer" && !["admin", "editor"].includes(u.role))) ? "selected" : ""}>${this._e(this._t(`roles.${r === "admin" ? "administrator" : r}`))}</option>`).join("")}</select>`}</div>`)
       .join("");
     return `<div class="card"><h3>${this._e(this._t("roles.title"))}${this._help("help.roles", this._t("roles.title"))}</h3>${this._users === null ? `<div class="muted">${this._e(this._t("common.loading"))}</div>` : rows || `<div class="muted">${this._e(this._t("roles.none"))}</div>`}</div>`;
   }
@@ -4366,7 +4367,7 @@ ${tab === "data" ? `
       if (user) user.role = el.value;
       const roles = {};
       for (const u of this._users || []) {
-        if (!u.is_admin && u.role === "editor") roles[u.id] = "editor";
+        if (!u.is_admin && (u.role === "editor" || u.role === "admin")) roles[u.id] = u.role;
       }
       await this._ws({ type: "kis_segito/settings/update", user_roles: roles });
       this._toast(this._t("toast.saved"));

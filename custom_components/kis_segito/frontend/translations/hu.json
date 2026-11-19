@@ -5,7 +5,7 @@
   "settings.title": "Beállítások",
   "settings.language": "Nyelv",
   "settings.language_auto": "Automatikus (Home Assistant nyelve)",
-  "settings.admin_only": "Ezt csak rendszergazda módosíthatja.",
+  "settings.admin_only": "Ezt csak adminisztrátor módosíthatja.",
   "tab.today": "Ma",
   "tab.children": "Gyerekek",
   "tab.routines": "Rutinok",
@@ -708,10 +708,11 @@
   "templates.refresh_confirm": "A sablon másolata felülíródik a rutin mostani állapotával, és a kézzel végzett módosításai elvesznek. Folytatod?",
   "templates.copy_runs": "{when} a(z) „{name}” sablon másolata fut; ennek a rutinnak a módosítása ott nem látszik (Másolat frissítése).",
   "roles.title": "Felhasználók és hozzáférés",
-  "roles.admin": "Admin (mindig szerkesztő)",
+  "roles.admin": "Home Assistant admin (mindig adminisztrátor)",
   "roles.editor": "Szerkesztő",
   "roles.viewer": "Csak megtekintés",
   "roles.none": "Nincs más felhasználó.",
-  "settings.view_only": "Csak megtekintheted: a módosításhoz egy admin szerkesztővé tehet a Beállítások → Általános oldalon.",
-  "help.roles": "A Home Assistant adminjai mindent módosíthatnak. A többi felhasználó szerkesztő vagy csak megtekintő lehet; aki nincs beállítva, az csak megtekintő.\n\nSzerkesztő: gyerekek, rutinok, jutalmak, sablonok, naptár és napi módosítások, zsetonok és javítások, jóváhagyások, valamint a kártyákon a feladatok és a jutalmak.\n\nCsak adminnak marad: a Beállítások oldal (gombok, képernyő, témák, háttér, ikonok, nyelv, Assist, felhasználók), az értesítések, a virtuális gombok, az adatexport és -import."
+  "settings.view_only": "Csak megtekintheted: a módosításhoz egy adminisztrátor szerkesztővé tehet a Beállítások → Általános oldalon.",
+  "help.roles": "Három szerep van. Aki nincs beállítva, az csak megtekintő.\n\nAdminisztrátor: a Kis Segítőben mindent módosíthat, a Beállítások oldalt is (gombok, képernyő, témák, háttér, ikonok, nyelv, Assist, felhasználók), az értesítéseket, a virtuális gombokat, az adatexportot és -importot. A Home Assistant adminjai mindig adminisztrátorok. Ez a szerep a Home Assistant saját beállításaihoz (felhasználók, integrációk) nem ad jogot.\n\nSzerkesztő: gyerekek, rutinok, jutalmak, sablonok, naptár és napi módosítások, zsetonok és javítások, jóváhagyások, valamint a kártyákon a feladatok és a jutalmak.\n\nCsak megtekintés: mindent lát, de semmit nem módosíthat.",
+  "roles.administrator": "Adminisztrátor"
 }

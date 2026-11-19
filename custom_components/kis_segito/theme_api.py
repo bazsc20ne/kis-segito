@@ -27,6 +27,7 @@ from homeassistant.components.http import HomeAssistantView
 from homeassistant.core import HomeAssistant, callback
 
 from . import theme_build
+from .access import require_ks_admin, user_role
 from .const import DOMAIN
 from .themes import (
     DEFAULT_THEME,
@@ -297,7 +298,7 @@ class ThemeUploadView(HomeAssistantView):
     async def post(self, request: web.Request) -> web.Response:
         hass: HomeAssistant = request.app["hass"]
         user = request.get("hass_user")
-        if user is None or not user.is_admin:
+        if user_role(hass, user) != "admin":
             return self.json_message("Only administrators", status_code=403)
         if request.content_length and request.content_length > MAX_UPLOAD:
             return self.json({"code": "too_large"}, status_code=413)
@@ -338,7 +339,7 @@ class ThemeUploadView(HomeAssistantView):
         vol.Required("active"): bool,
     }
 )
-@websocket_api.require_admin
+@require_ks_admin
 @websocket_api.async_response
 async def ws_theme_active(
     hass: HomeAssistant,
@@ -364,7 +365,7 @@ async def ws_theme_active(
 @websocket_api.websocket_command(
     {vol.Required("type"): f"{DOMAIN}/themes/delete", vol.Required("theme_id"): str}
 )
-@websocket_api.require_admin
+@require_ks_admin
 @websocket_api.async_response
 async def ws_theme_delete(
     hass: HomeAssistant,

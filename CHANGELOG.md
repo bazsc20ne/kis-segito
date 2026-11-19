@@ -12,6 +12,25 @@ All notable changes to this project are documented here, in Hungarian and Englis
 The format follows [Keep a Changelog](https://keepachangelog.com/) and the project
 uses [Semantic Versioning](https://semver.org/).
 
+## [0.9.22] - 2026-11-19
+
+### Magyar
+
+- **Új szerep: Adminisztrátor.** A Beállítások → Általános → Felhasználók és
+  hozzáférés részen egy nem admin Home Assistant-felhasználó adminisztrátor is lehet:
+  a Kis Segítőben mindent módosíthat, a beállításokat, a gombokat, a témákat, az
+  ikonokat, az értesítéseket, az exportot és az importot is. A Home Assistant saját
+  beállításaihoz ez a szerep nem ad jogot; a Home Assistant adminjai mindig
+  adminisztrátorok. Az ⓘ mindhárom szerepet elmagyarázza.
+
+### English
+
+- **New role: Administrator.** Under Settings → General → Users and access a non-admin
+  Home Assistant user can also be an administrator: they can change everything in
+  Little Helper, including settings, knobs, themes, icons, notifications, export and
+  import. This role gives no rights in Home Assistant's own settings; Home Assistant
+  admins are always administrators. The ⓘ explains all three roles.
+
 ## [0.9.21] - 2026-11-18
 
 ### Magyar

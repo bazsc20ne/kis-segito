@@ -5,7 +5,7 @@
   "settings.title": "Settings",
   "settings.language": "Language",
   "settings.language_auto": "Automatic (Home Assistant language)",
-  "settings.admin_only": "Only administrators can change this.",
+  "settings.admin_only": "Only an administrator can change this.",
   "tab.today": "Today",
   "tab.children": "Children",
   "tab.routines": "Routines",
@@ -708,10 +708,11 @@
   "templates.refresh_confirm": "The template's copy is overwritten with the routine as it is now, and changes made to the copy by hand are lost. Continue?",
   "templates.copy_runs": "{when} the copy in the template “{name}” runs; changes to this routine do not show there (Refresh copy).",
   "roles.title": "Users and access",
-  "roles.admin": "Admin (always an editor)",
+  "roles.admin": "Home Assistant admin (always an administrator)",
   "roles.editor": "Editor",
   "roles.viewer": "View only",
   "roles.none": "No other users.",
-  "settings.view_only": "You can only look: an admin can make you an editor under Settings → General.",
-  "help.roles": "Home Assistant admins can change everything. Other users can be editors or view only; anyone not set is view only.\n\nEditors: children, routines, rewards, templates, the calendar and one-day changes, tokens and corrections, approvals, and tasks and rewards on the dashboard cards.\n\nAdmins only: the Settings page (knobs, screen, themes, background, icons, language, Assist, users), notifications, virtual knobs, data export and import."
+  "settings.view_only": "You can only look: an administrator can make you an editor under Settings → General.",
+  "help.roles": "There are three roles. Anyone not set is view only.\n\nAdministrator: can change everything in Little Helper, including the Settings page (knobs, screen, themes, background, icons, language, Assist, users), notifications, virtual knobs, data export and import. Home Assistant admins are always administrators. This role gives no rights in Home Assistant's own settings (users, integrations).\n\nEditor: children, routines, rewards, templates, the calendar and one-day changes, tokens and corrections, approvals, and tasks and rewards on the dashboard cards.\n\nView only: sees everything but cannot change anything.",
+  "roles.administrator": "Administrator"
 }

@@ -36,7 +36,7 @@ from .panel import FRONTEND_DIR, panel_language_names
 from .themes import load_themes, theme_assets
 from .themes import theme as theme_of
 from .store import DEFAULT_SETTINGS
-from .access import require_editor, user_role
+from .access import require_editor, require_ks_admin, user_role
 
 
 
@@ -194,7 +194,7 @@ async def ws_settings(
         vol.Optional("theme"): str,
         vol.Optional("cards_themed"): bool,
         vol.Optional("screen"): SCREEN_SCHEMA,
-        vol.Optional("user_roles"): {str: vol.In(["editor", "viewer"])},
+        vol.Optional("user_roles"): {str: vol.In(["admin", "editor", "viewer"])},
         vol.Optional("assist_speakers"): [
             {
                 vol.Optional("device_id"): vol.Any(None, str),
@@ -204,7 +204,7 @@ async def ws_settings(
         ],
     }
 )
-@websocket_api.require_admin
+@require_ks_admin
 @websocket_api.async_response
 async def ws_settings_update(
     hass: HomeAssistant,
@@ -244,9 +244,12 @@ async def ws_settings_update(
         if key in msg
     }
     if "user_roles" in msg:
-        # Only editors are kept: anyone not listed can only look.
+        # Only administrators and editors are kept: anyone not listed can
+        # only look.
         changes["user_roles"] = {
-            user_id: role for user_id, role in msg["user_roles"].items() if role == "editor"
+            user_id: role
+            for user_id, role in msg["user_roles"].items()
+            if role in ("admin", "editor")
         }
     if "screen" in msg:
         changes["screen"] = data.manager.settings.get("screen", {}) | msg["screen"]
@@ -450,7 +453,7 @@ def _knob_options(hass: HomeAssistant, device_id: str) -> dict[str, Any]:
         },
     }
 )
-@websocket_api.require_admin
+@require_ks_admin
 @websocket_api.async_response
 async def ws_device_screen(
     hass: HomeAssistant,
@@ -477,7 +480,7 @@ async def ws_device_screen(
         },
     }
 )
-@websocket_api.require_admin
+@require_ks_admin
 @websocket_api.async_response
 async def ws_device_inputs(
     hass: HomeAssistant,
@@ -513,7 +516,7 @@ async def ws_device_inputs(
         vol.Optional("background"): vol.Any(None, vol.Match(BACKGROUND_VALUE)),
     }
 )
-@websocket_api.require_admin
+@require_ks_admin
 @websocket_api.async_response
 async def ws_device_options(
     hass: HomeAssistant,
@@ -544,7 +547,7 @@ async def ws_device_options(
         vol.Required("device_id"): str,
     }
 )
-@websocket_api.require_admin
+@require_ks_admin
 @websocket_api.async_response
 async def ws_rotate_device_token(
     hass: HomeAssistant,
@@ -576,7 +579,7 @@ def _restart_button(hass: HomeAssistant, device_id: str) -> str | None:
         vol.Required("device_id"): str,
     }
 )
-@websocket_api.require_admin
+@require_ks_admin
 @websocket_api.async_response
 async def ws_restart_device(
     hass: HomeAssistant,
@@ -604,7 +607,7 @@ async def ws_restart_device(
         vol.Required("name"): vol.All(str, vol.Length(max=100)),
     }
 )
-@websocket_api.require_admin
+@require_ks_admin
 @callback
 def ws_rename_device(
     hass: HomeAssistant,
@@ -1099,7 +1102,7 @@ async def ws_notifications(
     """Read the notification rules, or replace them (admins only)."""
     manager = _manager(hass)
     if "rules" in msg:
-        if not connection.user or not connection.user.is_admin:
+        if user_role(hass, connection.user) != "admin":
             connection.send_error(msg["id"], "unauthorized", "Admins only")
             return
         await manager.async_save_notifications(msg["rules"], who=_who(connection))
@@ -1110,7 +1113,7 @@ async def ws_notifications(
 
 
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/export"})
-@websocket_api.require_admin
+@require_ks_admin
 @callback
 def ws_export(
     hass: HomeAssistant,
@@ -1125,7 +1128,7 @@ def ws_export(
 @websocket_api.websocket_command(
     {vol.Required("type"): f"{DOMAIN}/import", vol.Required("document"): dict}
 )
-@websocket_api.require_admin
+@require_ks_admin
 @websocket_api.async_response
 async def ws_import(
     hass: HomeAssistant,
@@ -1361,7 +1364,7 @@ async def ws_day_extra(
 
 
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/users"})
-@websocket_api.require_admin
+@require_ks_admin
 @websocket_api.async_response
 async def ws_users(
     hass: HomeAssistant,
@@ -1374,6 +1377,7 @@ async def ws_users(
         {
             "id": user.id,
             "name": user.name or "",
+            # A Home Assistant admin is always an administrator here.
             "is_admin": user.is_admin,
             "role": "admin" if user.is_admin else roles.get(user.id, "viewer"),
         }
@@ -1448,7 +1452,7 @@ async def ws_notify_targets(
 @websocket_api.websocket_command(
     {vol.Required("type"): f"{DOMAIN}/notify_test", vol.Required("rule"): dict}
 )
-@websocket_api.require_admin
+@require_ks_admin
 @websocket_api.async_response
 async def ws_notify_test(
     hass: HomeAssistant,
@@ -1518,7 +1522,7 @@ def ws_virtual_list(
         vol.Required("name"): vol.All(str, vol.Length(min=1, max=100)),
     }
 )
-@websocket_api.require_admin
+@require_ks_admin
 @websocket_api.async_response
 async def ws_virtual_save(
     hass: HomeAssistant,
@@ -1541,7 +1545,7 @@ async def ws_virtual_save(
         vol.Required("device_id"): str,
     }
 )
-@websocket_api.require_admin
+@require_ks_admin
 @websocket_api.async_response
 async def ws_virtual_delete(
     hass: HomeAssistant,
@@ -1742,7 +1746,7 @@ IMAGE_ID_SCHEMA = vol.All(str, vol.Match(r"^[a-z0-9_]{1,64}$"))
         vol.Optional("name", default=""): vol.All(str, vol.Length(max=100)),
     }
 )
-@websocket_api.require_admin
+@require_ks_admin
 @websocket_api.async_response
 async def ws_icons_add(
     hass: HomeAssistant,
@@ -1764,7 +1768,7 @@ async def ws_icons_add(
         vol.Required("image_id"): IMAGE_ID_SCHEMA,
     }
 )
-@websocket_api.require_admin
+@require_ks_admin
 @websocket_api.async_response
 async def ws_icons_replace(
     hass: HomeAssistant,
@@ -1786,7 +1790,7 @@ async def ws_icons_replace(
         vol.Required("active"): bool,
     }
 )
-@websocket_api.require_admin
+@require_ks_admin
 @websocket_api.async_response
 async def ws_icons_active(
     hass: HomeAssistant,
@@ -1817,7 +1821,7 @@ def ws_icons_usage(
 @websocket_api.websocket_command(
     {vol.Required("type"): f"{DOMAIN}/icons/delete", vol.Required("key"): str}
 )
-@websocket_api.require_admin
+@require_ks_admin
 @websocket_api.async_response
 async def ws_icons_delete(
     hass: HomeAssistant,

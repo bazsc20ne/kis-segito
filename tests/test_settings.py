@@ -293,3 +293,33 @@ async def test_editor_role(
     assert (await admin.receive_json())["success"]
     await user.send_json_auto_id(reward)
     assert not (await user.receive_json())["success"]
+
+
+async def test_administrator_role(
+    hass: HomeAssistant, hass_ws_client, hass_read_only_user, hass_read_only_access_token
+) -> None:
+    """A non-admin user set as administrator may do everything in Little
+    Helper, settings and the users' roles too."""
+    entry = MockConfigEntry(domain=DOMAIN, unique_id="dev", data={CONF_DEVICE_ID: "dev"})
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    admin = await hass_ws_client(hass)
+    user = await hass_ws_client(hass, hass_read_only_access_token)
+    await user.send_json_auto_id({"type": f"{DOMAIN}/settings/update", "streak_target": 9})
+    assert not (await user.receive_json())["success"]
+    await admin.send_json_auto_id({"type": f"{DOMAIN}/settings/update", "user_roles": {hass_read_only_user.id: "admin"}})
+    assert (await admin.receive_json())["success"]
+    await user.send_json_auto_id({"type": f"{DOMAIN}/data"})
+    assert (await user.receive_json())["result"]["role"] == "admin"
+    await user.send_json_auto_id({"type": f"{DOMAIN}/settings/update", "streak_target": 9})
+    assert (await user.receive_json())["success"]
+    await user.send_json_auto_id({"type": f"{DOMAIN}/users"})
+    assert (await user.receive_json())["success"]
+    await user.send_json_auto_id({"type": f"{DOMAIN}/notifications", "rules": []})
+    assert (await user.receive_json())["success"]
+    # Taking the role back.
+    await admin.send_json_auto_id({"type": f"{DOMAIN}/settings/update", "user_roles": {}})
+    assert (await admin.receive_json())["success"]
+    await user.send_json_auto_id({"type": f"{DOMAIN}/settings/update", "streak_target": 8})
+    assert not (await user.receive_json())["success"]
